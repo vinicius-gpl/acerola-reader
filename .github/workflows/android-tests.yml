@@ -43,6 +43,9 @@ jobs:
       - name: Install cargo-ndk
         run: cargo install cargo-ndk
 
+      - name: Install cargo-make
+        run: cargo install cargo-make --locked
+
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
         working-directory: acerola/android

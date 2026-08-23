@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - 'v*(desktop)'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Versão a liberar (ex: 0.1.6-alpha) — cria a tag v<versão>(desktop) e publica a release de verdade"
+        required: true
+        type: string
 
 jobs:
   release:
@@ -43,13 +49,19 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Extract versions from tag
+      - name: Extract versions
         shell: bash
         run: |
-          VERSION_FULL=$(echo "${GITHUB_REF_NAME#v}" | sed 's/(desktop)$//')
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION_FULL="${{ inputs.version }}"
+          else
+            VERSION_FULL=$(echo "${GITHUB_REF_NAME#v}" | sed 's/(desktop)$//')
+          fi
           VERSION_MSI=${VERSION_FULL%%-*}
+          TAG_NAME="v${VERSION_FULL}(desktop)"
           echo "VERSION_FULL=$VERSION_FULL" >> $GITHUB_ENV
           echo "VERSION_MSI=$VERSION_MSI" >> $GITHUB_ENV
+          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
 
       - name: Update tauri.conf.json (versão MSI sem sufixo)
         shell: bash
@@ -109,7 +121,8 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
         with:
-          name: Acerola Desktop ${{ env.VERSION_FULL }}
+          tag_name: ${{ env.TAG_NAME }}
+          name: Acerola Desktop ${{ env.TAG_NAME }}
           draft: false
           prerelease: ${{ contains(env.VERSION_FULL, '-') }}
           files: |
