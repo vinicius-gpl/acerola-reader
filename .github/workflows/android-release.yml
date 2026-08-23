@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - 'v*(android)'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Versão a liberar (ex: 0.2.4-beta) — cria a tag v<versão>(android) e publica a release de verdade"
+        required: true
+        type: string
 
 jobs:
   release:
@@ -18,14 +24,20 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Extract version from tag
+      - name: Extract version
         run: |
-          VERSION_FULL=$(echo "${{ github.ref_name }}" | sed 's/^v//; s/(android)$//')
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION_FULL="${{ inputs.version }}"
+          else
+            VERSION_FULL=$(echo "${{ github.ref_name }}" | sed 's/^v//; s/(android)$//')
+          fi
           VERSION=$(echo "$VERSION_FULL" | sed 's/-/ /g')
           VERSION_CODE=$(git tag -l 'v*(android)' | wc -l | tr -d ' ')
+          TAG_NAME="v${VERSION_FULL}(android)"
           echo "VERSION_FULL=$VERSION_FULL" >> $GITHUB_ENV
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
+          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
 
       - name: Update build.gradle.kts
         run: |
@@ -47,6 +59,9 @@ jobs:
 
       - name: Install cargo-ndk
         run: cargo install cargo-ndk
+
+      - name: Install cargo-make
+        run: cargo install cargo-make --locked
 
       - name: Decode keystore
         run: |
@@ -84,7 +99,8 @@ jobs:
       - name: Upload APK to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ env.TAG_NAME }}
           files: acerola/android/app/build/outputs/apk/release/acerola.apk
-          name: "Acerola Android ${{ github.ref_name }}"
+          name: "Acerola Android ${{ env.TAG_NAME }}"
           generate_release_notes: true
           prerelease: ${{ contains(env.VERSION_FULL, '-') }}

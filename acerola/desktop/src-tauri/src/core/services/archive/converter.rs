@@ -94,8 +94,12 @@ impl ConverterService {
 
                 image_buffer.clear();
 
-                let rgb_data: Vec<u8> =
-                    rgba_data.chunks_exact(4).flat_map(|px| [px[0], px[1], px[2]]).collect();
+                let rgb_data: Vec<u8> = rgba_data
+                    .as_chunks::<4>()
+                    .0
+                    .iter()
+                    .flat_map(|px| [px[0], px[1], px[2]])
+                    .collect();
 
                 let encoder = JpegEncoder::new_with_quality(Cursor::new(&mut image_buffer), 90);
 
