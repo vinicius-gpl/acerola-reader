@@ -7,6 +7,7 @@ import br.acerola.comic.MainDispatcherRule
 import br.acerola.comic.adapter.contract.gateway.ComicGateway
 import br.acerola.comic.dto.metadata.comic.ComicMetadataDto
 import br.acerola.comic.usecase.comic.ObserveLibraryUseCase
+import br.acerola.comic.usecase.metadata.ClearMetadataUseCase
 import br.acerola.comic.usecase.metadata.ManageCategoriesUseCase
 import io.mockk.coVerify
 import io.mockk.every
@@ -27,6 +28,7 @@ class ComicMetadataViewModelTest {
     private val comicRepo = mockk<ComicGateway<ComicMetadataDto>>(relaxed = true)
     private val workManager = mockk<WorkManager>(relaxed = true)
     private val manageCategoriesUseCase = mockk<ManageCategoriesUseCase>(relaxed = true)
+    private val clearMetadataUseCase = mockk<ClearMetadataUseCase>(relaxed = true)
 
     private lateinit var observeLibraryUseCase: ObserveLibraryUseCase<ComicMetadataDto>
     private lateinit var viewModel: ComicMetadataViewModel
@@ -38,7 +40,13 @@ class ComicMetadataViewModelTest {
         every { comicRepo.progress } returns MutableStateFlow(-1)
 
         observeLibraryUseCase = ObserveLibraryUseCase(comicRepository = comicRepo)
-        viewModel = ComicMetadataViewModel(workManager, manageCategoriesUseCase, observeLibraryUseCase)
+        viewModel =
+            ComicMetadataViewModel(
+                workManager,
+                manageCategoriesUseCase,
+                clearMetadataUseCase,
+                observeLibraryUseCase,
+            )
     }
 
     @Test

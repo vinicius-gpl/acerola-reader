@@ -64,6 +64,11 @@ export function useNetworkSync() {
 	let nextId = 0;
 	const unlisten: UnlistenFn[] = [];
 
+	// `loadPersistedLog` pode seguir rodando depois que `stopListening` já rodou (unmount no
+	// meio do await) — sem essa flag, a continuação tenta gravar em $state de uma instância já
+	// descartada (`useNetworkSync()` é sempre uma instância nova por mount).
+	let disposed = false;
+
 	// Chaves `peerId:kind` com uma sessão de sync em andamento — usado só pra desabilitar
 	// os botões daquele peer/protocolo e evitar disparar uma segunda sessão concorrente
 	// pro mesmo par (peer, ALPN) (ver histórico de erro "stream closed before history
@@ -180,8 +185,10 @@ export function useNetworkSync() {
 	async function loadPersistedLog() {
 		try {
 			const rows = await invoke<PersistedSyncLogEntry[]>(NETWORK_COMMANDS.getSyncHistoryLog);
+			if (disposed) return;
 			log = rows.map(fromPersisted);
 		} catch (err) {
+			if (disposed) return;
 			error(`failed to load persisted sync history log: ${err}`);
 		}
 	}
@@ -236,6 +243,7 @@ export function useNetworkSync() {
 	}
 
 	function stopListening() {
+		disposed = true;
 		unlisten.forEach((fn) => fn());
 		unlisten.length = 0;
 		inFlightTimeouts.forEach((timeout) => clearTimeout(timeout));

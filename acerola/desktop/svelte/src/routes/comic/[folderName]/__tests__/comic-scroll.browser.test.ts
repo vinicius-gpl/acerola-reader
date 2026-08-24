@@ -3,6 +3,7 @@ import { expect, it, describe, vi, beforeEach, afterEach } from 'vitest';
 import ComicPage from '../+page.svelte';
 import { LIBRARY_EVENTS } from '$lib/contracts/library/chapter.events';
 import { LIBRARY_COMMANDS } from '$lib/contracts/library/chapter.commands';
+import { NETWORK_COMMANDS } from '$lib/contracts/network/network.commands';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 
@@ -144,7 +145,19 @@ describe('ComicPage Scroll Integration', () => {
 			}
 		);
 
-		(invoke as any).mockImplementation(async () => ({}));
+		// `+page.svelte` dispara `usePeerConnection()`/`useNetworkSync()` no onMount (fora do
+		// escopo deste describe, mas ainda assim rodam) — get_paired_peers/get_sync_history_log
+		// tem contrato de array, então precisam de um default diferente do `{}` genérico, senão
+		// os `for...of`/`.map` desses hooks quebram tentando iterar um objeto vazio.
+		(invoke as any).mockImplementation(async (command: string) => {
+			if (
+				command === NETWORK_COMMANDS.getPairedPeers ||
+				command === NETWORK_COMMANDS.getSyncHistoryLog
+			) {
+				return [];
+			}
+			return {};
+		});
 	});
 
 	afterEach(() => {

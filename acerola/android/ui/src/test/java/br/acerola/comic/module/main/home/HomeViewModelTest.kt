@@ -22,6 +22,7 @@ import br.acerola.comic.usecase.comic.DeleteComicUseCase
 import br.acerola.comic.usecase.comic.HideComicUseCase
 import br.acerola.comic.usecase.comic.ObserveLibraryUseCase
 import br.acerola.comic.usecase.history.ObserveHistoryUseCase
+import br.acerola.comic.usecase.metadata.ClearMetadataUseCase
 import br.acerola.comic.usecase.metadata.ManageCategoriesUseCase
 import br.acerola.comic.usecase.network.P2pUseCase
 import br.acerola.comic.usecase.network.SyncComicWithPeerUseCase
@@ -53,6 +54,7 @@ class HomeViewModelTest {
     private val manageCategoriesUseCase = mockk<ManageCategoriesUseCase>(relaxed = true)
     private val hideComicUseCase = mockk<HideComicUseCase>(relaxed = true)
     private val deleteComicUseCase = mockk<DeleteComicUseCase>(relaxed = true)
+    private val clearMetadataUseCase = mockk<ClearMetadataUseCase>(relaxed = true)
     private val getChapterCountUseCase = mockk<GetChapterCountUseCase>(relaxed = true)
     private val p2pUseCase = mockk<P2pUseCase>(relaxed = true)
     private val syncComicWithPeerUseCase = mockk<SyncComicWithPeerUseCase>(relaxed = true)
@@ -119,6 +121,7 @@ class HomeViewModelTest {
             manageCategoriesUseCase = manageCategoriesUseCase,
             hideComicUseCase = hideComicUseCase,
             deleteComicUseCase = deleteComicUseCase,
+            clearMetadataUseCase = clearMetadataUseCase,
             getChapterCountUseCase = getChapterCountUseCase,
             p2pUseCase = p2pUseCase,
             syncComicWithPeerUseCase = syncComicWithPeerUseCase,
