@@ -28,7 +28,7 @@ COPY . .
 # O uso do lld (via .cargo/config.toml) será ativado pelo clang/lld instalados
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/acerola/target \
-    cargo build --release --bin relay --features server && \
+    cargo build --release -p iroh-relay --bin relay --features server && \
     cp target/release/relay /acerola/relay_bin
 
 ### Target image (Runtime)
