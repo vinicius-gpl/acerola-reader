@@ -148,21 +148,31 @@ mod tests {
         mem_store_with_gc_interval(Duration::from_secs(30)).await
     }
 
+    // Bug conhecido e ja documentado do iroh-blobs 0.103.0: `FsStore::load_with_opts`
+    // (src/store/fs.rs) trava. O metodo cria seu PROPRIO runtime tokio multi-thread por dentro
+    // (`tokio::runtime::Builder::new_multi_thread()...build()`) e spawna `Actor::new(...)` nele
+    // via `handle.spawn(...).await` -- esse spawn nunca chega a rodar (confirmado: a pasta do
+    // teste fica vazia, nem o arquivo do redb chega a ser criado). Reproduz de forma consistente
+    // aqui, local, com ou sem instrumentacao de cobertura.
+    //
+    // Isso ja bateu em produção antes desse teste existir -- ver a mitigacao identica em
+    // `acerola/desktop/src-tauri/src/bios/network.rs` e `acerola/android/native/rust/src/api.rs`
+    // (ambos usam `IrohBlobsConfig::mem()` em vez de `Fs` por causa exatamente desse hang; store
+    // em disco nao persiste blobs entre reinicios do app enquanto isso nao for corrigido
+    // upstream). Ignorado ate o iroh-blobs corrigir ou a gente isolar/reportar o bug --
+    // rode com `cargo test -- --ignored` pra checar se ja foi corrigido numa versao nova.
+    #[ignore = "iroh-blobs 0.103.0: FsStore::load_with_opts trava (bug upstream, ja mitigado em produção com IrohBlobsConfig::mem())"]
     #[tokio::test(flavor = "multi_thread")]
     async fn fs_store_load_does_not_hang() {
         let dir = std::env::temp_dir().join(format!("acerola-p2p-fs-store-test-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let config = IrohBlobsConfig::fs(&dir);
-        // 60s (nao 15s): sob paralelismo pesado de `cargo test` (~175 testes no mesmo processo)
-        // em runners de CI com poucos vCPUs, FsStore::load_with_opts (unico teste aqui que toca
-        // disco de verdade) pode ficar represado por I/O sem que seja um hang de verdade -- ainda
-        // pega um hang genuino, so absorve contencao de CI.
         let result = tokio::time::timeout(
-            Duration::from_secs(60),
+            Duration::from_secs(15),
             IrohBlobStore::new(&config, unbound_endpoint().await),
         )
         .await;
-        assert!(result.is_ok(), "IrohBlobStore::new with Fs config timed out after 60s");
+        assert!(result.is_ok(), "IrohBlobStore::new with Fs config timed out after 15s");
         let store = result.unwrap().unwrap();
 
         let hash = store.put(b"hello fs store".to_vec()).await.unwrap();
