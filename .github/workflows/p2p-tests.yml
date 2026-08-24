@@ -80,6 +80,7 @@ jobs:
       - name: Generate Code Coverage
         run: cargo llvm-cov --all-features --lcov --output-path lcov.info
 
+
       - name: Check Minimum Coverage Gate (80%)
         run: cargo llvm-cov report --fail-under-lines 80
 
