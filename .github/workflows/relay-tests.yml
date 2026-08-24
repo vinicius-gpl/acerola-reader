@@ -1,4 +1,4 @@
-name: "[relay] Tests"
+name: "Relay/Tests"
 
 on:
   push:

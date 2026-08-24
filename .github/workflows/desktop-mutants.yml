@@ -1,4 +1,4 @@
-name: "[desktop] Mutation Tests"
+name: "Desktop/Mutation Tests"
 
 on:
   schedule:

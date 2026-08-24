@@ -1,4 +1,4 @@
-name: "[desktop] Tests"
+name: "Desktop/Tests"
 
 on:
   push:

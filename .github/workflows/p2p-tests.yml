@@ -1,4 +1,4 @@
-name: "[p2p] Tests"
+name: "P2P/Tests"
 
 on:
   push:
