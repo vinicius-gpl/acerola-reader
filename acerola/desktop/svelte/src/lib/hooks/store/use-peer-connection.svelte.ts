@@ -44,13 +44,21 @@ export function usePeerConnection() {
 	let unlistenDeviceInfoReceived: UnlistenFn | undefined;
 	let unlistenDeviceInfoExchanged: UnlistenFn | undefined;
 
+	// `startListening`/`loadPairedPeers`/etc são async e podem seguir rodando depois que
+	// `stopListening` já rodou (unmount no meio de um await) — sem essa flag, a continuação
+	// tenta gravar em $state de uma instância já descartada (`usePeerConnection()` é sempre
+	// uma instância nova por mount, então não precisa resetar em `startListening`).
+	let disposed = false;
+
 	async function loadLocalInfo() {
-		[localId, localAddr, localDeviceInfo, relayInfo] = await Promise.all([
+		const result = await Promise.all([
 			invoke<string>(NETWORK_COMMANDS.getLocalId),
 			invoke<LocalPeerAddr>(NETWORK_COMMANDS.getLocalAddr),
 			invoke<DeviceInfoPayload>(NETWORK_COMMANDS.getLocalDeviceInfo),
 			invoke<RelayInfo>(NETWORK_COMMANDS.getRelayInfo)
 		]);
+		if (disposed) return;
+		[localId, localAddr, localDeviceInfo, relayInfo] = result;
 	}
 
 	async function refreshStatus() {
@@ -61,7 +69,9 @@ export function usePeerConnection() {
 	/// alimenta `knownAddrs` com os endereços de cada um — sem isso, os botões de sync ficam
 	/// desabilitados pra qualquer peer que não esteja conectado neste exato instante.
 	async function loadPairedPeers() {
-		pairedPeers = await invoke<PairedPeerPayload[]>(NETWORK_COMMANDS.getPairedPeers);
+		const result = await invoke<PairedPeerPayload[]>(NETWORK_COMMANDS.getPairedPeers);
+		if (disposed) return;
+		pairedPeers = result;
 		for (const peer of pairedPeers) {
 			knownAddrs.set(peer.peerId, peer.addrs);
 		}
@@ -90,6 +100,7 @@ export function usePeerConnection() {
 	}
 
 	function stopListening() {
+		disposed = true;
 		unlistenStatus?.();
 		unlistenStatus = undefined;
 		unlistenDeviceInfoReceived?.();
