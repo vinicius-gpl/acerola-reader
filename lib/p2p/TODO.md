@@ -126,7 +126,24 @@ A tarefa aqui não é "adicionar `iroh-blobs`" direto — é dar a ele o mesmo t
 - [x] **Teste de round-trip real** (`src/tests/blob_transfer.rs::run_in_isolation::real_two_node_blob_round_trip_via_fetch`) — dois nós de verdade, `put` em A, `fetch`+`get` em B, comparação BLAKE3.
 - [x] **Testes de estresse**: puts/gets concorrentes de 50 blobs (`concurrent_puts_and_gets_of_multiple_blobs`) e blob de 16 MiB medindo throughput (`large_blob_throughput_and_integrity`), ambos em `run_in_isolation`.
 - [x] **Testes de caminho triste** (não previstos no rascunho original, adicionados após revisão): `fetch` de hash inexistente num peer online, e `fetch` contra peer genuinamente inalcançável (falha em ~30s — timeout padrão de handshake QUIC do iroh, sem timeout menor configurado) seguido de recuperação contra um peer real.
-- [ ] **Mutation testing com `cargo-mutants`**: os `exclude_re` triviais já foram adicionados em `.cargo/mutants.toml` (conversões de hash, getter trivial, null-object da feature desligada), mas **rodar `cargo-mutants` de fato contra `core/blobs/` ainda não foi feito** — passo manual/CI separado, fica pendente.
+- [x] **Mutation testing com `cargo-mutants`**: rodado de fato via `[p2p] Tests` (`workflow_dispatch`, job `Cargo Mutants`) — 298 mutantes testados em 53min: 116 pegos, 128 inviáveis, 3 timeout, **51 perdidos** (nenhum teste detecta a mudança). Os 51 gaps ficam como item novo abaixo, pra fechar aos poucos — CI não bloqueia merge por causa deles (job só roda semanal/manual).
+
+### 6. Fechar os 51 gaps de mutation testing encontrados
+
+> Cada `MISSED` é um lugar onde a suíte atual não distingue o comportamento real de uma versão quebrada — precisa de teste novo, um por um. Agrupado por arquivo. Reprodução: `cargo mutants --package acerola-p2p --output mutants-out` (demora ~1h).
+
+- [ ] **`core/blobs/iroh/mod.rs`** — `IrohBlobStore::put/get/has/remove/fetch` (linhas 58, 65, 66, 73, 77, 81) e `parse_endpoint_addr` (linha 29): nenhum teste falha se essas operações virarem no-op/`Ok(Default::default())`. Provavelmente os testes existentes (`put`→`get`) usam sempre o "caminho feliz" com asserções fracas — precisa de assert mais específico por operação, não só round-trip.
+- [ ] **`core/blobs/iroh/config.rs`** — `IrohBlobsConfig::mem`/`fs`/`build_store` (linhas 37, 42, 47) e `gc_config` (linha 65): nada verifica que a config resultante realmente é `Mem` vs `Fs`, nem que o `GcConfig` reflete o `gc_interval` passado.
+- [ ] **`core/blobs/iroh/gc.rs`** — `untag`/`tags_for_hash` (linhas 16, 23, 28): nenhum teste verifica o conteúdo real das tags retornadas nem a lógica de comparação em `tags_for_hash`.
+- [ ] **`core/transport/iroh/blobs_bridge.rs`** — `wants_alpn`/`configure`/`as_capability`/`try_accept` nas variantes `enabled`/`disabled` (linhas 33, 43, 50, 57, 58, 86, 96): a ponte entre feature ligada/desligada não tem teste que force os dois branches a se comportarem diferente de verdade.
+- [ ] **`core/transport/iroh/transport.rs`** — `open_bi` (guards de `close_reason`/`retried`, linhas 179, 198), `latency` (linha 220), `blobs()` (linha 242), `is_connected` (linha 250): lógica de retry/estado de conexão sem teste que force os dois lados de cada condição.
+- [ ] **`core/transport/iroh/builder.rs`** — `IrohTransportBuilder::blobs` (linha 39): nenhum teste confirma que configurar blobs no builder realmente muda o resultado.
+- [ ] **`api/acerola_p2p.rs`** — `connected_peers`/`blobs` (linhas 81, 118): getters sem teste que force retorno não-vazio/`Some`.
+- [ ] **`api/acerola_builder.rs`** — `FailingIdentityLoadStorage::save_identity` (linha 520, é código de teste auxiliar): mutante sobrevive dentro do próprio helper de teste, revisar se o helper é usado do jeito que deveria.
+- [ ] **`infra/error/iroh_blobs.rs`** — todos os `From<...> for ConnectionError` (linhas 8, 15, 24, 33, 43): nenhum teste verifica que a conversão de erro preserva informação (viraria `Default::default()` sem quebrar nada).
+- [ ] **`src/tests/mock_transport.rs`** — `MockTransportHandle::expect_open` (linha 91, código de teste): mutante sobrevive no próprio mock — revisar se o mock realmente valida o que os testes que o usam esperam validar.
+
+3 timeouts (`drive_incoming_connections`, `drive_incoming_streams`, `disabled::BlobsIntegration::try_accept`) não entram nessa lista — são esperados pra loops que dirigem conexão assíncrona, não indicam gap de teste real.
 
 ## Notas de implementação (desvios do rascunho original)
 
