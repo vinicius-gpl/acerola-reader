@@ -12,7 +12,8 @@ pub mod tests;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     std::panic::set_hook(Box::new(|panic_info| {
-        let panic_message = format!("Panic occurred: {:?}", panic_info);
+        let panic_message = format!("Panic occurred: {}", panic_info);
+        eprintln!("{panic_message}");
         let _ = std::fs::write("PANIC_LOG.txt", panic_message);
     }));
 

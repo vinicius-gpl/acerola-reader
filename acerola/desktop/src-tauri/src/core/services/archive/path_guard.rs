@@ -55,8 +55,26 @@ mod tests {
 
     use tempfile::tempdir;
 
-    use super::PathGuard;
+    use super::{path_hash, PathGuard};
     use crate::infra::error::PathError;
+
+    #[test]
+    fn test_path_hash_is_always_non_negative() {
+        for i in 0..64 {
+            let path = std::path::PathBuf::from(format!("/library/comic-{i}/chapter-{i}.cbz"));
+            assert!(path_hash(&path) >= 0);
+        }
+    }
+
+    #[test]
+    fn test_path_hash_is_deterministic_and_distinguishes_paths() {
+        let path = std::path::Path::new("/library/berserk/chapter-01.cbz");
+        assert_eq!(path_hash(path), path_hash(path));
+        assert_ne!(
+            path_hash(path),
+            path_hash(std::path::Path::new("/library/berserk/chapter-02.cbz"))
+        );
+    }
 
     #[test]
     fn test_valid_path_inside_root() {

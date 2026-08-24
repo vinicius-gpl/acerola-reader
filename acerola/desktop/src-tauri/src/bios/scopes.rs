@@ -39,25 +39,10 @@ pub fn read_relay_url_override(app_data_directory: &std::path::Path) -> Option<S
 
 /// Registra as permissões de acesso ao sistema de arquivos no Tauri usando Early Returns (Guard Clauses)
 /// para manter a complexidade ciclomática mínima e o código linear.
-pub async fn setup_scopes_from_store(app_handle: &tauri::AppHandle) {
-    let app_data_directory = match app_handle.path().app_data_dir() {
-        Ok(dir) => dir,
-        Err(resolution_error) => {
-            tracing::error!("[Bios::Scopes] Failed to resolve app_data_dir: {}", resolution_error);
-            return;
-        },
-    };
-
-    let settings_file_path = app_data_directory.join("settings.json");
-    let file_content = match std::fs::read_to_string(&settings_file_path) {
-        Ok(content) => content,
-        Err(_) => {
-            tracing::warn!("[Bios::Scopes] settings.json not found at {:?}", settings_file_path);
-            return;
-        },
-    };
-
-    let library_path = match extract_library_path(&file_content) {
+pub async fn setup_scopes_from_store<R: tauri::Runtime>(
+    app_handle: &tauri::AppHandle<R>, app_data_directory: &std::path::Path,
+) {
+    let library_path = match read_library_path(app_data_directory) {
         Some(path) => path,
         None => {
             tracing::warn!("[Bios::Scopes] Key 'library_path' missing or invalid in settings.json");
@@ -65,17 +50,127 @@ pub async fn setup_scopes_from_store(app_handle: &tauri::AppHandle) {
         },
     };
 
+    apply_library_scope(app_handle, &library_path);
+}
+
+fn apply_library_scope<R: tauri::Runtime>(
+    app_handle: &tauri::AppHandle<R>, library_path: &std::path::Path,
+) {
     tracing::info!("[Bios::Scopes] Registering filesystem scope for {:?}", library_path);
 
-    if let Err(scope_error) = app_handle.fs_scope().allow_directory(&library_path, true) {
+    if let Err(scope_error) = app_handle.fs_scope().allow_directory(library_path, true) {
         tracing::error!("[Bios::Scopes] Failed to allow directory in fs_scope: {}", scope_error);
     }
 
-    if let Err(scope_error) = app_handle.asset_protocol_scope().allow_directory(&library_path, true)
+    if let Err(scope_error) = app_handle.asset_protocol_scope().allow_directory(library_path, true)
     {
         tracing::error!(
             "[Bios::Scopes] Failed to allow directory in asset_protocol_scope: {}",
             scope_error
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use tauri::Manager;
+    use tauri_plugin_fs::FsExt;
+
+    use super::{
+        apply_library_scope, extract_library_path, read_library_path, read_relay_url_override,
+    };
+
+    #[test]
+    fn test_extract_library_path_returns_the_configured_path() {
+        let content = r#"{"library_path":"/home/user/comics"}"#;
+        assert_eq!(
+            extract_library_path(content),
+            Some(std::path::PathBuf::from("/home/user/comics"))
+        );
+    }
+
+    #[test]
+    fn test_extract_library_path_missing_key_returns_none() {
+        assert_eq!(extract_library_path(r#"{"other_key":"value"}"#), None);
+    }
+
+    #[test]
+    fn test_read_library_path_returns_the_configured_path() {
+        let app_data_directory = tempfile::tempdir().unwrap();
+        std::fs::write(
+            app_data_directory.path().join("settings.json"),
+            r#"{"library_path":"/library/comics"}"#,
+        )
+        .unwrap();
+
+        assert_eq!(
+            read_library_path(app_data_directory.path()),
+            Some(std::path::PathBuf::from("/library/comics"))
+        );
+    }
+
+    #[test]
+    fn test_read_relay_url_override_returns_the_configured_value() {
+        let app_data_directory = tempfile::tempdir().unwrap();
+        std::fs::write(
+            app_data_directory.path().join("settings.json"),
+            r#"{"relay_url":"https://relay.example.com"}"#,
+        )
+        .unwrap();
+
+        assert_eq!(
+            read_relay_url_override(app_data_directory.path()),
+            Some("https://relay.example.com".to_string())
+        );
+    }
+
+    #[test]
+    fn test_read_relay_url_override_empty_value_returns_none() {
+        let app_data_directory = tempfile::tempdir().unwrap();
+        std::fs::write(app_data_directory.path().join("settings.json"), r#"{"relay_url":"  "}"#)
+            .unwrap();
+
+        assert_eq!(read_relay_url_override(app_data_directory.path()), None);
+    }
+
+    fn build_mock_app() -> tauri::App<tauri::test::MockRuntime> {
+        tauri::test::mock_builder()
+            .plugin(tauri_plugin_fs::init())
+            .build(tauri::test::mock_context(tauri::test::noop_assets()))
+            .unwrap()
+    }
+
+    #[test]
+    fn test_apply_library_scope_allows_the_directory() {
+        let app = build_mock_app();
+        let app_handle = app.handle();
+        let library_directory = tempfile::tempdir().unwrap();
+
+        apply_library_scope(app_handle, library_directory.path());
+
+        assert!(app_handle.fs_scope().is_allowed(library_directory.path()));
+        assert!(app_handle.asset_protocol_scope().is_allowed(library_directory.path()));
+    }
+
+    #[test]
+    fn test_setup_scopes_from_store_registers_scope_from_settings() {
+        let app = build_mock_app();
+        let app_handle = app.handle();
+
+        let app_data_directory = tempfile::tempdir().unwrap();
+        let library_directory = tempfile::tempdir().unwrap();
+        std::fs::write(
+            app_data_directory.path().join("settings.json"),
+            format!(r#"{{"library_path":{:?}}}"#, library_directory.path()),
+        )
+        .unwrap();
+
+        tauri::async_runtime::block_on(super::setup_scopes_from_store(
+            app_handle,
+            app_data_directory.path(),
+        ));
+
+        assert!(app_handle.fs_scope().is_allowed(library_directory.path()));
+        assert!(app_handle.asset_protocol_scope().is_allowed(library_directory.path()));
     }
 }

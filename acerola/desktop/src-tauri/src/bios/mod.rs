@@ -126,7 +126,7 @@ fn setup_sql(app_builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::W
 
 fn setup_runtime(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let app_handle: tauri::AppHandle = app.handle().clone();
-    let (database_path, log_directory) = resolve_paths(app);
+    let (app_data_directory, database_path, log_directory) = resolve_paths(app);
 
     tracing::info!("[Bios] App data directory: {:?}", app_handle.path().app_data_dir().ok());
     tracing::info!("[Bios] Database path: {:?}", database_path);
@@ -155,7 +155,7 @@ fn setup_runtime(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>>
             tracing::error!("[Bios] Database initialization error: {:?}", db_error);
             db_error
         })?;
-        scopes::setup_scopes_from_store(&app_handle).await;
+        scopes::setup_scopes_from_store(&app_handle, &app_data_directory).await;
         Ok::<(), ComicError>(())
     })?;
 
@@ -171,10 +171,10 @@ fn setup_runtime(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>>
     Ok(())
 }
 
-fn resolve_paths(app: &tauri::App) -> (PathBuf, PathBuf) {
+fn resolve_paths(app: &tauri::App) -> (PathBuf, PathBuf, PathBuf) {
     let base_directory = app.path().app_data_dir().expect("Failed to get app_data_dir");
     let logs_directory = base_directory.join("logs");
 
     std::fs::create_dir_all(&logs_directory).ok();
-    (base_directory.join("acerola.db"), logs_directory)
+    (base_directory.clone(), base_directory.join("acerola.db"), logs_directory)
 }
