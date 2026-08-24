@@ -121,7 +121,10 @@ impl ScannerGuard {
 mod tests {
     use std::path::Path;
 
-    use super::{ArtworkFileGuard, FileGuard, MetadataFileGuard, ScannerGuard, SupportedFileGuard};
+    use super::{
+        is_named_artwork, ArchiveFileGuard, ArtworkFileGuard, FileGuard, MetadataFileGuard,
+        ScannerGuard, SupportedFileGuard,
+    };
     use crate::infra::error::FileError;
 
     #[test]
@@ -156,6 +159,48 @@ mod tests {
         let guard = MetadataFileGuard;
         let result = guard.is_allowed(Path::new("info.xml"));
         assert!(matches!(result, Err(FileError::FileNameNotAllowed(name)) if name == "info.xml"));
+    }
+
+    #[test]
+    fn test_archive_valid_extension() {
+        let guard = ArchiveFileGuard;
+        assert!(guard.is_allowed(Path::new("berserk.cbz")).is_ok());
+        assert!(guard.is_allowed(Path::new("berserk.cbr")).is_ok());
+    }
+
+    #[test]
+    fn test_archive_rejects_pdf() {
+        let guard = ArchiveFileGuard;
+        let result = guard.is_allowed(Path::new("berserk.pdf"));
+        assert!(matches!(result, Err(FileError::ExtensionNotAllowed(ext)) if ext == "pdf"));
+    }
+
+    #[test]
+    fn test_archive_rejects_unknown_extension() {
+        let guard = ArchiveFileGuard;
+        let result = guard.is_allowed(Path::new("berserk.exe"));
+        assert!(matches!(result, Err(FileError::ExtensionNotAllowed(ext)) if ext == "exe"));
+    }
+
+    #[test]
+    fn test_artwork_is_banner() {
+        let guard = ArtworkFileGuard;
+        assert!(guard.is_banner(Path::new("banner.png")));
+        assert!(!guard.is_banner(Path::new("cover.png")));
+    }
+
+    #[test]
+    fn test_artwork_is_cover() {
+        let guard = ArtworkFileGuard;
+        assert!(guard.is_cover(Path::new("cover.png")));
+        assert!(!guard.is_cover(Path::new("banner.png")));
+    }
+
+    #[test]
+    fn test_is_named_artwork_requires_matching_stem() {
+        assert!(is_named_artwork(Path::new("banner.png"), "banner"));
+        assert!(!is_named_artwork(Path::new("banner.png"), "cover"));
+        assert!(!is_named_artwork(Path::new("banner.txt"), "banner"));
     }
 
     #[test]
