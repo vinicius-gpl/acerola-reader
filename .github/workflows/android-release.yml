@@ -1,13 +1,13 @@
-name: "[android] Release"
+name: "Android/Release"
 
 on:
   push:
     tags:
-      - 'v*(android)'
+      - 'android/v*'
   workflow_dispatch:
     inputs:
       version:
-        description: "Versão a liberar (ex: 0.2.4-beta) — cria a tag v<versão>(android) e publica a release de verdade"
+        description: "Versão a liberar (ex: 0.2.4-beta) — cria a tag android/v<versão> e publica a release de verdade"
         required: true
         type: string
 
@@ -29,11 +29,11 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             VERSION_FULL="${{ inputs.version }}"
           else
-            VERSION_FULL=$(echo "${{ github.ref_name }}" | sed 's/^v//; s/(android)$//')
+            VERSION_FULL=$(echo "${{ github.ref_name }}" | sed 's|^android/v||')
           fi
           VERSION=$(echo "$VERSION_FULL" | sed 's/-/ /g')
-          VERSION_CODE=$(git tag -l 'v*(android)' | wc -l | tr -d ' ')
-          TAG_NAME="v${VERSION_FULL}(android)"
+          VERSION_CODE=$(git tag -l 'android/v*' | wc -l | tr -d ' ')
+          TAG_NAME="android/v${VERSION_FULL}"
           echo "VERSION_FULL=$VERSION_FULL" >> $GITHUB_ENV
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
@@ -101,6 +101,6 @@ jobs:
         with:
           tag_name: ${{ env.TAG_NAME }}
           files: acerola/android/app/build/outputs/apk/release/acerola.apk
-          name: "Acerola Android ${{ env.TAG_NAME }}"
+          name: "Acerola Android v${{ env.VERSION_FULL }}"
           generate_release_notes: true
           prerelease: ${{ contains(env.VERSION_FULL, '-') }}

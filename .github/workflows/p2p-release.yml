@@ -1,9 +1,9 @@
-name: "[p2p] Release"
+name: "P2P/Release"
 
 on:
   push:
     tags:
-      - 'v*(p2p)'
+      - 'p2p/v*'
   workflow_dispatch:
 
 jobs:
