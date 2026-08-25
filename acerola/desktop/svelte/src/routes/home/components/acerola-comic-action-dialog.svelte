@@ -21,30 +21,28 @@
 	import type { Category } from '$lib/contracts/bookmarks/bookmarks.payloads';
 
 	export type ComicActionDialogProps = {
-		open?: boolean;
-		selectedIds: (string | number)[];
-		totalCount?: number;
-		bookmarks: Category[];
-		onHide: (ids: (string | number)[]) => Promise<void>;
-		onDelete: (ids: (string | number)[]) => Promise<void>;
-		onClearMetadata: (ids: (string | number)[]) => Promise<void>;
-		onBookmark: (ids: (string | number)[], categoryId: number) => Promise<void>;
-		onSelectAll?: () => void;
-		onClose: () => void;
+		state?: { open?: boolean };
+		data: {
+			selectedIds: (string | number)[];
+			totalCount?: number;
+			bookmarks: Category[];
+		};
+		events: {
+			onHide: (ids: (string | number)[]) => Promise<void>;
+			onDelete: (ids: (string | number)[]) => Promise<void>;
+			onClearMetadata: (ids: (string | number)[]) => Promise<void>;
+			onBookmark: (ids: (string | number)[], categoryId: number) => Promise<void>;
+			onSelectAll?: () => void;
+			onClose: () => void;
+		};
 	};
 
-	let {
-		open = false,
-		selectedIds,
-		totalCount = 0,
-		bookmarks,
-		onHide,
-		onDelete,
-		onClearMetadata,
-		onBookmark,
-		onSelectAll,
-		onClose
-	}: ComicActionDialogProps = $props();
+	let { state: controlState, data, events }: ComicActionDialogProps = $props();
+
+	const open = $derived(controlState?.open ?? false);
+	const selectedIds = $derived(data.selectedIds);
+	const totalCount = $derived(data.totalCount ?? 0);
+	const bookmarks = $derived(data.bookmarks);
 
 	let showHideDialog = $state(false);
 	let showDeleteDialog = $state(false);
@@ -68,9 +66,9 @@
 		isProcessing = true;
 		activeAction = 'hide';
 		try {
-			await onHide(selectedIds);
+			await events.onHide(selectedIds);
 			showHideDialog = false;
-			onClose();
+			events.onClose();
 		} catch (err: unknown) {
 			const msg = typeof err === 'object' && err !== null ? JSON.stringify(err) : String(err);
 			error(`Failed to hide comics: ${msg}`);
@@ -86,9 +84,9 @@
 		isProcessing = true;
 		activeAction = 'delete';
 		try {
-			await onDelete(selectedIds);
+			await events.onDelete(selectedIds);
 			showDeleteDialog = false;
-			onClose();
+			events.onClose();
 		} catch (err: unknown) {
 			const msg = typeof err === 'object' && err !== null ? JSON.stringify(err) : String(err);
 			error(`Failed to delete comics: ${msg}`);
@@ -104,9 +102,9 @@
 		isProcessing = true;
 		activeAction = 'clearMetadata';
 		try {
-			await onClearMetadata(selectedIds);
+			await events.onClearMetadata(selectedIds);
 			showClearMetadataDialog = false;
-			onClose();
+			events.onClose();
 		} catch (err: unknown) {
 			const msg = typeof err === 'object' && err !== null ? JSON.stringify(err) : String(err);
 			error(`Failed to clear comics metadata: ${msg}`);
@@ -123,9 +121,9 @@
 		activeAction = 'bookmark';
 		activeCategoryId = categoryId;
 		try {
-			await onBookmark(selectedIds, categoryId);
+			await events.onBookmark(selectedIds, categoryId);
 			showBookmarkMenu = false;
-			onClose();
+			events.onClose();
 		} catch (err: unknown) {
 			const msg = typeof err === 'object' && err !== null ? JSON.stringify(err) : String(err);
 			error(`Failed to bookmark comics: ${msg}`);
@@ -158,7 +156,7 @@
 	}}
 	events={{
 		onOpenChange: (isOpen) => {
-			if (!isOpen) onClose();
+			if (!isOpen) events.onClose();
 		}
 	}}
 	ui={{
@@ -168,9 +166,9 @@
 >
 	<div class="flex w-full min-w-0 flex-col gap-4 py-1">
 		<!-- Selection Hero Header & Select All Option -->
-		{#if onSelectAll && totalCount > 0}
+		{#if events.onSelectAll && totalCount > 0}
 			<div
-				class="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-3.5 transition-all duration-300 hover:border-primary/40"
+				class="relative overflow-hidden rounded-2xl border border-primary/20 bg-linear-to-br from-primary/10 via-primary/5 to-transparent p-3.5 transition-all duration-300 hover:border-primary/40"
 			>
 				<div class="flex min-w-0 items-center justify-between gap-3">
 					<div class="flex min-w-0 flex-1 items-center gap-3">
@@ -198,7 +196,7 @@
 								'h-9 px-3.5 rounded-xl font-medium text-xs transition-all duration-200 shadow-sm active:scale-95 shrink-0',
 							disabled: isProcessing
 						}}
-						events={{ onClick: onSelectAll }}
+						events={{ onClick: events.onSelectAll }}
 					>
 						{#if isAllSelected}
 							<CheckSquare size={16} class="mr-1.5 shrink-0" />

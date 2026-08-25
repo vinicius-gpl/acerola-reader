@@ -72,16 +72,16 @@ impl ChapterRepository {
     }
 
     pub async fn count_root_chapters(&self, comic_directory_fk: i64) -> Result<i64, DbError> {
-        let result = sqlx::query("SELECT COUNT(*) FROM chapter_archive WHERE comic_directory_fk = ? AND volume_id_fk IS NULL")
+        let result = sqlx::query("SELECT COUNT(*) FROM chapter_archive WHERE comic_directory_fk = ? AND volume_fk IS NULL")
             .bind(comic_directory_fk)
             .fetch_one(&self.pool)
             .await?;
         Ok(result.get(0))
     }
 
-    pub async fn get_total_count_by_volume(&self, volume_id_fk: i64) -> Result<i64, DbError> {
-        let result = sqlx::query("SELECT COUNT(*) FROM chapter_archive WHERE volume_id_fk = ?")
-            .bind(volume_id_fk)
+    pub async fn get_total_count_by_volume(&self, volume_fk: i64) -> Result<i64, DbError> {
+        let result = sqlx::query("SELECT COUNT(*) FROM chapter_archive WHERE volume_fk = ?")
+            .bind(volume_fk)
             .fetch_one(&self.pool)
             .await?;
         Ok(result.get(0))
@@ -101,7 +101,7 @@ impl ChapterRepository {
     ) -> Result<Vec<ChapterArchiveWithVolume>, DbError> {
         let order = Self::order_clause(criteria);
         let sql = format!(
-            "SELECT ca.*, va.name AS volume_name, va.volume_sort, va.is_special AS volume_is_special FROM chapter_archive ca LEFT JOIN volume_archive va ON ca.volume_id_fk = va.id WHERE ca.comic_directory_fk = ? {} LIMIT ? OFFSET ?",
+            "SELECT ca.*, va.name AS volume_name, va.volume_sort, va.is_special AS volume_is_special FROM chapter_archive ca LEFT JOIN volume_archive va ON ca.volume_fk = va.id WHERE ca.comic_directory_fk = ? {} LIMIT ? OFFSET ?",
             order
         );
 
@@ -121,7 +121,7 @@ impl ChapterRepository {
         let search_pattern = format!("%{}%", search_query);
         let order = Self::order_clause(criteria);
         let sql = format!(
-            "SELECT ca.*, va.name AS volume_name, va.volume_sort, va.is_special AS volume_is_special FROM chapter_archive ca LEFT JOIN volume_archive va ON ca.volume_id_fk = va.id WHERE ca.comic_directory_fk = ? AND ca.chapter LIKE ? {} LIMIT ? OFFSET ?",
+            "SELECT ca.*, va.name AS volume_name, va.volume_sort, va.is_special AS volume_is_special FROM chapter_archive ca LEFT JOIN volume_archive va ON ca.volume_fk = va.id WHERE ca.comic_directory_fk = ? AND ca.chapter LIKE ? {} LIMIT ? OFFSET ?",
             order
         );
 
@@ -164,7 +164,7 @@ impl ChapterRepository {
     /// (`last_modified` diferente) ou só precisa de backfill de checksum.
     pub async fn find_by_id(&self, id: i64) -> Result<Option<ChapterArchive>, DbError> {
         let result = sqlx::query_as::<_, ChapterArchive>(
-            "SELECT id, chapter, path, chapter_sort, is_special, checksum, comic_directory_fk, volume_id_fk, last_modified
+            "SELECT id, chapter, path, chapter_sort, is_special, checksum, comic_directory_fk, volume_fk, last_modified
              FROM chapter_archive WHERE id = ?",
         )
         .bind(id)
@@ -182,7 +182,7 @@ impl ChapterRepository {
         &self, comic_directory_fk: i64, chapter: &str,
     ) -> Result<Option<ChapterArchive>, DbError> {
         let result = sqlx::query_as::<_, ChapterArchive>(
-            "SELECT id, chapter, path, chapter_sort, is_special, checksum, comic_directory_fk, volume_id_fk, last_modified
+            "SELECT id, chapter, path, chapter_sort, is_special, checksum, comic_directory_fk, volume_fk, last_modified
              FROM chapter_archive WHERE comic_directory_fk = ? AND chapter = ?",
         )
         .bind(comic_directory_fk)
@@ -203,7 +203,7 @@ impl ChapterRepository {
         &self, comic_directory_fk: i64, chapter_sort: &str,
     ) -> Result<Option<ChapterArchive>, DbError> {
         let result = sqlx::query_as::<_, ChapterArchive>(
-            "SELECT id, chapter, path, chapter_sort, is_special, checksum, comic_directory_fk, volume_id_fk, last_modified
+            "SELECT id, chapter, path, chapter_sort, is_special, checksum, comic_directory_fk, volume_fk, last_modified
              FROM chapter_archive WHERE comic_directory_fk = ? AND chapter_sort = ?",
         )
         .bind(comic_directory_fk)
@@ -248,18 +248,18 @@ impl ChapterRepository {
     }
 
     pub async fn get_chapters_by_volume(
-        &self, comic_directory_fk: i64, volume_id_fk: i64, page_size: i64, offset: i64,
+        &self, comic_directory_fk: i64, volume_fk: i64, page_size: i64, offset: i64,
         criteria: ChapterSortCriteria,
     ) -> Result<Vec<ChapterArchiveWithVolume>, DbError> {
         let order = Self::order_clause(criteria);
         let sql = format!(
-            "SELECT ca.*, va.name AS volume_name, va.volume_sort, va.is_special AS volume_is_special FROM chapter_archive ca LEFT JOIN volume_archive va ON ca.volume_id_fk = va.id WHERE ca.comic_directory_fk = ? AND ca.volume_id_fk = ? {} LIMIT ? OFFSET ?",
+            "SELECT ca.*, va.name AS volume_name, va.volume_sort, va.is_special AS volume_is_special FROM chapter_archive ca LEFT JOIN volume_archive va ON ca.volume_fk = va.id WHERE ca.comic_directory_fk = ? AND ca.volume_fk = ? {} LIMIT ? OFFSET ?",
             order
         );
 
         sqlx::query_as::<_, ChapterArchiveWithVolume>(&sql)
             .bind(comic_directory_fk)
-            .bind(volume_id_fk)
+            .bind(volume_fk)
             .bind(page_size)
             .bind(offset)
             .fetch_all(&self.pool)
@@ -285,7 +285,7 @@ mod tests {
             is_special: false,
             checksum: None,
             comic_directory_fk: 1,
-            volume_id_fk: None,
+            volume_fk: None,
             last_modified: 123456789,
         }
     }
@@ -311,7 +311,7 @@ mod tests {
         repo.base.insert(&chapter(1, "1")).await.unwrap();
         repo.base.insert(&chapter(2, "2")).await.unwrap();
         repo.base
-            .insert(&ChapterArchive { id: 3, volume_id_fk: Some(1), ..chapter(3, "3") })
+            .insert(&ChapterArchive { id: 3, volume_fk: Some(1), ..chapter(3, "3") })
             .await
             .unwrap();
 

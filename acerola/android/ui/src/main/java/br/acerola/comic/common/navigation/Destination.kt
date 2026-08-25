@@ -65,4 +65,10 @@ enum class Destination(
         route = R.string.navigation_sync_activity,
         contentDescriptionRes = R.string.description_sync_activity,
     ),
+    REMOTE_LIBRARY(
+        icon = Icons.Default.Sync,
+        label = R.string.label_remote_library_activity,
+        route = R.string.navigation_remote_library_activity,
+        contentDescriptionRes = R.string.description_remote_library_activity,
+    ),
 }

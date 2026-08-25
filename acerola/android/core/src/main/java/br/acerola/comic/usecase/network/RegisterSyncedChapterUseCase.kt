@@ -51,7 +51,7 @@ class RegisterSyncedChapterUseCase
                     isSpecial = existingChapter?.isSpecial ?: false,
                     checksum = checksum,
                     folderPathFk = comic.id,
-                    volumeIdFk = existingChapter?.volumeIdFk,
+                    volumeFk = existingChapter?.volumeFk,
                     lastModified = System.currentTimeMillis(),
                 )
 

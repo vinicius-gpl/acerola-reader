@@ -90,7 +90,7 @@ impl ChapterScannerService {
             is_special: is_special_name(&chapter_name),
             checksum,
             comic_directory_fk: comic_id,
-            volume_id_fk: volume_id,
+            volume_fk: volume_id,
             last_modified: file_modified,
         };
 

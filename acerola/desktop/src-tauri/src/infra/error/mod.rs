@@ -4,6 +4,7 @@ use thiserror::Error;
 
 pub mod comic;
 pub mod db;
+pub mod p2p;
 pub mod reader;
 pub mod rpc;
 

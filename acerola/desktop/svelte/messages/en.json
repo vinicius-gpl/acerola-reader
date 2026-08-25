@@ -199,6 +199,7 @@
 				}
 			},
 			"filter_button": "Filter & Sort",
+			"browse_remote_button": "Browse another device",
 			"no_results_filtered": "No comics found for the selected filter.",
 			"filter_panel": {
 				"aria_label": "Filter & Sort",
@@ -474,6 +475,13 @@
 			"chapter_label": "Chapter {chapter}",
 			"page_label": "Page {page}",
 			"older": "Older",
+			"sync": {
+				"button": "Sync",
+				"title": "Sync history",
+				"empty": "No paired devices. Pair a device in Network to sync your history.",
+				"success": "History synced with {peer}.",
+				"error": "Failed to sync history: {msg}"
+			},
 			"clear": {
 				"button": "Clear History",
 				"title": "Are you absolutely sure?",
@@ -652,6 +660,9 @@
 				"error": "Couldn't connect. Make sure the code is correct and the other device has Acerola open.",
 				"invalid_code": "Invalid code. Make sure you copied the full code from the other device."
 			},
+			"peer_picker": {
+				"title": "Choose a device"
+			},
 			"peers": {
 				"title": "Paired devices",
 				"empty": "No devices paired yet. Share your code or paste one above to pair.",
@@ -663,7 +674,14 @@
 				"online": "Online now",
 				"offline_hint": "This device isn't reachable right now — reconnect it to sync.",
 				"more_actions": "More sync actions for this device.",
-				"browse_library": "Browse remote library"
+				"browse_library": "Browse remote library",
+				"remove": "Remove device",
+				"remove_confirm": {
+					"title": "Remove \"{peer}\"?",
+					"desc": "This device loses access to your library. If it tries to connect again later, it'll go through the same confirmation as a never-paired device.",
+					"cancel": "Cancel",
+					"confirm": "Remove"
+				}
 			},
 			"transfers": {
 				"title": "Transfers",

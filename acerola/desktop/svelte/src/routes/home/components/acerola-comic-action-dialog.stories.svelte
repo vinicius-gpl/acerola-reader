@@ -15,111 +15,91 @@
 	});
 </script>
 
-<Story
-	name="Default"
-	args={{
-		selectedIds: [1, 2, 3],
-		bookmarks: mockBookmarks
-	}}
->
+<Story name="Default">
 	{#snippet children()}
 		<div class="min-h-[400px] bg-surface p-8">
 			<AcerolaComicActionDialog
-				selectedIds={[1, 2, 3]}
-				bookmarks={mockBookmarks}
-				onHide={async () => {}}
-				onDelete={async () => {}}
-				onClearMetadata={async () => {}}
-				onBookmark={async () => {}}
-				onClose={() => {}}
+				state={{ open: true }}
+				data={{ selectedIds: [1, 2, 3], bookmarks: mockBookmarks }}
+				events={{
+					onHide: async () => {},
+					onDelete: async () => {},
+					onClearMetadata: async () => {},
+					onBookmark: async () => {},
+					onClose: () => {}
+				}}
 			/>
 		</div>
 	{/snippet}
 </Story>
 
-<Story
-	name="Single Selection"
-	args={{
-		selectedIds: [1],
-		bookmarks: mockBookmarks
-	}}
->
+<Story name="Single Selection">
 	{#snippet children()}
 		<div class="min-h-[400px] bg-surface p-8">
 			<AcerolaComicActionDialog
-				selectedIds={[1]}
-				bookmarks={mockBookmarks}
-				onHide={async () => {}}
-				onDelete={async () => {}}
-				onClearMetadata={async () => {}}
-				onBookmark={async () => {}}
-				onClose={() => {}}
+				state={{ open: true }}
+				data={{ selectedIds: [1], bookmarks: mockBookmarks }}
+				events={{
+					onHide: async () => {},
+					onDelete: async () => {},
+					onClearMetadata: async () => {},
+					onBookmark: async () => {},
+					onClose: () => {}
+				}}
 			/>
 		</div>
 	{/snippet}
 </Story>
 
-<Story
-	name="Many Selected"
-	args={{
-		selectedIds: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-		bookmarks: mockBookmarks
-	}}
->
+<Story name="Many Selected">
 	{#snippet children()}
 		<div class="min-h-[400px] bg-surface p-8">
 			<AcerolaComicActionDialog
-				selectedIds={[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]}
-				bookmarks={mockBookmarks}
-				onHide={async () => {}}
-				onDelete={async () => {}}
-				onClearMetadata={async () => {}}
-				onBookmark={async () => {}}
-				onClose={() => {}}
+				state={{ open: true }}
+				data={{ selectedIds: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], bookmarks: mockBookmarks }}
+				events={{
+					onHide: async () => {},
+					onDelete: async () => {},
+					onClearMetadata: async () => {},
+					onBookmark: async () => {},
+					onClose: () => {}
+				}}
 			/>
 		</div>
 	{/snippet}
 </Story>
 
-<Story
-	name="Empty"
-	args={{
-		selectedIds: [],
-		bookmarks: mockBookmarks
-	}}
->
+<Story name="Empty">
 	{#snippet children()}
 		<div class="min-h-[400px] bg-surface p-8">
 			<AcerolaComicActionDialog
-				selectedIds={[]}
-				bookmarks={mockBookmarks}
-				onHide={async () => {}}
-				onDelete={async () => {}}
-				onClearMetadata={async () => {}}
-				onBookmark={async () => {}}
-				onClose={() => {}}
+				state={{ open: true }}
+				data={{ selectedIds: [], bookmarks: mockBookmarks }}
+				events={{
+					onHide: async () => {},
+					onDelete: async () => {},
+					onClearMetadata: async () => {},
+					onBookmark: async () => {},
+					onClose: () => {}
+				}}
 			/>
 		</div>
 	{/snippet}
 </Story>
 
-<Story
-	name="No Bookmarks"
-	args={{
-		selectedIds: [1, 2],
-		bookmarks: []
-	}}
->
+<Story name="No Bookmarks">
 	{#snippet children()}
 		<div class="min-h-[400px] bg-surface p-8">
 			<AcerolaComicActionDialog
-				selectedIds={[1, 2]}
-				bookmarks={[]}
-				onHide={async () => {}}
-				onDelete={async () => {}}
-				onClearMetadata={async () => {}}
-				onBookmark={async () => {}}
-				onClose={() => {}}
+				state={{ open: true }}
+				data={{ selectedIds: [1, 2], bookmarks: [] }}
+				events={{
+					onHide: async () => {},
+					onDelete: async () => {},
+					onClearMetadata: async () => {},
+					onBookmark: async () => {},
+					onClose: () => {}
+				}}
 			/>
 		</div>
 	{/snippet}

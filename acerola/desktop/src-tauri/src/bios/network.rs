@@ -19,7 +19,7 @@ use crate::{
         network::{NetworkService, NetworkServiceApi},
         sync::{file_sync::FileSyncService, history_sync::HistorySyncService},
     },
-    data::repositories::sync::sync_history_log_repo::SyncHistoryLogRepository,
+    data::repositories::sync::SyncHistoryLogRepository,
     infra::{
         error::ComicError,
         security::{
@@ -302,7 +302,7 @@ pub async fn setup_network(app_handle: &tauri::AppHandle) -> Result<(), ComicErr
     blob_context.set_node(&p2p_node);
 
     let network_service: Arc<dyn NetworkServiceApi> =
-        Arc::new(NetworkService::new(p2p_node, secure_p2p_storage));
+        Arc::new(NetworkService::new(p2p_node, secure_p2p_storage, trusted_store));
     app_handle.manage(network_service);
 
     tracing::info!("[Bios::Network] P2P network service initialized successfully");

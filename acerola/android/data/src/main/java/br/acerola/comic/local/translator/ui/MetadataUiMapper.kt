@@ -41,14 +41,14 @@ fun MetadataRelations.toViewDto(): ComicMetadataDto =
 
 fun ComicSummaryView.toViewDto(): ComicSummaryDto =
     ComicSummaryDto(
-        directoryId = directoryId,
+        directoryId = directoryFk,
         folderName = folderName,
         folderCover = folderCover,
         folderBanner = folderBanner,
         externalSync = externalSync,
         metadataTitle = metadataTitle,
         activeSource = MetadataSource.from(activeSource),
-        metadataId = metadataId,
+        metadataId = metadataFk,
     )
 
 fun MangadexSource.toViewDto(): MangadexSourceDto =

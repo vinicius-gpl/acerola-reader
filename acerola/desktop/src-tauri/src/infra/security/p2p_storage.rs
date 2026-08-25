@@ -130,6 +130,24 @@ impl P2PStorage for SecureP2pStorage {
     }
 }
 
+impl SecureP2pStorage {
+    /// Remove um peer da lista de pareados — usado por "desparear". Idempotente: id
+    /// desconhecido não é erro, só não reescreve o arquivo à toa. Não faz parte de
+    /// `P2PStorage` (trait compartilhada com o lado Android) de propósito — a lib nunca
+    /// precisa remover um peer sozinha, só a UI de "desparear" chama isso.
+    pub async fn remove_peer(&self, id: &str) -> std::io::Result<()> {
+        let mut peers = self.peers_cache.write().await;
+        let before = peers.len();
+        peers.retain(|peer| peer.id.id != id);
+        if peers.len() == before {
+            return Ok(());
+        }
+
+        let json = serde_json::to_vec(&*peers).expect("Vec<PeerAddr> serialization cannot fail");
+        std::fs::write(Self::peers_path(&self.base_dir), encrypt(&self.master_key, &json))
+    }
+}
+
 /// Delega pra um `Arc<SecureP2pStorage>` — deixa o mesmo storage passado ao builder
 /// (`AcerolaP2p::builder().storage(...)`, que exige posse por valor) também acessível fora
 /// dele. Sem isso, `paired_peers()` (`NetworkServiceApi`) não teria como ler os peers
@@ -253,6 +271,40 @@ mod tests {
         let peers = storage.load_peers().await.unwrap();
         assert_eq!(peers.len(), 1, "duplicata pré-existente deveria ser colapsada na leitura");
         assert_eq!(peers[0].addrs, vec![4, 5, 6], "mantém a última entrada, mesma regra do upsert");
+    }
+
+    #[tokio::test]
+    async fn remove_peer_persists_and_survives_reopen() {
+        let dir = tempfile::tempdir().unwrap();
+        let key = [12u8; 32];
+
+        {
+            let storage = SecureP2pStorage::open(dir.path(), key).unwrap();
+            storage.save_peer(&peer("peer-a")).await.unwrap();
+            storage.save_peer(&peer("peer-b")).await.unwrap();
+
+            storage.remove_peer("peer-a").await.unwrap();
+
+            let peers = storage.load_peers().await.unwrap();
+            assert_eq!(peers.len(), 1);
+            assert_eq!(peers[0].id.id, "peer-b");
+        }
+
+        let reopened = SecureP2pStorage::open(dir.path(), key).unwrap();
+        let peers = reopened.load_peers().await.unwrap();
+        assert_eq!(peers.len(), 1);
+        assert_eq!(peers[0].id.id, "peer-b");
+    }
+
+    #[tokio::test]
+    async fn remove_peer_of_unknown_id_is_a_no_op() {
+        let dir = tempfile::tempdir().unwrap();
+        let storage = SecureP2pStorage::open(dir.path(), [13u8; 32]).unwrap();
+        storage.save_peer(&peer("peer-a")).await.unwrap();
+
+        storage.remove_peer("never-paired-peer").await.unwrap();
+
+        assert_eq!(storage.load_peers().await.unwrap().len(), 1);
     }
 
     #[tokio::test]

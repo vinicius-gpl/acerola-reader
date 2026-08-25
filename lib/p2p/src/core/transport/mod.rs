@@ -85,6 +85,27 @@ pub trait P2pTransport: Send + Sync {
         false
     }
 
+    /// Notifica o transporte de uma possível mudança de rede do SO (troca de Wi-Fi/dados
+    /// móveis, saída de Doze, etc).
+    ///
+    /// Na maioria dos sistemas o transporte detecta isso sozinho; Android não expõe essa
+    /// informação para código nativo (só para Java/Kotlin via `ConnectivityManager`), então o
+    /// app precisa repassar o evento manualmente através deste método. Adapters que não
+    /// precisam disso (ou não têm noção de rede física, como o mock de testes) herdam o no-op
+    /// padrão.
+    async fn network_change(&self) {}
+
+    /// Remove do pool de conexões reaproveitáveis a conexão física cacheada para `(peer, alpn)`,
+    /// se houver.
+    ///
+    /// Chamado quando um handler de protocolo falha (ex: timeout esperando resposta) — sinal de
+    /// que a conexão reaproveitada pode estar silenciosamente morta (o `close_reason()` só
+    /// reflete isso depois que o idle timeout do QUIC expira, o que pode levar mais tempo que o
+    /// timeout da aplicação). Sem isso, a próxima tentativa reaproveitaria a mesma conexão
+    /// quebrada e falharia do mesmo jeito. Adapters sem pool de conexões (ex: mock de testes)
+    /// herdam o no-op padrão.
+    async fn invalidate(&self, _peer: &PeerId, _alpn: &[u8]) {}
+
     /// Retorna o store de blobs deste transporte, se o adapter suportar essa capacidade.
     ///
     /// A maioria dos adapters não suporta blobs e herda o `None` padrão — apenas adapters que

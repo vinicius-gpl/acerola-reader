@@ -61,7 +61,6 @@ pub struct ChapterPageDto {
 #[serde(rename_all = "camelCase")]
 pub struct ChapterDto {
     pub archive: ChapterPageDto,
-    // TODO: Adicionar metadados aqui quando tiver
     pub show_volume_headers: bool,
     pub has_volume_structure: bool,
     pub effective_view_mode: VolumeViewType,

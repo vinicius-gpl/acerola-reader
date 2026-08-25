@@ -7,32 +7,32 @@ use crate::data::repositories::Entity;
 impl Entity for ComicSummaryView {
     fn columns() -> &'static [&'static str] {
         &[
-            "directory_id",
+            "directory_fk",
             "folder_name",
             "folder_cover",
             "folder_banner",
             "external_sync",
             "metadata_title",
             "active_source",
-            "metadata_id",
+            "metadata_fk",
         ]
     }
     fn table_name() -> &'static str {
         "comic_summary_view"
     }
     fn id(&self) -> i64 {
-        self.directory_id
+        self.directory_fk
     }
 }
 
 #[derive(Debug, Serialize, FromRow)]
 pub struct ComicSummaryView {
-    pub directory_id: i64,
+    pub directory_fk: i64,
     pub folder_name: String,
     pub folder_cover: Option<String>,
     pub folder_banner: Option<String>,
     pub external_sync: bool,
     pub metadata_title: Option<String>,
     pub active_source: Option<String>,
-    pub metadata_id: Option<i64>,
+    pub metadata_fk: Option<i64>,
 }

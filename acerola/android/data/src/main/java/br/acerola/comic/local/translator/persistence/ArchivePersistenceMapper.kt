@@ -27,7 +27,7 @@ fun ChapterFileDto.toEntity(folderId: Long): ChapterArchive =
         path = path,
         chapterSort = chapterSort,
         folderPathFk = folderId,
-        volumeIdFk = volumeId,
+        volumeFk = volumeId,
         isSpecial = isSpecial,
     )
 
@@ -51,7 +51,7 @@ fun FastFileMetadata.toChapterArchiveEntity(
     comicId: Long,
     chapterSort: String,
     fileUri: String,
-    volumeIdFk: Long? = null,
+    volumeFk: Long? = null,
     isSpecial: Boolean = false,
 ): ChapterArchive =
     ChapterArchive(
@@ -60,7 +60,7 @@ fun FastFileMetadata.toChapterArchiveEntity(
         checksum = null,
         chapterSort = chapterSort,
         folderPathFk = comicId,
-        volumeIdFk = volumeIdFk,
+        volumeFk = volumeFk,
         isSpecial = isSpecial,
         lastModified = lastModified,
     )
@@ -103,7 +103,7 @@ fun DocumentFile.toChapterArchiveEntity(
     comicId: Long,
     chapterSort: String,
     checksum: String?,
-    volumeIdFk: Long? = null,
+    volumeFk: Long? = null,
     isSpecial: Boolean = false,
 ): ChapterArchive =
     ChapterArchive(
@@ -112,7 +112,7 @@ fun DocumentFile.toChapterArchiveEntity(
         checksum = checksum,
         chapterSort = chapterSort,
         folderPathFk = comicId,
-        volumeIdFk = volumeIdFk,
+        volumeFk = volumeFk,
         isSpecial = isSpecial,
         lastModified = lastModified(),
     )

@@ -11,6 +11,7 @@ import br.acerola.comic.dto.archive.ComicDirectoryDto
 
 
 import android.content.Intent
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -20,6 +21,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -27,28 +31,40 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import br.acerola.comic.common.state.LocalSnackbarHostState
+import br.acerola.comic.common.state.SyncActionVisualState
+import br.acerola.comic.common.ux.Acerola
 import br.acerola.comic.common.ux.component.SnackbarVariant
+import br.acerola.comic.common.ux.component.SyncActionIcon
 import br.acerola.comic.common.ux.component.showSnackbar
 import br.acerola.comic.module.comic.ComicActivity
 import br.acerola.comic.module.main.Main
 import br.acerola.comic.module.main.common.component.ComicListItem
+import br.acerola.comic.module.main.common.component.PeerPickerSheet
 import br.acerola.comic.module.main.history.component.HistoryHeroCard
 import br.acerola.comic.module.main.history.state.HistoryAction
 import br.acerola.comic.module.main.history.state.HistoryUiState
 import br.acerola.comic.module.reader.ReaderActivity
 import br.acerola.comic.ui.R
+import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun Main.History.Template.Screen(viewModel: HistoryViewModel = hiltViewModel()) {
     val context = LocalContext.current
     val historyItems by viewModel.historyItems.collectAsState()
+    val pairedPeers by viewModel.pairedPeers.collectAsState()
+    val isSyncingWithPeer by viewModel.isSyncingWithPeer.collectAsState()
     val snackbarHostState = LocalSnackbarHostState.current
 
     LaunchedEffect(Unit) {
@@ -57,7 +73,34 @@ fun Main.History.Template.Screen(viewModel: HistoryViewModel = hiltViewModel()) 
         }
     }
 
-    val uiState = HistoryUiState(items = historyItems)
+    // Mesma máquina de "flash de sucesso" do `ComicScreen` pro sync com peer — um único botão
+    // (não um por peer), então não dá pra reaproveitar o rastreio genérico por instância usado
+    // pros outros syncs desta tela.
+    var syncWithPeerSuccess by remember { mutableStateOf(false) }
+    var wasSyncingWithPeer by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isSyncingWithPeer) {
+        if (isSyncingWithPeer) {
+            wasSyncingWithPeer = true
+            return@LaunchedEffect
+        }
+
+        if (wasSyncingWithPeer) {
+            wasSyncingWithPeer = false
+            syncWithPeerSuccess = true
+            delay(1800.milliseconds)
+            if (syncWithPeerSuccess) syncWithPeerSuccess = false
+        }
+    }
+
+    val historySyncState =
+        when {
+            isSyncingWithPeer -> SyncActionVisualState.LOADING
+            syncWithPeerSuccess -> SyncActionVisualState.SUCCESS
+            else -> SyncActionVisualState.IDLE
+        }
+
+    val uiState = HistoryUiState(items = historyItems, pairedPeers = pairedPeers)
 
     val onAction: (HistoryAction) -> Unit = { action ->
         when (action) {
@@ -78,20 +121,52 @@ fun Main.History.Template.Screen(viewModel: HistoryViewModel = hiltViewModel()) 
                     }
                 context.startActivity(intent)
             }
+            HistoryAction.LoadPairedPeersForSync -> viewModel.loadPairedPeers()
+            is HistoryAction.SyncHistoryWithPeer -> viewModel.syncHistoryWithPeer(action.peerId)
         }
     }
 
-    HistoryScreenContent(uiState = uiState, onAction = onAction)
+    HistoryScreenContent(uiState = uiState, onAction = onAction, historySyncState = historySyncState)
 }
 
 @Composable
 fun HistoryScreenContent(
     uiState: HistoryUiState,
     onAction: (HistoryAction) -> Unit,
+    historySyncState: SyncActionVisualState = SyncActionVisualState.IDLE,
 ) {
+    var showPeerPicker by remember { mutableStateOf(false) }
+
+    // `MainActivity` renders `BottomBar` as a sibling outside this screen's own Scaffold
+    // (`applyScaffoldPadding = false` in `BaseActivity`, on purpose — screens draw edge-to-edge
+    // behind the translucent/blurred bar), so this inner Scaffold's automatic FAB placement has
+    // no idea that 64dp bar exists and only clears the raw system nav-bar inset. Same fixed
+    // height as `BottomBar.kt`'s `Modifier.height(64.dp)` / `HomeScreen.kt`'s
+    // `mainBottomBarHeight` — hidden in landscape too, where `SideBar` replaces it instead.
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val bottomBarClearance = if (isLandscape) 0.dp else 64.dp
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
+        floatingActionButton = {
+            Acerola.Component.SyncActionIcon(
+                state = historySyncState,
+                modifier =
+                    Modifier
+                        .padding(bottom = bottomBarClearance)
+                        .clickable(enabled = historySyncState != SyncActionVisualState.LOADING) {
+                            onAction(HistoryAction.LoadPairedPeersForSync)
+                            showPeerPicker = true
+                        },
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Sync,
+                    contentDescription = stringResource(id = R.string.description_icon_history_sync_with_peer),
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+            }
+        },
     ) { paddingValues ->
         Column(
             modifier =
@@ -155,6 +230,17 @@ fun HistoryScreenContent(
                 }
             }
         }
+    }
+
+    if (showPeerPicker) {
+        Main.Common.Component.PeerPickerSheet(
+            peers = uiState.pairedPeers,
+            onSelect = { peerId ->
+                showPeerPicker = false
+                onAction(HistoryAction.SyncHistoryWithPeer(peerId))
+            },
+            onDismiss = { showPeerPicker = false },
+        )
     }
 }
 

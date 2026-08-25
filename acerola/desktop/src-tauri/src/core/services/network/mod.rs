@@ -10,6 +10,8 @@ use acerola_p2p::api::{
 };
 use async_trait::async_trait;
 
+use crate::infra::security::{p2p_storage::SecureP2pStorage, trusted_store::SecureTrustedStore};
+
 pub type ConnectedPeerInfo = (PeerIdentity, HashSet<Vec<u8>>, Option<DeviceInfo>);
 
 #[async_trait]
@@ -28,6 +30,12 @@ pub trait NetworkServiceApi: Send + Sync + 'static {
     /// sobrevive ao handshake fechar) — não de `connected_peers_with_info`, que só tem dado
     /// nos poucos segundos em que a sessão de handshake está de fato aberta.
     async fn paired_peers(&self) -> Result<Vec<(PeerAddr, Option<DeviceInfo>)>, String>;
+    /// Desempareia um peer: some da confiança (TOFU) e do cache de endereços conhecidos —
+    /// mesmo par de fontes que [`NetworkServiceApi::paired_peers`] lê. Não derruba uma
+    /// conexão ativa nem bloqueia o peer; se ele reconectar depois, passa pelo mesmo fluxo
+    /// TOFU de um dispositivo nunca visto (mesmo comportamento do lado Android, ver
+    /// `P2PNode::remove_paired_peer`).
+    async fn remove_peer(&self, id: String) -> Result<(), String>;
     async fn switch_to_local(&self) -> Result<(), String>;
     async fn switch_to_relay(&self) -> Result<(), String>;
     async fn mode(&self) -> Result<NetworkMode, String>;
@@ -39,13 +47,21 @@ pub struct NetworkService {
     node: Arc<AcerolaP2p>,
     /// Mesmo storage passado ao builder (`.storage(...)`) — clonado antes por
     /// `bios::network::setup_network` pra sobreviver aqui como fonte de "peers pareados"
-    /// persistidos, já que a lib não devolve o storage de volta depois do `build()`.
-    storage: Arc<dyn P2PStorage>,
+    /// persistidos, já que a lib não devolve o storage de volta depois do `build()`. Tipo
+    /// concreto (não `Arc<dyn P2PStorage>`) porque [`Self::remove_peer`] precisa de
+    /// `SecureP2pStorage::remove_peer`, que é específico dessa implementação — não faz parte
+    /// da trait compartilhada com o lado Android.
+    storage: Arc<SecureP2pStorage>,
+    /// Mesmo motivo do campo acima, pro lado da confiança (TOFU) — `SecureTrustedStore::remove`
+    /// também não faz parte de `TrustedPeerStore`.
+    trust_store: Arc<SecureTrustedStore>,
 }
 
 impl NetworkService {
-    pub fn new(node: Arc<AcerolaP2p>, storage: Arc<dyn P2PStorage>) -> Self {
-        Self { node, storage }
+    pub fn new(
+        node: Arc<AcerolaP2p>, storage: Arc<SecureP2pStorage>, trust_store: Arc<SecureTrustedStore>,
+    ) -> Self {
+        Self { node, storage, trust_store }
     }
 }
 
@@ -91,6 +107,11 @@ impl NetworkServiceApi for NetworkService {
                 (addr, device)
             })
             .collect())
+    }
+
+    async fn remove_peer(&self, id: String) -> Result<(), String> {
+        self.trust_store.remove(&id).await.map_err(|err| err.to_string())?;
+        self.storage.remove_peer(&id).await.map_err(|err| err.to_string())
     }
 
     async fn switch_to_local(&self) -> Result<(), String> {

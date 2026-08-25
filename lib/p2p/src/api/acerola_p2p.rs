@@ -111,6 +111,12 @@ impl AcerolaP2p {
         self.transport.is_connected(peer).await
     }
 
+    /// Notifica o transporte de uma possível mudança de rede do SO — ver a doc em
+    /// `P2pTransport::network_change` para o motivo de isso ser necessário no Android.
+    pub async fn network_change(&self) {
+        self.transport.network_change().await;
+    }
+
     /// Retorna o store de blobs deste nó, se o adapter de transporte suportar essa capacidade
     /// (ex: `IrohTransport` construído com `.blobs(...)`). `None` quando nenhum adapter de blob
     /// foi configurado.

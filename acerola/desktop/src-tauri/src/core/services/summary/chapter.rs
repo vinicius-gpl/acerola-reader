@@ -99,7 +99,7 @@ impl ChapterService {
                 name: chapter.chapter.clone(),
                 path: chapter.path.clone(),
                 chapter_sort: chapter.chapter_sort.clone(),
-                volume_id: chapter.volume_id_fk.map(|id| id.to_string()),
+                volume_id: chapter.volume_fk.map(|id| id.to_string()),
                 volume_name: chapter.volume_name.clone(),
                 is_special: chapter.is_special,
                 last_modified: chapter.last_modified,
@@ -126,13 +126,13 @@ impl ChapterService {
             for volume in &volumes_with_counts {
                 let chapters_in_volume = chapters_with_volume
                     .iter()
-                    .filter(|chapter| chapter.volume_id_fk == Some(volume.id))
+                    .filter(|chapter| chapter.volume_fk == Some(volume.id))
                     .map(|chapter| ChapterFileDto {
                         id: chapter.id.to_string(),
                         name: chapter.chapter.clone(),
                         path: chapter.path.clone(),
                         chapter_sort: chapter.chapter_sort.clone(),
-                        volume_id: chapter.volume_id_fk.map(|id| id.to_string()),
+                        volume_id: chapter.volume_fk.map(|id| id.to_string()),
                         volume_name: chapter.volume_name.clone(),
                         is_special: chapter.is_special,
                         last_modified: chapter.last_modified,
@@ -212,7 +212,7 @@ mod tests {
                 is_special: false,
                 checksum: None,
                 comic_directory_fk: 1,
-                volume_id_fk: Some(1),
+                volume_fk: Some(1),
                 last_modified: 0,
             })
             .await

@@ -85,9 +85,9 @@ impl ComicSummaryPayload {
         let items = comics
             .into_iter()
             .map(|view| {
-                let count = counts.get(&view.directory_id).cloned().unwrap_or(0);
-                let meta = metadata_map.get(&view.directory_id).cloned();
-                let bookmark = bookmark_map.get(&view.directory_id).cloned();
+                let count = counts.get(&view.directory_fk).cloned().unwrap_or(0);
+                let meta = metadata_map.get(&view.directory_fk).cloned();
+                let bookmark = bookmark_map.get(&view.directory_fk).cloned();
                 ComicSummaryItem::from_view(view, count, meta, bookmark)
             })
             .collect::<Vec<_>>();
@@ -109,8 +109,8 @@ impl ComicSummaryItem {
     ) -> Self {
         Self {
             relations: ComicSummaryRelations {
-                directory_id: view.directory_id.to_string(),
-                metadata_id: view.metadata_id.map(|id| id.to_string()),
+                directory_id: view.directory_fk.to_string(),
+                metadata_id: view.metadata_fk.map(|id| id.to_string()),
             },
             filesystem: ComicSummaryFilesystem { folder_name: view.folder_name },
             metadata: ComicSummaryMetadata {

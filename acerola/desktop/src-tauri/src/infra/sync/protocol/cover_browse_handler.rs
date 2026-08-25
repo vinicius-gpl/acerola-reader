@@ -236,15 +236,15 @@ mod tests {
         let cover_path = temp_dir.path().join("cover.jpg");
         std::fs::write(&cover_path, cover_bytes).unwrap();
 
-        sqlx::query(
-            "INSERT INTO comic_directory (id, name, path, cover, last_modified, external_sync_enabled, hidden)
-             VALUES (1, 'Comic A', '/test', ?, ?, 0, 0)",
+        crate::tests::utils::setup_test_db::insert_comic_directory_with_cover(
+            &pool,
+            1,
+            "Comic A",
+            "/test",
+            &cover_path.to_string_lossy(),
+            cover_version,
         )
-        .bind(cover_path.to_string_lossy().to_string())
-        .bind(cover_version)
-        .execute(&pool)
-        .await
-        .unwrap();
+        .await;
 
         let root = temp_dir.path().to_path_buf();
         (FileSyncService::new(pool, move || root.clone()), temp_dir)
@@ -306,13 +306,7 @@ mod tests {
     async fn no_local_cover_returns_unavailable() {
         let pool = crate::tests::utils::setup_test_db::setup_test_db().await;
         let temp_dir = tempfile::tempdir().unwrap();
-        sqlx::query(
-            "INSERT INTO comic_directory (id, name, path, last_modified, external_sync_enabled, hidden)
-             VALUES (1, 'Comic A', '/test', 0, 0, 0)",
-        )
-        .execute(&pool)
-        .await
-        .unwrap();
+        crate::tests::utils::setup_test_db::insert_comic_directory(&pool, 1, "Comic A", "/test").await;
         let root = temp_dir.path().to_path_buf();
         let service = FileSyncService::new(pool, move || root.clone());
 

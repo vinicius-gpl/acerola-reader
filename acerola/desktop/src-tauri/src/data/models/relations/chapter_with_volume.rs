@@ -7,7 +7,7 @@ pub struct ChapterArchiveWithVolume {
     pub is_special: bool,
     pub checksum: Option<String>,
     pub comic_directory_fk: i64,
-    pub volume_id_fk: Option<i64>,
+    pub volume_fk: Option<i64>,
     pub last_modified: i64,
     pub volume_name: Option<String>,
     pub volume_sort: Option<String>,

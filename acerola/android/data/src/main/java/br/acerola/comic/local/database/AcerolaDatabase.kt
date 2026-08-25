@@ -54,7 +54,7 @@ import br.acerola.comic.local.entity.view.ComicSummaryView
         ComicSummaryView::class,
     ],
     exportSchema = true,
-    version = 5,
+    version = 6,
 )
 @TypeConverters(AcerolaTypeConverters::class)
 abstract class AcerolaDatabase : RoomDatabase() {

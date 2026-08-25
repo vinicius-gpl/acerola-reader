@@ -1,10 +1,8 @@
 mod exchange;
 mod model;
+mod registry;
 
-use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex},
-};
+use std::sync::Arc;
 
 use acerola_p2p::api::{
     error::P2pError,
@@ -18,17 +16,12 @@ use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
 
 use crate::callbacks::CoverBrowseProvider;
 use super::files::ChapterTransfer;
+pub(crate) use registry::PendingCoverRequestRegistry;
 
 /// Busca a capa (thumbnail) de UM quadrinho remoto por vez, complementar ao `browse-library`.
 /// Sem sessão/guard: round-trip curto (uma capa é pequena), não corre o mesmo risco de
 /// I/O pesado duplicado que `sync-files`/`sync-comic` correm.
 pub(crate) const COVER_BROWSE_ALPN: &[u8] = b"acerola/browse-cover/1";
-
-/// `peer_id -> (comic_name, known_version)` escolhido pelo usuário na chamada FFI
-/// `P2PNode::browse_cover`, lido e removido por `CoverBrowseOutbound::handle` assim que a sessão
-/// outbound começa — mesmo padrão de `protocol::files::PendingComicScope`, pelo mesmo motivo (o
-/// `Handler` é um singleton, não recebe parâmetro por chamada de `connect()`).
-pub(crate) type PendingCoverScope = Arc<Mutex<HashMap<String, (String, Option<i64>)>>>;
 
 pub(crate) struct CoverBrowseInbound {
     provider: Arc<dyn CoverBrowseProvider>,
@@ -57,13 +50,13 @@ pub(crate) struct CoverBrowseOutbound {
     emit: EventEmitter,
     provider: Arc<dyn CoverBrowseProvider>,
     transfer: Arc<dyn ChapterTransfer>,
-    pending_scope: PendingCoverScope,
+    pending_scope: Arc<PendingCoverRequestRegistry>,
 }
 
 impl CoverBrowseOutbound {
     pub(crate) fn new(
         emit: EventEmitter, provider: Arc<dyn CoverBrowseProvider>, transfer: Arc<dyn ChapterTransfer>,
-        pending_scope: PendingCoverScope,
+        pending_scope: Arc<PendingCoverRequestRegistry>,
     ) -> Self {
         Self { emit, provider, transfer, pending_scope }
     }
@@ -75,9 +68,7 @@ impl Handler for CoverBrowseOutbound {
         &self, peer: &PeerIdentity, send: Box<dyn AsyncWrite + Send + Unpin>,
         recv: Box<dyn AsyncRead + Send + Unpin>,
     ) -> Result<(), P2pError> {
-        let Some((comic_name, known_version)) =
-            self.pending_scope.lock().expect("pending cover scope mutex poisoned").remove(&peer.id)
-        else {
+        let Some((comic_name, known_version)) = self.pending_scope.take(&peer.id) else {
             let message = "no pending cover scope registered for this peer";
             (self.emit)(
                 "browse:cover:error",

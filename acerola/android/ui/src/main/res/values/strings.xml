@@ -11,6 +11,7 @@
     <string name="navigation_reader_activity">reader</string>
     <string name="navigation_template_config_activity">file_pattern</string>
     <string name="navigation_sync_activity">sync</string>
+    <string name="navigation_remote_library_activity">remote_library</string>
 
     <!-- Screen label -->
     <string name="label_tutorial_activity">Tutorial</string>
@@ -22,6 +23,7 @@
     <string name="label_reader_activity">Leitor</string>
     <string name="label_template_config_activity">Padrões de arquivos</string>
     <string name="label_sync_activity">Rede</string>
+    <string name="label_remote_library_activity">Biblioteca remota</string>
 
     <!-- Screen content description -->
     <string name="description_home_activity">Tela de início que lista os quadrinhos.</string>
@@ -31,6 +33,7 @@
     <string name="description_reader_activity">Tela de leitura do capítulo</string>
     <string name="description_template_config_activity">Gerencie como o app identifica números de capítulos nos arquivos</string>
     <string name="description_sync_activity">Conecte outro dispositivo Acerola pra levar seu histórico de leitura e seus quadrinhos com você.</string>
+    <string name="description_remote_library_activity">Tela de biblioteca remota de um dispositivo pareado.</string>
 
     <!-- Sync screen -->
     <string name="label_sync_copied">Copiado!</string>
@@ -119,6 +122,7 @@
     <string name="description_icon_home_floating_tool_hub">Abrir hub de ferramentas</string>
     <string name="description_icon_home_change_layout">Mudar Visualização</string>
     <string name="description_icon_home_filter">Filtro</string>
+    <string name="description_icon_home_browse_remote_library">Buscar quadrinhos em outro dispositivo</string>
     <string name="description_icon_comic_hidden">Quadrinho oculto</string>
     <string name="label_home_search_placeholder">Buscar quadrinhos...</string>
 
@@ -241,6 +245,7 @@
 
     <!-- History & Reader Info -->
     <string name="description_history_empty_state">Nenhum quadrinho lido recentemente</string>
+    <string name="description_icon_history_sync_with_peer">Sincronizar histórico com um dispositivo pareado.</string>
     <string name="label_chapter_unknown">Capítulo desconhecido</string>
     <string name="label_reader_chapter_order">Ordem: %1$s</string>
     <string name="label_reader_page_format">Página %1$d / %2$d</string>

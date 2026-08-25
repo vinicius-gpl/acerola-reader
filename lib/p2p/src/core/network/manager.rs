@@ -271,6 +271,11 @@ impl NetworkManager {
 
                             if let Err(err) = handler.handle(&addr.id, send, recv).await {
                                 tracing::warn!(error = ?err, "outbound handler failed");
+                                // A conexão reaproveitada pode estar silenciosamente morta (ver
+                                // doc em `P2pTransport::invalidate`) — descarta do pool pra
+                                // próxima tentativa discar uma nova em vez de repetir a mesma
+                                // falha indefinidamente.
+                                transport.invalidate(&addr.id, &alpn).await;
                             }
 
                             tracing::debug!("outbound connection closed");

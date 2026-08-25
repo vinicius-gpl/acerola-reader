@@ -970,6 +970,8 @@ internal open class UniffiVTableCallbackInterfaceSecureBlobStore(
 
 
 
+
+
 // A JNA Library to expose the extern-C FFI definitions.
 // This is an implementation detail which will be called internally by the public API.
 
@@ -1074,6 +1076,8 @@ internal interface UniffiLib : Library {
     ): RustBuffer.ByValue
     fun uniffi_acerola_fn_method_p2pnode_get_paired_peers(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
+    fun uniffi_acerola_fn_method_p2pnode_notify_network_change(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
+    ): Unit
     fun uniffi_acerola_fn_method_p2pnode_remove_paired_peer(`ptr`: Pointer,`id`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
     fun uniffi_acerola_fn_method_p2pnode_shutdown(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
@@ -1256,6 +1260,8 @@ internal interface UniffiLib : Library {
     ): Short
     fun uniffi_acerola_checksum_method_p2pnode_get_paired_peers(
     ): Short
+    fun uniffi_acerola_checksum_method_p2pnode_notify_network_change(
+    ): Short
     fun uniffi_acerola_checksum_method_p2pnode_remove_paired_peer(
     ): Short
     fun uniffi_acerola_checksum_method_p2pnode_shutdown(
@@ -1362,6 +1368,9 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_acerola_checksum_method_p2pnode_get_paired_peers() != 51722.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_acerola_checksum_method_p2pnode_notify_network_change() != 973.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_acerola_checksum_method_p2pnode_remove_paired_peer() != 11699.toShort()) {
@@ -3419,6 +3428,17 @@ public interface P2pNodeInterface {
     fun `getPairedPeers`(): List<FfiPairedPeer>
     
     /**
+     * Repassa ao transporte um aviso de que a rede do SO pode ter mudado (troca de Wi-Fi/dados
+     * móveis, saída de Doze, etc). Existe porque o Android não expõe monitoramento de interface
+     * de rede para código nativo — só para Java/Kotlin via `ConnectivityManager.NetworkCallback`
+     * — então sem essa ponte o transporte QUIC nunca fica sabendo que o caminho de rede mudou e
+     * mantém reaproveitando conexões silenciosamente mortas até o app ser reiniciado. O Kotlin
+     * deve chamar isto a cada `onAvailable`/`onLost`/`onCapabilitiesChanged` do
+     * `NetworkCallback` (ver `P2pService`).
+     */
+    fun `notifyNetworkChange`()
+    
+    /**
      * Desempareia um peer: some da confiança (`trust_store`) e do cache de endereços
      * conhecidos (`storage`, a mesma fonte de `get_paired_peers`). Não derruba uma conexão
      * ativa nem bloqueia o peer — se ele tentar se conectar de novo depois, passa pelo mesmo
@@ -3656,6 +3676,26 @@ open class P2pNode: Disposable, AutoCloseable, P2pNodeInterface {
     }
     )
     }
+    
+
+    
+    /**
+     * Repassa ao transporte um aviso de que a rede do SO pode ter mudado (troca de Wi-Fi/dados
+     * móveis, saída de Doze, etc). Existe porque o Android não expõe monitoramento de interface
+     * de rede para código nativo — só para Java/Kotlin via `ConnectivityManager.NetworkCallback`
+     * — então sem essa ponte o transporte QUIC nunca fica sabendo que o caminho de rede mudou e
+     * mantém reaproveitando conexões silenciosamente mortas até o app ser reiniciado. O Kotlin
+     * deve chamar isto a cada `onAvailable`/`onLost`/`onCapabilitiesChanged` do
+     * `NetworkCallback` (ver `P2pService`).
+     */override fun `notifyNetworkChange`()
+        = 
+    callWithPointer {
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_acerola_fn_method_p2pnode_notify_network_change(
+        it, _status)
+}
+    }
+    
     
 
     

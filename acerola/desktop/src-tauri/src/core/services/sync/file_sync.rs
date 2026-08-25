@@ -285,7 +285,7 @@ impl FileSyncService {
             is_special: is_special_name(display_chapter),
             checksum: Some(checksum),
             comic_directory_fk: comic.id,
-            volume_id_fk: existing.as_ref().and_then(|c| c.volume_id_fk),
+            volume_fk: existing.as_ref().and_then(|c| c.volume_fk),
             last_modified: now_secs(),
         };
 

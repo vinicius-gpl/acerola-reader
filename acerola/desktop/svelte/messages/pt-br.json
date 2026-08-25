@@ -199,6 +199,7 @@
 				}
 			},
 			"filter_button": "Filtrar e Ordenar",
+			"browse_remote_button": "Buscar em outro dispositivo",
 			"no_results_filtered": "Nenhum quadrinho encontrado para o filtro selecionado.",
 			"filter_panel": {
 				"aria_label": "Filtrar e Ordenar",
@@ -474,6 +475,13 @@
 			"chapter_label": "Capítulo {chapter}",
 			"page_label": "Página {page}",
 			"older": "Mais Antigos",
+			"sync": {
+				"button": "Sincronizar",
+				"title": "Sincronizar histórico",
+				"empty": "Nenhum dispositivo pareado. Pareie um dispositivo em Rede pra sincronizar seu histórico.",
+				"success": "Histórico sincronizado com {peer}.",
+				"error": "Falha ao sincronizar histórico: {msg}"
+			},
 			"clear": {
 				"button": "Limpar Histórico",
 				"title": "Tem certeza absoluta?",
@@ -652,6 +660,9 @@
 				"error": "Não foi possível conectar. Confira se o código está certo e se o outro dispositivo está com o Acerola aberto.",
 				"invalid_code": "Código inválido. Confira se você copiou o código completo do outro dispositivo."
 			},
+			"peer_picker": {
+				"title": "Escolher dispositivo"
+			},
 			"peers": {
 				"title": "Dispositivos pareados",
 				"empty": "Nenhum dispositivo pareado ainda. Compartilhe seu código ou cole um acima pra parear.",
@@ -663,7 +674,14 @@
 				"online": "Online agora",
 				"offline_hint": "Este dispositivo não está acessível agora — reconecte-o pra sincronizar.",
 				"more_actions": "Mais ações de sincronização pra esse dispositivo.",
-				"browse_library": "Buscar biblioteca remota"
+				"browse_library": "Buscar biblioteca remota",
+				"remove": "Remover dispositivo",
+				"remove_confirm": {
+					"title": "Remover \"{peer}\"?",
+					"desc": "Esse dispositivo deixa de ter acesso à sua biblioteca. Se ele tentar se conectar de novo depois, vai passar pela mesma confirmação de um dispositivo nunca pareado.",
+					"cancel": "Cancelar",
+					"confirm": "Remover"
+				}
 			},
 			"transfers": {
 				"title": "Transferências",

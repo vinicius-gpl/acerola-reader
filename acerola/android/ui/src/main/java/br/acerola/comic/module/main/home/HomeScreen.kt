@@ -54,6 +54,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.rounded.Bookmark
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.LayersClear
+import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.Button
@@ -107,14 +108,17 @@ import br.acerola.comic.module.main.common.component.BatchComicCategorySheet
 import br.acerola.comic.module.main.common.component.ComicActionsSheet
 import br.acerola.comic.module.main.common.component.ComicCategorySheet
 import br.acerola.comic.module.main.common.component.ComicListItem
+import br.acerola.comic.module.main.common.component.PeerPickerSheet
 import br.acerola.comic.module.main.home.component.ComicGridItem
 import br.acerola.comic.module.main.home.component.HomeContinueBanner
 import br.acerola.comic.module.main.home.component.HomeFilterSheet
 import br.acerola.comic.module.main.home.component.HomeSearchBar
 import br.acerola.comic.module.main.home.state.HomeAction
 import br.acerola.comic.module.main.home.state.HomeUiState
+import br.acerola.comic.module.main.remotelibrary.RemoteLibraryActivity
 import br.acerola.comic.module.reader.ReaderActivity
 import br.acerola.comic.ui.R
+import br.acerola.comic.util.p2p.PairingCode
 import kotlinx.coroutines.launch
 
 private val homeTopOverlayHeight = 56.dp
@@ -204,6 +208,7 @@ fun Main.Home.Template.Screen(
     var showFilterSheet by remember { mutableStateOf(false) }
     var selectedMangaForActions by remember { mutableStateOf<ComicDto?>(null) }
     var isBannerExpanded by remember { mutableStateOf(true) }
+    var showRemoteLibraryPeerPicker by remember { mutableStateOf(false) }
 
     var showBatchCategorySheet by remember { mutableStateOf(false) }
     var showBatchHideDialog by remember { mutableStateOf(false) }
@@ -493,7 +498,36 @@ fun Main.Home.Template.Screen(
                             },
                             onClick = { showFilterSheet = true },
                         ),
+                        FabGroupItem(
+                            icon = {
+                                Icon(
+                                    imageVector = Icons.Rounded.PhoneAndroid,
+                                    contentDescription = stringResource(id = R.string.description_icon_home_browse_remote_library),
+                                )
+                            },
+                            onClick = {
+                                homeViewModel.loadPairedPeers()
+                                showRemoteLibraryPeerPicker = true
+                            },
+                        ),
                     ),
+            )
+        }
+
+        if (showRemoteLibraryPeerPicker) {
+            Main.Common.Component.PeerPickerSheet(
+                peers = pairedPeers,
+                onSelect = { peerId ->
+                    showRemoteLibraryPeerPicker = false
+                    val peerDisplayName = pairedPeers.find { it.peerId == peerId }?.deviceName ?: PairingCode.shortId(peerId)
+                    val intent =
+                        Intent(context, RemoteLibraryActivity::class.java).apply {
+                            putExtra(RemoteLibraryActivity.PeerExtra.PEER_ID, peerId)
+                            putExtra(RemoteLibraryActivity.PeerExtra.PEER_DISPLAY_NAME, peerDisplayName)
+                        }
+                    context.startActivity(intent)
+                },
+                onDismiss = { showRemoteLibraryPeerPicker = false },
             )
         }
 

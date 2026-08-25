@@ -14,7 +14,7 @@ impl Entity for ChapterArchive {
             "is_special",
             "checksum",
             "comic_directory_fk",
-            "volume_id_fk",
+            "volume_fk",
             "last_modified",
         ]
     }
@@ -39,7 +39,7 @@ impl Bindable for ChapterArchive {
             .bind(self.is_special)
             .bind(&self.checksum)
             .bind(self.comic_directory_fk)
-            .bind(self.volume_id_fk)
+            .bind(self.volume_fk)
             .bind(self.last_modified)
     }
 
@@ -53,7 +53,7 @@ impl Bindable for ChapterArchive {
             .bind(self.is_special)
             .bind(&self.checksum)
             .bind(self.comic_directory_fk)
-            .bind(self.volume_id_fk)
+            .bind(self.volume_fk)
             .bind(self.last_modified)
             .bind(self.id) // <- id pro WHERE id = ?
     }
@@ -103,7 +103,7 @@ pub struct ChapterArchive {
     pub is_special: bool,
     pub checksum: Option<String>,
     pub comic_directory_fk: i64,
-    pub volume_id_fk: Option<i64>,
+    pub volume_fk: Option<i64>,
     pub last_modified: i64,
 }
 

@@ -1,6 +1,10 @@
 package br.acerola.comic.service
 
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.os.Build
 import android.util.Log
 import p2p.CoverBrowseProvider
@@ -87,8 +91,37 @@ class P2pService(
         )
     }
 
+    // Iroh (o transporte QUIC por baixo do `p2pNode`) detecta mudança de rede sozinho na
+    // maioria dos sistemas, mas não no Android: o SO não expõe monitoramento de interface pra
+    // código nativo, só pra Java/Kotlin via `ConnectivityManager`. Sem repassar esse evento, uma
+    // troca de Wi-Fi/dados móveis (ou saída de Doze) deixa o transporte reaproveitando conexões
+    // já mortas, e todo browse/sync pro mesmo peer falha com timeout até o app ser reiniciado.
+    private val connectivityManager =
+        context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+
+    private val networkCallback =
+        object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                Log.d("P2pService", "Network available, notifying P2P transport")
+                p2pNode.notifyNetworkChange()
+            }
+
+            override fun onLost(network: Network) {
+                Log.d("P2pService", "Network lost, notifying P2P transport")
+                p2pNode.notifyNetworkChange()
+            }
+
+            override fun onCapabilitiesChanged(
+                network: Network,
+                networkCapabilities: NetworkCapabilities,
+            ) {
+                p2pNode.notifyNetworkChange()
+            }
+        }
+
     init {
         Thread({ p2pNode }, "P2pNode-warmup").apply { isDaemon = true }.start()
+        connectivityManager.registerDefaultNetworkCallback(networkCallback)
     }
 
     fun getLocalId(): String = p2pNode.getLocalId()
@@ -205,6 +238,7 @@ class P2pService(
     }
 
     fun shutdown() {
+        runCatching { connectivityManager.unregisterNetworkCallback(networkCallback) }
         p2pNode.destroy()
     }
 

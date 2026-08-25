@@ -18,7 +18,7 @@ use crate::{
     callbacks::{CoverBrowseProvider, FileSyncProvider, HistorySyncProvider, SecureBlobStore},
     mode::FfiNetworkMode,
     protocol::{
-        cover_browse::{CoverBrowseInbound, CoverBrowseOutbound, PendingCoverScope, COVER_BROWSE_ALPN},
+        cover_browse::{CoverBrowseInbound, CoverBrowseOutbound, PendingCoverRequestRegistry, COVER_BROWSE_ALPN},
         files::{
             BlobChapterTransfer, ChapterTransfer, ComicSyncInbound, ComicSyncOutbound, FileSyncInbound,
             FileSyncOutbound, FileSyncSessionGuard, PendingComicScope, COMIC_SYNC_ALPN, FILE_SYNC_ALPN,
@@ -90,10 +90,12 @@ pub struct P2PNode {
     /// `sync_comic` e o `Handler` outbound de `acerola/sync-comic/1` que ela dispara.
     #[cfg(target_os = "android")]
     pending_comic_scope: PendingComicScope,
-    /// Ver `protocol::cover_browse::PendingCoverScope` — mesmo padrão do `pending_comic_scope`,
-    /// pra `acerola/browse-cover/1`.
+    /// Ver `protocol::cover_browse::PendingCoverRequestRegistry` — mesma ideia do
+    /// `pending_comic_scope`, mas fila FIFO por peer em vez de slot único (o único disparado em
+    /// rajada — `SyncViewModel::fetchCoversFor` chama `browse_cover` uma vez por quadrinho da
+    /// biblioteca remota, em sequência rápida, pro mesmo peer).
     #[cfg(target_os = "android")]
-    pending_cover_scope: PendingCoverScope,
+    pending_cover_scope: Arc<PendingCoverRequestRegistry>,
 }
 
 #[uniffi::export]
@@ -126,7 +128,7 @@ impl P2PNode {
         let storage = Arc::new(SecureP2pStorage::open(Arc::clone(&secure_store), legacy_dir));
 
         let pending_comic_scope: PendingComicScope = Arc::new(Mutex::new(HashMap::new()));
-        let pending_cover_scope: PendingCoverScope = Arc::new(Mutex::new(HashMap::new()));
+        let pending_cover_scope = PendingCoverRequestRegistry::new();
 
         // Handlers de `sync-files`/`sync-comic` são registrados no builder ANTES do node
         // existir, mas precisam de `node.blobs()`/`node.known_peers()` pra publicar/buscar
@@ -267,6 +269,20 @@ impl P2PNode {
         }
     }
 
+    /// Repassa ao transporte um aviso de que a rede do SO pode ter mudado (troca de Wi-Fi/dados
+    /// móveis, saída de Doze, etc). Existe porque o Android não expõe monitoramento de interface
+    /// de rede para código nativo — só para Java/Kotlin via `ConnectivityManager.NetworkCallback`
+    /// — então sem essa ponte o transporte QUIC nunca fica sabendo que o caminho de rede mudou e
+    /// mantém reaproveitando conexões silenciosamente mortas até o app ser reiniciado. O Kotlin
+    /// deve chamar isto a cada `onAvailable`/`onLost`/`onCapabilitiesChanged` do
+    /// `NetworkCallback` (ver `P2pService`).
+    pub fn notify_network_change(&self) {
+        let node = Arc::clone(&self.node);
+        self.runtime.spawn(async move {
+            node.network_change().await;
+        });
+    }
+
     pub fn connect(&self, peer_addr: FfiPeerAddr, alpn: Vec<u8>) {
         let node = Arc::clone(&self.node);
         let addr = PeerAddr {
@@ -309,10 +325,7 @@ impl P2PNode {
     /// escopo pendente antes de conectar, resultado chega via
     /// `browse:cover:result`/`browse:cover:error` (ver `protocol::cover_browse`).
     pub fn browse_cover(&self, peer_addr: FfiPeerAddr, comic_name: String, known_version: Option<i64>) {
-        self.pending_cover_scope
-            .lock()
-            .expect("pending cover scope mutex poisoned")
-            .insert(peer_addr.id.clone(), (comic_name, known_version));
+        self.pending_cover_scope.push(peer_addr.id.clone(), comic_name, known_version);
         self.connect(peer_addr, COVER_BROWSE_ALPN.to_vec());
     }
 
