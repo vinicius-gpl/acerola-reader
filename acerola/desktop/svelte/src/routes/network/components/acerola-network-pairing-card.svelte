@@ -28,7 +28,11 @@
 	let codeJustCopied = $state(false);
 
 	$effect(() => {
-		const code = data.code;
+		// No teardown da story (Storybook + vitest browser mode), este efeito roda mais
+		// uma vez com `data` já undefined antes do componente ser destruído de fato —
+		// sem o optional chaining aqui isso vaza como unhandled error e derruba a suíte
+		// mesmo com todos os asserts passando.
+		const code = data?.code;
 		if (!code) {
 			qrDataUrl = undefined;
 			qrError = false;
@@ -47,7 +51,7 @@
 	});
 
 	async function copyCode() {
-		if (!data.code) return;
+		if (!data?.code) return;
 		await navigator.clipboard.writeText(data.code);
 		toast.success(m['pages.network.copied']());
 		codeJustCopied = true;
@@ -82,7 +86,7 @@
 
 			<AcerolaButton
 				events={{ onClick: copyCode }}
-				ui={{ variant: 'outline', size: 'sm', class: 'gap-2', disabled: !data.code }}
+				ui={{ variant: 'outline', size: 'sm', class: 'gap-2', disabled: !data?.code }}
 			>
 				{#if codeJustCopied}
 					<CheckIcon size={14} class="text-chart-3" />
@@ -108,7 +112,7 @@
 					id="pairing-raw-code"
 					readonly
 					aria-label={m['pages.network.pairing.title']()}
-					value={data.code ?? ''}
+					value={data?.code ?? ''}
 					class="h-24 w-full resize-none rounded-xl border border-border/60 bg-background/70 p-3 font-mono text-xs break-all text-muted-foreground"
 				></textarea>
 			{/if}
