@@ -13,6 +13,7 @@
 </script>
 
 <script lang="ts">
+	import { Button } from '$lib/components/ui/button/index.js';
 	import { useTheme } from '$lib/hooks/theme/use-theme.svelte';
 	import { m } from '$lib/paraglide/messages';
 
@@ -23,9 +24,9 @@
 	}
 </script>
 
-<button
-	type="button"
-	class="inline-flex size-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+<Button
+	variant="ghost"
+	size="icon"
 	title={m['theme_picker.title']()}
 	aria-label={m['theme_picker.title']()}
 	onclick={nextMode}
@@ -34,4 +35,4 @@
 		{@const Icon = MODE_CONFIG[themeCtx.mode].icon}
 		<Icon size={17} />
 	{/key}
-</button>
+</Button>

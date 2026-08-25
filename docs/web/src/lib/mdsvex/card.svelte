@@ -1,42 +1,53 @@
 <script lang="ts">
 	import ArrowRightIcon from '@lucide/svelte/icons/arrow-right';
+	import * as Card from '$lib/components/ui/card/index.js';
 	import type { Component, Snippet } from 'svelte';
 
 	let {
 		title,
 		href,
 		icon,
+		class: className,
 		children
-	}: { title: string; href?: string; icon?: Component; children?: Snippet } = $props();
+	}: {
+		title: string;
+		href?: string;
+		icon?: Component;
+		class?: string;
+		children?: Snippet;
+	} = $props();
 </script>
 
 {#snippet body()}
-	<div class="flex items-center gap-2 font-heading text-lg font-semibold">
-		{#if icon}
-			{@const Icon = icon}
-			<Icon size={20} class="text-primary" />
-		{/if}
-		{title}
-		{#if href}
-			<ArrowRightIcon size={16} class="ml-auto text-muted-foreground" />
-		{/if}
-	</div>
+	<Card.Header>
+		<Card.Title class="flex items-center gap-2">
+			{#if icon}
+				{@const Icon = icon}
+				<Icon size={20} class="text-primary" />
+			{/if}
+			{title}
+			{#if href}
+				<ArrowRightIcon size={16} class="ml-auto text-muted-foreground" />
+			{/if}
+		</Card.Title>
+	</Card.Header>
 	{#if children}
-		<div class="mt-2 text-sm text-muted-foreground [&>p]:my-0">
+		<Card.Content class="text-sm text-muted-foreground [&>p]:my-0">
 			{@render children()}
-		</div>
+		</Card.Content>
 	{/if}
 {/snippet}
 
 {#if href}
-	<a
-		{href}
-		class="block rounded-lg border border-border bg-card p-5 transition-colors hover:border-primary/50 hover:bg-accent"
-	>
-		{@render body()}
+	<a {href} class="group contents">
+		<Card.Root
+			class={['transition-colors group-hover:bg-accent group-hover:ring-primary/50', className]}
+		>
+			{@render body()}
+		</Card.Root>
 	</a>
 {:else}
-	<div class="rounded-lg border border-border bg-card p-5">
+	<Card.Root class={className}>
 		{@render body()}
-	</div>
+	</Card.Root>
 {/if}

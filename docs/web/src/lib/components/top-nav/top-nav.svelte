@@ -1,6 +1,7 @@
 <script lang="ts">
 	import MenuIcon from '@lucide/svelte/icons/menu';
 	import SearchIcon from '@lucide/svelte/icons/search';
+	import { Button } from '$lib/components/ui/button/index.js';
 	import ColorPicker from '$lib/components/color-picker/color-picker.svelte';
 	import ThemePicker from '$lib/components/theme-picker/theme-picker.svelte';
 	import GithubIcon from '$lib/icons/github.svelte';
@@ -21,14 +22,15 @@
 <header
 	class="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-border bg-background/80 px-4 backdrop-blur"
 >
-	<button
-		type="button"
-		class="inline-flex size-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground md:hidden"
+	<Button
+		variant="ghost"
+		size="icon"
+		class="md:hidden"
 		aria-label={m['nav.menu_toggle']()}
 		onclick={onOpenMobileNav}
 	>
 		<MenuIcon size={18} />
-	</button>
+	</Button>
 
 	<a href={localizeHref('/')} class="flex items-center gap-2 font-heading text-lg font-semibold">
 		<img src="/logo.svg" alt="" class="size-6" />
@@ -41,34 +43,31 @@
 		>
 	</nav>
 
-	<button
-		type="button"
-		class="ml-4 flex flex-1 items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-1.5 text-sm text-muted-foreground hover:border-primary/40 md:max-w-xs"
+	<Button
+		variant="outline"
+		class="ml-4 flex-1 justify-start gap-2 font-normal text-muted-foreground hover:border-primary/40 hover:bg-background md:max-w-xs"
 		onclick={onOpenSearch}
 	>
 		<SearchIcon size={15} />
 		<span class="flex-1 text-left">{m['nav.search_placeholder']()}</span>
 		<kbd class="rounded border border-border bg-background px-1.5 py-0.5 text-[10px]">Ctrl K</kbd>
-	</button>
+	</Button>
 
 	<div class="ml-auto flex items-center gap-1">
-		<button
-			type="button"
-			class="rounded-md px-2 py-1 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
-			onclick={toggleLocale}
-		>
+		<Button variant="ghost" size="sm" onclick={toggleLocale}>
 			{getLocale().toUpperCase()}
-		</button>
+		</Button>
 		<ThemePicker />
 		<ColorPicker />
-		<a
+		<Button
+			variant="ghost"
+			size="icon"
 			href={GITHUB_URL}
 			target="_blank"
 			rel="noreferrer"
-			class="inline-flex size-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
 			aria-label={m['nav.github']()}
 		>
 			<GithubIcon size={17} />
-		</a>
+		</Button>
 	</div>
 </header>

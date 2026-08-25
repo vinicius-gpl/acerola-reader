@@ -60,6 +60,14 @@ figure[data-rehype-pretty-code-figure] code[data-line-numbers] > [data-line]::be
 	@apply no-underline;
 }
 
+.doc-content .mermaid {
+	@apply my-6 overflow-x-auto rounded-lg border border-border bg-card p-4;
+}
+
+.doc-content .mermaid svg {
+	@apply mx-auto;
+}
+
 .doc-content h2 .heading-anchor,
 .doc-content h3 .heading-anchor,
 .doc-content h4 .heading-anchor {

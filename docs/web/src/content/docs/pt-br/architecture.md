@@ -31,8 +31,9 @@ O Acerola é um **monorepo**: cada plataforma vive isolada, com sua própria sta
 
 `acerola/android/` e `acerola/desktop/` nunca se enxergam diretamente — cada um implementa sua própria FFI/binding para consumir `lib/p2p/`. Toda comunicação entre dispositivos é P2P direta (LAN via mDNS) ou via o relay quando fora da mesma rede.
 
-```text
-Android  ──┐
-           ├──> lib/p2p (biblioteca compartilhada) ──> Relay (acesso remoto, sem abrir portas)
-Desktop  ──┘
+```mermaid
+flowchart LR
+    Android["Android"] --> P2P["lib/p2p<br/>(biblioteca compartilhada)"]
+    Desktop["Desktop"] --> P2P
+    P2P --> Relay["Relay<br/>(acesso remoto, sem abrir portas)"]
 ```

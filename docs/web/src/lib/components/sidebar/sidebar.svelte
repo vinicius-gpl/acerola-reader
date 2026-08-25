@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { SidebarGroup } from '$lib/content/docs';
 	import { localizeHref } from '$lib/paraglide/runtime';
+	import { cn } from '$lib/utils';
 
 	let { groups, activeSlug }: { groups: SidebarGroup[]; activeSlug: string } = $props();
 </script>
@@ -16,12 +17,12 @@
 					<li>
 						<a
 							href={localizeHref(`/docs/${doc.slug}`)}
-							class={[
+							class={cn(
 								'block rounded-md px-2 py-1.5 transition-colors',
 								doc.slug === activeSlug
 									? 'bg-primary/10 font-medium text-primary'
 									: 'text-muted-foreground hover:bg-accent hover:text-foreground'
-							]}
+							)}
 						>
 							{doc.frontmatter.title}
 						</a>

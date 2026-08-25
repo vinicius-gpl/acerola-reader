@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { m } from '$lib/paraglide/messages';
+	import { cn } from '$lib/utils';
 
 	type Heading = { id: string; text: string; depth: 2 | 3 };
 
@@ -45,12 +46,12 @@
 				<li style={heading.depth === 3 ? 'padding-left: 1rem' : ''}>
 					<a
 						href="#{heading.id}"
-						class={[
+						class={cn(
 							'-ml-px block border-l-2 py-0.5 pl-3 transition-colors',
 							activeId === heading.id
 								? 'border-primary font-medium text-primary'
 								: 'border-transparent text-muted-foreground hover:text-foreground'
-						]}
+						)}
 					>
 						{heading.text}
 					</a>

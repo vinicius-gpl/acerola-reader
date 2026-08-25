@@ -1,4 +1,5 @@
 <script lang="ts">
+	import * as Tabs from '$lib/components/ui/tabs/index.js';
 	import { untrack, type Snippet } from 'svelte';
 
 	// Svelte 5 doesn't allow a dynamic `slot` name, so each tab carries its own
@@ -6,31 +7,20 @@
 	let { items }: { items: { value: string; label: string; content: Snippet }[] } = $props();
 
 	// Only the initial tab matters here — `items` isn't expected to change after mount.
-	let active = $state(untrack(() => items[0]?.value));
+	let active = $state(untrack(() => items[0]?.value ?? ''));
 </script>
 
-<div class="my-6 overflow-hidden rounded-lg border border-border">
-	<div class="flex gap-1 overflow-x-auto border-b border-border bg-muted/40 p-1">
+<Tabs.Root bind:value={active} class="my-6 overflow-hidden rounded-lg border border-border">
+	<Tabs.List
+		class="w-full justify-start overflow-x-auto rounded-none border-b border-border bg-muted/40 p-1"
+	>
 		{#each items as item (item.value)}
-			<button
-				type="button"
-				class={[
-					'rounded-md px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors',
-					active === item.value
-						? 'bg-background text-foreground shadow-sm'
-						: 'text-muted-foreground hover:text-foreground'
-				]}
-				onclick={() => (active = item.value)}
-			>
-				{item.label}
-			</button>
+			<Tabs.Trigger value={item.value} class="flex-none">{item.label}</Tabs.Trigger>
 		{/each}
-	</div>
-	<div class="p-4 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-		{#each items as item (item.value)}
-			<div class={active === item.value ? 'block' : 'hidden'}>
-				{@render item.content()}
-			</div>
-		{/each}
-	</div>
-</div>
+	</Tabs.List>
+	{#each items as item (item.value)}
+		<Tabs.Content value={item.value} class="p-4 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+			{@render item.content()}
+		</Tabs.Content>
+	{/each}
+</Tabs.Root>

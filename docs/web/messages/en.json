@@ -2,7 +2,11 @@
 	"$schema": "https://inlang.com/schema/inlang-message-format",
 	"site": {
 		"name": "Acerola",
-		"tagline": "Documentation"
+		"tagline": "Documentation",
+		"description": "Documentation for Acerola — a local-first comic and manga reader that syncs your library between your own devices over P2P, with no cloud, no account, and no server to trust.",
+		"keywords": "comic reader, manga reader, P2P sync, local-first, self-hosted, Android, desktop, Tauri, Kotlin, Rust, open source",
+		"og_title": "Acerola — Local-first comic & manga reader",
+		"og_description": "Read your comics and manga on any device. Acerola syncs your library straight between your devices over P2P — no cloud, no account, no lock-in."
 	},
 	"nav": {
 		"docs": "Docs",

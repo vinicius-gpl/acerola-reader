@@ -1,0 +1,20 @@
+# Allow crawling for all web crawlers and AI agents by default
+User-agent: *
+Allow: /
+
+# Explicit rules for major LLM & AI Crawlers
+User-agent: GPTBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+# Sitemap and LLM documentation locations
+Sitemap: https://docs.acerola-comic.com/sitemap.xml
+LLMs-Txt: https://docs.acerola-comic.com/llms.txt

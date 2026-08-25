@@ -2,7 +2,11 @@
 	"$schema": "https://inlang.com/schema/inlang-message-format",
 	"site": {
 		"name": "Acerola",
-		"tagline": "Documentação"
+		"tagline": "Documentação",
+		"description": "Documentação do Acerola — um leitor de quadrinhos e mangás local-first que sincroniza sua biblioteca entre seus dispositivos via P2P, sem nuvem, sem conta e sem servidor pra confiar.",
+		"keywords": "leitor de quadrinhos, leitor de mangá, sincronização P2P, local-first, self-hosted, Android, desktop, Tauri, Kotlin, Rust, código aberto",
+		"og_title": "Acerola — Leitor de quadrinhos e mangás local-first",
+		"og_description": "Leia seus quadrinhos e mangás em qualquer dispositivo. Acerola sincroniza sua biblioteca direto entre seus dispositivos via P2P — sem nuvem, sem conta, sem cadeado."
 	},
 	"nav": {
 		"docs": "Docs",
