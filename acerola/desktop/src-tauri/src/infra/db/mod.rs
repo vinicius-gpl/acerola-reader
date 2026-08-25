@@ -38,6 +38,12 @@ fn archive_migrations() -> Vec<Migration> {
             sql: include_str!("./migrations/models/archive/004_create_volume_archive.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 19,
+            description: "rename_volume_id_fk_to_volume_fk",
+            sql: include_str!("./migrations/models/archive/005_rename_volume_id_fk_to_volume_fk.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }
 
@@ -123,12 +129,26 @@ fn history_migrations() -> Vec<Migration> {
 }
 
 fn view_migrations() -> Vec<Migration> {
-    vec![Migration {
-        version: 15,
-        description: "create_comic_summary_view",
-        sql: include_str!("./migrations/views/001_create_comic_summary_view.sql"),
-        kind: MigrationKind::Up,
-    }]
+    vec![
+        Migration {
+            version: 15,
+            description: "create_comic_summary_view",
+            sql: include_str!("./migrations/views/001_create_comic_summary_view.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 20,
+            description: "drop_comic_summary_view",
+            sql: include_str!("./migrations/views/002_drop_comic_summary_view.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 21,
+            description: "recreate_comic_summary_view_with_fk_names",
+            sql: include_str!("./migrations/views/003_recreate_comic_summary_view_with_fk_names.sql"),
+            kind: MigrationKind::Up,
+        },
+    ]
 }
 
 fn seed_migrations() -> Vec<Migration> {

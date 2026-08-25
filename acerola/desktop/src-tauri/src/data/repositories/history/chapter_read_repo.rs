@@ -55,8 +55,10 @@ impl ChapterReadRepository {
         Ok(rows.into_iter().map(|(id,)| id).collect())
     }
 
-    /// Remove o registro de leitura de um capítulo (marca como não lido).
-    pub async fn delete(
+    /// Remove o registro de leitura de um capítulo (marca como não lido). Não usa a
+    /// abstração base (`Repository::delete`, que apaga por `id`): aqui a chave é composta
+    /// por `comic_directory_id` + `chapter_archive_id`, daí o nome mais explícito.
+    pub async fn delete_by_comic_and_chapter(
         &self, comic_directory_id: i64, chapter_archive_id: i64,
     ) -> Result<(), DbError> {
         let table = ChapterRead::table_name();
@@ -223,14 +225,14 @@ mod tests {
         repo.insert_or_ignore(&capitulo_lido(1, 1)).await.unwrap();
         assert_eq!(repo.find_ids_by_comic(1).await.unwrap().len(), 1);
 
-        repo.delete(1, 1).await.unwrap();
+        repo.delete_by_comic_and_chapter(1, 1).await.unwrap();
         assert!(repo.find_ids_by_comic(1).await.unwrap().is_empty());
     }
 
     #[tokio::test]
     async fn test_delete_nonexistent_chapter_does_not_fail() {
         let (_, repo) = setup().await;
-        repo.delete(1, 999).await.unwrap();
+        repo.delete_by_comic_and_chapter(1, 999).await.unwrap();
     }
 
     #[tokio::test]

@@ -62,6 +62,16 @@ impl SecureTrustedStore {
         let json = serde_json::to_vec(set).expect("HashSet<String> serialization cannot fail");
         std::fs::write(path, encrypt(&self.master_key, &json))
     }
+
+    /// Remove um peer da lista de confiança (TOFU) — usado por "desparear". Idempotente: id
+    /// desconhecido não é erro, só não reescreve o arquivo à toa.
+    pub async fn remove(&self, id: &str) -> std::io::Result<()> {
+        let mut trusted = self.trusted.write().await;
+        if !trusted.remove(id) {
+            return Ok(());
+        }
+        self.write_set(&self.trusted_path, &trusted)
+    }
 }
 
 #[async_trait]
@@ -108,6 +118,33 @@ mod tests {
 
         let raw = std::fs::read(dir.path().join("trusted.enc")).unwrap();
         assert!(!raw.windows(b"peer-1".len()).any(|window| window == b"peer-1"));
+    }
+
+    #[tokio::test]
+    async fn remove_persists_and_survives_reopen() {
+        let dir = tempfile::tempdir().unwrap();
+        let key = [8u8; 32];
+
+        {
+            let store = SecureTrustedStore::open(dir.path(), key).unwrap();
+            store.insert("peer-1").await;
+            store.remove("peer-1").await.unwrap();
+            assert!(!store.contains("peer-1").await);
+        }
+
+        let reopened = SecureTrustedStore::open(dir.path(), key).unwrap();
+        assert!(!reopened.contains("peer-1").await);
+    }
+
+    #[tokio::test]
+    async fn remove_of_unknown_peer_is_a_no_op() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = SecureTrustedStore::open(dir.path(), [3u8; 32]).unwrap();
+        store.insert("peer-1").await;
+
+        store.remove("never-trusted-peer").await.unwrap();
+
+        assert!(store.contains("peer-1").await);
     }
 
     #[tokio::test]

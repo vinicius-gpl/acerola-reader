@@ -3,7 +3,9 @@ use std::{collections::HashMap, path::PathBuf};
 use sqlx::SqlitePool;
 
 use crate::{
-    core::services::archive::files_guard::{ArchiveFileGuard, FileGuard, MetadataFileGuard},
+    core::services::archive::files_guard::{
+        ArchiveFileGuard, ArtworkFileGuard, FileGuard, MetadataFileGuard,
+    },
     data::{
         models::metadata::{anilist_source::AnilistSource, author::AuthorMetadata, comic::ComicMetadata},
         repositories::{
@@ -176,19 +178,25 @@ impl MetadataService {
             .ok_or(ComicError::NotFound)?;
 
         let dir_path = PathBuf::from(&comic_dir.path);
-        for file_name in [
-            "ComicInfo.xml",
-            "cover.jpg",
-            "cover.jpeg",
-            "cover.png",
-            "banner.jpg",
-            "banner.jpeg",
-            "banner.png",
-        ] {
-            if let Err(error) = std::fs::remove_file(dir_path.join(file_name)) {
-                if error.kind() != std::io::ErrorKind::NotFound {
+
+        // Mesmo padrão de `find_xml_file_on_disk`: reaproveita os guards que já definem o
+        // que conta como arquivo de metadados/artwork sincronizado, em vez de manter uma
+        // lista solta de nomes de arquivo que precisaria ser atualizada nos dois lugares.
+        let metadata_guard = MetadataFileGuard;
+        let artwork_guard = ArtworkFileGuard;
+
+        if let Ok(entries) = std::fs::read_dir(&dir_path) {
+            for path in entries.filter_map(Result::ok).map(|entry| entry.path()) {
+                let is_synced_file =
+                    metadata_guard.is_allowed(&path).is_ok() || artwork_guard.is_allowed(&path).is_ok();
+
+                if !is_synced_file {
+                    continue;
+                }
+
+                if let Err(error) = std::fs::remove_file(&path) {
                     tracing::warn!(
-                        file = file_name,
+                        file = %path.to_string_lossy(),
                         directory = %dir_path.to_string_lossy(),
                         error = %error,
                         "Failed to remove file while clearing comic metadata"
@@ -634,7 +642,7 @@ impl MetadataService {
         let mut updated_dir = comic_dir.clone();
         updated_dir.cover =
             Some(PathBuf::from(&comic_dir.path).join("cover.jpg").to_string_lossy().to_string());
-        self.comic_directory_repo.update(&updated_dir).await?;
+        self.comic_directory_repo.base.update(&updated_dir).await?;
 
         Ok(())
     }
@@ -657,7 +665,7 @@ impl MetadataService {
             updated_dir.cover = Some(
                 PathBuf::from(&comic_dir.path).join("cover.jpg").to_string_lossy().to_string(),
             );
-            self.comic_directory_repo.update(&updated_dir).await?;
+            self.comic_directory_repo.base.update(&updated_dir).await?;
         }
 
         if let Some(ref banner_url) = media.banner_image {
@@ -667,7 +675,7 @@ impl MetadataService {
             updated_dir.banner = Some(
                 PathBuf::from(&comic_dir.path).join("banner.jpg").to_string_lossy().to_string(),
             );
-            self.comic_directory_repo.update(&updated_dir).await?;
+            self.comic_directory_repo.base.update(&updated_dir).await?;
         }
 
         Ok(())
@@ -760,7 +768,7 @@ mod tests {
             .expect("Failed to fetch comic")
             .expect("Comic #1 should exist");
         comic.path = temp_directory.path().to_string_lossy().to_string();
-        comic_repository.update(&comic).await.expect("Failed to update comic path");
+        comic_repository.base.update(&comic).await.expect("Failed to update comic path");
 
         let metadata = service.sync_comic_comic_info(1).await.expect("Failed to sync comic_info");
         assert_eq!(metadata.title, "Test ComicInfo Title");
@@ -781,7 +789,7 @@ mod tests {
             .expect("Failed to fetch comic")
             .expect("Comic #1 should exist");
         comic.path = temp_directory.path().to_string_lossy().to_string();
-        comic_repository.update(&comic).await.expect("Failed to update comic path");
+        comic_repository.base.update(&comic).await.expect("Failed to update comic path");
 
         let sync_result = service.sync_comic_comic_info(1).await;
         assert!(matches!(sync_result, Err(ComicError::ComicInfoNotFound)));

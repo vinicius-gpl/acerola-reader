@@ -56,8 +56,6 @@
 		await goto('/home');
 	}
 
-	const steps = [StepWelcome, StepLanguage, StepFormats, StepSettings, StepComplete];
-
 	let currentStepIndex = $derived(onboarding.currentStep);
 </script>
 

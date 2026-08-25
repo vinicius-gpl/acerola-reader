@@ -1,4 +1,3 @@
-// TODO: Transformar o nome do arquivo para archive.**
 export const LIBRARY_EVENTS = {
 	scanConverting: 'scan:converting',
 	scanProgress: 'scan:progress',

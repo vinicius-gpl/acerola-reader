@@ -1,4 +1,4 @@
-use crate::infra::error::{ComicError, RpcError};
+use super::{ComicError, RpcError};
 
 /// Ponte entre os erros internos deste crate e o `ConnectionError` que
 /// `acerola_p2p::api::protocol::Handler::handle` exige como retorno. Não há um

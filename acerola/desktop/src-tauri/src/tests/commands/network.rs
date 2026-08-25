@@ -125,6 +125,13 @@ impl NetworkServiceApi for MockNetworkService {
         Ok(state.paired_peers.clone())
     }
 
+    async fn remove_peer(&self, id: String) -> Result<(), String> {
+        let mut state = self.state.lock().expect("network mock mutex should not be poisoned");
+        Self::take_failure(&mut state)?;
+        state.paired_peers.retain(|(addr, _)| addr.id.id != id);
+        Ok(())
+    }
+
     async fn switch_to_local(&self) -> Result<(), String> {
         let mut state = self.state.lock().expect("network mock mutex should not be poisoned");
         Self::take_failure(&mut state)?;
@@ -176,6 +183,7 @@ fn build_network_app(
             network_cmd::get_local_id,
             network_cmd::connect_to_peer,
             network_cmd::get_paired_peers,
+            network_cmd::remove_paired_peer,
         ],
     ))
 }
@@ -354,6 +362,44 @@ async fn test_get_paired_peers_serializes_service_error() -> Result<()> {
     let error = invoke_err(&webview, "get_paired_peers", json!({}))?;
 
     assert_eq!(error, json!("paired peers failure"));
+
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_remove_paired_peer_drops_it_from_the_paired_list() -> Result<()> {
+    let service = mock_network_service();
+    service.set_paired_peers(vec![
+        (
+            PeerAddr { id: PeerIdentity { id: "peer-to-remove".to_string(), device_id: None }, addrs: vec![1] },
+            None,
+        ),
+        (
+            PeerAddr { id: PeerIdentity { id: "peer-to-keep".to_string(), device_id: None }, addrs: vec![2] },
+            None,
+        ),
+    ]);
+    let (_app, webview) = build_network_app(service)?;
+
+    let _: Value =
+        invoke_ok(&webview, "remove_paired_peer", json!({ "peerId": "peer-to-remove" }))?;
+
+    let paired: Value = invoke_ok(&webview, "get_paired_peers", json!({}))?;
+    assert_eq!(paired.as_array().unwrap().len(), 1);
+    assert_eq!(paired[0]["peerId"], "peer-to-keep");
+
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_remove_paired_peer_serializes_service_error() -> Result<()> {
+    let service = mock_network_service();
+    service.fail_next("remove failure");
+    let (_app, webview) = build_network_app(service)?;
+
+    let error = invoke_err(&webview, "remove_paired_peer", json!({ "peerId": "peer-1" }))?;
+
+    assert_eq!(error, json!("remove failure"));
 
     Ok(())
 }

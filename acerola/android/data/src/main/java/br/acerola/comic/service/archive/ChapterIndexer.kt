@@ -32,7 +32,7 @@ class ChapterIndexer
             comicId: Long,
             fileUri: String,
             chapterSort: String,
-            volumeIdFk: Long?,
+            volumeFk: Long?,
             isSpecial: Boolean,
         ): ChapterArchive =
             file
@@ -40,7 +40,7 @@ class ChapterIndexer
                     comicId = comicId,
                     fileUri = fileUri,
                     chapterSort = chapterSort,
-                    volumeIdFk = volumeIdFk,
+                    volumeFk = volumeFk,
                     isSpecial = isSpecial,
                 ).copy(checksum = computeChecksum(fileUri))
 

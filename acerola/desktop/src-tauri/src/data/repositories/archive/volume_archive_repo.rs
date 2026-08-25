@@ -90,7 +90,7 @@ impl VolumeRepository {
     ) -> Result<Vec<VolumeWithCount>, DbError> {
         let order = Self::order_clause_for_volumes(criteria);
         let sql = format!(
-            "SELECT va.*, COUNT(ca.id) as chapter_count FROM volume_archive va LEFT JOIN chapter_archive ca ON ca.volume_id_fk = va.id WHERE va.comic_directory_fk = ? GROUP BY va.id {}",
+            "SELECT va.*, COUNT(ca.id) as chapter_count FROM volume_archive va LEFT JOIN chapter_archive ca ON ca.volume_fk = va.id WHERE va.comic_directory_fk = ? GROUP BY va.id {}",
             order
         );
 
@@ -109,7 +109,7 @@ impl VolumeRepository {
                 va.*,
                 COUNT(ca.id) as chapter_count
                 FROM volume_archive va
-                LEFT JOIN chapter_archive ca ON ca.volume_id_fk = va.id
+                LEFT JOIN chapter_archive ca ON ca.volume_fk = va.id
                 WHERE va.comic_directory_fk = ?
                 GROUP BY va.id
                 ORDER BY 

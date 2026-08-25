@@ -910,7 +910,7 @@ mod tests {
         service.refresh_library(root.path().to_path_buf(), |_| {}, |_| {}).await.unwrap();
 
         let chapters = ChapterRepository::new(pool.clone()).base.find_all().await.unwrap();
-        assert!(chapters[0].volume_id_fk.is_none());
+        assert!(chapters[0].volume_fk.is_none());
     }
 
     #[tokio::test]

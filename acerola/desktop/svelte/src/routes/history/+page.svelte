@@ -1,23 +1,102 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { onMount } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import { m } from '$lib/paraglide/messages';
+	import { toast } from 'svelte-sonner';
 
 	import PlaceholderManga from '$lib/assets/placeholder/placeholder_manga.svg?component';
 	import AcerolaButton from '$lib/components/acerola-button/acerola-button.svelte';
 	import AcerolaBookmarkRibbon from '$lib/components/acerola-bookmark-ribbon/acerola-bookmark-ribbon.svelte';
 	import AcerolaAlertDialog from '$lib/components/acerola-alert-dialog/acerola-alert-dialog.svelte';
 	import AcerolaCardImage from '$lib/components/acerola-card/acerola-card-image.svelte';
+	import AcerolaPopover from '$lib/components/acerola-popover/acerola-popover.svelte';
+	import { buttonVariants } from '$lib/components/ui/button';
+	import { cn } from '$lib/utils/cn.utils';
 	import { useBookmarks } from '$lib/hooks/store/use-bookmarks.svelte';
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import RefreshCwIcon from '@lucide/svelte/icons/refresh-cw';
+	import MonitorIcon from '@lucide/svelte/icons/monitor';
 
 	import { resolveArtworkPath } from '$lib/utils/artwork.utils';
 	import type { ReadingHistoryPayload } from '$lib/contracts/history/history.payloads';
 	import { useHistory } from '$lib/hooks/store/use-history.svelte';
+	import { usePeerConnection, shortId } from '$lib/hooks/store/use-peer-connection.svelte';
+	import { useNetworkSync } from '$lib/hooks/store/use-network-sync.svelte';
 
 	const history = useHistory();
 	const bookmarkStore = useBookmarks();
+	const peers = usePeerConnection();
+	const sync = useNetworkSync();
+
+	let syncMenuOpen = $state(false);
+	// Evita re-disparar `history.fetch()`/toast duas vezes pro mesmo evento — `sync.log[0]`
+	// dispara o `$effect` de novo a cada re-render enquanto essa entrada continuar sendo a mais
+	// recente do log.
+	let lastHandledSyncLogId: number | undefined;
+
+	type DisplayPeer = { peerId: string; deviceName: string | null; connected: boolean };
+
+	// Mesmo merge de pareados persistidos + conectados ao vivo usado em `/network` — ver o
+	// comentário lá para o motivo de precisar dos dois.
+	const uniquePeers = $derived.by(() => {
+		const byId = new Map<string, DisplayPeer>();
+		for (const peer of peers.pairedPeers) {
+			byId.set(peer.peerId, { peerId: peer.peerId, deviceName: peer.deviceName, connected: false });
+		}
+
+		for (const peer of peers.status?.peers ?? []) {
+			byId.set(peer.peerId, {
+				peerId: peer.peerId,
+				deviceName: peer.device?.name ?? byId.get(peer.peerId)?.deviceName ?? null,
+				connected: true
+			});
+		}
+		return [...byId.values()];
+	});
+
+	const anyHistorySyncing = $derived(
+		uniquePeers.some((peer) => sync.isSyncing(peer.peerId, 'history'))
+	);
+
+	function peerStatusLabel(peer: DisplayPeer): string {
+		if (peer.connected) return m['pages.network.peers.online']();
+		const timestamp = sync.lastSyncedAt(peer.peerId);
+		
+		if (!timestamp) return m['pages.network.peers.never_synced']();
+		return m['pages.network.peers.last_synced']({ when: new Date(timestamp).toLocaleString() });
+	}
+
+	async function handleSyncHistory(peerId: string) {
+		const addrs = peers.getKnownAddr(peerId);
+		if (!addrs) return;
+		try {
+			await sync.syncHistory(peerId, addrs);
+		} catch (err) {
+			toast.error(String(err));
+		}
+	}
+
+	// `sync.syncHistory` só resolve quando a conexão é aberta, não quando a sessão termina de
+	// fato (ver `sync:history:*` no backend) — o resultado real chega aqui via `sync.log`,
+	// alimentado pelos mesmos eventos que a tela de Rede escuta.
+	$effect(() => {
+		const entry = sync.log[0];
+		if (!entry || entry.kind !== 'history' || entry.id === lastHandledSyncLogId) return;
+
+		if (entry.status === 'complete') {
+			lastHandledSyncLogId = entry.id;
+			toast.success(m['pages.history.sync.success']({ peer: peers.peerLabel(entry.message) }));
+			history.fetch();
+			return;
+		}
+
+		if (entry.status === 'error') {
+			lastHandledSyncLogId = entry.id;
+			toast.error(m['pages.history.sync.error']({ msg: entry.message }));
+			return;
+		}
+	});
 
 	function resumeReading(item: ReadingHistoryPayload) {
 		goto('/reader', {
@@ -49,33 +128,108 @@
 
 	onMount(() => {
 		history.fetch();
+		peers.startListening();
+		sync.startListening();
+	});
+
+	onDestroy(() => {
+		peers.stopListening();
+		sync.stopListening();
 	});
 </script>
 
 <div class="flex h-full flex-col overflow-hidden">
 	<div class="flex shrink-0 items-center justify-between px-8 py-6">
 		<h2 class="text-2xl font-bold tracking-tight">{m['pages.history.title']()}</h2>
-		{#if history.items.length > 0}
-			<AcerolaAlertDialog
-				data={{
-					title: m['pages.history.clear.title'](),
-					description: m['pages.history.clear.desc'](),
-					cancelText: m['pages.history.clear.cancel'](),
-					actionText: m['pages.history.clear.confirm']()
-				}}
-				ui={{ variant: 'destructive' }}
-				events={{
-					onAction: () => history.clear()
+		<div class="flex items-center gap-2">
+			<AcerolaPopover
+				state={{ open: syncMenuOpen }}
+				events={{ onOpenChange: (open) => (syncMenuOpen = open) }}
+				ui={{
+					align: 'end',
+					contentClass:
+						'w-72 overflow-hidden rounded-2xl border-border/40 bg-card/95 p-1.5 shadow-2xl backdrop-blur-md'
 				}}
 			>
-				<AcerolaButton
-					ui={{ variant: 'destructive', size: 'sm', class: 'gap-2 font-medium tracking-wide' }}
+				{#snippet trigger()}
+					<span
+						class={cn(
+							buttonVariants({ variant: 'outline', size: 'sm' }),
+							'gap-2 font-medium tracking-wide'
+						)}
+					>
+						<RefreshCwIcon size={14} class={anyHistorySyncing ? 'animate-spin' : ''} />
+						{m['pages.history.sync.button']()}
+					</span>
+				{/snippet}
+
+				{#snippet content()}
+					<div class="flex flex-col gap-0.5">
+						<p
+							class="px-2.5 pt-1.5 pb-2 text-xs font-bold tracking-widest text-muted-foreground uppercase"
+						>
+							{m['pages.history.sync.title']()}
+						</p>
+
+						{#if uniquePeers.length === 0}
+							<p class="px-2.5 pb-2 text-xs text-muted-foreground">
+								{m['pages.history.sync.empty']()}
+							</p>
+						{:else}
+							{#each uniquePeers as peer (peer.peerId)}
+								{@const addrs = peers.getKnownAddr(peer.peerId)}
+								{@const syncing = sync.isSyncing(peer.peerId, 'history')}
+								<button
+									type="button"
+									class="flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm font-medium transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
+									disabled={!addrs || syncing}
+									onclick={() => {
+										syncMenuOpen = false;
+										handleSyncHistory(peer.peerId);
+									}}
+								>
+									<MonitorIcon size={16} class="shrink-0 text-muted-foreground" />
+									<span class="min-w-0 flex-1">
+										<span class="block truncate text-foreground">
+											{peer.deviceName ?? shortId(peer.peerId)}
+										</span>
+										<span class="block truncate text-xs text-muted-foreground">
+											{peerStatusLabel(peer)}
+										</span>
+									</span>
+									<RefreshCwIcon
+										size={14}
+										class="shrink-0 text-muted-foreground {syncing ? 'animate-spin' : ''}"
+									/>
+								</button>
+							{/each}
+						{/if}
+					</div>
+				{/snippet}
+			</AcerolaPopover>
+
+			{#if history.items.length > 0}
+				<AcerolaAlertDialog
+					data={{
+						title: m['pages.history.clear.title'](),
+						description: m['pages.history.clear.desc'](),
+						cancelText: m['pages.history.clear.cancel'](),
+						actionText: m['pages.history.clear.confirm']()
+					}}
+					ui={{ variant: 'destructive' }}
+					events={{
+						onAction: () => history.clear()
+					}}
 				>
-					<Trash2 size={16} />
-					{m['pages.history.clear.button']()}
-				</AcerolaButton>
-			</AcerolaAlertDialog>
-		{/if}
+					<AcerolaButton
+						ui={{ variant: 'destructive', size: 'sm', class: 'gap-2 font-medium tracking-wide' }}
+					>
+						<Trash2 size={16} />
+						{m['pages.history.clear.button']()}
+					</AcerolaButton>
+				</AcerolaAlertDialog>
+			{/if}
+		</div>
 	</div>
 
 	{#if history.loading}

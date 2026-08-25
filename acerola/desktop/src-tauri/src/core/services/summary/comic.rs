@@ -11,7 +11,7 @@ use crate::{
         },
         repositories::{
             archive::chapter_archive_repo::ChapterRepository,
-            category::category_repo::CategoryRepository,
+            category::CategoryRepository,
             metadata::MetadataRepository,
             views::{HomeRepository, SortCriteria},
         },
@@ -122,8 +122,8 @@ impl HomeService {
         let comic = comics.into_iter().find(|comic| comic.folder_name == folder_name);
 
         if let Some(view) = comic {
-            let count = self.chapter_repo.count_by_directory_id(view.directory_id).await?;
-            let meta = self.metadata_repo.get_comic_metadata_by_comic_id(view.directory_id).await?;
+            let count = self.chapter_repo.count_by_directory_id(view.directory_fk).await?;
+            let meta = self.metadata_repo.get_comic_metadata_by_comic_id(view.directory_fk).await?;
             let author = if let Some(m) = &meta {
                 self.metadata_repo
                     .get_author_metadata_by_comic_metadata_id(m.id)
@@ -141,7 +141,7 @@ impl HomeService {
             } else {
                 None
             };
-            let bookmark = self.category_repo.get_comic_category(view.directory_id).await?;
+            let bookmark = self.category_repo.get_comic_category(view.directory_fk).await?;
             Ok(Some((view, count, meta.map(|m| (m, author, rating)), bookmark)))
         } else {
             Ok(None)

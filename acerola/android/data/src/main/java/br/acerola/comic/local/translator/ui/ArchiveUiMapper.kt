@@ -46,7 +46,7 @@ fun ChapterArchive.toViewDto(volumeName: String? = null): ChapterFileDto =
         name = chapter,
         path = path,
         chapterSort = chapterSort,
-        volumeId = volumeIdFk,
+        volumeId = volumeFk,
         volumeName = volumeName,
         isSpecial = isSpecial,
         lastModified = lastModified,

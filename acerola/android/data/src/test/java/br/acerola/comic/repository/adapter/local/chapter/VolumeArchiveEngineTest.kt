@@ -57,7 +57,7 @@ class VolumeArchiveEngineTest {
             val chapters =
                 listOf(
                     ChapterVolumeJoin(
-                        chapter = ChapterArchive(id = 1, chapter = "1", path = "p1", chapterSort = "1", folderPathFk = comicId, volumeIdFk = 101L),
+                        chapter = ChapterArchive(id = 1, chapter = "1", path = "p1", chapterSort = "1", folderPathFk = comicId, volumeFk = 101L),
                         volume = null,
                     ),
                 )
@@ -88,7 +88,7 @@ class VolumeArchiveEngineTest {
                                 path = "p1",
                                 chapterSort = "1",
                                 folderPathFk = comicId,
-                                volumeIdFk = volumeId,
+                                volumeFk = volumeId,
                             ),
                         volume = null,
                     ),

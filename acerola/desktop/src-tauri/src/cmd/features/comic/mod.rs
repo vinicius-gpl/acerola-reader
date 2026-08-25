@@ -4,8 +4,8 @@ use tauri::{AppHandle, Emitter, Runtime, State};
 use crate::{
     cmd::events::{shared::ErrorPayload, summary::ComicSummaryPayload},
     core::services::{
+        comic::ComicService,
         summary::{ChapterCacheService, HomeService},
-        ComicService,
     },
     data::repositories::views::SortCriteria,
     infra::error::ComicError,

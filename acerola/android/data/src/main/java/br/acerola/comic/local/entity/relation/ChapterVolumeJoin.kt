@@ -9,8 +9,7 @@ data class ChapterVolumeJoin(
     @Embedded
     val chapter: ChapterArchive,
     @Relation(
-        // FIXME: remover _id_ deixar só _fk
-        parentColumn = "volume_id_fk",
+        parentColumn = "volume_fk",
         entityColumn = "id",
     )
     val volume: VolumeArchive? = null,

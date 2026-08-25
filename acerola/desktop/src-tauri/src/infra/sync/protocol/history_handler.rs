@@ -9,8 +9,8 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use crate::{
     core::services::sync::history_sync::HistorySyncService,
     data::{
-        models::sync::sync_history_log::SyncHistoryLogEntry,
-        repositories::sync::sync_history_log_repo::SyncHistoryLogRepository,
+        models::sync::SyncHistoryLogEntry,
+        repositories::sync::SyncHistoryLogRepository,
     },
     infra::sync::framing::{framed_reader, framed_writer, read_json, write_json, FramedReader, FramedWriter},
 };

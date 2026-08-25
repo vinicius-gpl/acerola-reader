@@ -30,7 +30,7 @@ interface VolumeArchiveDao : BaseDao<VolumeArchive> {
             volume_archive.last_modified AS lastModified,
             COUNT(chapter_archive.id) AS chapterCount
         FROM volume_archive
-        LEFT JOIN chapter_archive ON chapter_archive.volume_id_fk = volume_archive.id
+        LEFT JOIN chapter_archive ON chapter_archive.volume_fk = volume_archive.id
         WHERE volume_archive.comic_directory_fk = :folderId
         GROUP BY volume_archive.id
         ORDER BY

@@ -8,9 +8,8 @@ use tauri::Manager;
 
 use crate::{
     cmd::features::{
-        archive::archive_template_cmd,
-        category::category_cmd,
-        comic as comic_cmd, history as history_cmd,
+        archive as archive_template_cmd, category as category_cmd, comic as comic_cmd,
+        history as history_cmd,
         library::{comic_scanner_cmd, select_folder_cmd},
         metadata as metadata_cmd, network as network_cmd, reader as reader_cmd,
         summary as comic_summary_cmd,
@@ -45,6 +44,7 @@ pub fn build() -> tauri::Builder<tauri::Wry> {
         network_cmd::get_local_addr,
         network_cmd::get_local_device_info,
         network_cmd::get_paired_peers,
+        network_cmd::remove_paired_peer,
         network_cmd::get_relay_info,
         network_cmd::sync_history,
         network_cmd::sync_files,

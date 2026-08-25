@@ -61,7 +61,7 @@ dependencies {
     androidTestImplementation(libs.androidx.test.runner)
     implementation(libs.androidx.annotation)
     implementation(libs.kotlinx.coroutines.core)
-    implementation("net.java.dev.jna:jna:5.12.0@aar")
+    implementation(variantOf(libs.jna) { artifactType("aar") })
 }
 
 configure<org.jlleitschuh.gradle.ktlint.KtlintExtension> {

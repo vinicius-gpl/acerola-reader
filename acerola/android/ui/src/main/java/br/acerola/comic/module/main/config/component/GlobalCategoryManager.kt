@@ -45,7 +45,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import android.content.res.Configuration
 import br.acerola.comic.common.ux.theme.AcerolaTheme
 
-// FIXME: Verificar como isso tá chegando no banco de dados, provavelmente o frontend é a verdade e só manda isso para o banco de dados
+// Paleta de cores é só desta tela: `Category.color` (Room) é um Int sem validação —
+// `CategoryManager.createCategory` persiste o que a UI mandar, sem checar contra esta lista.
 val categoryColors =
     listOf(
         0xFFF44336,

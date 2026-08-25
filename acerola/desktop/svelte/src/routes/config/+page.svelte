@@ -568,6 +568,3 @@
 	</section>
 </div>
 
-<style>
-	/* SVG icons use inline fill attributes - no CSS override needed */
-</style>

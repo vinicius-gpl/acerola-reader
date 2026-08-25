@@ -11,4 +11,10 @@ sealed interface HistoryAction {
         val comic: ComicDto,
         val history: ReadingHistoryWithChapterDto,
     ) : HistoryAction
+
+    data object LoadPairedPeersForSync : HistoryAction
+
+    data class SyncHistoryWithPeer(
+        val peerId: String,
+    ) : HistoryAction
 }

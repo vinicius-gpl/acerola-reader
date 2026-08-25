@@ -49,10 +49,6 @@ impl ComicRepository {
         Ok(result)
     }
 
-    pub async fn update(&self, entity: &ComicDirectory) -> Result<ComicDirectory, DbError> {
-        self.base.update(entity).await
-    }
-
     /// Atualiza o status de visibilidade de um quadrinho especifico.
     pub async fn update_hidden_status(
         &self, id: i64, hidden: bool,

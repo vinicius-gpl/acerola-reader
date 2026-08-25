@@ -250,6 +250,17 @@ impl P2pTransport for IrohTransport {
             .any(|(key, conn)| key.0 == *peer && conn.close_reason().is_none())
     }
 
+    /// Delega para `Endpoint::network_change()` — ver a doc em `P2pTransport::network_change`
+    /// para o porquê disso ser necessário no Android.
+    async fn network_change(&self) {
+        self.endpoint.network_change().await;
+    }
+
+    async fn invalidate(&self, peer: &PeerId, alpn: &[u8]) {
+        let key = (peer.clone(), alpn.to_vec());
+        self.connections.write().await.remove(&key);
+    }
+
     /// Executa o teardown forçado do componente iroh.
     ///
     /// Warn: O endpoint é compartilhado em formato Arc no backend do crate `iroh`.
@@ -714,5 +725,75 @@ mod tests {
         let transport = build_transport().await;
         let unknown_peer = PeerId { id: "unknown-peer-id".to_string(), device_id: None };
         assert!(!P2pTransport::is_connected(&transport, &unknown_peer).await);
+    }
+
+    /// Regressão do bug "timed out reading library summary" persistindo até reiniciar o app no
+    /// Android: uma conexão reaproveitada pode estar silenciosamente morta (path QUIC caído sem
+    /// `close_reason()` ainda refletir isso) e um handler de protocolo detecta isso via timeout
+    /// de aplicação, bem antes do idle timeout do QUIC expirar. Sem `invalidate`, toda tentativa
+    /// seguinte reaproveitaria essa mesma conexão morta e falharia do mesmo jeito
+    /// indefinidamente. Prova que `invalidate` remove a entrada do pool, forçando o próximo
+    /// `open_bi` a discar uma conexão física nova em vez de reaproveitar a antiga.
+    #[tokio::test]
+    async fn invalidate_forces_fresh_dial_on_next_open_bi() {
+        let transport_a = Arc::new(build_transport().await);
+        let transport_b = Arc::new(build_transport().await);
+
+        let addr_b = transport_b.local_addr().unwrap();
+
+        async fn round_trip(
+            transport_a: &Arc<IrohTransport>, transport_b: &Arc<IrohTransport>, addr_b: &PeerAddr,
+        ) {
+            let t_b = Arc::clone(transport_b);
+            let accept_handle = tokio::spawn(async move {
+                let incoming = t_b.accept().await.unwrap();
+                let (_out_writer, mut in_reader) = incoming.accept_bi().await.unwrap();
+                let mut buf = [0u8; 4];
+                let _ = tokio::io::AsyncReadExt::read_exact(&mut in_reader, &mut buf).await;
+            });
+
+            let (mut writer, _reader) = transport_a.open_bi(b"test/proto", addr_b).await.unwrap();
+            writer.write_all(b"ping").await.unwrap();
+            writer.flush().await.unwrap();
+
+            accept_handle.await.unwrap();
+        }
+
+        round_trip(&transport_a, &transport_b, &addr_b).await;
+
+        let key = (addr_b.id.clone(), b"test/proto".to_vec());
+        let first_stable_id =
+            transport_a.connections.read().await.get(&key).map(|conn| conn.stable_id());
+        assert!(first_stable_id.is_some(), "connection should be cached after the first open_bi");
+
+        P2pTransport::invalidate(&*transport_a, &addr_b.id, b"test/proto").await;
+        assert!(
+            transport_a.connections.read().await.get(&key).is_none(),
+            "invalidate should remove the cached entry"
+        );
+
+        round_trip(&transport_a, &transport_b, &addr_b).await;
+
+        let second_stable_id =
+            transport_a.connections.read().await.get(&key).map(|conn| conn.stable_id());
+        assert!(second_stable_id.is_some(), "connection should be cached again after redial");
+        assert_ne!(
+            first_stable_id, second_stable_id,
+            "after invalidate, open_bi must dial a fresh physical connection, not reuse the old one"
+        );
+
+        transport_a.shutdown().await.unwrap();
+        transport_b.shutdown().await.unwrap();
+    }
+
+    /// `network_change` só repassa para `Endpoint::network_change()` — no Android é essa a única
+    /// forma de o transporte saber que a rede mudou, já que o SO não expõe monitoramento de
+    /// interface pra código nativo (só via `ConnectivityManager` do lado Kotlin). Prova só que a
+    /// chamada não entra em erro/panic contra um endpoint vivo.
+    #[tokio::test]
+    async fn network_change_does_not_panic_on_live_endpoint() {
+        let transport = build_transport().await;
+        P2pTransport::network_change(&transport).await;
+        transport.shutdown().await.unwrap();
     }
 }

@@ -10,7 +10,7 @@ import androidx.room.PrimaryKey
     tableName = "chapter_archive",
     indices = [
         Index(value = ["comic_directory_fk", "chapter"], unique = true),
-        Index(value = ["volume_id_fk"]),
+        Index(value = ["volume_fk"]),
     ],
     foreignKeys = [
         ForeignKey(
@@ -22,7 +22,7 @@ import androidx.room.PrimaryKey
         ForeignKey(
             entity = VolumeArchive::class,
             parentColumns = ["id"],
-            childColumns = ["volume_id_fk"],
+            childColumns = ["volume_fk"],
             onDelete = ForeignKey.CASCADE,
         ),
     ],
@@ -43,8 +43,8 @@ data class ChapterArchive(
     val checksum: String? = null,
     @ColumnInfo(name = "comic_directory_fk")
     val folderPathFk: Long,
-    @ColumnInfo(name = "volume_id_fk")
-    val volumeIdFk: Long? = null,
+    @ColumnInfo(name = "volume_fk")
+    val volumeFk: Long? = null,
     @ColumnInfo(name = "last_modified", defaultValue = "0")
     val lastModified: Long = 0,
 )

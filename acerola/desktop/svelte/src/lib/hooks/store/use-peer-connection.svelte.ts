@@ -138,6 +138,16 @@ export function usePeerConnection() {
 		return knownAddrs.get(peerId);
 	}
 
+	/// Desempareia um peer — some da lista local imediatamente (sem esperar um novo
+	/// `loadPairedPeers()`) e do cache de endereços conhecidos, mesmo padrão de
+	/// `SyncViewModel::removePeer` no Android. Não derruba conexão ativa nem bloqueia o peer;
+	/// se ele reconectar depois, passa pelo mesmo fluxo TOFU de um dispositivo nunca visto.
+	async function removePeer(peerId: string) {
+		await invoke(NETWORK_COMMANDS.removePairedPeer, { peerId });
+		pairedPeers = pairedPeers.filter((peer) => peer.peerId !== peerId);
+		knownAddrs.delete(peerId);
+	}
+
 	/// Nome amigável de um peer — prioriza `network:status` (mais fresco, cobre o caso raro de
 	/// um dispositivo renomeado no meio da sessão), mas cai pra `pairedPeers` (persistente,
 	/// sobrevive ao handshake fechar — é o caso comum, já que a sessão de handshake em si dura
@@ -157,6 +167,7 @@ export function usePeerConnection() {
 		connectionCode,
 		connectWithCode,
 		getKnownAddr,
+		removePeer,
 		peerLabel,
 		get localId() {
 			return localId;

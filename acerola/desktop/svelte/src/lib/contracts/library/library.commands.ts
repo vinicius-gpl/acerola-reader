@@ -1,4 +1,3 @@
-// TODO: Transformar o nome do arquivo para archive.**
 export const LIBRARY_COMMANDS = {
 	selectFolder: 'select_folder',
 	comicInfoPreference: 'comic_info_preference'

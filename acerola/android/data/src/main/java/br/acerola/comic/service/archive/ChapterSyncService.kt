@@ -61,7 +61,7 @@ class ChapterSyncService
                     }
 
                 val existing = existingChaptersMap[fileUri]
-                if (existing != null && existing.lastModified == file.lastModified && existing.volumeIdFk == volumeId) {
+                if (existing != null && existing.lastModified == file.lastModified && existing.volumeFk == volumeId) {
                     chaptersToDelete.remove(existing)
                     // Capítulo sem alteração, mas ainda sem checksum cacheado (biblioteca
                     // indexada antes do checksum passar a ser calculado no scan, ou uma linha
@@ -81,7 +81,7 @@ class ChapterSyncService
                             comicId = comicId,
                             fileUri = fileUri,
                             chapterSort = sortResult.normalizedSort,
-                            volumeIdFk = volumeId,
+                            volumeFk = volumeId,
                             isSpecial = sortResult.isSpecial,
                         ),
                     )

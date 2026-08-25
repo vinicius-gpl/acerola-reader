@@ -40,7 +40,7 @@ class ChapterIndexerTest {
             val comicId = 10L
             val fileUri = "uri/to/file"
             val chapterSort = "1"
-            val volumeIdFk = 5L
+            val volumeFk = 5L
             val isSpecial = false
 
             val result =
@@ -49,14 +49,14 @@ class ChapterIndexerTest {
                     comicId = comicId,
                     fileUri = fileUri,
                     chapterSort = chapterSort,
-                    volumeIdFk = volumeIdFk,
+                    volumeFk = volumeFk,
                     isSpecial = isSpecial,
                 )
 
             assertEquals(comicId, result.folderPathFk)
             assertEquals(fileUri, result.path)
             assertEquals(chapterSort, result.chapterSort)
-            assertEquals(volumeIdFk, result.volumeIdFk)
+            assertEquals(volumeFk, result.volumeFk)
             assertEquals(isSpecial, result.isSpecial)
             assertEquals("cap01", result.chapter)
             assertNull(result.checksum)

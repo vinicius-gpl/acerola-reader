@@ -51,14 +51,18 @@ describe('AcerolaComicActionDialog', () => {
 	it('renders nothing when open is false', () => {
 		render(AcerolaComicActionDialog, {
 			props: {
-				open: false,
-				selectedIds: [],
-				bookmarks: mockBookmarks,
-				onHide: mockOnHide,
-				onDelete: mockOnDelete,
-				onClearMetadata: mockOnClearMetadata,
-				onBookmark: mockOnBookmark,
-				onClose: mockOnClose
+				state: { open: false },
+				data: {
+					selectedIds: [],
+					bookmarks: mockBookmarks
+				},
+				events: {
+					onHide: mockOnHide,
+					onDelete: mockOnDelete,
+					onClearMetadata: mockOnClearMetadata,
+					onBookmark: mockOnBookmark,
+					onClose: mockOnClose
+				}
 			}
 		});
 
@@ -68,16 +72,20 @@ describe('AcerolaComicActionDialog', () => {
 	it('renders the dialog when open is true', () => {
 		render(AcerolaComicActionDialog, {
 			props: {
-				open: true,
-				selectedIds: [1, 2, 3],
-				totalCount: 10,
-				bookmarks: mockBookmarks,
-				onHide: mockOnHide,
-				onDelete: mockOnDelete,
-				onClearMetadata: mockOnClearMetadata,
-				onBookmark: mockOnBookmark,
-				onSelectAll: mockOnSelectAll,
-				onClose: mockOnClose
+				state: { open: true },
+				data: {
+					selectedIds: [1, 2, 3],
+					totalCount: 10,
+					bookmarks: mockBookmarks
+				},
+				events: {
+					onHide: mockOnHide,
+					onDelete: mockOnDelete,
+					onClearMetadata: mockOnClearMetadata,
+					onBookmark: mockOnBookmark,
+					onSelectAll: mockOnSelectAll,
+					onClose: mockOnClose
+				}
 			}
 		});
 
@@ -98,16 +106,20 @@ describe('AcerolaComicActionDialog', () => {
 	it('calls onSelectAll when clicking select all button inside dialog', async () => {
 		render(AcerolaComicActionDialog, {
 			props: {
-				open: true,
-				selectedIds: [1],
-				totalCount: 10,
-				bookmarks: mockBookmarks,
-				onHide: mockOnHide,
-				onDelete: mockOnDelete,
-				onClearMetadata: mockOnClearMetadata,
-				onBookmark: mockOnBookmark,
-				onSelectAll: mockOnSelectAll,
-				onClose: mockOnClose
+				state: { open: true },
+				data: {
+					selectedIds: [1],
+					totalCount: 10,
+					bookmarks: mockBookmarks
+				},
+				events: {
+					onHide: mockOnHide,
+					onDelete: mockOnDelete,
+					onClearMetadata: mockOnClearMetadata,
+					onBookmark: mockOnBookmark,
+					onSelectAll: mockOnSelectAll,
+					onClose: mockOnClose
+				}
 			}
 		});
 
@@ -122,14 +134,18 @@ describe('AcerolaComicActionDialog', () => {
 
 		render(AcerolaComicActionDialog, {
 			props: {
-				open: true,
-				selectedIds: [1, 2],
-				bookmarks: mockBookmarks,
-				onHide: mockOnHide,
-				onDelete: mockOnDelete,
-				onClearMetadata: mockOnClearMetadata,
-				onBookmark: mockOnBookmark,
-				onClose: mockOnClose
+				state: { open: true },
+				data: {
+					selectedIds: [1, 2],
+					bookmarks: mockBookmarks
+				},
+				events: {
+					onHide: mockOnHide,
+					onDelete: mockOnDelete,
+					onClearMetadata: mockOnClearMetadata,
+					onBookmark: mockOnBookmark,
+					onClose: mockOnClose
+				}
 			}
 		});
 
@@ -147,14 +163,18 @@ describe('AcerolaComicActionDialog', () => {
 	it('cancels hide dialog when Cancel is clicked', async () => {
 		render(AcerolaComicActionDialog, {
 			props: {
-				open: true,
-				selectedIds: [1, 2],
-				bookmarks: mockBookmarks,
-				onHide: mockOnHide,
-				onDelete: mockOnDelete,
-				onClearMetadata: mockOnClearMetadata,
-				onBookmark: mockOnBookmark,
-				onClose: mockOnClose
+				state: { open: true },
+				data: {
+					selectedIds: [1, 2],
+					bookmarks: mockBookmarks
+				},
+				events: {
+					onHide: mockOnHide,
+					onDelete: mockOnDelete,
+					onClearMetadata: mockOnClearMetadata,
+					onBookmark: mockOnBookmark,
+					onClose: mockOnClose
+				}
 			}
 		});
 
@@ -170,14 +190,18 @@ describe('AcerolaComicActionDialog', () => {
 	it('opens confirmation dialog when Delete is clicked', async () => {
 		render(AcerolaComicActionDialog, {
 			props: {
-				open: true,
-				selectedIds: [1, 2],
-				bookmarks: mockBookmarks,
-				onHide: mockOnHide,
-				onDelete: mockOnDelete,
-				onClearMetadata: mockOnClearMetadata,
-				onBookmark: mockOnBookmark,
-				onClose: mockOnClose
+				state: { open: true },
+				data: {
+					selectedIds: [1, 2],
+					bookmarks: mockBookmarks
+				},
+				events: {
+					onHide: mockOnHide,
+					onDelete: mockOnDelete,
+					onClearMetadata: mockOnClearMetadata,
+					onBookmark: mockOnBookmark,
+					onClose: mockOnClose
+				}
 			}
 		});
 
@@ -192,14 +216,18 @@ describe('AcerolaComicActionDialog', () => {
 
 		render(AcerolaComicActionDialog, {
 			props: {
-				open: true,
-				selectedIds: [1, 2],
-				bookmarks: mockBookmarks,
-				onHide: mockOnHide,
-				onDelete: mockOnDelete,
-				onClearMetadata: mockOnClearMetadata,
-				onBookmark: mockOnBookmark,
-				onClose: mockOnClose
+				state: { open: true },
+				data: {
+					selectedIds: [1, 2],
+					bookmarks: mockBookmarks
+				},
+				events: {
+					onHide: mockOnHide,
+					onDelete: mockOnDelete,
+					onClearMetadata: mockOnClearMetadata,
+					onBookmark: mockOnBookmark,
+					onClose: mockOnClose
+				}
 			}
 		});
 
@@ -215,14 +243,18 @@ describe('AcerolaComicActionDialog', () => {
 	it('displays bookmarks menu when Bookmark button is clicked', async () => {
 		render(AcerolaComicActionDialog, {
 			props: {
-				open: true,
-				selectedIds: [1, 2],
-				bookmarks: mockBookmarks,
-				onHide: mockOnHide,
-				onDelete: mockOnDelete,
-				onClearMetadata: mockOnClearMetadata,
-				onBookmark: mockOnBookmark,
-				onClose: mockOnClose
+				state: { open: true },
+				data: {
+					selectedIds: [1, 2],
+					bookmarks: mockBookmarks
+				},
+				events: {
+					onHide: mockOnHide,
+					onDelete: mockOnDelete,
+					onClearMetadata: mockOnClearMetadata,
+					onBookmark: mockOnBookmark,
+					onClose: mockOnClose
+				}
 			}
 		});
 
@@ -238,14 +270,18 @@ describe('AcerolaComicActionDialog', () => {
 
 		render(AcerolaComicActionDialog, {
 			props: {
-				open: true,
-				selectedIds: [1, 2],
-				bookmarks: mockBookmarks,
-				onHide: mockOnHide,
-				onDelete: mockOnDelete,
-				onClearMetadata: mockOnClearMetadata,
-				onBookmark: mockOnBookmark,
-				onClose: mockOnClose
+				state: { open: true },
+				data: {
+					selectedIds: [1, 2],
+					bookmarks: mockBookmarks
+				},
+				events: {
+					onHide: mockOnHide,
+					onDelete: mockOnDelete,
+					onClearMetadata: mockOnClearMetadata,
+					onBookmark: mockOnBookmark,
+					onClose: mockOnClose
+				}
 			}
 		});
 
@@ -261,14 +297,18 @@ describe('AcerolaComicActionDialog', () => {
 	it('cancels delete dialog when Cancel is clicked', async () => {
 		render(AcerolaComicActionDialog, {
 			props: {
-				open: true,
-				selectedIds: [1, 2],
-				bookmarks: mockBookmarks,
-				onHide: mockOnHide,
-				onDelete: mockOnDelete,
-				onClearMetadata: mockOnClearMetadata,
-				onBookmark: mockOnBookmark,
-				onClose: mockOnClose
+				state: { open: true },
+				data: {
+					selectedIds: [1, 2],
+					bookmarks: mockBookmarks
+				},
+				events: {
+					onHide: mockOnHide,
+					onDelete: mockOnDelete,
+					onClearMetadata: mockOnClearMetadata,
+					onBookmark: mockOnBookmark,
+					onClose: mockOnClose
+				}
 			}
 		});
 

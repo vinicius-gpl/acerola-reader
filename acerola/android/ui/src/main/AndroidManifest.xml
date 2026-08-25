@@ -13,6 +13,12 @@
             android:exported="false"
             android:label="@string/label_reader_activity"
             android:theme="@style/Theme.Acerola" />
+
+        <activity
+            android:name="br.acerola.comic.module.main.remotelibrary.RemoteLibraryActivity"
+            android:exported="false"
+            android:label="@string/label_remote_library_activity"
+            android:theme="@style/Theme.Acerola" />
     </application>
 
 </manifest>

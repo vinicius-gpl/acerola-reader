@@ -38,6 +38,12 @@ object Main {
         object Template
     }
 
+    object RemoteLibrary {
+        object Component
+
+        object Template
+    }
+
     object Sync {
         object Component
 

@@ -27,10 +27,10 @@ interface ChapterArchiveDao : BaseDao<ChapterArchive> {
     @Query("SELECT * FROM chapter_archive WHERE comic_directory_fk = :folderId")
     suspend fun getChaptersListByDirectoryId(folderId: Long): List<ChapterArchive>
 
-    @Query("SELECT COUNT(*) FROM chapter_archive WHERE comic_directory_fk = :folderId AND volume_id_fk IS NULL")
+    @Query("SELECT COUNT(*) FROM chapter_archive WHERE comic_directory_fk = :folderId AND volume_fk IS NULL")
     suspend fun countRootChaptersByDirectoryId(folderId: Long): Int
 
-    @Query("SELECT COUNT(*) FROM chapter_archive WHERE comic_directory_fk = :folderId AND volume_id_fk IS NULL")
+    @Query("SELECT COUNT(*) FROM chapter_archive WHERE comic_directory_fk = :folderId AND volume_fk IS NULL")
     fun observeRootChaptersCountByDirectoryId(folderId: Long): Flow<Int>
 
     @Transaction
@@ -38,7 +38,7 @@ interface ChapterArchiveDao : BaseDao<ChapterArchive> {
         value = """
         SELECT *
         FROM chapter_archive
-        LEFT JOIN volume_archive ON chapter_archive.volume_id_fk = volume_archive.id
+        LEFT JOIN volume_archive ON chapter_archive.volume_fk = volume_archive.id
         WHERE chapter_archive.comic_directory_fk = :folderId 
         ORDER BY 
             (chapter_archive.is_special OR COALESCE(volume_archive.is_special, 0)) ASC,
@@ -55,7 +55,7 @@ interface ChapterArchiveDao : BaseDao<ChapterArchive> {
         value = """
         SELECT *
         FROM chapter_archive
-        LEFT JOIN volume_archive ON chapter_archive.volume_id_fk = volume_archive.id
+        LEFT JOIN volume_archive ON chapter_archive.volume_fk = volume_archive.id
         WHERE chapter_archive.comic_directory_fk = :folderId 
         ORDER BY 
             (chapter_archive.is_special OR COALESCE(volume_archive.is_special, 0)) ASC,
@@ -72,7 +72,7 @@ interface ChapterArchiveDao : BaseDao<ChapterArchive> {
         value = """
             SELECT *
             FROM chapter_archive
-            LEFT JOIN volume_archive ON chapter_archive.volume_id_fk = volume_archive.id
+            LEFT JOIN volume_archive ON chapter_archive.volume_fk = volume_archive.id
             WHERE chapter_archive.comic_directory_fk = :folderId
             ORDER BY 
                 (chapter_archive.is_special OR COALESCE(volume_archive.is_special, 0)) ASC,
@@ -93,7 +93,7 @@ interface ChapterArchiveDao : BaseDao<ChapterArchive> {
         value = """
             SELECT *
             FROM chapter_archive
-            LEFT JOIN volume_archive ON chapter_archive.volume_id_fk = volume_archive.id
+            LEFT JOIN volume_archive ON chapter_archive.volume_fk = volume_archive.id
             WHERE chapter_archive.comic_directory_fk = :folderId
             ORDER BY 
                 (chapter_archive.is_special OR COALESCE(volume_archive.is_special, 0)) ASC,
@@ -114,9 +114,9 @@ interface ChapterArchiveDao : BaseDao<ChapterArchive> {
         value = """
             SELECT *
             FROM chapter_archive
-            LEFT JOIN volume_archive ON chapter_archive.volume_id_fk = volume_archive.id
+            LEFT JOIN volume_archive ON chapter_archive.volume_fk = volume_archive.id
             WHERE chapter_archive.comic_directory_fk = :comicId
-              AND chapter_archive.volume_id_fk = :volumeId
+              AND chapter_archive.volume_fk = :volumeId
             ORDER BY 
                 CAST(chapter_archive.chapter_sort AS REAL) ASC,
                 (chapter_archive.is_special OR COALESCE(volume_archive.is_special, 0)) ASC
@@ -135,9 +135,9 @@ interface ChapterArchiveDao : BaseDao<ChapterArchive> {
         value = """
             SELECT *
             FROM chapter_archive
-            LEFT JOIN volume_archive ON chapter_archive.volume_id_fk = volume_archive.id
+            LEFT JOIN volume_archive ON chapter_archive.volume_fk = volume_archive.id
             WHERE chapter_archive.comic_directory_fk = :comicId
-              AND chapter_archive.volume_id_fk = :volumeId
+              AND chapter_archive.volume_fk = :volumeId
             ORDER BY 
                 CAST(chapter_archive.chapter_sort AS REAL) DESC,
                 (chapter_archive.is_special OR COALESCE(volume_archive.is_special, 0)) ASC

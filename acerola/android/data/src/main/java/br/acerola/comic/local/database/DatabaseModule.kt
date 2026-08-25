@@ -21,6 +21,7 @@ import br.acerola.comic.local.database.migrations.MIGRATION_1_2
 import br.acerola.comic.local.database.migrations.MIGRATION_2_3
 import br.acerola.comic.local.database.migrations.MIGRATION_3_4
 import br.acerola.comic.local.database.migrations.MIGRATION_4_5
+import br.acerola.comic.local.database.migrations.MIGRATION_5_6
 import br.acerola.comic.local.database.seeds.seedArchiveTemplates
 import dagger.Module
 import dagger.Provides
@@ -49,7 +50,7 @@ object DatabaseModule {
                         seedArchiveTemplates(db)
                     }
                 },
-            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
             .build()
 
     @Provides
