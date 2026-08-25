@@ -7,13 +7,29 @@ vi.mock('$app/navigation', () => ({
 	goto: vi.fn()
 }));
 
-const { mockInvoke } = vi.hoisted(() => ({
-	mockInvoke: vi.fn()
+const { mockInvoke, mockListen } = vi.hoisted(() => ({
+	mockInvoke: vi.fn(),
+	mockListen: vi.fn()
 }));
 
 vi.mock('@tauri-apps/api/core', () => ({
 	invoke: (cmd: string, args: any) => mockInvoke(cmd, args),
 	convertFileSrc: (path: string) => `asset://${path}`
+}));
+
+// HistoryPage chama peers.startListening()/sync.startListening() no onMount, que dependem
+// de `listen()` (Tauri IPC real, indisponível fora de uma webview) — sem mock aqui, a
+// promise rejeitada vaza como unhandled rejection e derruba a suíte mesmo com os asserts
+// passando. O `mockResolvedValue` é reaplicado a cada teste (ver beforeEach) porque
+// `vi.resetAllMocks()` limpa a config do mock — sem reaplicar, `listen()` volta a
+// resolver `undefined`, e `unlisten.push(await listen(...))` empurra `undefined` pro
+// array, quebrando o `unlisten.forEach((fn) => fn())` do stopListening.
+vi.mock('@tauri-apps/api/event', () => ({
+	listen: (...args: unknown[]) => mockListen(...args)
+}));
+
+vi.mock('@tauri-apps/plugin-log', () => ({
+	error: vi.fn()
 }));
 
 vi.mock('$lib/assets/placeholder/placeholder_manga.svg?component', () => ({
@@ -53,14 +69,31 @@ const mockHistoryData = [
 	}
 ];
 
+// onMount desta pagina dispara history.fetch() junto com peers.startListening() e
+// sync.startListening(), que chamam invoke() concorrentemente (get_paired_peers,
+// get_sync_history_log, get_network_status). mockResolvedValueOnce só olha a ordem de
+// chamada, não o comando — sob concorrência real qualquer um desses podia "roubar" o
+// valor pensado pra history_get_all. Roteando por nome de comando isso deixa de importar.
+function setupInvokeMock(overrides: Record<string, unknown> = {}) {
+	const defaults: Record<string, unknown> = {
+		get_paired_peers: [],
+		get_sync_history_log: []
+	};
+	mockInvoke.mockImplementation((cmd: string) =>
+		Promise.resolve(cmd in overrides ? overrides[cmd] : (defaults[cmd] ?? undefined))
+	);
+}
+
 describe('HistoryPage', () => {
 	beforeEach(() => {
 		vi.resetAllMocks();
+		setupInvokeMock();
+		mockListen.mockResolvedValue(() => {});
 	});
 
 	it('renders empty state when there is no history', async () => {
 		// Renderiza o empty state quando não houver histórico
-		mockInvoke.mockResolvedValueOnce([]);
+		setupInvokeMock({ history_get_all: [] });
 		render(HistoryPage);
 
 		await waitFor(() => {
@@ -72,7 +105,7 @@ describe('HistoryPage', () => {
 
 	it('renders history items successfully', async () => {
 		// Renderiza os itens de histórico com sucesso
-		mockInvoke.mockResolvedValueOnce(mockHistoryData);
+		setupInvokeMock({ history_get_all: mockHistoryData });
 		render(HistoryPage);
 
 		await waitFor(() => {
@@ -84,7 +117,7 @@ describe('HistoryPage', () => {
 	it('clears history when clicking the button', async () => {
 		// Limpa o histórico ao clicar no botão de limpar
 		const user = userEvent.setup();
-		mockInvoke.mockResolvedValueOnce(mockHistoryData);
+		setupInvokeMock({ history_get_all: mockHistoryData });
 		render(HistoryPage);
 
 		await waitFor(() => {
@@ -97,7 +130,6 @@ describe('HistoryPage', () => {
 		await user.click(clearButtons[0]);
 
 		// Após abrir o diálogo, clica no botão de ação de confirmação ("Sim, limpar tudo")
-		mockInvoke.mockResolvedValueOnce(undefined);
 		const confirmButton = await screen.findByRole('button', { name: /Sim, limpar tudo/i });
 		await user.click(confirmButton);
 
