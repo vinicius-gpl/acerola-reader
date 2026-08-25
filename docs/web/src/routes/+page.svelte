@@ -28,6 +28,13 @@
 	});
 
 	$effect(() => {
+		// FaultyTerminal has no "ready" signal of its own — a short delay before
+		// fading it in avoids the pop-in flash while its WebGL context spins up.
+		const timeout = setTimeout(() => (bgReady = true), 300);
+		return () => clearTimeout(timeout);
+	});
+
+	$effect(() => {
 		// Re-read whenever the active palette or light/dark mode changes.
 		themeCtx.theme;
 		themeCtx.resolved;
@@ -68,7 +75,7 @@
 <div class="relative overflow-hidden">
 	{#if !prefersReducedMotion}
 		<div
-			class="pointer-events-none fixed inset-x-0 top-14 bottom-0 -z-10 transition-opacity duration-500 ease-out"
+			class="fixed inset-x-0 top-14 bottom-0 -z-10 transition-opacity duration-500 ease-out"
 			class:opacity-0={!bgReady}
 			style="mask-image: linear-gradient(to bottom, black 85%, transparent); -webkit-mask-image: linear-gradient(to bottom, black 85%, transparent);"
 		>
@@ -82,7 +89,6 @@
 				brightness={0.85}
 				mouseStrength={0.3}
 				pageLoadAnimation={false}
-				onReady={() => (bgReady = true)}
 				class="h-full w-full"
 			/>
 		</div>
