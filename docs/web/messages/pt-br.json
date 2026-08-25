@@ -1,0 +1,99 @@
+{
+	"$schema": "https://inlang.com/schema/inlang-message-format",
+	"site": {
+		"name": "Acerola",
+		"tagline": "Documentação",
+		"description": "Documentação do Acerola — um leitor de quadrinhos e mangás local-first que sincroniza sua biblioteca entre seus dispositivos via P2P, sem nuvem, sem conta e sem servidor pra confiar.",
+		"keywords": "leitor de quadrinhos, leitor de mangá, sincronização P2P, local-first, self-hosted, Android, desktop, Tauri, Kotlin, Rust, código aberto",
+		"og_title": "Acerola — Leitor de quadrinhos e mangás local-first",
+		"og_description": "Leia seus quadrinhos e mangás em qualquer dispositivo. Acerola sincroniza sua biblioteca direto entre seus dispositivos via P2P — sem nuvem, sem conta, sem cadeado."
+	},
+	"nav": {
+		"docs": "Docs",
+		"github": "GitHub",
+		"search_placeholder": "Pesquisar na documentação...",
+		"search_shortcut_hint": "Buscar",
+		"menu_toggle": "Alternar menu",
+		"skip_to_content": "Pular para o conteúdo"
+	},
+	"theme_picker": {
+		"title": "Mudar tema",
+		"light": "Claro",
+		"dark": "Escuro",
+		"system": "Sistema"
+	},
+	"color_picker": {
+		"title": "Mudar paleta de cores",
+		"catppuccin": {
+			"name": "Catppuccin",
+			"desc": "Paleta pastel suave com tons roxos e rosados"
+		},
+		"nord": {
+			"name": "Nord",
+			"desc": "Paleta ártica inspirada no norte escandinavo"
+		},
+		"dracula": {
+			"name": "Dracula",
+			"desc": "Cores vibrantes sobre fundo escuro ou claro"
+		},
+		"tokyo-night": {
+			"name": "Tokyo Night",
+			"desc": "Tema escuro e claro limpo inspirado pelas luzes neon de Tóquio"
+		}
+	},
+	"sidebar": {
+		"toggle": "Alternar barra lateral"
+	},
+	"search": {
+		"title": "Pesquisar",
+		"placeholder": "Digite para pesquisar...",
+		"no_results": "Nenhum resultado encontrado.",
+		"close": "Fechar",
+		"loading": "Carregando índice de busca...",
+		"unavailable_dev": "Busca disponível só no build de produção (`npm run build`)."
+	},
+	"toc": {
+		"title": "Nesta página"
+	},
+	"prev_next": {
+		"previous": "Anterior",
+		"next": "Próximo"
+	},
+	"footer": {
+		"edit_page": "Editar esta página no GitHub",
+		"license": "Código sob a licença MPL-2.0"
+	},
+	"landing": {
+		"hero_title": "Leia seus quadrinhos e mangás em qualquer dispositivo. Sem servidor, sem conta.",
+		"cta_get_started": "Começar",
+		"cta_github": "Ver no GitHub",
+		"platforms_title": "Um ecossistema, várias plataformas",
+		"platform": {
+			"android": {
+				"title": "Android",
+				"desc": "App nativo em Kotlin + Jetpack Compose."
+			},
+			"desktop": {
+				"title": "Desktop",
+				"desc": "App em Rust + Tauri + Svelte 5."
+			},
+			"relay": {
+				"title": "Relay",
+				"desc": "Serviço de acesso remoto sem abrir portas, deployável em VPS."
+			},
+			"p2p": {
+				"title": "lib/p2p",
+				"desc": "Biblioteca P2P compartilhada em Rust, sobre iroh/QUIC."
+			},
+			"relay_lib": {
+				"title": "lib/relay",
+				"desc": "Código do relay iroh vendorizado, base para o serviço de relay."
+			}
+		}
+	},
+	"error": {
+		"404_title": "Página não encontrada",
+		"404_desc": "A página que você procura não existe ou foi movida.",
+		"back_home": "Voltar para o início"
+	}
+}

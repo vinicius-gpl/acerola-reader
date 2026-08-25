@@ -1,0 +1,41 @@
+# Acerola — Local-First Comic & Manga Reader
+
+> Official summary file for LLMs, AI agents, and search engine assistants. Provides structured context about the Acerola project: what it is, how its platforms fit together, and where to find its documentation and source code.
+
+## About Acerola
+Acerola is a comic and manga reader that syncs your local library directly between your own devices over P2P — no cloud, no account, no server to trust. It's a monorepo: each platform lives on its own, with its own stack, and none depends directly on another. All of them consume the shared P2P libraries via a local path dependency.
+
+- **Documentation**: https://docs.acerola-comic.com
+- **GitHub**: https://github.com/Vinicius-Gabriel-P-Leitao/acerola-reader
+- **License**: MPL-2.0
+
+---
+
+## Platforms
+
+### Android
+Native app in Kotlin + Jetpack Compose.
+
+### Desktop
+App in Rust + Tauri + Svelte 5.
+
+### Relay
+Remote access service with no port forwarding, deployable to a VPS.
+
+### lib/p2p
+Shared P2P library in Rust, built on iroh/QUIC.
+
+### lib/relay
+Vendored iroh relay code, the base for the relay service.
+
+---
+
+## How the pieces connect
+`acerola/android` and `acerola/desktop` never see each other directly — each implements its own FFI/binding to consume `lib/p2p`. All device-to-device communication is either direct P2P (LAN via mDNS) or through the relay when devices aren't on the same network.
+
+## Documentation
+- **Getting Started**: https://docs.acerola-comic.com/docs/getting-started
+- **Architecture**: https://docs.acerola-comic.com/docs/architecture
+
+## Contact Information
+- **GitHub**: https://github.com/Vinicius-Gabriel-P-Leitao/acerola-reader
