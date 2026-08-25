@@ -36,6 +36,12 @@
 	let { data, events }: NetworkPeerListProps = $props();
 
 	let openPeerMenuId = $state<string | null>(null);
+
+	// No teardown da story (Storybook + vitest browser mode), o efeito reativo deste
+	// template roda mais uma vez com `data` já undefined antes do componente ser
+	// destruído de fato — sem o fallback aqui isso vaza como unhandled error e derruba
+	// a suíte mesmo com todos os asserts passando.
+	let peers = $derived(data?.peers ?? []);
 </script>
 
 <section class="space-y-4">
@@ -47,14 +53,14 @@
 	</div>
 
 	<div class="grid gap-4">
-		{#if data.peers.length === 0}
+		{#if peers.length === 0}
 			<div
 				class="rounded-xl border border-dashed border-border/40 p-8 text-center text-sm text-muted-foreground"
 			>
 				{m['pages.network.peers.empty']()}
 			</div>
 		{:else}
-			{#each data.peers as peer (peer.peerId)}
+			{#each peers as peer (peer.peerId)}
 				{@const addrs = data.addrFor(peer.peerId)}
 				{@const historySyncing = data.isSyncing(peer.peerId, 'history')}
 				{@const filesSyncing = data.isSyncing(peer.peerId, 'files')}

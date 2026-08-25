@@ -17,6 +17,12 @@
 
 	let { data }: NetworkTransfersLogProps = $props();
 
+	// No teardown da story (Storybook + vitest browser mode), o efeito reativo deste
+	// template roda mais uma vez com `data` já undefined antes do componente ser
+	// destruído de fato — sem o fallback aqui isso vaza como unhandled error e derruba
+	// a suíte mesmo com todos os asserts passando.
+	let entries = $derived(data?.entries ?? []);
+
 	type EntryMessageByStatus = Partial<
 		Record<TransferLogEntry['status'], (entry: TransferLogEntry) => string>
 	>;
@@ -56,13 +62,13 @@
 </script>
 
 <div class="rounded-2xl border border-border/40 bg-card/50 p-4 backdrop-blur-sm">
-	{#if data.entries.length === 0}
+	{#if entries.length === 0}
 		<p class="p-4 text-center text-sm text-muted-foreground">
 			{m['pages.network.transfers.empty']()}
 		</p>
 	{:else}
 		<ul class="max-h-80 space-y-1 overflow-y-auto">
-			{#each data.entries as entry (entry.id)}
+			{#each entries as entry (entry.id)}
 				<li class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm hover:bg-muted/50">
 					{#if entry.status === 'error'}
 						<AlertCircleIcon size={14} class="shrink-0 text-destructive" />

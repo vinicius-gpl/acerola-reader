@@ -23,13 +23,27 @@
 
 	let { data }: NetworkMyDeviceCardProps = $props();
 
+	// No teardown da story (Storybook + vitest browser mode), o efeito reativo deste
+	// template roda mais uma vez com `data` já undefined antes do componente ser
+	// destruído de fato — sem o fallback aqui isso vaza como unhandled error e derruba
+	// a suíte mesmo com todos os asserts passando.
+	let safeData = $derived(
+		data ?? {
+			deviceName: undefined,
+			localId: undefined,
+			mode: undefined,
+			activeRelay: undefined,
+			isRelayOverridden: false
+		}
+	);
+
 	// Feedback visual do botão de copiar — além do toast, o próprio ícone vira um check
 	// por um instante, pra quem não pegar o toast a tempo perceber que a cópia aconteceu.
 	let idJustCopied = $state(false);
 
 	async function copyLocalId() {
-		if (!data.localId) return;
-		await navigator.clipboard.writeText(data.localId);
+		if (!safeData.localId) return;
+		await navigator.clipboard.writeText(safeData.localId);
 		toast.success(m['pages.network.copied']());
 		idJustCopied = true;
 		setTimeout(() => (idJustCopied = false), 2000);
@@ -46,8 +60,8 @@
 
 	<AcerolaHeroButton
 		data={{
-			title: data.deviceName ?? '...',
-			description: data.localId ? shortId(data.localId) : '...'
+			title: safeData.deviceName ?? '...',
+			description: safeData.localId ? shortId(safeData.localId) : '...'
 		}}
 	>
 		{#snippet icon()}
@@ -57,7 +71,7 @@
 		{#snippet action()}
 			<AcerolaButton
 				events={{ onClick: copyLocalId }}
-				ui={{ variant: 'outline', size: 'sm', class: 'gap-2', disabled: !data.localId }}
+				ui={{ variant: 'outline', size: 'sm', class: 'gap-2', disabled: !safeData.localId }}
 			>
 				{#if idJustCopied}
 					<CheckIcon size={14} class="text-chart-3" />
@@ -70,11 +84,11 @@
 	</AcerolaHeroButton>
 
 	<p class="px-2 text-xs text-muted-foreground">
-		{data.mode === 'relay'
+		{safeData.mode === 'relay'
 			? m['pages.network.my_device.mode_relay']()
 			: m['pages.network.my_device.mode_local']()}
-		· {m['pages.network.my_device.relay_label']()}: {data.activeRelay ?? '...'}
-		{#if data.isRelayOverridden}
+		· {m['pages.network.my_device.relay_label']()}: {safeData.activeRelay ?? '...'}
+		{#if safeData.isRelayOverridden}
 			<span class="text-chart-4">({m['pages.network.my_device.relay_custom']()})</span>
 		{:else}
 			<span>({m['pages.network.my_device.relay_default']()})</span>
