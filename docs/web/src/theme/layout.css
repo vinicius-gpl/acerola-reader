@@ -1,0 +1,67 @@
+@import './tailwind.css';
+
+::-webkit-scrollbar {
+	width: 6px;
+	height: 6px;
+}
+
+::-webkit-scrollbar-track {
+	background: var(--background);
+}
+
+::-webkit-scrollbar-thumb {
+	background: var(--border);
+	border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+	background: var(--muted-foreground);
+}
+
+img {
+	image-rendering: -webkit-optimize-contrast;
+	image-rendering: smooth;
+}
+
+/* rehype-pretty-code dual theme: emits `--shiki-light`/`--shiki-dark` per-token,
+   toggled by the `.dark` class we already put on <html> for the color theme. */
+code[data-theme*=' '],
+code[data-theme*=' '] span {
+	color: var(--shiki-light);
+	background-color: var(--shiki-light-bg);
+}
+
+.dark code[data-theme*=' '],
+.dark code[data-theme*=' '] span {
+	color: var(--shiki-dark);
+	background-color: var(--shiki-dark-bg);
+}
+
+figure[data-rehype-pretty-code-figure] pre {
+	@apply overflow-x-auto rounded-lg border border-border bg-card p-4 text-sm leading-relaxed;
+}
+
+figure[data-rehype-pretty-code-figure] code {
+	@apply font-mono;
+	counter-reset: line;
+}
+
+figure[data-rehype-pretty-code-figure] code[data-line-numbers] > [data-line]::before {
+	counter-increment: line;
+	content: counter(line);
+	@apply mr-4 inline-block w-4 text-right text-muted-foreground;
+}
+
+.doc-content :where(code):not(figure code) {
+	@apply rounded bg-muted px-1.5 py-0.5 font-mono text-[0.875em] text-foreground;
+}
+
+.doc-content .heading-anchor {
+	@apply no-underline;
+}
+
+.doc-content h2 .heading-anchor,
+.doc-content h3 .heading-anchor,
+.doc-content h4 .heading-anchor {
+	@apply scroll-mt-24;
+}

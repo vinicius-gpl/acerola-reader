@@ -1,0 +1,77 @@
+[data-theme='tokyo-night-day'] {
+	--crust: #d0d5e3;
+	--mantle: #d8dee9;
+	--base: #e1e2e7;
+	--surface: #c8d3f5;
+
+	--background: #e1e2e7;
+	--foreground: #3760bf;
+	--card: #d8dee9;
+	--card-foreground: #3760bf;
+	--popover: #d8dee9;
+	--popover-foreground: #3760bf;
+	--primary: #2e7de9;
+	--primary-foreground: #e1e2e7;
+	--secondary: #c8d3f5;
+	--secondary-foreground: #3760bf;
+	--muted: #c8d3f5;
+	--muted-foreground: #6172b0;
+	--accent: #c8d3f5;
+	--accent-foreground: #3760bf;
+	--destructive: #f52a65;
+	--border: #b4b5b9;
+	--input: #c8d3f5;
+	--ring: #2e7de9;
+	--chart-1: #f52a65;
+	--chart-2: #b15c00;
+	--chart-3: #8c6c00;
+	--chart-4: #587539;
+	--chart-5: #007197;
+	--sidebar: #d8dee9;
+	--sidebar-foreground: #3760bf;
+	--sidebar-primary: #2e7de9;
+	--sidebar-primary-foreground: #e1e2e7;
+	--sidebar-accent: #c8d3f5;
+	--sidebar-accent-foreground: #3760bf;
+	--sidebar-border: #b4b5b9;
+	--sidebar-ring: #2e7de9;
+}
+
+[data-theme='tokyo-night-storm'] {
+	--crust: #16161e;
+	--mantle: #1f2335;
+	--base: #24283b;
+	--surface: #292e42;
+
+	--background: #24283b;
+	--foreground: #c0caf5;
+	--card: #292e42;
+	--card-foreground: #c0caf5;
+	--popover: #292e42;
+	--popover-foreground: #c0caf5;
+	--primary: #7aa2f7;
+	--primary-foreground: #1d202f;
+	--secondary: #292e42;
+	--secondary-foreground: #c0caf5;
+	--muted: #292e42;
+	--muted-foreground: #565f89;
+	--accent: #292e42;
+	--accent-foreground: #c0caf5;
+	--destructive: #f7768e;
+	--border: #3b4261;
+	--input: #292e42;
+	--ring: #7aa2f7;
+	--chart-1: #f7768e;
+	--chart-2: #ff9e64;
+	--chart-3: #e0af68;
+	--chart-4: #9ece6a;
+	--chart-5: #7dcfff;
+	--sidebar: #1f2335;
+	--sidebar-foreground: #c0caf5;
+	--sidebar-primary: #7aa2f7;
+	--sidebar-primary-foreground: #1d202f;
+	--sidebar-accent: #292e42;
+	--sidebar-accent-foreground: #c0caf5;
+	--sidebar-border: #3b4261;
+	--sidebar-ring: #7aa2f7;
+}
