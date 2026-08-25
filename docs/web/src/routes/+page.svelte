@@ -4,9 +4,9 @@
 	import RadioIcon from '@lucide/svelte/icons/radio';
 	import ServerIcon from '@lucide/svelte/icons/server';
 	import SmartphoneIcon from '@lucide/svelte/icons/smartphone';
-	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import FaultyTerminal from '$lib/components/faulty-terminal/faulty-terminal.svelte';
+	import ShinyText from '$lib/components/shiny-text/shiny-text.svelte';
 	import Card from '$lib/mdsvex/card.svelte';
 	import CardGrid from '$lib/mdsvex/card-grid.svelte';
 	import GithubIcon from '$lib/icons/github.svelte';
@@ -21,6 +21,7 @@
 	// real, currently-active value (light/dark and all 4 palettes have their own).
 	let heroTint = $state('#cba6f7');
 	let prefersReducedMotion = $state(false);
+	let bgReady = $state(false);
 
 	$effect(() => {
 		prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -61,13 +62,14 @@
 </script>
 
 <svelte:head>
-	<title>{m['site.name']()} — {m['landing.hero_badge']()}</title>
+	<title>{m['site.name']()} — {m['nav.docs']()}</title>
 </svelte:head>
 
 <div class="relative overflow-hidden">
 	{#if !prefersReducedMotion}
 		<div
-			class="pointer-events-none fixed inset-x-0 top-14 bottom-0 -z-10"
+			class="pointer-events-none fixed inset-x-0 top-14 bottom-0 -z-10 transition-opacity duration-500 ease-out"
+			class:opacity-0={!bgReady}
 			style="mask-image: linear-gradient(to bottom, black 85%, transparent); -webkit-mask-image: linear-gradient(to bottom, black 85%, transparent);"
 		>
 			<FaultyTerminal
@@ -80,25 +82,17 @@
 				brightness={0.85}
 				mouseStrength={0.3}
 				pageLoadAnimation={false}
+				onReady={() => (bgReady = true)}
 				class="h-full w-full"
 			/>
 		</div>
 	{/if}
 
 	<section class="relative">
-		<div
-			class="relative mx-auto flex max-w-3xl flex-col items-center rounded-3xl px-4 py-24 text-center"
-		>
-			<div class="absolute inset-0 -z-10 rounded-3xl bg-background/55"></div>
-			<Badge variant="outline" class="mb-4 h-auto px-3 py-1 text-xs text-muted-foreground">
-				{m['landing.hero_badge']()}
-			</Badge>
-			<h1 class="font-heading text-4xl font-semibold text-balance sm:text-5xl">
-				{m['landing.hero_title']()}
+		<div class="mx-auto flex max-w-2xl flex-col items-center px-4 py-16 text-center sm:py-20">
+			<h1 class="font-heading text-3xl font-semibold text-balance sm:text-4xl md:text-5xl">
+				<ShinyText text={m['landing.hero_title']()} />
 			</h1>
-			<p class="mt-6 text-lg text-balance text-muted-foreground">
-				{m['landing.hero_subtitle']()}
-			</p>
 			<div class="mt-8 flex flex-wrap items-center justify-center gap-3">
 				<Button href={localizeHref('/docs/getting-started')} size="lg">
 					{m['landing.cta_get_started']()}
@@ -111,10 +105,9 @@
 		</div>
 	</section>
 
-	<section class="relative mx-auto max-w-5xl px-4 pb-24">
-		<div class="relative mx-auto mb-8 max-w-xl rounded-2xl bg-background/55 py-3 text-center">
+	<section class="relative mx-auto max-w-5xl px-4 pb-16 sm:pb-24">
+		<div class="mx-auto mb-8 max-w-xl text-center">
 			<h2 class="font-heading text-2xl font-semibold">{m['landing.platforms_title']()}</h2>
-			<p class="mt-2 text-muted-foreground">{m['landing.platforms_subtitle']()}</p>
 		</div>
 
 		<CardGrid>

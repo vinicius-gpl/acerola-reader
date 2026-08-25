@@ -242,6 +242,7 @@ gl_FragColor = vec4(col, max(max(col.r, col.g), col.b));
 		pageLoadAnimation?: boolean;
 		brightness?: number;
 		class?: string;
+		onReady?: () => void;
 	};
 
 	let {
@@ -263,7 +264,8 @@ gl_FragColor = vec4(col, max(max(col.r, col.g), col.b));
 		dpr = Math.min(globalThis.devicePixelRatio || 1, 2),
 		pageLoadAnimation = true,
 		brightness = 1,
-		class: className = ''
+		class: className = '',
+		onReady
 	}: Props = $props();
 
 	let container: HTMLDivElement;
@@ -340,6 +342,8 @@ gl_FragColor = vec4(col, max(max(col.r, col.g), col.b));
 		resizeObserver.observe(currentContainer);
 		resize();
 
+		let readyFired = false;
+
 		const update = (t: number) => {
 			raf = requestAnimationFrame(update);
 			if (!program) return;
@@ -373,6 +377,11 @@ gl_FragColor = vec4(col, max(max(col.r, col.g), col.b));
 			}
 
 			renderer.render({ scene: mesh });
+
+			if (!readyFired) {
+				readyFired = true;
+				onReady?.();
+			}
 		};
 
 		raf = requestAnimationFrame(update);

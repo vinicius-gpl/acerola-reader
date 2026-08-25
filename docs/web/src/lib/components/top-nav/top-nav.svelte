@@ -2,37 +2,31 @@
 	import MenuIcon from '@lucide/svelte/icons/menu';
 	import SearchIcon from '@lucide/svelte/icons/search';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import ColorPicker from '$lib/components/color-picker/color-picker.svelte';
-	import ThemePicker from '$lib/components/theme-picker/theme-picker.svelte';
-	import GithubIcon from '$lib/icons/github.svelte';
-	import { GITHUB_URL } from '$lib/constants/site';
+	import NavControls from '$lib/components/nav-controls/nav-controls.svelte';
 	import { m } from '$lib/paraglide/messages';
-	import { getLocale, localizeHref, locales, setLocale, type Locale } from '$lib/paraglide/runtime';
+	import { localizeHref } from '$lib/paraglide/runtime';
 
 	let { onOpenSearch, onOpenMobileNav }: { onOpenSearch: () => void; onOpenMobileNav: () => void } =
 		$props();
-
-	function toggleLocale() {
-		const currentIndex = locales.indexOf(getLocale());
-		const next = locales[(currentIndex + 1) % locales.length] as Locale;
-		setLocale(next);
-	}
 </script>
 
 <header
-	class="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-border bg-background/80 px-4 backdrop-blur"
+	class="sticky top-0 z-40 flex h-14 items-center gap-2 border-b border-border bg-background/80 px-3 backdrop-blur sm:gap-3 sm:px-4"
 >
 	<Button
 		variant="ghost"
 		size="icon"
-		class="md:hidden"
+		class="shrink-0 md:hidden"
 		aria-label={m['nav.menu_toggle']()}
 		onclick={onOpenMobileNav}
 	>
 		<MenuIcon size={18} />
 	</Button>
 
-	<a href={localizeHref('/')} class="flex items-center gap-2 font-heading text-lg font-semibold">
+	<a
+		href={localizeHref('/')}
+		class="flex shrink-0 items-center gap-2 font-heading text-lg font-semibold"
+	>
 		<img src="/logo.svg" alt="" class="size-6" />
 		<span>{m['site.name']()}</span>
 	</a>
@@ -45,29 +39,28 @@
 
 	<Button
 		variant="outline"
-		class="ml-4 flex-1 justify-start gap-2 font-normal text-muted-foreground hover:border-primary/40 hover:bg-background md:max-w-xs"
+		class="ml-2 hidden min-w-0 flex-1 justify-start gap-2 font-normal text-muted-foreground hover:border-primary/40 hover:bg-background md:ml-4 md:flex md:max-w-xs"
 		onclick={onOpenSearch}
 	>
-		<SearchIcon size={15} />
-		<span class="flex-1 text-left">{m['nav.search_placeholder']()}</span>
-		<kbd class="rounded border border-border bg-background px-1.5 py-0.5 text-[10px]">Ctrl K</kbd>
+		<SearchIcon size={15} class="shrink-0" />
+		<span class="min-w-0 flex-1 truncate text-left">{m['nav.search_placeholder']()}</span>
+		<kbd
+			class="hidden shrink-0 rounded border border-border bg-background px-1.5 py-0.5 text-[10px] lg:inline-block"
+			>Ctrl K</kbd
+		>
 	</Button>
 
-	<div class="ml-auto flex items-center gap-1">
-		<Button variant="ghost" size="sm" onclick={toggleLocale}>
-			{getLocale().toUpperCase()}
-		</Button>
-		<ThemePicker />
-		<ColorPicker />
-		<Button
-			variant="ghost"
-			size="icon"
-			href={GITHUB_URL}
-			target="_blank"
-			rel="noreferrer"
-			aria-label={m['nav.github']()}
-		>
-			<GithubIcon size={17} />
-		</Button>
+	<Button
+		variant="ghost"
+		size="icon"
+		class="ml-auto shrink-0 md:hidden"
+		aria-label={m['nav.search_placeholder']()}
+		onclick={onOpenSearch}
+	>
+		<SearchIcon size={18} />
+	</Button>
+
+	<div class="ml-auto hidden shrink-0 md:block">
+		<NavControls />
 	</div>
 </header>

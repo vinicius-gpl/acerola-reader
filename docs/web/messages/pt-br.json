@@ -64,13 +64,10 @@
 		"license": "Código sob a licença MPL-2.0"
 	},
 	"landing": {
-		"hero_badge": "Documentação",
 		"hero_title": "Leia seus quadrinhos e mangás em qualquer dispositivo. Sem servidor, sem conta.",
-		"hero_subtitle": "Acerola sincroniza sua biblioteca local direto entre seus dispositivos via P2P — sem nuvem, sem conta, sem cadeado.",
 		"cta_get_started": "Começar",
 		"cta_github": "Ver no GitHub",
 		"platforms_title": "Um ecossistema, várias plataformas",
-		"platforms_subtitle": "Cada plataforma vive isolada, com sua própria stack, e todas compartilham a biblioteca P2P.",
 		"platform": {
 			"android": {
 				"title": "Android",
