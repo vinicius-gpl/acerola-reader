@@ -27,6 +27,12 @@
       "assetProtocol": {
         "enable": true,
         "scope": ["**"]
+      },
+      "pattern": {
+        "use": "isolation",
+        "options": {
+          "dir": "../isolation-src"
+        }
       }
     }
   },
