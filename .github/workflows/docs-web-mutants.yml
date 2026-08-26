@@ -1,0 +1,38 @@
+name: "Docs/Web Mutation Tests"
+
+on:
+  schedule:
+    - cron: "0 8 * * 1"
+  workflow_dispatch:
+
+jobs:
+  stryker:
+    name: Stryker (hooks/content/utils)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: docs/web
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 25.9.0
+          cache: npm
+          cache-dependency-path: docs/web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Stryker
+        run: npm run test:mutation
+
+      - name: Upload mutation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stryker-mutants-report
+          path: docs/web/mutants.out
