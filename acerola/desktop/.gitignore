@@ -15,6 +15,14 @@ svelte/project.inlang/cache/
 *storybook.log
 storybook-static
 
+# Test artifacts (Vitest coverage, Playwright, Stryker)
+/coverage
+/test-results
+/playwright-report
+/mutants.out
+/mutants.out.old
+/.stryker-tmp
+
 # Cargo/Tauri generated files
 /src-tauri/target/
 /src-tauri/gen/schemas

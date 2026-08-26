@@ -1,6 +1,9 @@
 import type { Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
+import { BOOKMARKS_COMMANDS } from '../../src/lib/contracts/bookmarks/bookmarks.commands';
+import { NETWORK_COMMANDS } from '../../src/lib/contracts/network/network.commands';
+import { STORE_FILE, STORE_KEYS } from '../../src/lib/constants/store-plugin';
 
 const require = createRequire(import.meta.url);
 const tauriMocksPath = require.resolve('@tauri-apps/api/mocks');
@@ -38,7 +41,46 @@ export function mockedTauriResponse(
 	};
 }
 
-export async function installTauriMocks(page: Page, handlers: Record<string, MockedTauriHandler>) {
+export type InstallTauriMocksOptions = {
+	/** Pré-popula o `@tauri-apps/plugin-store` mockado antes do app iniciar — chave é o
+	 *  nome do arquivo de store (ex. `settings.json`, ver `STORE_FILE`), valor é o mapa
+	 *  chave/valor já persistido (ex. `{ onboarding_completed: true }`, ver `STORE_KEYS`).
+	 *  Sem isso o store some vazio e o app sempre mostra o onboarding, já que
+	 *  `useOnboarding().isCompleted` lê `onboarding_completed` do store. */
+	storeSeed?: Record<string, Record<string, unknown>>;
+};
+
+// Chamadas de IPC feitas incondicionalmente pelo `+layout.svelte` (bookmarks + identidade
+// do pacote em DEV) e pela home (`peers.startListening()`/`sync.startListening()`) em toda
+// navegação — sem isso toda spec precisaria mockar esse boilerplate só pra não poluir
+// `collectConsoleErrors` com "unmocked: ...".
+const LAYOUT_BOILERPLATE_HANDLERS: Record<string, MockedTauriHandler> = {
+	[BOOKMARKS_COMMANDS.getCategories]: [],
+	[BOOKMARKS_COMMANDS.getAllComicCategories]: [],
+	get_package_family_name: 'No package identity',
+	[NETWORK_COMMANDS.getNetworkStatus]: { mode: 'local', peers: [] },
+	[NETWORK_COMMANDS.getPairedPeers]: [],
+	[NETWORK_COMMANDS.getSyncHistoryLog]: []
+};
+
+export async function installTauriMocks(
+	page: Page,
+	handlers: Record<string, MockedTauriHandler>,
+	options: InstallTauriMocksOptions = {}
+) {
+	const mergedHandlers = { ...LAYOUT_BOILERPLATE_HANDLERS, ...handlers };
+
+	// Por padrão toda spec pula o onboarding (o gate em `+layout.svelte` mostra o wizard
+	// pra qualquer rota enquanto `onboarding_completed` não estiver setado) — uma spec que
+	// realmente quer testar o onboarding sobrescreve isso explicitamente via `storeSeed`.
+	const storeSeed = {
+		...options.storeSeed,
+		[STORE_FILE]: {
+			[STORE_KEYS.onboardingCompleted]: true,
+			...options.storeSeed?.[STORE_FILE]
+		}
+	};
+
 	await page.route('http://asset.localhost/**', (route) =>
 		route.fulfill({
 			status: 200,
@@ -50,11 +92,11 @@ export async function installTauriMocks(page: Page, handlers: Record<string, Moc
 	await page.exposeFunction(
 		'__acerolaTauriHandleCommand',
 		async (command: string, args?: unknown) => {
-			if (!(command in handlers)) {
+			if (!(command in mergedHandlers)) {
 				throw new Error(`unmocked: ${command}`);
 			}
 
-			const handler = handlers[command];
+			const handler = mergedHandlers[command];
 
 			return typeof handler === 'function' ? await handler(args, command) : handler;
 		}
@@ -92,6 +134,14 @@ export async function installTauriMocks(page: Page, handlers: Record<string, Moc
     const store = stores.get(rid);
     if (!store) throw new Error('unknown store rid: ' + rid);
     return store;
+  }
+
+  const storeSeed = ${JSON.stringify(storeSeed)};
+  for (const [path, entries] of Object.entries(storeSeed)) {
+    const rid = storeForPath(path);
+    for (const [key, value] of Object.entries(entries)) {
+      stores.get(rid).set(key, value);
+    }
   }
 
   function scheduleEvents(events, delayMs = 0) {

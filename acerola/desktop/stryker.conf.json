@@ -1,0 +1,41 @@
+{
+	"$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+	"packageManager": "npm",
+	"testRunner": "vitest",
+	"vitest": {
+		"configFile": "vitest.stryker.config.ts"
+	},
+	"coverageAnalysis": "perTest",
+	"buildCommand": "npx svelte-kit sync",
+	"ignorePatterns": [
+		"src-tauri",
+		"tests/wdio",
+		"svelte/src/lib/paraglide",
+		"coverage",
+		"test-results",
+		"playwright-report",
+		"storybook-static",
+		"mutants.out",
+		"mutants.out.old"
+	],
+	"mutate": [
+		"svelte/src/lib/hooks/**/*.svelte.ts",
+		"svelte/src/lib/state/**/*.svelte.ts",
+		"svelte/src/lib/services/**/*.ts",
+		"svelte/src/lib/utils/**/*.ts",
+		"!svelte/src/**/*.test.ts",
+		"!svelte/src/**/*.browser.test.ts",
+		"!svelte/src/**/*.stories.svelte",
+		"!svelte/src/lib/paraglide/**",
+		"!svelte/src/lib/components/ui/**"
+	],
+	"reporters": ["html", "clear-text", "progress"],
+	"htmlReporter": {
+		"fileName": "mutants.out/mutation-report.html"
+	},
+	"thresholds": {
+		"high": 80,
+		"low": 60,
+		"break": 50
+	}
+}

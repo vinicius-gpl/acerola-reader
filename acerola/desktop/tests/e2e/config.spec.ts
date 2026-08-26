@@ -23,7 +23,7 @@ test.describe('library configuration', () => {
 		await installTauriMocks(page, {
 			[LIBRARY_COMMANDS.selectFolder]: 'C:\\Comics',
 			[DIRECTORY_SCAN_COMMANDS.refreshLibrary]: undefined,
-			[HOME_COMMANDS.getComicSummary]: mockedTauriResponse({
+			[HOME_COMMANDS.getComicSummarySorted]: mockedTauriResponse({
 				events: [{ event: HOME_EVENTS.homeData, payload: e2eComicSummary() }]
 			})
 		});

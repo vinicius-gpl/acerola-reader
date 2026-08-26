@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { HOME_COMMANDS } from '../../svelte/src/lib/contracts/home/home.commands';
 import { HOME_EVENTS } from '../../svelte/src/lib/contracts/home/home.events';
+import { STORE_FILE, STORE_KEYS } from '../../svelte/src/lib/constants/store-plugin';
 import {
 	collectConsoleErrors,
 	installTauriMocks,
@@ -14,16 +15,20 @@ test.describe('IPC error on home', () => {
 	test.beforeEach(async ({ page }) => {
 		consoleErrors = collectConsoleErrors(page);
 
-		await installTauriMocks(page, {
-			[HOME_COMMANDS.getComicSummary]: mockedTauriResponse({
-				events: [
-					{
-						event: HOME_EVENTS.homeError,
-						payload: { errorType: 'Unknown', message: 'db_error' }
-					}
-				]
-			})
-		});
+		await installTauriMocks(
+			page,
+			{
+				[HOME_COMMANDS.getComicSummarySorted]: mockedTauriResponse({
+					events: [
+						{
+							event: HOME_EVENTS.homeError,
+							payload: { errorType: 'Unknown', message: 'db_error' }
+						}
+					]
+				})
+			},
+			{ storeSeed: { [STORE_FILE]: { [STORE_KEYS.onboardingCompleted]: true } } }
+		);
 	});
 
 	test('displays library error without infinite retry loop', async ({ page }) => {
@@ -34,7 +39,7 @@ test.describe('IPC error on home', () => {
 		await expect(page.getByText('db_error')).toBeVisible();
 		await expect(page).not.toHaveURL(/\/comic\//);
 		await expect
-			.poll(() => tauriCommandCalls(page, HOME_COMMANDS.getComicSummary))
+			.poll(() => tauriCommandCalls(page, HOME_COMMANDS.getComicSummarySorted))
 			.toBeLessThanOrEqual(1);
 		expect(consoleErrors).toEqual([]);
 	});
