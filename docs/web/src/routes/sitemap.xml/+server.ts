@@ -12,25 +12,24 @@ export const GET: RequestHandler = async () => {
 		.map((path) => {
 			const alternates = locales
 				.map(
-					(locale) =>
-						`\t\t<xhtml:link rel="alternate" hreflang="${locale}" href="${SITE_URL}${localizeHref(path, { locale })}" />`
+					(locale) => `
+        <xhtml:link rel="alternate" hreflang="${locale}" href="${SITE_URL}${localizeHref(path, { locale })}" />`
 				)
-				.join('\n');
+				.join('');
 
-			return `\t<url>
-\t\t<loc>${SITE_URL}${localizeHref(path, { locale: FALLBACK_LOCALE })}</loc>
-\t\t<lastmod>${lastmod}</lastmod>
-\t\t<changefreq>weekly</changefreq>
-\t\t<priority>${path === '/' ? '1.0' : '0.8'}</priority>
-${alternates}
-\t</url>`;
+			return `
+    <url>
+        <loc>${SITE_URL}${localizeHref(path, { locale: FALLBACK_LOCALE })}</loc>
+        <lastmod>${lastmod}</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>${path === '/' ? '1.0' : '0.8'}</priority>${alternates}
+    </url>`;
 		})
-		.join('\n');
+		.join('');
 
 	const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
-        xmlns:xhtml="http://www.w3.org/1999/xhtml">
-${urls}
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">${urls}
 </urlset>`;
 
 	return new Response(sitemap, {
