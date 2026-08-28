@@ -16,7 +16,11 @@ import { defineConfig, devices } from '@playwright/test';
 // spec to have anything real to hit.
 export default defineConfig({
 	testDir: './tests/e2e',
-	timeout: 10_000,
+	// A home roda um fundo WebGL (`faulty-terminal.svelte`) e o search-dialog
+	// carrega o WASM/índice do Pagefind sob demanda na primeira consulta — sob o
+	// GPU virtual do Chromium headless no CI isso passa fácil de 10s. O timeout
+	// por asserção continua curto (5s); só o teto do teste inteiro é folgado.
+	timeout: 60_000,
 	workers: 1,
 	expect: {
 		timeout: 5_000
