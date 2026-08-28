@@ -37,3 +37,4 @@ project.inlang/cache/
 /mutants.out
 /mutants.out.old
 /.stryker-tmp
+stryker.log

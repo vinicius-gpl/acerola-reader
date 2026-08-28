@@ -12,7 +12,11 @@
 	let query = $state('');
 	let results = $state<PagefindResult[]>([]);
 	let status = $state<'idle' | 'loading' | 'unavailable'>('idle');
-	let pagefind: PagefindApi | null = null;
+	// $state (não `let` puro): precisa disparar o $effect de busca de novo quando o import
+	// dinâmico do pagefind.js resolve — sem isso, uma busca digitada antes do pagefind
+	// terminar de carregar zera `results` e nunca tenta de novo (nenhum evento reativo
+	// aciona o re-run), mesmo esperando o quanto for no timeout do teste/asserção.
+	let pagefind = $state<PagefindApi | null>(null);
 
 	async function ensurePagefind() {
 		if (pagefind || status === 'unavailable') return;

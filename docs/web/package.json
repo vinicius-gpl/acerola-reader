@@ -24,7 +24,7 @@
 		"test:storybook:watch": "npm run paraglide:compile && vitest --project=storybook",
 		"storybook": "npm run paraglide:compile && storybook dev -p 6007",
 		"build-storybook": "npm run paraglide:compile && storybook build",
-		"test:mutation": "npm run paraglide:compile && stryker run",
+		"test:mutation": "npm run paraglide:compile && svelte-kit sync && stryker run",
 		"test:e2e": "playwright test"
 	},
 	"devDependencies": {
