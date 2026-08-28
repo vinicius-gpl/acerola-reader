@@ -1,8 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/svelte';
-import AcerolaNetworkPeerList, {
-	type DisplayPeer
-} from './acerola-network-peer-list.svelte';
+import AcerolaNetworkPeerList, { type DisplayPeer } from './acerola-network-peer-list.svelte';
 
 describe('AcerolaNetworkPeerList', () => {
 	const onlinePeer: DisplayPeer = { peerId: 'peer-1', deviceName: 'Meu Celular', connected: true };

@@ -31,7 +31,7 @@
       "pattern": {
         "use": "isolation",
         "options": {
-          "dir": "../isolation-src"
+          "dir": "isolation-src"
         }
       }
     }

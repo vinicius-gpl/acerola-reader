@@ -62,7 +62,7 @@
 	function peerStatusLabel(peer: DisplayPeer): string {
 		if (peer.connected) return m['pages.network.peers.online']();
 		const timestamp = sync.lastSyncedAt(peer.peerId);
-		
+
 		if (!timestamp) return m['pages.network.peers.never_synced']();
 		return m['pages.network.peers.last_synced']({ when: new Date(timestamp).toLocaleString() });
 	}

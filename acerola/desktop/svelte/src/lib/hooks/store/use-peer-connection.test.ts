@@ -170,10 +170,7 @@ describe('usePeerConnection', () => {
 			InvalidConnectionCodeError
 		);
 		expect(hook.connecting).toBe(false);
-		expect(invokeMock).not.toHaveBeenCalledWith(
-			NETWORK_COMMANDS.connectToPeer,
-			expect.anything()
-		);
+		expect(invokeMock).not.toHaveBeenCalledWith(NETWORK_COMMANDS.connectToPeer, expect.anything());
 	});
 
 	it('resets connecting to false when the connect command fails', async () => {

@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "acerola"
-version = "0.0.1-beta"
+version = "0.0.1"
 dependencies = [
  "acerola-p2p",
  "aes-gcm",

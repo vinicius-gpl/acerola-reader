@@ -114,8 +114,7 @@ describe('ComicPage Scroll Integration', () => {
 	const ITEM_HEIGHT = 112;
 
 	let rustEventEmitter:
-		| ((event: { payload: ReturnType<typeof generateChaptersPayload> }) => void)
-		| undefined;
+		((event: { payload: ReturnType<typeof generateChaptersPayload> }) => void) | undefined;
 	let intersectionObservers: MockIntersectionObserver[] = [];
 
 	beforeEach(() => {

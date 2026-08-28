@@ -127,7 +127,7 @@
 				<div
 					bind:this={scrollContainer}
 					onscroll={checkScroll}
-					class="flex max-h-[400px] flex-col gap-1 overflow-y-auto p-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+					class="flex max-h-[400px] [scrollbar-width:none] flex-col gap-1 overflow-y-auto p-2 [&::-webkit-scrollbar]:hidden"
 				>
 					{#if notifications.length === 0}
 						<div class="flex flex-col items-center justify-center py-12 text-center">

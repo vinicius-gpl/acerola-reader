@@ -62,35 +62,35 @@ flowchart LR
 
 ## Funcionalidades
 
-* **Biblioteca**
+- **Biblioteca**
 
-  * Escaneia automaticamente uma ou mais pastas locais.
-  * Detecta novos arquivos.
-  * Deduplicação por hash BLAKE3.
-  * Busca rápida e organização por categorias.
+  - Escaneia automaticamente uma ou mais pastas locais.
+  - Detecta novos arquivos.
+  - Deduplicação por hash BLAKE3.
+  - Busca rápida e organização por categorias.
 
-* **Leitura**
+- **Leitura**
 
-  * Suporte nativo para `.cbz` e `.cbr`.
-  * Conversão automática de `.pdf` para `.cbz`.
-  * Cache LRU por bytes + prefetch das próximas páginas.
-  * Salvamento automático do progresso.
+  - Suporte nativo para `.cbz` e `.cbr`.
+  - Conversão automática de `.pdf` para `.cbz`.
+  - Cache LRU por bytes + prefetch das próximas páginas.
+  - Salvamento automático do progresso.
 
-* **Conectividade com o Android**
+- **Conectividade com o Android**
 
-  * Descoberta automática na mesma rede via mDNS (tier gratuito).
-  * Acesso remoto via Iroh + acerola-relay, sem abrir portas no roteador (tier pago).
-  * Sincronização bidirecional de biblioteca, histórico e progresso via GraphQL Subscriptions.
+  - Descoberta automática na mesma rede via mDNS (tier gratuito).
+  - Acesso remoto via Iroh + acerola-relay, sem abrir portas no roteador (tier pago).
+  - Sincronização bidirecional de biblioteca, histórico e progresso via GraphQL Subscriptions.
 
-* **Tradução (opcional)**
+- **Tradução (opcional)**
 
-  * Plugin conecta ao acerola-translator — selfhost ou servidor pago.
-  * Progresso em tempo real via SSE durante a tradução.
+  - Plugin conecta ao acerola-translator — selfhost ou servidor pago.
+  - Progresso em tempo real via SSE durante a tradução.
 
-* **Personalização**
+- **Personalização**
 
-  * Interface em Svelte 5 + Tailwind + shadcn-svelte.
-  * Configuração de endpoints (translator e relay) direto nas configurações.
+  - Interface em Svelte 5 + Tailwind + shadcn-svelte.
+  - Configuração de endpoints (translator e relay) direto nas configurações.
 
 ---
 
@@ -129,10 +129,10 @@ flowchart TD
 
 ## Conectividade — tier gratuito vs pago
 
-| Tier | Mecanismo | Requisito | Custo |
-| --- | --- | --- | --- |
-| Gratuito | mDNS + HTTP direto na LAN | Desktop e Android na mesma rede | Zero infra |
-| Pago | Iroh + acerola-relay | Conta no serviço, qualquer rede | Subscrição mensal |
+| Tier     | Mecanismo                 | Requisito                       | Custo             |
+| -------- | ------------------------- | ------------------------------- | ----------------- |
+| Gratuito | mDNS + HTTP direto na LAN | Desktop e Android na mesma rede | Zero infra        |
+| Pago     | Iroh + acerola-relay      | Conta no serviço, qualquer rede | Subscrição mensal |
 
 Trocar entre os dois tiers é mudar uma URL nas configurações — o protocolo de aplicação (GraphQL, streaming de páginas) é idêntico nos dois casos.
 
@@ -142,11 +142,11 @@ Trocar entre os dois tiers é mudar uma URL nas configurações — o protocolo 
 
 O acerola-desktop funciona sozinho, sem dependência do translator ou do relay. Quando conectado ao restante do ecossistema, atua como servidor local para o Android:
 
-| Projeto | Linguagem | Papel |
-| --- | --- | --- |
-| android-acerola | Kotlin | Cliente que consome a biblioteca do desktop |
-| acerola-desktop | Rust + Tauri + Svelte | Este projeto — servidor local + leitor |
-| acerola-translator | Go + Python | Serviço de tradução com IA |
-| acerola-relay | Rust + Svelte | Coordenação P2P (tier pago) |
+| Projeto            | Linguagem             | Papel                                       |
+| ------------------ | --------------------- | ------------------------------------------- |
+| android-acerola    | Kotlin                | Cliente que consome a biblioteca do desktop |
+| acerola-desktop    | Rust + Tauri + Svelte | Este projeto — servidor local + leitor      |
+| acerola-translator | Go + Python           | Serviço de tradução com IA                  |
+| acerola-relay      | Rust + Svelte         | Coordenação P2P (tier pago)                 |
 
 Licença MPL-2.0 — mesma licença de todo o ecossistema.

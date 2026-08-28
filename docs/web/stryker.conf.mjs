@@ -1,0 +1,57 @@
+// @ts-check
+/** @type {import('@stryker-mutator/api/core').PartialStrykerOptions} */
+export default {
+	packageManager: 'npm',
+	testRunner: 'vitest',
+	vitest: {
+		configFile: 'vitest.stryker.config.ts'
+	},
+	coverageAnalysis: 'perTest',
+	buildCommand: 'npx svelte-kit sync',
+	ignorePatterns: [
+		'src/lib/paraglide',
+		'coverage',
+		'storybook-static',
+		'test-results',
+		'playwright-report',
+		'mutants.out',
+		'mutants.out.old',
+		'.svelte-kit/cloudflare',
+		'.wrangler'
+	],
+	mutate: [
+		'src/lib/hooks/**/*.svelte.ts',
+		'src/lib/content/**/*.ts',
+		'src/lib/utils.ts',
+		'src/lib/constants/**/*.ts',
+		'src/routes/**/+page.ts',
+		'src/routes/**/+server.ts',
+		'src/routes/+layout.ts',
+		'!src/**/*.test.ts',
+		'!src/**/*.stories.svelte',
+		'!src/lib/paraglide/**',
+		'!src/lib/components/ui/**'
+	],
+	reporters: ['html', 'clear-text', 'progress'],
+	htmlReporter: {
+		fileName: 'mutants.out/mutation-report.html'
+	},
+	thresholds: {
+		// Trocado de placeholder pro baseline real medido (44.31% na primeira rodada
+		// completa).
+		//
+		// TODO (não corrigido, só documentado): os arquivos abaixo apareceram
+		// majoritariamente como "no coverage" no relatório (mutants.out/mutation-report.html)
+		// MESMO TENDO teste escrito — mesmo padrão observado no desktop (ver
+		// acerola/desktop/stryker.conf.mjs), provável limitação do `coverageAnalysis:
+		// perTest` do Stryker com módulos chamados fora de um componente montado ou com
+		// estado em nível de módulo. Mutation score real desses arquivos é desconhecido,
+		// não necessariamente zero — precisa de investigação dedicada:
+		// - src/routes/sitemap.xml/+server.ts (25 mutantes, 0 cobertura, apesar de server.test.ts existir)
+		// - src/routes/docs/[...slug]/+page.ts (6 mutantes, 0 cobertura, apesar de page.test.ts existir)
+		// - src/lib/hooks/theme/use-theme.svelte.ts (43 mutantes, 21 sem cobertura — parcial)
+		high: 60,
+		low: 40,
+		break: 38
+	}
+};

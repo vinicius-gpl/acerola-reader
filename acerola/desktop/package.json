@@ -38,6 +38,9 @@
 		"lint": "prettier --check .",
 		"format": "prettier --write ."
 	},
+	"overrides": {
+		"rolldown": "1.2.5"
+	},
 	"dependencies": {
 		"@tauri-apps/api": "^2.11.1",
 		"@tauri-apps/plugin-dialog": "^2.6.0",
