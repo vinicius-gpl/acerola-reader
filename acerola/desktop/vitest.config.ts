@@ -65,12 +65,13 @@ export default defineConfig({
 				'svelte/tests/**'
 			],
 			thresholds: {
-				// NOTE: placeholder abaixo do baseline atual (~45%) — Fase 5 do plano de
-				// cobertura trava o valor definitivo depois de preencher as lacunas de teste.
-				lines: 40,
-				statements: 40,
-				functions: 40,
-				branches: 30
+				// Trocado de placeholder pro baseline real medido após preencher as lacunas
+				// de teste (Fases 2-4 do plano de cobertura), com alguns pontos de folga por
+				// métrica pra não flakar com pequenas oscilações incidentais.
+				lines: 55,
+				statements: 55,
+				functions: 52,
+				branches: 45
 			}
 		},
 		projects: [

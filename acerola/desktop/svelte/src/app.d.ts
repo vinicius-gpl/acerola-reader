@@ -13,6 +13,7 @@ declare global {
 			totalChapters?: number;
 			chapterScope?: string;
 			comicDirectoryId?: string;
+			sortBy?: 'number_asc' | 'number_desc' | 'modified_asc' | 'modified_desc';
 		}
 		// interface Platform {}
 	}

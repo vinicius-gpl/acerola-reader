@@ -36,27 +36,44 @@
 
 	let searchQuery = $state('');
 
+	// No teardown da story (Storybook + vitest browser mode), o efeito reativo deste
+	// template roda mais uma vez com `data`/`events` já undefined antes do componente ser
+	// destruído de fato — sem o fallback aqui isso vaza como unhandled error e derruba a
+	// suíte mesmo com todos os asserts passando (mesmo padrão de
+	// acerola-network-my-device-card.svelte).
+	let safeData = $derived(
+		data ?? {
+			peerLabel: '',
+			comics: [],
+			isLoading: false,
+			errorMessage: undefined,
+			coverPathFor: () => undefined,
+			isSyncing: () => false
+		}
+	);
+	let safeEvents = $derived(events ?? { onOpenChange: () => {}, onSelectComic: () => {} });
+
 	// O dialog é reaproveitado entre peers diferentes (não remontado a cada abertura) — sem
 	// isso, o filtro de uma sessão anterior vazaria pra próxima vez que o usuário abrir pra
 	// outro peer.
 	$effect(() => {
-		if (dialogState.open) searchQuery = '';
+		if (dialogState?.open) searchQuery = '';
 	});
 
 	const filteredComics = $derived.by(() => {
 		const query = searchQuery.trim().toLowerCase();
-		if (!query) return data.comics;
-		return data.comics.filter((comic) => comic.comicName.toLowerCase().includes(query));
+		if (!query) return safeData.comics;
+		return safeData.comics.filter((comic) => comic.comicName.toLowerCase().includes(query));
 	});
 </script>
 
 <AcerolaDialog
-	state={{ open: dialogState.open }}
+	state={{ open: dialogState?.open ?? false }}
 	data={{
 		title: m['pages.network.remote_library.title'](),
-		description: data.peerLabel
+		description: safeData.peerLabel
 	}}
-	events={{ onOpenChange: events.onOpenChange }}
+	events={{ onOpenChange: safeEvents.onOpenChange }}
 	ui={{
 		contentClass:
 			'w-full max-w-[calc(100vw-2rem)] sm:max-w-2xl border-border/60 bg-background/95 backdrop-blur-xl shadow-2xl p-6 rounded-3xl overflow-hidden'
@@ -76,13 +93,13 @@
 			/>
 		</div>
 
-		{#if data.isLoading}
+		{#if safeData.isLoading}
 			<p class="p-4 text-center text-sm text-muted-foreground">
 				{m['pages.network.remote_library.loading']()}
 			</p>
-		{:else if data.errorMessage}
+		{:else if safeData.errorMessage}
 			<p class="p-4 text-center text-sm text-destructive">
-				{data.errorMessage}
+				{safeData.errorMessage}
 			</p>
 		{:else if filteredComics.length === 0}
 			<p class="p-4 text-center text-sm text-muted-foreground">
@@ -93,8 +110,8 @@
 				class="grid max-h-[28rem] w-full grid-cols-[repeat(auto-fill,minmax(8.5rem,1fr))] gap-4 overflow-y-auto p-1"
 			>
 				{#each filteredComics as comic (comic.comicName)}
-					{@const comicSyncing = data.isSyncing(comic.comicName)}
-					{@const coverPath = data.coverPathFor(comic.comicName)}
+					{@const comicSyncing = safeData.isSyncing(comic.comicName)}
+					{@const coverPath = safeData.coverPathFor(comic.comicName)}
 					<AcerolaCardImage
 						data={{
 							title: comic.comicName,
@@ -104,7 +121,7 @@
 						events={{
 							onClick: () => {
 								if (comicSyncing) return;
-								events.onSelectComic(comic.comicName);
+								safeEvents.onSelectComic(comic.comicName);
 							}
 						}}
 					>
