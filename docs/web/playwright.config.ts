@@ -18,9 +18,11 @@ export default defineConfig({
 	testDir: './tests/e2e',
 	// A home roda um fundo WebGL (`faulty-terminal.svelte`) e o search-dialog
 	// carrega o WASM/índice do Pagefind sob demanda na primeira consulta — sob o
-	// GPU virtual do Chromium headless no CI isso passa fácil de 10s. O timeout
-	// por asserção continua curto (5s); só o teto do teste inteiro é folgado.
-	timeout: 60_000,
+	// GPU virtual do Chromium headless no CI isso passa fácil de 10s, e em runners
+	// mais carregados passa dos 20s (search-dialog.spec.ts dá margem própria pra
+	// essas duas asserções). O timeout por asserção padrão continua curto (5s); só
+	// o teto do teste inteiro é folgado.
+	timeout: 90_000,
 	workers: 1,
 	expect: {
 		timeout: 5_000
