@@ -1,39 +1,40 @@
-{
-	"$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
-	"packageManager": "npm",
-	"testRunner": "vitest",
-	"vitest": {
-		"configFile": "vitest.stryker.config.ts"
+// @ts-check
+/** @type {import('@stryker-mutator/api/core').PartialStrykerOptions} */
+export default {
+	packageManager: 'npm',
+	testRunner: 'vitest',
+	vitest: {
+		configFile: 'vitest.stryker.config.ts'
 	},
-	"coverageAnalysis": "perTest",
-	"buildCommand": "npx svelte-kit sync",
-	"ignorePatterns": [
-		"src-tauri",
-		"tests/wdio",
-		"svelte/src/lib/paraglide",
-		"coverage",
-		"test-results",
-		"playwright-report",
-		"storybook-static",
-		"mutants.out",
-		"mutants.out.old"
+	coverageAnalysis: 'perTest',
+	buildCommand: 'npx svelte-kit sync',
+	ignorePatterns: [
+		'src-tauri',
+		'tests/wdio',
+		'svelte/src/lib/paraglide',
+		'coverage',
+		'test-results',
+		'playwright-report',
+		'storybook-static',
+		'mutants.out',
+		'mutants.out.old'
 	],
-	"mutate": [
-		"svelte/src/lib/hooks/**/*.svelte.ts",
-		"svelte/src/lib/state/**/*.svelte.ts",
-		"svelte/src/lib/services/**/*.ts",
-		"svelte/src/lib/utils/**/*.ts",
-		"!svelte/src/**/*.test.ts",
-		"!svelte/src/**/*.browser.test.ts",
-		"!svelte/src/**/*.stories.svelte",
-		"!svelte/src/lib/paraglide/**",
-		"!svelte/src/lib/components/ui/**"
+	mutate: [
+		'svelte/src/lib/hooks/**/*.svelte.ts',
+		'svelte/src/lib/state/**/*.svelte.ts',
+		'svelte/src/lib/services/**/*.ts',
+		'svelte/src/lib/utils/**/*.ts',
+		'!svelte/src/**/*.test.ts',
+		'!svelte/src/**/*.browser.test.ts',
+		'!svelte/src/**/*.stories.svelte',
+		'!svelte/src/lib/paraglide/**',
+		'!svelte/src/lib/components/ui/**'
 	],
-	"reporters": ["html", "clear-text", "progress"],
-	"htmlReporter": {
-		"fileName": "mutants.out/mutation-report.html"
+	reporters: ['html', 'clear-text', 'progress'],
+	htmlReporter: {
+		fileName: 'mutants.out/mutation-report.html'
 	},
-	"thresholds": {
+	thresholds: {
 		// Trocado de placeholder pro baseline real medido (49.03% na primeira rodada
 		// completa) — high/low ajustados pra refletir a distribuição real por arquivo em
 		// vez de metas arbitrárias.
@@ -54,8 +55,8 @@
 		// - use-metadata-language.svelte.ts, use-reader-mode.svelte.ts (9 mutantes cada, 0 cobertura)
 		// - use-relay-settings.svelte.ts (25 mutantes, 0 cobertura)
 		// - use-theme.svelte.ts (parcial: 8 de 43 mutantes sem cobertura)
-		"high": 70,
-		"low": 50,
-		"break": 45
+		high: 70,
+		low: 50,
+		break: 45
 	}
-}
+};

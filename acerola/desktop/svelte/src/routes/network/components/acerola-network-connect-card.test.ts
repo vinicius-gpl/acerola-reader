@@ -61,9 +61,7 @@ describe('AcerolaNetworkConnectCard', () => {
 		await fireEvent.input(input, { target: { value: 'bad-code' } });
 		await fireEvent.click(screen.getByRole('button', { name: /Connect|Conectar/i }));
 
-		expect(
-			await screen.findByText(/invalid code|código inválido/i)
-		).toBeInTheDocument();
+		expect(await screen.findByText(/invalid code|código inválido/i)).toBeInTheDocument();
 	});
 
 	it('shows a generic error message when onConnect rejects with an unexpected error', async () => {

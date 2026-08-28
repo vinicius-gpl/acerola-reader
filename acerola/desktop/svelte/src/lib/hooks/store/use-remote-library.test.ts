@@ -192,7 +192,9 @@ describe('useRemoteLibrary', () => {
 		const hook = await renderHook();
 		await hook.startListening();
 
-		expect(() => callbacks.get(NETWORK_EVENTS.coverQueryError)?.({ payload: 'ignored' })).not.toThrow();
+		expect(() =>
+			callbacks.get(NETWORK_EVENTS.coverQueryError)?.({ payload: 'ignored' })
+		).not.toThrow();
 	});
 
 	it('comicsFor/errorFor/coverPathFor default to empty/undefined for unknown peers', async () => {

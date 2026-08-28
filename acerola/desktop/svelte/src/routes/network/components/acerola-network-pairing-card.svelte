@@ -79,8 +79,7 @@
 						{m['pages.network.pairing.qr_error']()}
 					</span>
 				{:else}
-					<span class="text-xs text-muted-foreground">{m['pages.network.pairing.loading']()}</span
-					>
+					<span class="text-xs text-muted-foreground">{m['pages.network.pairing.loading']()}</span>
 				{/if}
 			</div>
 
@@ -103,7 +102,9 @@
 				aria-expanded={showRawCode}
 				aria-controls="pairing-raw-code"
 			>
-				{showRawCode ? m['pages.network.pairing.hide_code']() : m['pages.network.pairing.show_code']()}
+				{showRawCode
+					? m['pages.network.pairing.hide_code']()
+					: m['pages.network.pairing.show_code']()}
 				<ChevronDownIcon size={12} class="transition-transform {showRawCode ? 'rotate-180' : ''}" />
 			</button>
 
