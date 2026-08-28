@@ -188,9 +188,7 @@ describe('useHistory', () => {
 		invokeMock.mockRejectedValueOnce('failed to unmark');
 		const hook = await renderHook();
 
-		await expect(hook.unmarkChapterRead('comic-1', 'chapter-1')).rejects.toBe(
-			'failed to unmark'
-		);
+		await expect(hook.unmarkChapterRead('comic-1', 'chapter-1')).rejects.toBe('failed to unmark');
 		expect(toast.error).toHaveBeenCalledWith('failed to unmark');
 	});
 

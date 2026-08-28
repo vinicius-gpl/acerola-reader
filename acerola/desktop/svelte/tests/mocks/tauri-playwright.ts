@@ -22,8 +22,7 @@ export type MockedTauriResponse = {
 };
 
 export type MockedTauriHandler =
-	| unknown
-	| ((args: unknown, command: string) => unknown | Promise<unknown>);
+	unknown | ((args: unknown, command: string) => unknown | Promise<unknown>);
 
 declare global {
 	interface Window {

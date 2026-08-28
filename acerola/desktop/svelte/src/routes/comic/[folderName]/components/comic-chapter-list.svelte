@@ -70,7 +70,8 @@
 	// capítulo já lido).
 	function rowClass(chapter: Chapter): string {
 		const base = 'h-full flex-nowrap overflow-hidden';
-		if (chapter.hasConflict) return `${base} border-destructive/30 bg-destructive/10 hover:bg-destructive/20`;
+		if (chapter.hasConflict)
+			return `${base} border-destructive/30 bg-destructive/10 hover:bg-destructive/20`;
 		if (chapter.isRead) return `${base} border-primary/30 bg-primary/10 hover:bg-primary/20`;
 		return `${base} border-surface/40 bg-mantle/40 hover:bg-surface/30`;
 	}
