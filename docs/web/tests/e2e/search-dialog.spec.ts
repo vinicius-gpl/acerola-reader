@@ -8,7 +8,10 @@ test.describe('search dialog', () => {
 
 		await page.keyboard.press('Control+k');
 		const dialog = page.getByRole('dialog');
-		await expect(dialog).toBeVisible();
+		// A home roda o fundo WebGL (faulty-terminal.svelte) desde o goto acima; sob o GPU
+		// virtual do Chromium headless no CI isso compete com o Ctrl+K e passa fácil dos 5s
+		// padrão antes do dialog abrir — mesma margem já dada à asserção do Pagefind abaixo.
+		await expect(dialog).toBeVisible({ timeout: 10_000 });
 
 		await dialog.getByPlaceholder('Digite para pesquisar...').fill('monorepo');
 
