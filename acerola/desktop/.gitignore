@@ -22,6 +22,7 @@ storybook-static
 /mutants.out
 /mutants.out.old
 /.stryker-tmp
+stryker.log
 
 # Cargo/Tauri generated files
 /src-tauri/target/
