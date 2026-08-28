@@ -1,4 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
+import { BOOKMARKS_COMMANDS } from '../../svelte/src/lib/contracts/bookmarks/bookmarks.commands';
+import { HISTORY_COMMANDS } from '../../svelte/src/lib/contracts/history/history.commands';
 import { HOME_COMMANDS } from '../../svelte/src/lib/contracts/home/home.commands';
 import { HOME_EVENTS } from '../../svelte/src/lib/contracts/home/home.events';
 import { LIBRARY_COMMANDS } from '../../svelte/src/lib/contracts/library/chapter.commands';
@@ -35,7 +37,7 @@ test.describe('reader', () => {
 		consoleErrors = collectConsoleErrors(page);
 
 		await installTauriMocks(page, {
-			[HOME_COMMANDS.getComicSummary]: mockedTauriResponse({
+			[HOME_COMMANDS.getComicSummarySorted]: mockedTauriResponse({
 				events: [{ event: HOME_EVENTS.homeData, payload: e2eComicSummary([e2eComic]) }]
 			}),
 			[LIBRARY_COMMANDS.getComicByFolderName]: e2eComic,
@@ -47,7 +49,11 @@ test.describe('reader', () => {
 			[READER_COMMANDS.loadPage]: (args) => e2eReaderPage((args as { index: number }).index),
 			[READER_COMMANDS.setCurrentPage]: undefined,
 			[READER_COMMANDS.prefetchWindow]: undefined,
-			[READER_COMMANDS.closeChapter]: undefined
+			[READER_COMMANDS.closeChapter]: undefined,
+			[HISTORY_COMMANDS.getComic]: null,
+			[HISTORY_COMMANDS.getReadChapters]: [],
+			[HISTORY_COMMANDS.updateReading]: undefined,
+			[BOOKMARKS_COMMANDS.getComicCategory]: null
 		});
 	});
 
@@ -68,6 +74,12 @@ test.describe('reader', () => {
 
 		await page.getByRole('button', { name: 'Aplicar zoom' }).click();
 		await expect(page.getByText(/Zoom 165%/)).toBeVisible();
+
+		// Navegação por teclado fica desabilitada de propósito enquanto a página está com
+		// zoom aplicado no modo paginado (`pageControlsDisabled` em reader/+page.svelte) —
+		// resetar o zoom antes de testar a troca de página, como um usuário real faria.
+		await page.keyboard.press('Control+0');
+		await expect(page.getByRole('button', { name: 'Aplicar zoom' })).toBeVisible();
 
 		await page.keyboard.press('ArrowLeft');
 		await expect(page.getByText(/1 \/ 3 páginas/)).toBeVisible();

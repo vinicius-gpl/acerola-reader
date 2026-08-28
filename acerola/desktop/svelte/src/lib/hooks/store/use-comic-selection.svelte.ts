@@ -5,6 +5,12 @@ export type ComicId = string | number;
 let selectedIds = $state<Set<ComicId>>(new Set());
 let isSelectionMode = $state(false);
 
+// ONLY FOR TESTING
+export function _resetComicSelectionState() {
+	selectedIds = new Set();
+	isSelectionMode = false;
+}
+
 /**
  * Hook para gerenciar seleção múltipla de quadrinhos.
  * Permite selecionar um ou vários quadrinhos para ações em batch.

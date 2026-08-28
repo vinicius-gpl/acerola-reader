@@ -9,6 +9,14 @@ on:
       - 'acerola/desktop/**'
       - 'lib/p2p/**'
       - '.github/workflows/desktop-tests.yml'
+  pull_request:
+    branches:
+      - develop
+      - main
+    paths:
+      - 'acerola/desktop/**'
+      - 'lib/p2p/**'
+      - '.github/workflows/desktop-tests.yml'
   workflow_dispatch:
 
 jobs:
@@ -126,8 +134,25 @@ jobs:
       - name: Run Svelte coverage
         run: npm run test:coverage:unit
 
+      - name: Run Playwright e2e
+        run: npm run test:e2e
+
       - name: Upload Svelte coverage report
         uses: actions/upload-artifact@v4
         with:
           name: svelte-coverage
           path: acerola/desktop/coverage
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: acerola/desktop/playwright-report
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          files: acerola/desktop/coverage/lcov.info
+          flags: desktop-svelte
+          token: ${{ secrets.CODECOV_TOKEN }}

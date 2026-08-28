@@ -1,0 +1,28 @@
+coverage:
+  status:
+    project:
+      default: false
+      desktop-svelte:
+        flags:
+          - desktop-svelte
+        target: auto
+        threshold: 1%
+      docs-web:
+        flags:
+          - docs-web
+        target: auto
+        threshold: 1%
+  patch: false
+
+flags:
+  desktop-svelte:
+    paths:
+      - acerola/desktop/svelte/
+    carryforward: false
+  docs-web:
+    paths:
+      - docs/web/src/
+    carryforward: false
+
+comment:
+  layout: "flags, diff, files"

@@ -26,6 +26,22 @@ A camada Rust é fortemente estruturada utilizando princípios de Clean Architec
 - `lib/contracts/`: Tipagens, payloads e definições estritas de constantes Tauri (ex.: nomes de eventos e comandos de IPC) usados para não haver hardcode entre backend e frontend.
 - `lib/paraglide/`: Estrutura de internacionalização (i18n). Os textos da UI vêm daqui (ex.: `m['pages.home.loading']()`).
 
+### 3. Testes de Frontend (Svelte 5) - `svelte/`
+
+O projeto Vitest (`vitest.config.ts`) roda 3 "projects" diferentes, cada um com um propósito:
+
+- **`unit`** (`npm run test:unit`): jsdom + `@testing-library/svelte`. A grande maioria dos testes vive aqui — componentes, hooks, stores, utils. Arquivos `*.test.ts` colocados junto do arquivo testado.
+- **`integration`** (roda junto com `npm run test`): browser real (Chromium via Playwright) para os poucos casos que dependem de comportamento que jsdom não reproduz fielmente (ex.: scroll real). Arquivos nomeados `*.browser.test.ts`.
+- **`storybook`** (`npm run test:storybook`): executa toda story como teste via `@storybook/addon-vitest`, também em browser real. Garante que nenhuma story quebra silenciosamente.
+
+**Convenção de colocation**: todo componente em `lib/components/` ou `routes/**/components/` deve ter, na mesma pasta, `<nome>.svelte` + `<nome>.test.ts` (Vitest, caminho feliz e triste quando fizer sentido) + `<nome>.stories.svelte` (Storybook CSF via `@storybook/addon-svelte-csf`, usando `defineMeta`). Os componentes vendorizados do shadcn-svelte em `lib/components/ui/` são exceção deliberada — não recebem teste/story próprios, só são exercitados indiretamente pelos componentes `acerola-*` que os usam.
+
+**Testando hooks baseados em runes (`lib/hooks/`, `lib/state/`)**: se o hook só usa `$state`/`$derived` (sem `onMount`/`onDestroy`/`$effect`), teste chamando a função exportada direto no corpo do teste — sem `render()`, sem harness (ver `lib/state/notification.svelte.ts` + `notification.test.ts`). Se o hook depende de lifecycle real (`onMount`/`$effect`), ele precisa rodar dentro de um componente montado de verdade: use os wrappers em `tests/harness/hooks/*.svelte` (ex.: `reader-store.svelte`), montados via `@testing-library/svelte`'s `render()`. Hooks com estado singleton em nível de módulo expõem um `_reset*State()` só para uso em teste (ver `use-archive-templates.svelte.ts`) — sempre chame o reset no `beforeEach` pra não vazar estado entre arquivos de teste.
+
+**E2E**: `tests/e2e/*.spec.ts` (Playwright, roda contra o `vite dev` real, rápido — hoje faz parte do CI) mocka o IPC do Tauri inteiro via `svelte/tests/mocks/tauri-playwright.ts` (`installTauriMocks`), que já cobre por padrão o boilerplate do layout raiz (bookmarks, identidade do pacote, status de rede) e pula o onboarding — só é preciso mockar os comandos específicos do fluxo testado. `tests/wdio/*.spec.ts` (WebdriverIO, dirige o binário Tauri compilado de verdade) continua manual/local apenas — exige build release + driver nativo por SO (ver `tests/wdio/README.md`), não roda no CI.
+
+**Mutation testing** (`npm run test:mutation`, via Stryker): roda semanalmente/manual no CI, não bloqueia PR (é lento). Escopo hoje é só lógica pura em `.ts`/`.svelte.ts` (`lib/hooks/`, `lib/state/`, `lib/services/`, `lib/utils/`) — mutação de `.svelte` está fora de escopo por decisão (suporte do Stryker a SFC Svelte ainda é imaturo).
+
 ## Padrões Adotados (Regras da Aplicação)
 
 Ao contribuir, é estritamente proibido desobedecer às seguintes restrições:
@@ -57,5 +73,6 @@ Ao contribuir, é estritamente proibido desobedecer às seguintes restrições:
 1. Suba o App normalmente através do Tauri CLI: `npm run tauri dev`
 2. Rode os testes do Rust isoladamente para validar mudanças nos Repositórios/Services:
    `cargo test -p acerola` ou especificamente: `cargo test -p acerola --lib data::repositories::views::tests`
+3. Frontend: `npm run test` (unit + integration + storybook), `npm run test:coverage:unit` (com cobertura), `npm run test:e2e` (Playwright), `npm run storybook` (dev server do Storybook), `npm run test:mutation` (Stryker, local — pode demorar).
 
 Siga essa base de regras estritas para submeter Pull Requests maduras e prontas para ambiente de produção!

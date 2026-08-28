@@ -38,7 +38,7 @@
 			</div>
 		{/if}
 
-		{#each data.items as item (item.href)}
+		{#each data?.items ?? [] as item (item.href)}
 			<Tooltip.Root>
 				<Tooltip.Trigger>
 					{#snippet child({ props })}

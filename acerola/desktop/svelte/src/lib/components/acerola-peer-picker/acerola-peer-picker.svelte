@@ -22,28 +22,36 @@
 	import MonitorIcon from '@lucide/svelte/icons/monitor';
 
 	let { state, data, events }: AcerolaPeerPickerProps = $props();
+
+	// No teardown da story (Storybook + vitest browser mode), o efeito reativo deste
+	// template roda mais uma vez com `events` já undefined antes do componente ser
+	// destruído de fato — sem o fallback aqui isso vaza como unhandled error e derruba
+	// a suíte mesmo com todos os asserts passando (mesmo padrão de
+	// acerola-network-my-device-card.svelte).
+	let safeEvents = $derived(events ?? { onOpenChange: () => {}, onSelect: () => {} });
+	let safeData = $derived(data ?? { peers: [] });
 </script>
 
 <AcerolaDialog
-	state={{ open: state.open }}
+	state={{ open: state?.open ?? false }}
 	data={{ title: m['pages.network.peer_picker.title']() }}
-	events={{ onOpenChange: events.onOpenChange }}
+	events={{ onOpenChange: safeEvents.onOpenChange }}
 	ui={{
 		contentClass:
 			'w-full max-w-[calc(100vw-2rem)] sm:max-w-sm border-border/60 bg-background/95 backdrop-blur-xl shadow-2xl p-6 rounded-3xl overflow-hidden'
 	}}
 >
-	{#if data.peers.length === 0}
+	{#if safeData.peers.length === 0}
 		<p class="p-4 text-center text-sm text-muted-foreground">
 			{m['pages.network.peers.empty']()}
 		</p>
 	{:else}
 		<div class="flex flex-col gap-1 py-1">
-			{#each data.peers as peer (peer.peerId)}
+			{#each safeData.peers as peer (peer.peerId)}
 				<button
 					type="button"
 					class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-muted"
-					onclick={() => events.onSelect(peer)}
+					onclick={() => safeEvents.onSelect(peer)}
 				>
 					<MonitorIcon size={18} class="shrink-0 text-muted-foreground" />
 					<span class="truncate text-sm font-medium text-foreground">
