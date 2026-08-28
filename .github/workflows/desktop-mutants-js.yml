@@ -30,25 +30,6 @@ jobs:
       - name: Run Stryker
         run: npm run test:mutation
 
-      - name: Debug sandbox tsconfig (temporary)
-        if: failure()
-        run: |
-          echo "--- .stryker-tmp sandbox dirs ---"
-          find .stryker-tmp -maxdepth 1 -type d
-          SANDBOX=$(find .stryker-tmp -maxdepth 1 -type d -name "sandbox*" | head -1)
-          echo "--- sandbox: $SANDBOX ---"
-          echo "--- ls sandbox root ---"
-          ls -la "$SANDBOX"
-          echo "--- tsconfig.json (sandbox root) ---"
-          cat "$SANDBOX/tsconfig.json" || echo "MISSING"
-          echo "--- .svelte-kit dir listing ---"
-          ls -la "$SANDBOX/.svelte-kit" || echo "MISSING .svelte-kit"
-          echo "--- .svelte-kit/tsconfig.json ---"
-          cat "$SANDBOX/.svelte-kit/tsconfig.json" || echo "MISSING .svelte-kit/tsconfig.json"
-          echo "--- node_modules/vite/node_modules/rolldown is symlink? ---"
-          ls -la "$SANDBOX/node_modules/vite/node_modules" | grep rolldown || true
-          readlink -f "$SANDBOX/node_modules/vite/node_modules/rolldown" || true
-
       - name: Upload mutation report
         if: always()
         uses: actions/upload-artifact@v4
