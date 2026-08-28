@@ -11,6 +11,12 @@ const config: StorybookConfig = {
 		'@storybook/addon-docs'
 	],
 	framework: '@storybook/sveltekit',
+	// TODO: `staticDirs` serve `favicon.svg` do projeto na raiz do Storybook, e o
+	// navegador acaba pegando isso como favicon da aba sozinho (sem eu ter customizado
+	// nada explicitamente) — mas não existe `manager.ts` aqui, então a LOGO da sidebar
+	// fica no padrão do Storybook. Em acerola/desktop/.storybook/manager.ts acontece o
+	// inverso: a logo é customizada via `brandImage`, mas o favicon.ico real da aba nunca
+	// foi trocado. Os dois projetos deviam ter os dois consistentes.
 	staticDirs: ['../static'],
 	viteFinal(config) {
 		return mergeConfig(config, {
