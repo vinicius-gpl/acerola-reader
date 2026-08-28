@@ -287,6 +287,13 @@ gl_FragColor = vec4(col, max(max(col.r, col.g), col.b));
 		};
 	}
 
+	// TODO: este efeito WebGL gera "GPU stall due to ReadPixels" no Chromium headless
+	// (Playwright) e eventualmente derruba a página/contexto do browser, principalmente
+	// em `page.reload()` — contornado no e2e testando o theme-picker numa rota sem esse
+	// componente (ver tests/e2e/theme-picker.spec.ts) em vez de corrigir a causa raiz.
+	// Não confirmado se o mesmo problema acontece em browser real (não-headless) — só foi
+	// reproduzido sob o GPU virtual/software do ambiente de teste. Investigar se afeta
+	// usuários de verdade antes de considerar resolvido.
 	$effect(() => {
 		const currentContainer = container;
 		if (!currentContainer) return;

@@ -9,6 +9,14 @@ on:
       - 'acerola/desktop/**'
       - 'lib/p2p/**'
       - '.github/workflows/desktop-tests.yml'
+  pull_request:
+    branches:
+      - develop
+      - main
+    paths:
+      - 'acerola/desktop/**'
+      - 'lib/p2p/**'
+      - '.github/workflows/desktop-tests.yml'
   workflow_dispatch:
 
 jobs:
@@ -85,13 +93,95 @@ jobs:
           name: rust-lcov
           path: acerola/desktop/src-tauri/lcov.info
 
-  svelte:
-    name: Svelte Tests
+  check:
+    name: Svelte Check
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: acerola/desktop
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 25.9.0
+          cache: npm
+          cache-dependency-path: acerola/desktop/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check
+        run: npm run check
+
+  lint:
+    name: Svelte Lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: acerola/desktop
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 25.9.0
+          cache: npm
+          cache-dependency-path: acerola/desktop/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+  unit:
+    name: Svelte Unit tests + coverage
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: acerola/desktop
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 25.9.0
+          cache: npm
+          cache-dependency-path: acerola/desktop/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Unit tests with coverage
+        run: npm run test:coverage:unit
+
+      - name: Upload Svelte coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: svelte-coverage
+          path: acerola/desktop/coverage
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          files: acerola/desktop/coverage/lcov.info
+          flags: desktop-svelte
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+  integration:
+    name: Svelte Integration (real browser)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: acerola/desktop
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -117,17 +207,80 @@ jobs:
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 
-      - name: Run Svelte check
-        run: npm run check
+      - name: Integration tests
+        run: npm run test:integration
 
-      - name: Run Svelte tests
-        run: npm run test
+  storybook:
+    name: Storybook (stories as tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: acerola/desktop
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Run Svelte coverage
-        run: npm run test:coverage:unit
-
-      - name: Upload Svelte coverage report
-        uses: actions/upload-artifact@v7
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          name: svelte-coverage
-          path: acerola/desktop/coverage
+          node-version: 25.9.0
+          cache: npm
+          cache-dependency-path: acerola/desktop/package-lock.json
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('acerola/desktop/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Storybook tests
+        run: npm run test:storybook
+
+  e2e:
+    name: Playwright e2e
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: acerola/desktop
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 25.9.0
+          cache: npm
+          cache-dependency-path: acerola/desktop/package-lock.json
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('acerola/desktop/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright e2e
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: acerola/desktop/playwright-report

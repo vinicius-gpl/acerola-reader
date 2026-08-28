@@ -1,4 +1,6 @@
 import { expect, test } from '@playwright/test';
+import { BOOKMARKS_COMMANDS } from '../../svelte/src/lib/contracts/bookmarks/bookmarks.commands';
+import { HISTORY_COMMANDS } from '../../svelte/src/lib/contracts/history/history.commands';
 import { HOME_COMMANDS } from '../../svelte/src/lib/contracts/home/home.commands';
 import { HOME_EVENTS } from '../../svelte/src/lib/contracts/home/home.events';
 import { LIBRARY_COMMANDS } from '../../svelte/src/lib/contracts/library/chapter.commands';
@@ -24,7 +26,7 @@ test.describe('library comic reader navigation', () => {
 		consoleErrors = collectConsoleErrors(page);
 
 		await installTauriMocks(page, {
-			[HOME_COMMANDS.getComicSummary]: mockedTauriResponse({
+			[HOME_COMMANDS.getComicSummarySorted]: mockedTauriResponse({
 				events: [{ event: HOME_EVENTS.homeData, payload: e2eComicSummary([e2eComic]) }]
 			}),
 			[LIBRARY_COMMANDS.getComicByFolderName]: e2eComic,
@@ -36,7 +38,11 @@ test.describe('library comic reader navigation', () => {
 			[READER_COMMANDS.loadPage]: (args) => e2eReaderPage((args as { index: number }).index),
 			[READER_COMMANDS.setCurrentPage]: undefined,
 			[READER_COMMANDS.prefetchWindow]: undefined,
-			[READER_COMMANDS.closeChapter]: undefined
+			[READER_COMMANDS.closeChapter]: undefined,
+			[HISTORY_COMMANDS.getComic]: null,
+			[HISTORY_COMMANDS.getReadChapters]: [],
+			[HISTORY_COMMANDS.updateReading]: undefined,
+			[BOOKMARKS_COMMANDS.getComicCategory]: null
 		});
 	});
 

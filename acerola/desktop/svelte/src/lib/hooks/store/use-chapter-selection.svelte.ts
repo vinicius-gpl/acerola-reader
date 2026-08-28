@@ -3,6 +3,12 @@ export type ChapterId = string;
 let selectedIds = $state<Set<ChapterId>>(new Set());
 let isSelectionMode = $state(false);
 
+// ONLY FOR TESTING
+export function _resetChapterSelectionState() {
+	selectedIds = new Set();
+	isSelectionMode = false;
+}
+
 /**
  * Hook para gerenciar seleção múltipla de capítulos dentro da tela do quadrinho.
  * Permite selecionar um ou vários capítulos para ações em batch (marcar lido/não lido).

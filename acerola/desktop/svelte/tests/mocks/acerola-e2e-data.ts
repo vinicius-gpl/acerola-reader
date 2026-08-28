@@ -10,6 +10,12 @@ import type {
 	ReaderPagePayload,
 	ReaderSessionPayload
 } from '../../src/lib/contracts/reader/reader.payloads';
+import type {
+	DeviceInfoPayload,
+	PairedPeerPayload,
+	RelayInfo
+} from '../../src/lib/contracts/network/network.payloads';
+import type { LocalPeerAddr } from '../../src/lib/utils/connection-code.utils';
 
 export const e2eComic: ComicSummaryItem = {
 	relations: { directoryId: 'dir-1', metadataId: null },
@@ -91,6 +97,30 @@ export function e2eReaderSession(): ReaderSessionPayload {
 		cacheCapacity: 7
 	};
 }
+
+export const e2eLocalPeerId = 'e2e-local-peer-id';
+
+export const e2eLocalAddr: LocalPeerAddr = {
+	id: { id: e2eLocalPeerId, device_id: null },
+	addrs: [1, 2, 3, 4]
+};
+
+export const e2eLocalDeviceInfo: DeviceInfoPayload = {
+	name: 'Meu PC',
+	os: 'windows',
+	version: '1.0.0'
+};
+
+export const e2eRelayInfo: RelayInfo = {
+	defaultRelay: 'relay.acerola-comic.com',
+	activeRelay: 'relay.acerola-comic.com'
+};
+
+export const e2ePairedPeer: PairedPeerPayload = {
+	peerId: 'e2e-paired-peer-id',
+	addrs: [5, 6, 7, 8],
+	deviceName: 'Meu Celular'
+};
 
 export function e2eReaderPage(index: number): ReaderPagePayload {
 	const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="480" viewBox="0 0 320 480"><rect width="320" height="480" fill="#202020"/><text x="160" y="240" fill="#fff" font-family="Arial" font-size="32" text-anchor="middle">Page ${index + 1}</text></svg>`;

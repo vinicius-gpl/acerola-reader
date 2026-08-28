@@ -26,9 +26,13 @@
       "csp": "default-src 'self'; img-src 'self' acerola-reader: asset: https://asset.localhost http://asset.localhost data: blob:",
       "assetProtocol": {
         "enable": true,
-        "scope": [
-          "**"
-        ]
+        "scope": ["**"]
+      },
+      "pattern": {
+        "use": "isolation",
+        "options": {
+          "dir": "../isolation-src"
+        }
       }
     }
   },

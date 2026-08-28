@@ -28,3 +28,12 @@ project.inlang/cache/
 
 # Pagefind
 .svelte-kit/cloudflare/pagefind
+
+# Test artifacts (Vitest coverage, Storybook, Playwright, Stryker)
+/coverage
+/storybook-static
+/test-results
+/playwright-report
+/mutants.out
+/mutants.out.old
+/.stryker-tmp

@@ -23,6 +23,9 @@ export const FALLBACK_LOCALE = 'pt-br';
 
 const PATH_PATTERN = /^\/src\/content\/docs\/([^/]+)\/(.+)\.md$/;
 
+// Stryker disable next-line all -- `import.meta.glob` is a Vite build-time macro that
+// requires a literal string argument; Stryker's mutation wrapper turns it into a function
+// call, which breaks Vite's glob-import parser (see stryker.conf.json for context).
 const modules = import.meta.glob<DocModule>('/src/content/docs/*/**/*.md', { eager: true });
 
 const entries: DocEntry[] = Object.entries(modules).flatMap(([path, mod]) => {

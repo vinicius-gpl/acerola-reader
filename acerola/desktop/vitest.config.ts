@@ -51,6 +51,29 @@ export default defineConfig({
 	},
 	// INFO: Não usar paraglide nos testes.
 	test: {
+		coverage: {
+			provider: 'v8',
+			reporter: ['text', 'lcov', 'html'],
+			reportsDirectory: './coverage',
+			include: ['svelte/src/**/*.{ts,svelte}'],
+			exclude: [
+				'svelte/src/**/*.test.ts',
+				'svelte/src/**/*.browser.test.ts',
+				'svelte/src/**/*.stories.svelte',
+				'svelte/src/lib/paraglide/**',
+				'svelte/src/**/*.d.ts',
+				'svelte/tests/**'
+			],
+			thresholds: {
+				// Trocado de placeholder pro baseline real medido após preencher as lacunas
+				// de teste (Fases 2-4 do plano de cobertura), com alguns pontos de folga por
+				// métrica pra não flakar com pequenas oscilações incidentais.
+				lines: 55,
+				statements: 55,
+				functions: 52,
+				branches: 45
+			}
+		},
 		projects: [
 			{
 				extends: true,
