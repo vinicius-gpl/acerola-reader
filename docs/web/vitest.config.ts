@@ -56,12 +56,13 @@ export default defineConfig({
 				'src/**/*.d.ts'
 			],
 			thresholds: {
-				// NOTE: placeholder — projeto começou do zero, ainda sem testes. A fase que
-				// mede a cobertura real depois de escrever os testes trava o valor definitivo.
-				lines: 0,
-				statements: 0,
-				functions: 0,
-				branches: 0
+				// Trocado de placeholder pro baseline real medido (unit + storybook
+				// combinados, que é o que `npm run test:coverage` roda) depois de escrever
+				// os testes/stories, com folga por métrica.
+				lines: 40,
+				statements: 37,
+				functions: 43,
+				branches: 33
 			}
 		}
 	}
