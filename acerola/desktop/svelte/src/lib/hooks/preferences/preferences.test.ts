@@ -65,6 +65,13 @@ describe('useVolumeViewMode', () => {
 		vi.clearAllMocks();
 	});
 
+	it('starts with cover as the initial mode before any load', async () => {
+		mockStore();
+		const hook = await renderHook(useVolumeViewMode);
+
+		expect(hook.volumeViewMode).toBe('cover');
+	});
+
 	it('loads saved volume view mode', async () => {
 		mockStore({ [STORE_KEYS.volumeViewMode]: 'banner' });
 		const hook = await renderHook(useVolumeViewMode);
@@ -92,6 +99,16 @@ describe('useVolumeViewMode', () => {
 		expect(hook.volumeViewMode).toBe('banner');
 		expect(store.set).toHaveBeenCalledWith(STORE_KEYS.volumeViewMode, 'banner');
 		expect(store.save).toHaveBeenCalledOnce();
+	});
+
+	it('allows setting the visible mode directly (without persisting)', async () => {
+		const store = mockStore();
+		const hook = await renderHook(useVolumeViewMode);
+
+		hook.volumeViewMode = 'banner';
+
+		expect(hook.volumeViewMode).toBe('banner');
+		expect(store.set).not.toHaveBeenCalled();
 	});
 });
 
