@@ -18,6 +18,12 @@ describe('encodeConnectionCode / decodeConnectionCode', () => {
 		const decoded = decodeConnectionCode(code);
 
 		expect(decoded).toEqual(addr);
+		// Checagem precisa e independente do toEqual sobre o array de bytes decodificado:
+		// tamanho exato e conteúdo exato por índice pra uma entrada conhecida, incluindo
+		// valores de fronteira 0 e 255.
+		expect(decoded.addrs).toHaveLength(5);
+		expect(decoded.addrs).toEqual([1, 2, 3, 255, 0]);
+		expect(Array.isArray(decoded.addrs)).toBe(true);
 	});
 
 	it('round-trips when device_id is null', () => {
@@ -49,6 +55,25 @@ describe('encodeConnectionCode / decodeConnectionCode', () => {
 		expect(() => decodeConnectionCode('not-a-valid-prefix:abcd')).toThrow(
 			InvalidConnectionCodeError
 		);
+	});
+
+	it('rejects a wrong prefix even when the remaining payload would otherwise decode fine', () => {
+		// Um payload base64/JSON malformado acaba normalizado em InvalidConnectionCodeError
+		// pelo catch-all mais abaixo independente do check de prefixo, então um teste como o
+		// de cima (prefixo errado + payload lixo) não distingue "o guard do prefixo lançou" de
+		// "o guard foi pulado e o JSON.parse/atob que explodiu". Pra provar de verdade que é o
+		// guard do prefixo que rejeita o código, o payload depois do prefixo falso (do mesmo
+		// tamanho) precisa ser um envelope *válido* — um que decodificaria com sucesso se o
+		// guard fosse pulado. Se o guard for removido/curto-circuitado, isso retorna um
+		// LocalPeerAddr válido em vez de lançar.
+		const addr: LocalPeerAddr = { id: { id: 'peer-x', device_id: null }, addrs: [1, 2, 3] };
+		const validCode = encodeConnectionCode(addr);
+		const realPrefixLength = 'acerola1:'.length;
+		const payload = validCode.slice(realPrefixLength);
+		const wrongPrefixCode = `${'x'.repeat(realPrefixLength)}${payload}`;
+
+		expect(wrongPrefixCode.startsWith('acerola1:')).toBe(false);
+		expect(() => decodeConnectionCode(wrongPrefixCode)).toThrow(InvalidConnectionCodeError);
 	});
 
 	it('throws InvalidConnectionCodeError for malformed base64 payload', () => {

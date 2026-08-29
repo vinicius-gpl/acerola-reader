@@ -17,6 +17,9 @@ function bytesToBase64(bytes: number[]): string {
 
 function base64ToBytes(base64: string): number[] {
 	const binary = atob(base64);
+	// Stryker disable next-line ArrayDeclaration : `new Array()` sem tamanho fica byte-a-byte
+	// idêntico depois que o loop abaixo preenche cada índice em sequência (0..length-1) sem
+	// pular nenhum — não existe entrada observável pela API pública que distinga os dois.
 	const bytes: number[] = new Array(binary.length);
 	for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
 	return bytes;
@@ -57,6 +60,10 @@ export function decodeConnectionCode(code: string): LocalPeerAddr {
 	try {
 		const envelope = JSON.parse(atob(trimmed.slice(CODE_PREFIX.length))) as ConnectionEnvelope;
 
+		// Stryker disable next-line OptionalChaining : o catch-all logo abaixo normaliza QUALQUER
+		// erro (inclusive o TypeError de acessar `.i` num envelope null/undefined) pra um
+		// InvalidConnectionCodeError idêntico — trocar `?.` por `.` aqui não muda o que a API
+		// pública observa.
 		if (!envelope?.i || typeof envelope.a !== 'string') {
 			throw new InvalidConnectionCodeError();
 		}
