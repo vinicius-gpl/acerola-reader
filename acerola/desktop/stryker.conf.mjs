@@ -58,9 +58,14 @@ export default {
 		// - use-comic-chapters.svelte.ts (76 mutantes, 0 cobertura)
 		// - use-select-folder.svelte.ts (33 mutantes, 0 cobertura)
 		// - use-history.svelte.ts (57 mutantes, 0 cobertura)
-		// - use-metadata-language.svelte.ts, use-reader-mode.svelte.ts (9 mutantes cada, 0 cobertura)
-		// - use-relay-settings.svelte.ts (25 mutantes, 0 cobertura)
 		// - use-theme.svelte.ts (parcial: 8 de 43 mutantes sem cobertura)
+		//
+		// Resolvido: use-metadata-language.svelte.ts, use-reader-mode.svelte.ts e
+		// use-relay-settings.svelte.ts chegaram a 100% de mutation score real (43/43
+		// mortos, 0 no-coverage) depois de ganharem teste — reforça a suspeita acima: os
+		// três têm `$state` só dentro da função exportada (instância nova por chamada,
+		// sem singleton em nível de módulo), diferente dos arquivos que ainda aparecem
+		// como "no coverage" nesta lista.
 		high: 70,
 		low: 50,
 		break: 45

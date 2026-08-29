@@ -12,7 +12,7 @@ coverage:
           - docs-web
         target: auto
         threshold: 1%
-  patch: false
+    patch: false
 
 flags:
   desktop-svelte:
@@ -23,6 +23,78 @@ flags:
     paths:
       - docs/web/src/
     carryforward: false
+
+# Corte alternativo ao das flags: em vez de "qual upload trouxe esse dado" (CI), aqui é "em
+# que pasta esse arquivo mora" — cada component fica preso à sua flag pra não misturar os
+# dois monorepos (paths não colidem hoje, mas evita ambiguidade se algum dia colidirem).
+component_management:
+  default_rules:
+    statuses:
+      - type: project
+        target: auto
+        threshold: 1%
+  individual_components:
+    - component_id: desktop-routes
+      name: "Desktop: Rotas"
+      flag_regexes:
+        - desktop-svelte
+      paths:
+        - acerola/desktop/svelte/src/routes/**
+    - component_id: desktop-hooks
+      name: "Desktop: Hooks"
+      flag_regexes:
+        - desktop-svelte
+      paths:
+        - acerola/desktop/svelte/src/lib/hooks/**
+    - component_id: desktop-components
+      name: "Desktop: Componentes"
+      flag_regexes:
+        - desktop-svelte
+      paths:
+        - acerola/desktop/svelte/src/lib/components/**
+    - component_id: desktop-state
+      name: "Desktop: Estado"
+      flag_regexes:
+        - desktop-svelte
+      paths:
+        - acerola/desktop/svelte/src/lib/state/**
+    - component_id: desktop-services-utils
+      name: "Desktop: Services & Utils"
+      flag_regexes:
+        - desktop-svelte
+      paths:
+        - acerola/desktop/svelte/src/lib/services/**
+        - acerola/desktop/svelte/src/lib/utils/**
+    - component_id: docs-routes
+      name: "Docs: Rotas"
+      flag_regexes:
+        - docs-web
+      paths:
+        - docs/web/src/routes/**
+    - component_id: docs-hooks
+      name: "Docs: Hooks"
+      flag_regexes:
+        - docs-web
+      paths:
+        - docs/web/src/lib/hooks/**
+    - component_id: docs-components
+      name: "Docs: Componentes"
+      flag_regexes:
+        - docs-web
+      paths:
+        - docs/web/src/lib/components/**
+    - component_id: docs-mdsvex
+      name: "Docs: Mdsvex"
+      flag_regexes:
+        - docs-web
+      paths:
+        - docs/web/src/lib/mdsvex/**
+    - component_id: docs-content
+      name: "Docs: Content"
+      flag_regexes:
+        - docs-web
+      paths:
+        - docs/web/src/lib/content/**
 
 comment:
   layout: "flags, diff, files"

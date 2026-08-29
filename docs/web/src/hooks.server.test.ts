@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('$lib/paraglide/server', () => ({
-	paraglideMiddleware: (request: Request, callback: (arg: { request: Request; locale: string }) => unknown) =>
-		callback({ request, locale: 'en' })
+	paraglideMiddleware: (
+		request: Request,
+		callback: (arg: { request: Request; locale: string }) => unknown
+	) => callback({ request, locale: 'en' })
 }));
 
 vi.mock('$lib/paraglide/runtime', () => ({
