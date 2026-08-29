@@ -46,6 +46,16 @@ describe('useOnboarding', () => {
 		useOnboarding().setStep(0);
 	});
 
+	it('resolves the onboarding status at module load (checkStatus already ran)', async () => {
+		// `checkStatus()` roda uma única vez no import do módulo, com `store.get()`
+		// resolvendo `null` por padrão (mock global) — por isso `isCompleted` cai no
+		// fallback `?? false`, e `isLoading` termina em `false` depois de resolver.
+		const hook = await renderHook();
+
+		expect(hook.isLoading).toBe(false);
+		expect(hook.isCompleted).toBe(false);
+	});
+
 	it('starts with step 0 and manages step forward and backward', async () => {
 		const hook = await renderHook();
 
