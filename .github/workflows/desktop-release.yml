@@ -99,9 +99,9 @@ jobs:
       - name: Rename Artifacts
         shell: powershell
         run: |
-          Rename-Item (Get-Item ".bin\windows\msix\*.msix").FullName "acerola-x64.msix"
-          Rename-Item (Get-Item ".bin\windows\msi\*.msi").FullName "acerola-x64.msi"
-          Rename-Item (Get-Item ".bin\windows\exe\*.exe").FullName "acerola-x64.exe"
+          Rename-Item (Get-Item ".bin\windows\msix\*.msix").FullName "acerola-x64-${{ env.VERSION }}.msix"
+          Rename-Item (Get-Item ".bin\windows\msi\*.msi").FullName "acerola-x64-${{ env.VERSION }}.msi"
+          Rename-Item (Get-Item ".bin\windows\exe\*.exe").FullName "acerola-x64-${{ env.VERSION }}.exe"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
@@ -111,9 +111,9 @@ jobs:
           draft: false
           prerelease: ${{ env.CHANNEL != 'prod' }}
           files: |
-            acerola/desktop/.bin/windows/msix/acerola-x64.msix
-            acerola/desktop/.bin/windows/msi/acerola-x64.msi
-            acerola/desktop/.bin/windows/exe/acerola-x64.exe
+            acerola/desktop/.bin/windows/msix/acerola-x64-${{ env.VERSION }}.msix
+            acerola/desktop/.bin/windows/msi/acerola-x64-${{ env.VERSION }}.msi
+            acerola/desktop/.bin/windows/exe/acerola-x64-${{ env.VERSION }}.exe
           generate_release_notes: true
 
       - name: Commit version bump

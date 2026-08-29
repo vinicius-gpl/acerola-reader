@@ -96,14 +96,14 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
 
       - name: Rename APK
-        run: mv app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/acerola.apk
+        run: mv app/build/outputs/apk/release/app-release.apk "app/build/outputs/apk/release/acerola-${{ env.VERSION }}.apk"
         working-directory: acerola/android
 
       - name: Upload APK to GitHub Release
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ env.TAG_NAME }}
-          files: acerola/android/app/build/outputs/apk/release/acerola.apk
+          files: acerola/android/app/build/outputs/apk/release/acerola-${{ env.VERSION }}.apk
           name: "Acerola Android v${{ env.VERSION }}"
           generate_release_notes: true
           prerelease: ${{ env.CHANNEL != 'prod' }}
