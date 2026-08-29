@@ -3,7 +3,7 @@
 	import ReaderPages from './reader-pages.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Pages/Reader/ReaderPages',
+		title: 'Páginas/Reader/ReaderPages',
 		component: ReaderPages,
 		tags: ['autodocs'],
 		argTypes: {

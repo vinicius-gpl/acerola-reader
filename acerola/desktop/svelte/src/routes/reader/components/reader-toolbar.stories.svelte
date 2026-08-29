@@ -3,7 +3,7 @@
 	import ReaderToolbar from './reader-toolbar.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Pages/Reader/ReaderToolbar',
+		title: 'Páginas/Reader/ReaderToolbar',
 		component: ReaderToolbar,
 		tags: ['autodocs'],
 		argTypes: {

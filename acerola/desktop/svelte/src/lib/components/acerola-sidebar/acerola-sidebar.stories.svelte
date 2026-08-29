@@ -16,7 +16,7 @@
 
 	const { Story } = defineMeta({
 		component: AcerolaSidebar,
-		title: 'Components/AcerolaSidebar'
+		title: 'Layout/AcerolaSidebar'
 	});
 </script>
 

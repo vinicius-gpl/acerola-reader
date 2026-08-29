@@ -3,7 +3,7 @@
 	import ThemePicker from './theme-picker.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Pages/Config/ThemePicker',
+		title: 'Páginas/Config/ThemePicker',
 		component: ThemePicker,
 		tags: ['autodocs'],
 		parameters: {

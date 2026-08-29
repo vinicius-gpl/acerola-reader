@@ -13,7 +13,7 @@
 	}
 
 	const { Story } = defineMeta({
-		title: 'Components/PrevNextNav',
+		title: 'Compositores/PrevNextNav',
 		component: PrevNextNav,
 		tags: ['autodocs'],
 		parameters: {

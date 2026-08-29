@@ -29,7 +29,7 @@
 	];
 
 	const { Story } = defineMeta({
-		title: 'Components/MobileNav',
+		title: 'Layout/MobileNav',
 		component: MobileNav,
 		tags: ['autodocs'],
 		parameters: {

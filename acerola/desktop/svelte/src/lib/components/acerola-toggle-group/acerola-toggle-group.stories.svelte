@@ -5,7 +5,7 @@
 	import { ToggleGroupItem } from '$lib/components/ui/toggle-group/index.js';
 
 	const { Story } = defineMeta({
-		title: 'Components/AcerolaToggleGroup',
+		title: 'Primitivos/AcerolaToggleGroup',
 		component: AcerolaToggleGroup,
 		tags: ['autodocs'],
 		parameters: {

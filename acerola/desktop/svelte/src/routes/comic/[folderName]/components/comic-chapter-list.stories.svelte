@@ -3,7 +3,7 @@
 	import ComicChapterList, { type Chapter } from './comic-chapter-list.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Pages/Comic/ComicChapterList',
+		title: 'Páginas/Comic/ComicChapterList',
 		component: ComicChapterList,
 		tags: ['autodocs'],
 		parameters: {

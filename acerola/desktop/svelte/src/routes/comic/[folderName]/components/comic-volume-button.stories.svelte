@@ -3,7 +3,7 @@
 	import ComicVolumeButton from './comic-volume-button.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Components/Comic/ComicVolumeButton',
+		title: 'Páginas/Comic/ComicVolumeButton',
 		component: ComicVolumeButton,
 		argTypes: {
 			data: { control: 'object' },

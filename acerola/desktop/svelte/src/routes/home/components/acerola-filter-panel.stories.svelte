@@ -11,7 +11,7 @@
 
 	const { Story } = defineMeta({
 		component: AcerolaFilterPanel,
-		title: 'Components/AcerolaFilterPanel'
+		title: 'Páginas/Home/AcerolaFilterPanel'
 	});
 </script>
 

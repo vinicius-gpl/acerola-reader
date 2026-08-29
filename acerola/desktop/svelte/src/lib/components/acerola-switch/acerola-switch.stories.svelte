@@ -3,7 +3,7 @@
 	import AcerolaSwitch from './acerola-switch.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Components/AcerolaSwitch',
+		title: 'Primitivos/AcerolaSwitch',
 		component: AcerolaSwitch,
 		tags: ['autodocs'],
 		parameters: {

@@ -3,7 +3,7 @@
 	import ComicPreferences from './comic-preferences.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Pages/Comic/ComicPreferences',
+		title: 'Páginas/Comic/ComicPreferences',
 		component: ComicPreferences,
 		tags: ['autodocs'],
 		parameters: {

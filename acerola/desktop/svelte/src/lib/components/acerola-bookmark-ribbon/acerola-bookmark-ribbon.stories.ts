@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/svelte';
 import AcerolaBookmarkRibbon from './acerola-bookmark-ribbon.svelte';
 
 const meta = {
-	title: 'Components/AcerolaBookmarkRibbon',
+	title: 'Primitivos/AcerolaBookmarkRibbon',
 	component: AcerolaBookmarkRibbon,
 	tags: ['autodocs'],
 	argTypes: {

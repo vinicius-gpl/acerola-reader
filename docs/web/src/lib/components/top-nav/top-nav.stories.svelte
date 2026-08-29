@@ -3,7 +3,7 @@
 	import TopNav from './top-nav.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Components/TopNav',
+		title: 'Layout/TopNav',
 		component: TopNav,
 		tags: ['autodocs'],
 		parameters: {

@@ -11,7 +11,7 @@
 
 	const { Story } = defineMeta({
 		component: AcerolaComicActionDialog,
-		title: 'Components/AcerolaComicActionDialog'
+		title: 'Páginas/Home/AcerolaComicActionDialog'
 	});
 </script>
 

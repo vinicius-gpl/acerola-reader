@@ -3,7 +3,7 @@
 	import ShinyText from './shiny-text.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Components/ShinyText',
+		title: 'Primitivos/ShinyText',
 		component: ShinyText,
 		tags: ['autodocs'],
 		parameters: {

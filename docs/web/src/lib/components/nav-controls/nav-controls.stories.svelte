@@ -3,7 +3,7 @@
 	import NavControls from './nav-controls.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Components/NavControls',
+		title: 'Compositores/NavControls',
 		component: NavControls,
 		tags: ['autodocs'],
 		parameters: {

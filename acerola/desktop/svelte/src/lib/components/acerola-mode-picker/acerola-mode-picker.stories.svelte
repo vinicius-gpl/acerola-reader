@@ -3,7 +3,7 @@
 	import AcerolaModePicker from './acerola-mode-picker.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Components/AcerolaModePicker',
+		title: 'Compositores/AcerolaModePicker',
 		component: AcerolaModePicker,
 		tags: ['autodocs'],
 		parameters: {

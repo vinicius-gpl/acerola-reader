@@ -4,7 +4,7 @@
 
 	const { Story } = defineMeta({
 		component: AcerolaNetworkConnectCard,
-		title: 'Components/AcerolaNetworkConnectCard'
+		title: 'Páginas/Network/AcerolaNetworkConnectCard'
 	});
 </script>
 

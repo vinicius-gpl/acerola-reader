@@ -3,7 +3,7 @@
 	import AcerolaInput from './acerola-input.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Components/AcerolaInput',
+		title: 'Primitivos/AcerolaInput',
 		component: AcerolaInput,
 		tags: ['autodocs'],
 		parameters: {

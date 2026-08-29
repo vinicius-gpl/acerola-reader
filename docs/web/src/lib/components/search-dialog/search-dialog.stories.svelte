@@ -3,7 +3,7 @@
 	import SearchDialog from './search-dialog.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Components/SearchDialog',
+		title: 'Compositores/SearchDialog',
 		component: SearchDialog,
 		tags: ['autodocs'],
 		parameters: {
