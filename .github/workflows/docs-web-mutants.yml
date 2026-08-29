@@ -1,4 +1,4 @@
-name: "Docs/Web Mutation Tests"
+name: "Tests/Docs/Web/Mutation"
 
 on:
   schedule:

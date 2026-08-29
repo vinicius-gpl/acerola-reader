@@ -1,13 +1,21 @@
-name: "Docs/Web Deploy"
+name: "Deploy/Docs/Web"
 
 on:
   push:
     tags:
-      - 'docs/v*'
+      - 'docs/*/v*'
   workflow_dispatch:
     inputs:
+      channel:
+        description: "Canal da release"
+        required: true
+        type: choice
+        options:
+          - alpha
+          - beta
+          - prod
       version:
-        description: "Versão a liberar (ex: 1.2.0) — cria a tag docs/v<versão> e publica o deploy"
+        description: "Versão a liberar (ex: 1.0.0) — cria a tag docs/<canal>/v<versão> e publica o deploy"
         required: true
         type: string
 
@@ -30,12 +38,15 @@ jobs:
       - name: Extract version
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            VERSION_FULL="${{ inputs.version }}"
+            CHANNEL="${{ inputs.channel }}"
+            VERSION="${{ inputs.version }}"
           else
-            VERSION_FULL=$(echo "${{ github.ref_name }}" | sed 's|^docs/v||')
+            CHANNEL=$(echo "${{ github.ref_name }}" | cut -d'/' -f2)
+            VERSION=$(echo "${{ github.ref_name }}" | cut -d'/' -f3 | sed 's/^v//')
           fi
-          echo "VERSION_FULL=$VERSION_FULL" >> $GITHUB_ENV
-          echo "TAG_NAME=docs/v${VERSION_FULL}" >> $GITHUB_ENV
+          echo "CHANNEL=$CHANNEL" >> $GITHUB_ENV
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "TAG_NAME=docs/${CHANNEL}/v${VERSION}" >> $GITHUB_ENV
 
       - name: Create and push tag
         if: github.event_name == 'workflow_dispatch'
@@ -54,6 +65,15 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Install cargo-make
+        uses: davidB/rust-cargo-make@v1
+
+      - name: Update version (package.json)
+        working-directory: ${{ github.workspace }}
+        run: cargo make bump-docs
+        env:
+          VERSION: ${{ env.VERSION }}
 
       - name: Build (includes Pagefind indexing)
         run: npm run build
