@@ -113,16 +113,22 @@ export function useReaderNavigation() {
 				}
 
 				const isPendingNavigate = pendingAction === 'navigate';
-				// Stryker disable next-line ConditionalExpression: `pendingTargetIndex` só é setado pra
-				// um número não-nulo na mesma instrução que seta `pendingAction = 'navigate'` (ver
-				// `navigateToRelativeChapter` abaixo), e todo caminho de conclusão reseta os dois juntos.
-				// Então sempre que `isPendingNavigate` é true, `pendingTargetIndex !== null` já é
-				// garantidamente true também — não existe estado alcançável onde `isPendingNavigate` é
-				// true e o valor real dessa checagem é false, então forçá-la pra `true` nunca muda o
-				// resultado.
-				const hasPendingTargetIndex = pendingTargetIndex !== null;
 
-				if (isPendingNavigate && hasPendingTargetIndex) {
+				// `pendingTargetIndex` fica inline na condição (em vez de extraído pra uma
+				// variável nomeada como `isPendingNavigate`) de propósito: o TypeScript só
+				// estreita `pendingTargetIndex` de `number | null` pra `number` dentro deste
+				// bloco através do `!== null` inline aqui — indiretar por um boolean separado
+				// quebra esse narrowing e `chapterIndex: pendingTargetIndex` mais abaixo (que
+				// espera `number | undefined`) para de compilar.
+				//
+				// Stryker disable next-line ConditionalExpression: `pendingTargetIndex` só é
+				// setado pra um número não-nulo na mesma instrução que seta `pendingAction =
+				// 'navigate'` (ver `navigateToRelativeChapter` abaixo), e todo caminho de
+				// conclusão reseta os dois juntos. Então sempre que `isPendingNavigate` é true,
+				// `pendingTargetIndex !== null` já é garantidamente true também — não existe
+				// estado alcançável onde `isPendingNavigate` é true e o valor real dessa
+				// checagem é false, então forçá-la pra `true` nunca muda o resultado.
+				if (isPendingNavigate && pendingTargetIndex !== null) {
 					const nextChapterData = payload.archive.items[0];
 
 					if (!nextChapterData) {
