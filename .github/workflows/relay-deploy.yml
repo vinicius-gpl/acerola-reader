@@ -1,4 +1,4 @@
-name: "Relay/Deploy"
+name: "Deploy/Relay"
 
 on:
   push:

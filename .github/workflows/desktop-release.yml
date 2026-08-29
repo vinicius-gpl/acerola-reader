@@ -1,13 +1,21 @@
-name: "Desktop/Release"
+name: "Release/Desktop"
 
 on:
   push:
     tags:
-      - 'desktop/v*'
+      - 'desktop/*/v*'
   workflow_dispatch:
     inputs:
+      channel:
+        description: "Canal da release"
+        required: true
+        type: choice
+        options:
+          - alpha
+          - beta
+          - prod
       version:
-        description: "Versão a liberar (ex: 0.1.6-alpha) — cria a tag desktop/v<versão> e publica a release de verdade"
+        description: "Versão a liberar (ex: 1.0.0) — cria a tag desktop/<canal>/v<versão> e publica a release de verdade"
         required: true
         type: string
 
@@ -49,53 +57,29 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Extract versions
+      - name: Extract version
         shell: bash
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            VERSION_FULL="${{ inputs.version }}"
+            CHANNEL="${{ inputs.channel }}"
+            VERSION="${{ inputs.version }}"
           else
-            VERSION_FULL=$(echo "$GITHUB_REF_NAME" | sed 's|^desktop/v||')
+            CHANNEL=$(echo "$GITHUB_REF_NAME" | cut -d'/' -f2)
+            VERSION=$(echo "$GITHUB_REF_NAME" | cut -d'/' -f3 | sed 's/^v//')
           fi
-          VERSION_MSI=${VERSION_FULL%%-*}
-          TAG_NAME="desktop/v${VERSION_FULL}"
-          echo "VERSION_FULL=$VERSION_FULL" >> $GITHUB_ENV
-          echo "VERSION_MSI=$VERSION_MSI" >> $GITHUB_ENV
+          TAG_NAME="desktop/${CHANNEL}/v${VERSION}"
+          echo "CHANNEL=$CHANNEL" >> $GITHUB_ENV
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
 
-      - name: Update tauri.conf.json (versão MSI sem sufixo)
-        shell: bash
-        run: |
-          node -e "
-            const fs = require('fs');
-            const config = JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8'));
-            config.version = process.env.VERSION_MSI;
-            fs.writeFileSync('src-tauri/tauri.conf.json', JSON.stringify(config, null, 2) + '\n');
-          "
-        env:
-          VERSION_MSI: ${{ env.VERSION_MSI }}
-
-      - name: Update Cargo.toml
-        shell: bash
-        run: |
-          sed -i "s/^version = \".*\"/version = \"$VERSION_FULL\"/" src-tauri/Cargo.toml
-        env:
-          VERSION_FULL: ${{ env.VERSION_FULL }}
-
-      - name: Update package.json
-        shell: bash
-        run: |
-          node -e "
-            const fs = require('fs');
-            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-            pkg.version = process.env.VERSION_FULL;
-            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
-          "
-        env:
-          VERSION_FULL: ${{ env.VERSION_FULL }}
-
       - name: Install cargo-make
-        run: cargo install cargo-make
+        uses: davidB/rust-cargo-make@v1
+
+      - name: Update versions (tauri.conf.json, Cargo.toml, package.json)
+        working-directory: ${{ github.workspace }}
+        run: cargo make bump-desktop
+        env:
+          VERSION: ${{ env.VERSION }}
 
       - name: Install winapp
         run: npm install -g @microsoft/winappcli
@@ -106,6 +90,7 @@ jobs:
           -e MSIX_PACKAGE_NAME="${{ secrets.MSIX_PACKAGE_NAME }}"
           -e MSIX_PUBLISHER="${{ secrets.MSIX_PUBLISHER }}"
           -e MSIX_PUBLISHER_DISPLAY_NAME="${{ secrets.MSIX_PUBLISHER_DISPLAY_NAME }}"
+          -e MSIX_VERSION="${{ env.VERSION }}.0"
           init-msix
 
       - name: Build and Package (EXE, MSI, MSIX)
@@ -122,9 +107,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.TAG_NAME }}
-          name: Acerola Desktop v${{ env.VERSION_FULL }}
+          name: Acerola Desktop v${{ env.VERSION }}
           draft: false
-          prerelease: ${{ contains(env.VERSION_FULL, '-') }}
+          prerelease: ${{ env.CHANNEL != 'prod' }}
           files: |
             acerola/desktop/.bin/windows/msix/acerola-x64.msix
             acerola/desktop/.bin/windows/msi/acerola-x64.msi

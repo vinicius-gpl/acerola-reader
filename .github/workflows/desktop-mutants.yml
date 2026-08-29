@@ -1,4 +1,4 @@
-name: "Desktop/Mutation Tests"
+name: "Tests/Desktop/Rust/Mutation"
 
 on:
   schedule:
