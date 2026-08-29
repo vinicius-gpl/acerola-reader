@@ -22,9 +22,33 @@ async function renderHook() {
 	return hook!;
 }
 
+// Roda antes de qualquer beforeEach/_resetComicSelectionState deste arquivo, então
+// observa o valor inicial de verdade do `$state(false)` do módulo, em vez de um valor
+// forçado por um reset. Mata o mutante que troca o literal inicial pra `true`.
+it('isSelectionMode is false on module load, before any reset has run', async () => {
+	const hook = await renderHook();
+
+	expect(hook.isSelectionMode).toBe(false);
+});
+
 describe('useComicSelection', () => {
 	beforeEach(() => {
 		_resetComicSelectionState();
+	});
+
+	it('_resetComicSelectionState clears a dirtied selection and exits selection mode', async () => {
+		const hook = await renderHook();
+
+		hook.selectAll([1, 2, 3]);
+		expect(hook.selectedCount).toBe(3);
+		expect(hook.isSelectionMode).toBe(true);
+
+		_resetComicSelectionState();
+		await tick();
+
+		expect(hook.selectedIds.size).toBe(0);
+		expect(hook.selectedIdsArray).toEqual([]);
+		expect(hook.isSelectionMode).toBe(false);
 	});
 
 	it('starts with no selection and not in selection mode', async () => {
