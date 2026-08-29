@@ -20,7 +20,11 @@ describe('Card (mdsvex)', () => {
 
 	it('wraps the card in a link when href is provided', () => {
 		render(Card, {
-			props: { title: 'Getting Started', href: '/docs/getting-started', children: bodySnippet('Body text') }
+			props: {
+				title: 'Getting Started',
+				href: '/docs/getting-started',
+				children: bodySnippet('Body text')
+			}
 		});
 
 		expect(screen.getByRole('link')).toHaveAttribute('href', '/docs/getting-started');
