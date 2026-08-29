@@ -4,20 +4,6 @@ on:
   push:
     tags:
       - 'docs/**/v*'
-  workflow_dispatch:
-    inputs:
-      channel:
-        description: "Canal da release"
-        required: true
-        type: choice
-        options:
-          - alpha
-          - beta
-          - prod
-      version:
-        description: "Versão a liberar (ex: 1.0.0) — cria a tag docs/<canal>/v<versão> e publica o deploy"
-        required: true
-        type: string
 
 jobs:
   deploy:
@@ -37,24 +23,11 @@ jobs:
 
       - name: Extract version
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            CHANNEL="${{ inputs.channel }}"
-            VERSION="${{ inputs.version }}"
-          else
-            CHANNEL=$(echo "${{ github.ref_name }}" | cut -d'/' -f2)
-            VERSION=$(echo "${{ github.ref_name }}" | cut -d'/' -f3 | sed 's/^v//')
-          fi
+          CHANNEL=$(echo "${{ github.ref_name }}" | cut -d'/' -f2)
+          VERSION=$(echo "${{ github.ref_name }}" | cut -d'/' -f3 | sed 's/^v//')
           echo "CHANNEL=$CHANNEL" >> $GITHUB_ENV
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "TAG_NAME=docs/${CHANNEL}/v${VERSION}" >> $GITHUB_ENV
-
-      - name: Create and push tag
-        if: github.event_name == 'workflow_dispatch'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag "${{ env.TAG_NAME }}"
-          git push origin "${{ env.TAG_NAME }}"
 
       - name: Setup Node.js
         uses: actions/setup-node@v7

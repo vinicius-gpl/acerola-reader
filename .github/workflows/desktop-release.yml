@@ -4,20 +4,6 @@ on:
   push:
     tags:
       - 'desktop/**/v*'
-  workflow_dispatch:
-    inputs:
-      channel:
-        description: "Canal da release"
-        required: true
-        type: choice
-        options:
-          - alpha
-          - beta
-          - prod
-      version:
-        description: "Versão a liberar (ex: 1.0.0) — cria a tag desktop/<canal>/v<versão> e publica a release de verdade"
-        required: true
-        type: string
 
 jobs:
   release:
@@ -60,13 +46,8 @@ jobs:
       - name: Extract version
         shell: bash
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            CHANNEL="${{ inputs.channel }}"
-            VERSION="${{ inputs.version }}"
-          else
-            CHANNEL=$(echo "$GITHUB_REF_NAME" | cut -d'/' -f2)
-            VERSION=$(echo "$GITHUB_REF_NAME" | cut -d'/' -f3 | sed 's/^v//')
-          fi
+          CHANNEL=$(echo "$GITHUB_REF_NAME" | cut -d'/' -f2)
+          VERSION=$(echo "$GITHUB_REF_NAME" | cut -d'/' -f3 | sed 's/^v//')
           TAG_NAME="desktop/${CHANNEL}/v${VERSION}"
           echo "CHANNEL=$CHANNEL" >> $GITHUB_ENV
           echo "VERSION=$VERSION" >> $GITHUB_ENV

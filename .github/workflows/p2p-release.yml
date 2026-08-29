@@ -4,20 +4,6 @@ on:
   push:
     tags:
       - 'p2p/**/v*'
-  workflow_dispatch:
-    inputs:
-      channel:
-        description: "Canal da release"
-        required: true
-        type: choice
-        options:
-          - alpha
-          - beta
-          - prod
-      version:
-        description: "Versão a liberar (ex: 1.0.0) — cria a tag p2p/<canal>/v<versão>"
-        required: true
-        type: string
 
 jobs:
   build-release:
@@ -47,11 +33,7 @@ jobs:
       - name: Extract version
         shell: bash
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            VERSION="${{ inputs.version }}"
-          else
-            VERSION=$(echo "${{ github.ref_name }}" | cut -d'/' -f3 | sed 's/^v//')
-          fi
+          VERSION=$(echo "${{ github.ref_name }}" | cut -d'/' -f3 | sed 's/^v//')
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 
       - name: Update version (Cargo.toml)
