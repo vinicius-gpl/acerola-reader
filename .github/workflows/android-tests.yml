@@ -63,3 +63,14 @@ jobs:
             acerola/android/**/build/reports/tests/
             acerola/android/**/build/test-results/
           retention-days: 7
+
+      - name: Generate coverage report (Kover)
+        run: ./gradlew koverXmlReport
+        working-directory: acerola/android
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          files: acerola/android/build/reports/kover/report.xml
+          flags: android
+          token: ${{ secrets.CODECOV_TOKEN }}
