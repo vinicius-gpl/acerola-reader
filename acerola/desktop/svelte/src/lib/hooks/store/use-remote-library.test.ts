@@ -86,6 +86,21 @@ describe('useRemoteLibrary', () => {
 		});
 	});
 
+	it('clears a previous error for the peer as soon as queryRemoteLibrary is called again', async () => {
+		setupListeners();
+		invokeMock.mockRejectedValueOnce(new Error('peer offline'));
+		const hook = await renderHook();
+
+		await expect(hook.queryRemoteLibrary('peer-1b', [])).rejects.toThrow('peer offline');
+		expect(hook.errorFor('peer-1b')).toBe('Error: peer offline');
+
+		invokeMock.mockResolvedValueOnce(undefined);
+		const pending = hook.queryRemoteLibrary('peer-1b', [1]);
+		// Limpo de imediato, antes mesmo do invoke resolver.
+		expect(hook.errorFor('peer-1b')).toBeUndefined();
+		await pending;
+	});
+
 	it('sets the error and rethrows when queryRemoteLibrary fails', async () => {
 		setupListeners();
 		invokeMock.mockRejectedValueOnce(new Error('peer offline'));
@@ -151,6 +166,39 @@ describe('useRemoteLibrary', () => {
 		expect(hook.errorFor('peer-5')).toBe('timed out');
 	});
 
+	it('treats a JSON error payload that is not an object as a raw message', async () => {
+		const { callbacks } = setupListeners();
+		const hook = await renderHook();
+		await hook.startListening();
+
+		// Só é observável combinado com um peerId real, já que sem peerId o handler
+		// descarta o evento (ver teste abaixo) — usamos o formato certo pra chegar no
+		// fallback de mensagem crua sem cair nesse outro guard.
+		await hook.queryRemoteLibrary('peer-5b', []);
+		callbacks.get(NETWORK_EVENTS.libraryQueryError)?.({
+			payload: JSON.stringify({ peerId: 'peer-5b', message: 42 })
+		});
+
+		expect(hook.errorFor('peer-5b')).toBeUndefined();
+	});
+
+	it('libraryQueryError with no peerId in the payload is ignored (no peer to attach the error to)', async () => {
+		const { callbacks } = setupListeners();
+		const hook = await renderHook();
+		await hook.startListening();
+
+		await hook.queryRemoteLibrary('peer-5c', []);
+
+		callbacks.get(NETWORK_EVENTS.libraryQueryError)?.({
+			payload: JSON.stringify({ message: 'no peer id here' })
+		});
+
+		// O guard `if (!peerId) return;` descarta o evento inteiro — loading continua
+		// como estava (não foi limpo) e nenhum erro foi registrado pra peer-5c.
+		expect(hook.isLoading('peer-5c')).toBe(true);
+		expect(hook.errorFor('peer-5c')).toBeUndefined();
+	});
+
 	it('coverQueryResult resolves and stores the cover path when status is changed', async () => {
 		const { callbacks } = setupListeners();
 		const hook = await renderHook();
@@ -185,6 +233,114 @@ describe('useRemoteLibrary', () => {
 		});
 
 		expect(hook.coverPathFor('peer-7', 'Bleach')).toBeUndefined();
+	});
+
+	it('coverQueryResult does not store a path when status is not_modified even if a path is present', async () => {
+		const { callbacks } = setupListeners();
+		const hook = await renderHook();
+		await hook.startListening();
+
+		callbacks.get(NETWORK_EVENTS.coverQueryResult)?.({
+			payload: JSON.stringify({
+				peerId: 'peer-7c',
+				comicName: 'Bleach',
+				status: 'not_modified',
+				coverVersion: 3,
+				path: 'C:\\covers\\bleach.jpg'
+			})
+		});
+
+		expect(hook.coverPathFor('peer-7c', 'Bleach')).toBeUndefined();
+	});
+
+	it('coverQueryResult does not store a path when status is changed but path is missing', async () => {
+		const { callbacks } = setupListeners();
+		const hook = await renderHook();
+		await hook.startListening();
+
+		callbacks.get(NETWORK_EVENTS.coverQueryResult)?.({
+			payload: JSON.stringify({
+				peerId: 'peer-7b',
+				comicName: 'Bleach',
+				status: 'changed',
+				coverVersion: 3,
+				path: null
+			})
+		});
+
+		expect(hook.coverPathFor('peer-7b', 'Bleach')).toBeUndefined();
+	});
+
+	it('coverKey keys by peer AND comic name — same comic name for different peers does not collide', async () => {
+		const { callbacks } = setupListeners();
+		const hook = await renderHook();
+		await hook.startListening();
+
+		callbacks.get(NETWORK_EVENTS.coverQueryResult)?.({
+			payload: JSON.stringify({
+				peerId: 'peer-A',
+				comicName: 'One Piece',
+				status: 'changed',
+				coverVersion: 1,
+				path: 'C:\\covers\\peer-a.jpg'
+			})
+		});
+
+		expect(hook.coverPathFor('peer-A', 'One Piece')).toBe('asset://C:/covers/peer-a.jpg');
+		expect(hook.coverPathFor('peer-B', 'One Piece')).toBeUndefined();
+	});
+
+	it('skips re-querying a cover whose version already matches the known version', async () => {
+		const { callbacks } = setupListeners();
+		const hook = await renderHook();
+		await hook.startListening();
+
+		// Registra a versão conhecida via um coverQueryResult "not_modified" anterior.
+		callbacks.get(NETWORK_EVENTS.coverQueryResult)?.({
+			payload: JSON.stringify({
+				peerId: 'peer-8',
+				comicName: 'One Piece',
+				status: 'not_modified',
+				coverVersion: 5,
+				path: null
+			})
+		});
+
+		await hook.queryRemoteLibrary('peer-8', [1]);
+		invokeMock.mockClear();
+
+		callbacks.get(NETWORK_EVENTS.libraryQueryResult)?.({
+			payload: JSON.stringify({
+				peerId: 'peer-8',
+				comics: [comic({ comicName: 'One Piece', coverVersion: 5 })]
+			})
+		});
+		await Promise.resolve();
+		await Promise.resolve();
+
+		expect(invokeMock).not.toHaveBeenCalledWith(
+			NETWORK_COMMANDS.queryRemoteCover,
+			expect.anything()
+		);
+	});
+
+	it('fetchCoversFor does nothing for a peer whose addrs were never recorded via queryRemoteLibrary', async () => {
+		const { callbacks } = setupListeners();
+		const hook = await renderHook();
+		await hook.startListening();
+
+		// libraryQueryResult chega sem que `queryRemoteLibrary` tenha sido chamado antes pra
+		// esse peer — não há `addrs` guardado.
+		callbacks.get(NETWORK_EVENTS.libraryQueryResult)?.({
+			payload: JSON.stringify({ peerId: 'peer-9', comics: [comic()] })
+		});
+		await Promise.resolve();
+		await Promise.resolve();
+
+		expect(invokeMock).not.toHaveBeenCalledWith(
+			NETWORK_COMMANDS.queryRemoteCover,
+			expect.anything()
+		);
 	});
 
 	it('coverQueryError is a silent no-op', async () => {
