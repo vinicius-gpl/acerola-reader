@@ -6,7 +6,7 @@ import { STORE_KEYS } from '$lib/constants/store-plugin';
 import HookHarness from '../../../../tests/harness/hooks/rune-wrapper.svelte';
 
 const mockStoreMethods = vi.hoisted(() => ({
-	get: vi.fn((_key: string) => Promise.resolve(null)),
+	get: vi.fn((_key: string): Promise<boolean | null> => Promise.resolve(null)),
 	set: vi.fn((_key: string, _value: unknown) => Promise.resolve()),
 	save: vi.fn(() => Promise.resolve())
 }));

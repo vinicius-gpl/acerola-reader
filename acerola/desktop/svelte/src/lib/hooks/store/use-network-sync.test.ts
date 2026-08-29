@@ -152,7 +152,11 @@ describe('useNetworkSync', () => {
 		});
 
 		expect(hook.isSyncing('peer-1', 'history')).toBe(false);
-		expect(hook.log[0]).toMatchObject({ kind: 'history', status: 'error', message: 'stream closed' });
+		expect(hook.log[0]).toMatchObject({
+			kind: 'history',
+			status: 'error',
+			message: 'stream closed'
+		});
 	});
 
 	it('treats a non-JSON error payload as a raw message', async () => {
@@ -444,7 +448,12 @@ describe('useNetworkSync', () => {
 		// `parsed`, senão isso vaza um `{ peerId: undefined, message: undefined }`.
 		callbacks.get(NETWORK_EVENTS.historyError)?.({ payload: '42' });
 
-		expect(hook.log[0]).toMatchObject({ kind: 'history', status: 'error', message: '42', peerId: '' });
+		expect(hook.log[0]).toMatchObject({
+			kind: 'history',
+			status: 'error',
+			message: '42',
+			peerId: ''
+		});
 	});
 
 	it('does not clear a syncing flag for an error payload missing peerId', async () => {

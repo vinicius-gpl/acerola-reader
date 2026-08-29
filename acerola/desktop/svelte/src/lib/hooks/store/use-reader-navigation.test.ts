@@ -197,7 +197,12 @@ describe('useReaderNavigation', () => {
 		// `resolveInitialState()` já ter rodado de forma síncrona, então o efeito colateral dela
 		// (ou a ausência dele) já é observável antes do throw.
 		vi.resetModules();
-		vi.doMock('$app/environment', () => ({ browser: false, dev: true, building: false, version: 'test' }));
+		vi.doMock('$app/environment', () => ({
+			browser: false,
+			dev: true,
+			building: false,
+			version: 'test'
+		}));
 
 		try {
 			const { page: freshPage } = await import('$app/state');
@@ -895,5 +900,4 @@ describe('useReaderNavigation', () => {
 		hook.initializing = true;
 		expect(hook.initializing).toBe(true);
 	});
-
 });
