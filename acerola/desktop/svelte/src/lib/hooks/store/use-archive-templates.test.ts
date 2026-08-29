@@ -55,6 +55,40 @@ describe('useArchiveTemplates', () => {
 		_resetArchiveTemplatesState();
 	});
 
+	it('starts with an empty template list, not loading, and not initialized', async () => {
+		// O state é um singleton a nível de módulo, resetado pra valores conhecidos por
+		// `_resetArchiveTemplatesState()` no `beforeEach`, o que esconderia os valores
+		// iniciais de verdade. Forçamos uma instância nova do módulo (e um mock de `invoke`
+		// atrelado a ela) pra observar os valores como estão declarados no source, antes de
+		// qualquer reset ou load rodar.
+		vi.resetModules();
+		const freshCore = await import('@tauri-apps/api/core');
+		const freshInvoke = vi.mocked(freshCore.invoke);
+		const freshHookModule = await import('./use-archive-templates.svelte');
+
+		let hook: ReturnType<typeof freshHookModule.useArchiveTemplates> | undefined;
+		render(HookHarness, {
+			props: {
+				create: () => freshHookModule.useArchiveTemplates(),
+				onReady: (value) => {
+					hook = value as ReturnType<typeof freshHookModule.useArchiveTemplates>;
+				}
+			}
+		});
+		await tick();
+
+		expect(hook!.templates).toEqual([]);
+		expect(hook!.isLoading).toBe(false);
+
+		// Prova que `isInitialized` começa `false` de verdade: se começasse `true`,
+		// `loadTemplates()` sairia mais cedo e nunca chamaria o backend.
+		freshInvoke.mockResolvedValueOnce([template()]);
+		await hook!.loadTemplates();
+
+		expect(freshInvoke).toHaveBeenCalledWith(ARCHIVE_TEMPLATE_COMMANDS.getArchiveTemplates);
+		expect(hook!.templates).toEqual([template()]);
+	});
+
 	it('loads templates from the backend once', async () => {
 		const templates = [template()];
 		invokeMock.mockResolvedValueOnce(templates);
