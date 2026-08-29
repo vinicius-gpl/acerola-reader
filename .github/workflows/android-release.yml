@@ -98,9 +98,17 @@ jobs:
           if ! git diff --staged --quiet; then
             git commit -m "[chore](android): bump version to ${{ env.VERSION }} [skip ci]"
             BUMP_SHA=$(git rev-parse HEAD)
-            git push origin HEAD:main
+
+            until git push origin HEAD:main; do
+              git fetch origin main
+              git rebase origin/main
+            done
+
             git fetch origin develop
             git checkout -B develop origin/develop
             git cherry-pick "$BUMP_SHA"
-            git push origin develop
+            until git push origin develop; do
+              git fetch origin develop
+              git rebase origin/develop
+            done
           fi
