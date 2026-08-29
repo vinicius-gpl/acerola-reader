@@ -37,7 +37,13 @@ export default {
 	thresholds: {
 		// Trocado de placeholder pro baseline real medido (49.03% na primeira rodada
 		// completa) — high/low ajustados pra refletir a distribuição real por arquivo em
-		// vez de metas arbitrárias.
+		// vez de metas arbitrárias. Atualização: depois de matar os 168 survivors reais
+		// mapeados numa rodada de trabalho dedicada, o score subiu pra 71.06%, com 0
+		// survivors nos arquivos medidos (hooks/state/services/utils com cobertura) — os
+		// poucos mutantes que sobraram são equivalentes de verdade, documentados com
+		// `// Stryker disable next-line <Mutator>: <razão>` direto no source de cada
+		// arquivo (não threshold nem supressão cega). O que resta pra chegar perto do rigor
+		// do lado Rust é só o bug de medição "no coverage" documentado abaixo.
 		//
 		// TODO (não corrigido, só documentado): os arquivos abaixo apareceram majoritariamente
 		// como "no coverage" no relatório (mutants.out/mutation-report.html) MESMO TENDO

@@ -77,6 +77,46 @@ describe('usePeerConnection', () => {
 		vi.clearAllMocks();
 	});
 
+	it('starts with an empty paired peers list', async () => {
+		defaultInvokeImpl();
+		const hook = await renderHook();
+
+		expect(hook.pairedPeers).toEqual([]);
+	});
+
+	it('stopListening before startListening was ever called does not throw', async () => {
+		defaultInvokeImpl();
+		const hook = await renderHook();
+
+		expect(() => hook.stopListening()).not.toThrow();
+	});
+
+	it('loadPairedPeers does not write state after the hook was disposed mid-flight', async () => {
+		let resolveGetPairedPeers: (value: PairedPeerPayload[]) => void = () => {};
+		invokeMock.mockImplementation((command: string) => {
+			if (command === NETWORK_COMMANDS.getPairedPeers) {
+				return new Promise((resolve) => {
+					resolveGetPairedPeers = resolve;
+				});
+			}
+			return Promise.resolve(undefined);
+		});
+		setupListeners();
+		const hook = await renderHook();
+
+		const pending = hook.startListening();
+		// `startListening` passa por 3 `await listen(...)` sequenciais antes de chegar no
+		// `invoke(getPairedPeers)` — espera com um macrotask (não só microtasks) pra garantir
+		// que o `invoke` real já rodou e capturou `resolveGetPairedPeers` antes de desmontar.
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		hook.stopListening();
+		resolveGetPairedPeers([{ peerId: 'late-peer', addrs: [], deviceName: 'Late' }]);
+		await pending;
+
+		expect(hook.pairedPeers).toEqual([]);
+	});
+
 	it('loadLocalInfo populates local identity fields from the backend', async () => {
 		defaultInvokeImpl();
 		const hook = await renderHook();
@@ -160,6 +200,34 @@ describe('usePeerConnection', () => {
 		});
 		expect(hook.getKnownAddr('remote-1')).toEqual([4, 5]);
 		expect(hook.connecting).toBe(false);
+		// O handshake refresca status + peers pareados de fato, não só marca connecting.
+		expect(invokeMock).toHaveBeenCalledWith(NETWORK_COMMANDS.getNetworkStatus);
+		expect(invokeMock).toHaveBeenCalledWith(NETWORK_COMMANDS.getPairedPeers);
+	});
+
+	it('is connecting while the handshake is in flight', async () => {
+		setupListeners();
+		let resolveConnect: () => void = () => {};
+		invokeMock.mockImplementation((command: string) => {
+			if (command === NETWORK_COMMANDS.connectToPeer) {
+				return new Promise((resolve) => {
+					resolveConnect = () => resolve(undefined);
+				});
+			}
+			if (command === NETWORK_COMMANDS.getPairedPeers) return Promise.resolve([]);
+			return Promise.resolve(undefined);
+		});
+		const hook = await renderHook();
+
+		const addr: LocalPeerAddr = { id: { id: 'remote-1b', device_id: null }, addrs: [] };
+		const pending = hook.connectWithCode(encodeConnectionCode(addr));
+		await Promise.resolve();
+
+		expect(hook.connecting).toBe(true);
+
+		resolveConnect();
+		await pending;
+		expect(hook.connecting).toBe(false);
 	});
 
 	it('connectWithCode rejects with InvalidConnectionCodeError for a malformed code, without calling the backend', async () => {
@@ -191,9 +259,10 @@ describe('usePeerConnection', () => {
 		expect(hook.connecting).toBe(false);
 	});
 
-	it('removePeer drops the peer from the list and known addresses', async () => {
+	it('removePeer drops only the target peer, keeping others in the list and known addresses', async () => {
 		const pairedPeers: PairedPeerPayload[] = [
-			{ peerId: 'peer-3', addrs: [1], deviceName: 'Tablet' }
+			{ peerId: 'peer-3', addrs: [1], deviceName: 'Tablet' },
+			{ peerId: 'peer-3b', addrs: [2], deviceName: 'Laptop' }
 		];
 		defaultInvokeImpl({
 			[NETWORK_COMMANDS.getPairedPeers]: pairedPeers,
@@ -208,8 +277,9 @@ describe('usePeerConnection', () => {
 		expect(invokeMock).toHaveBeenCalledWith(NETWORK_COMMANDS.removePairedPeer, {
 			peerId: 'peer-3'
 		});
-		expect(hook.pairedPeers).toEqual([]);
+		expect(hook.pairedPeers).toEqual([{ peerId: 'peer-3b', addrs: [2], deviceName: 'Laptop' }]);
 		expect(hook.getKnownAddr('peer-3')).toBeUndefined();
+		expect(hook.getKnownAddr('peer-3b')).toEqual([2]);
 	});
 
 	it('peerLabel prioritizes the live device name over the paired one', async () => {
@@ -229,6 +299,27 @@ describe('usePeerConnection', () => {
 		});
 
 		expect(hook.peerLabel('peer-4')).toBe('Live Name');
+	});
+
+	it('peerLabel falls back to the paired name when status has peers but not this one', async () => {
+		const pairedPeers: PairedPeerPayload[] = [
+			{ peerId: 'peer-4b', addrs: [], deviceName: 'Paired Fallback' }
+		];
+		defaultInvokeImpl({ [NETWORK_COMMANDS.getPairedPeers]: pairedPeers });
+		const { callbacks } = setupListeners();
+		const hook = await renderHook();
+		await hook.startListening();
+
+		callbacks.get(NETWORK_EVENTS.status)?.({
+			payload: {
+				mode: 'local',
+				peers: [
+					{ peerId: 'someone-else', alpn: 'x', device: { name: 'Other', os: '', version: '' } }
+				]
+			}
+		});
+
+		expect(hook.peerLabel('peer-4b')).toBe('Paired Fallback');
 	});
 
 	it('peerLabel falls back to the paired device name, then to a shortened id', async () => {

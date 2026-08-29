@@ -26,12 +26,12 @@ jobs:
         working-directory: docs/web
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: 25.9.0
+          node-version: 24.20.0
           cache: npm
           cache-dependency-path: docs/web/package-lock.json
 
@@ -49,12 +49,12 @@ jobs:
         working-directory: docs/web
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: 25.9.0
+          node-version: 24.20.0
           cache: npm
           cache-dependency-path: docs/web/package-lock.json
 
@@ -72,12 +72,12 @@ jobs:
         working-directory: docs/web
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: 25.9.0
+          node-version: 24.20.0
           cache: npm
           cache-dependency-path: docs/web/package-lock.json
 
@@ -89,7 +89,7 @@ jobs:
 
       - name: Upload coverage report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: docs-web-coverage
           path: docs/web/coverage
@@ -109,17 +109,17 @@ jobs:
         working-directory: docs/web
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: 25.9.0
+          node-version: 24.20.0
           cache: npm
           cache-dependency-path: docs/web/package-lock.json
 
       - name: Cache Playwright browsers
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('docs/web/package-lock.json') }}
@@ -143,17 +143,17 @@ jobs:
         working-directory: docs/web
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: 25.9.0
+          node-version: 24.20.0
           cache: npm
           cache-dependency-path: docs/web/package-lock.json
 
       - name: Cache Playwright browsers
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('docs/web/package-lock.json') }}
@@ -174,7 +174,7 @@ jobs:
 
       - name: Upload Playwright report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: docs-web-playwright-report
           path: docs/web/playwright-report

@@ -81,6 +81,12 @@ export function useNetworkSync() {
 	function markSyncing(peerId: string, kind: SyncKind) {
 		const key = syncKey(peerId, kind);
 		syncingKeys.add(key);
+		// Stryker disable next-line CallExpression: markSyncing só roda depois do guard
+		// `kinds.some(isSyncing)` em withSyncGuard confirmar que a chave NÃO está syncing —
+		// e `syncingKeys`/`inFlightTimeouts` são sempre atualizados juntos (markSyncing seta
+		// os dois, clearSyncing apaga os dois), então `inFlightTimeouts.get(key)` aqui é
+		// sempre `undefined`. Remover esta chamada defensiva não muda nenhum comportamento
+		// observável.
 		clearTimeout(inFlightTimeouts.get(key));
 		inFlightTimeouts.set(
 			key,
@@ -105,6 +111,16 @@ export function useNetworkSync() {
 	function parseErrorPayload(payload: string): { peerId?: string; message: string } {
 		try {
 			const parsed = JSON.parse(payload);
+			// Stryker disable next-line ConditionalExpression,LogicalOperator: `typeof
+			// parsed.message === 'string'` só é verdadeiro quando `parsed` já É um objeto de
+			// fato — nenhum primitivo vindo de `JSON.parse` (number, string, boolean) expõe uma
+			// propriedade `.message` do tipo string, então remover o check `typeof parsed ===
+			// 'object'` nunca muda o resultado pra esses casos. Trocar o `&&` antes dele por `||`
+			// também é equivalente: o único valor onde isso importaria é `parsed = null` (typeof
+			// null === 'object', mas falsy) — aí o mutante avalia `null.message`, que lança
+			// TypeError, capturado pelo catch logo abaixo, caindo no MESMO `return { message:
+			// payload }` do fallback normal. A saída observável é idêntica, só o caminho muda.
+			// Verificado empiricamente: aplicando cada mutante isoladamente, nenhum teste falha.
 			if (parsed && typeof parsed === 'object' && typeof parsed.message === 'string') {
 				return { peerId: parsed.peerId, message: parsed.message };
 			}
@@ -129,6 +145,14 @@ export function useNetworkSync() {
 	}
 
 	function isOpenStatus(status: TransferLogEntry['status']): boolean {
+		// Stryker disable next-line ConditionalExpression,StringLiteral: o resultado desta
+		// função só é lido em `appendNewEntry`, sempre atrás de `peerId && isOpenStatus(status)`.
+		// Toda chamada de `push(...)` com `status: 'progress'` neste arquivo (filesProgress,
+		// comicProgress) passa `peerId: ''` de propósito — o protocolo não correlaciona eventos
+		// `*:progress` com um peer (ver o comentário de `inFlightEntryId` acima). Ou seja, sempre
+		// que `status === 'progress'` chega aqui, `peerId` já é falsy e curto-circuita
+		// `appendNewEntry` antes de isOpenStatus importar — forçar o branch 'progress' pra
+		// sempre-false ou trocar a string nunca muda nada observável. Verificado empiricamente.
 		return status === 'started' || status === 'progress';
 	}
 
@@ -170,6 +194,12 @@ export function useNetworkSync() {
 		const key = syncKey(peerId, kind);
 		const existingId = peerId ? inFlightEntryId.get(key) : undefined;
 		const existingIndex =
+			// Stryker disable next-line ConditionalExpression: toda entrada de `log` recebe
+			// `id: nextId++` (sempre um number) em `appendNewEntry` — nenhuma entrada jamais tem
+			// `id === undefined`. Então quando `existingId` é genuinamente `undefined`, forçar a
+			// condição pra `true` ainda roda `findIndex((entry) => entry.id === undefined)`, que
+			// sempre retorna `-1` — idêntico ao literal `-1` do branch `false`. Verificado
+			// empiricamente.
 			existingId !== undefined ? log.findIndex((entry) => entry.id === existingId) : -1;
 
 		if (existingIndex !== -1) {

@@ -25,6 +25,14 @@ export function createNotifications<V extends string>(variants: readonly V[]) {
 			id,
 			message,
 			duration: 5000,
+			// Stryker disable next-line OptionalChaining,LogicalOperator: fallback comprovadamente
+			// morto — add() é privada, só é chamada por notify.<variant>(...) (ver linha ~51), que
+			// SEMPRE injeta `variant` explícito no options antes de chamar add(). Logo `options`
+			// nunca chega undefined aqui, e o `...options` alguns campos abaixo sobrescreve
+			// incondicionalmente este valor de qualquer forma. Verificado empiricamente aplicando
+			// os dois mutantes manualmente: os testes públicos (incluindo chamada sem options
+			// nenhum) passam do mesmo jeito, pois é impossível observar a diferença via a API
+			// exportada. Ver notification.test.ts.
 			variant: options?.variant ?? variants[0],
 			...options
 		};

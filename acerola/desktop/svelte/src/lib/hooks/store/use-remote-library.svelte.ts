@@ -18,12 +18,26 @@ const coverKey = (peerId: string, comicName: string) => `${peerId}:${comicName}`
 function parseErrorPayload(payload: string): { peerId?: string; message: string } {
 	try {
 		const parsed = JSON.parse(payload);
+		// Stryker disable next-line ConditionalExpression,LogicalOperator: `typeof parsed.message
+		// === 'string'` só é verdadeiro quando `parsed` já É um objeto de fato — nenhum primitivo
+		// vindo de `JSON.parse` (number, string, boolean) expõe uma propriedade `.message` do tipo
+		// string, então remover o check `typeof parsed === 'object'` nunca muda o resultado pra
+		// esses casos. Trocar o `&&` antes dele por `||` (LogicalOperator) também é equivalente:
+		// o único valor onde isso importaria é `parsed = null` (typeof null === 'object', mas
+		// falsy) — aí o mutante avalia `null.message`, que lança TypeError, capturado pelo catch
+		// logo abaixo, caindo no MESMO `return { message: payload }` do fallback normal. A saída
+		// observável é idêntica nos dois casos, só o caminho (exceção vs. curto-circuito) muda.
+		// Verificado empiricamente: aplicando cada mutante isoladamente, nenhum teste falha.
 		if (parsed && typeof parsed === 'object' && typeof parsed.message === 'string') {
 			return { peerId: parsed.peerId, message: parsed.message };
 		}
 	} catch {
 		// payload inesperado sem JSON — trata como mensagem crua.
 	}
+	// Stryker disable next-line ObjectLiteral: este fallback nunca inclui `peerId` — o objeto
+	// retornado só tem a chave `message`. O único consumidor (`libraryQueryError`) descarta o
+	// evento inteiro via `if (!peerId) return;` antes de ler `message` nesse caminho, então
+	// trocar `{ message: payload }` por `{}` não muda nenhum comportamento observável.
 	return { message: payload };
 }
 

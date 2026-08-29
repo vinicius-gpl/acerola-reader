@@ -30,13 +30,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cache Cargo registry
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry
@@ -46,7 +46,7 @@ jobs:
             ${{ runner.os }}-cargo-registry-
 
       - name: Cache Cargo test tools
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/bin/cargo-make.exe
@@ -74,7 +74,7 @@ jobs:
           Add-Content -Path $env:GITHUB_PATH -Value $cargoBin
 
       - name: Cache Rust test target
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: acerola/desktop/src-tauri/target
           key: ${{ runner.os }}-cargo-target-rust-${{ hashFiles('acerola/desktop/src-tauri/Cargo.lock', 'acerola/desktop/src-tauri/Cargo.toml', 'acerola/desktop/src-tauri/Makefile.toml') }}
@@ -88,7 +88,7 @@ jobs:
         run: cargo make --cwd ./src-tauri coverage
 
       - name: Upload Rust coverage report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: rust-lcov
           path: acerola/desktop/src-tauri/lcov.info
@@ -101,12 +101,12 @@ jobs:
         working-directory: acerola/desktop
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: 25.9.0
+          node-version: 24.20.0
           cache: npm
           cache-dependency-path: acerola/desktop/package-lock.json
 
@@ -124,12 +124,12 @@ jobs:
         working-directory: acerola/desktop
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: 25.9.0
+          node-version: 24.20.0
           cache: npm
           cache-dependency-path: acerola/desktop/package-lock.json
 
@@ -147,12 +147,12 @@ jobs:
         working-directory: acerola/desktop
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: 25.9.0
+          node-version: 24.20.0
           cache: npm
           cache-dependency-path: acerola/desktop/package-lock.json
 
@@ -164,7 +164,7 @@ jobs:
 
       - name: Upload Svelte coverage report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: svelte-coverage
           path: acerola/desktop/coverage
@@ -184,17 +184,17 @@ jobs:
         working-directory: acerola/desktop
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: 25.9.0
+          node-version: 24.20.0
           cache: npm
           cache-dependency-path: acerola/desktop/package-lock.json
 
       - name: Cache Playwright browsers
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('acerola/desktop/package-lock.json') }}
@@ -218,17 +218,17 @@ jobs:
         working-directory: acerola/desktop
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: 25.9.0
+          node-version: 24.20.0
           cache: npm
           cache-dependency-path: acerola/desktop/package-lock.json
 
       - name: Cache Playwright browsers
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('acerola/desktop/package-lock.json') }}
@@ -252,17 +252,17 @@ jobs:
         working-directory: acerola/desktop
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: 25.9.0
+          node-version: 24.20.0
           cache: npm
           cache-dependency-path: acerola/desktop/package-lock.json
 
       - name: Cache Playwright browsers
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('acerola/desktop/package-lock.json') }}
@@ -280,7 +280,7 @@ jobs:
 
       - name: Upload Playwright report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report
           path: acerola/desktop/playwright-report
