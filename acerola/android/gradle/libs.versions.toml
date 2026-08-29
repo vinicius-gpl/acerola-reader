@@ -5,6 +5,7 @@ kotlin = "2.2.21"
 ksp = "2.2.21-2.0.4"
 hilt = "2.57.2"
 room = "2.8.4"
+kover = "0.9.9"
 
 # -- Android X --
 coreKtx = "1.17.0"
@@ -161,6 +162,7 @@ ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 androidx-room = { id = "androidx.room", version.ref = "room" }
 apollo = { id = "com.apollographql.apollo", version.ref = "apollo" }
+kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }
 
 [bundles]
 retrofit = ["retrofit", "converter-moshi", "okhttp", "logging-interceptor"]

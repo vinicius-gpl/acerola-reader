@@ -22,6 +22,11 @@ coverage:
           - p2p
         target: auto
         threshold: 1%
+      android:
+        flags:
+          - android
+        target: auto
+        threshold: 1%
     patch: false
 
 flags:
@@ -40,6 +45,10 @@ flags:
   p2p:
     paths:
       - lib/p2p/src/
+    carryforward: false
+  android:
+    paths:
+      - acerola/android/
     carryforward: false
 
 # Corte alternativo ao das flags: em vez de "qual upload trouxe esse dado" (CI), aqui é "em
