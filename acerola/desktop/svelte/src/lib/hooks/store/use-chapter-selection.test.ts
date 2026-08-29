@@ -1,6 +1,6 @@
 import { render } from '@testing-library/svelte';
 import { tick } from 'svelte';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import HookHarness from '../../../../tests/harness/hooks/rune-wrapper.svelte';
 import { _resetChapterSelectionState, useChapterSelection } from './use-chapter-selection.svelte';
 
@@ -105,5 +105,40 @@ describe('useChapterSelection', () => {
 		const hook = await renderHook();
 
 		expect(hook.isSelected('never-selected')).toBe(false);
+	});
+
+	it('_resetChapterSelectionState clears a dirty selection and exits selection mode', async () => {
+		const hook = await renderHook();
+
+		hook.selectSingle('ch-1');
+		expect(hook.selectedIds.size).toBe(1);
+		expect(hook.isSelectionMode).toBe(true);
+
+		_resetChapterSelectionState();
+
+		expect(hook.selectedIds.size).toBe(0);
+		expect(hook.selectedIdsArray).toEqual([]);
+		expect(hook.isSelectionMode).toBe(false);
+	});
+
+	it('initializes isSelectionMode to false on fresh module load, before any reset is called', async () => {
+		vi.resetModules();
+		const freshModule = await import('./use-chapter-selection.svelte');
+
+		let hook: ReturnType<typeof useChapterSelection> | undefined;
+
+		render(HookHarness, {
+			props: {
+				create: () => freshModule.useChapterSelection(),
+				onReady: (value) => {
+					hook = value as ReturnType<typeof useChapterSelection>;
+				}
+			}
+		});
+
+		await tick();
+		await Promise.resolve();
+
+		expect(hook!.isSelectionMode).toBe(false);
 	});
 });

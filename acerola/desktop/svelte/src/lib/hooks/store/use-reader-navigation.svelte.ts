@@ -58,11 +58,20 @@ export function useReaderNavigation() {
 
 	const chapterIndex = $derived.by(() => {
 		const value = state.chapterIndex;
+		// Stryker disable next-line ConditionalExpression: forçar `typeof value === 'number'` pra
+		// `true` é equivalente — `Number.isFinite` nunca retorna `true` pra um argumento que não é
+		// number (ele não faz coerção), então pra qualquer `value` não-number o operando da direita
+		// já avalia pra `false` sozinho. Os dois branches são comportamentalmente idênticos pra
+		// qualquer entrada possível.
 		return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, value) : undefined;
 	});
 
 	const totalChapters = $derived.by(() => {
 		const value = state.totalChapters;
+		// Stryker disable next-line ConditionalExpression: mesma equivalência do clamp de
+		// `chapterIndex` acima — `Number.isFinite` nunca retorna `true` pra um argumento que
+		// não é number, então forçar `typeof value === 'number'` pra `true` não muda o
+		// resultado pra nenhuma entrada.
 		return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, value) : undefined;
 	});
 
@@ -71,7 +80,14 @@ export function useReaderNavigation() {
 		return Math.max(0, totalChapters - chapterIndex - 1);
 	});
 
+	// Stryker disable next-line ConditionalExpression: forçar `chaptersRemaining !== undefined` pra
+	// `true` é equivalente — quando `chaptersRemaining` é realmente `undefined`,
+	// `chaptersRemaining > 0` vira `undefined > 0`, que já é `false`, então os dois branches
+	// concordam pra qualquer entrada.
 	const hasNextChapter = $derived(chaptersRemaining !== undefined && chaptersRemaining > 0);
+	// Stryker disable next-line ConditionalExpression: mesma equivalência de cima — `chapterIndex > 0`
+	// já é `false` sempre que `chapterIndex` é `undefined`, então forçar o operando da esquerda pra
+	// `true` não muda o resultado pra nenhuma entrada.
 	const hasPreviousChapter = $derived(chapterIndex !== undefined && chapterIndex > 0);
 
 	onMount(() => {
@@ -96,7 +112,17 @@ export function useReaderNavigation() {
 					return;
 				}
 
-				if (pendingAction === 'navigate' && pendingTargetIndex !== null) {
+				const isPendingNavigate = pendingAction === 'navigate';
+				// Stryker disable next-line ConditionalExpression: `pendingTargetIndex` só é setado pra
+				// um número não-nulo na mesma instrução que seta `pendingAction = 'navigate'` (ver
+				// `navigateToRelativeChapter` abaixo), e todo caminho de conclusão reseta os dois juntos.
+				// Então sempre que `isPendingNavigate` é true, `pendingTargetIndex !== null` já é
+				// garantidamente true também — não existe estado alcançável onde `isPendingNavigate` é
+				// true e o valor real dessa checagem é false, então forçá-la pra `true` nunca muda o
+				// resultado.
+				const hasPendingTargetIndex = pendingTargetIndex !== null;
+
+				if (isPendingNavigate && hasPendingTargetIndex) {
 					const nextChapterData = payload.archive.items[0];
 
 					if (!nextChapterData) {
@@ -172,12 +198,26 @@ export function useReaderNavigation() {
 	}
 
 	async function goToNextChapter() {
-		if (!hasNextChapter || chapterIndex === undefined || !state.comicDirectoryId) return;
+		// Stryker disable next-line ConditionalExpression: `hasNextChapter` é `$derived` de
+		// `chaptersRemaining`, que só é definido quando `chapterIndex` também é — então
+		// `hasNextChapter === true` já garante `chapterIndex !== undefined`. Não existe estado
+		// alcançável onde `hasNextChapter` é true e `chapterIndex` é undefined, então forçar essa
+		// checagem pra `false` nunca muda o resultado.
+		const chapterIndexIsMissing = chapterIndex === undefined;
+
+		if (!hasNextChapter || chapterIndexIsMissing || !state.comicDirectoryId) return;
 		await navigateToRelativeChapter(chapterIndex + 1);
 	}
 
 	async function goToPreviousChapter() {
-		if (!hasPreviousChapter || chapterIndex === undefined || !state.comicDirectoryId) return;
+		// Stryker disable next-line ConditionalExpression: `hasPreviousChapter` é `$derived` de
+		// `chapterIndex !== undefined && chapterIndex > 0`, então `hasPreviousChapter === true` já
+		// garante `chapterIndex !== undefined`. Não existe estado alcançável onde `hasPreviousChapter`
+		// é true e `chapterIndex` é undefined, então forçar essa checagem pra `false` nunca muda o
+		// resultado.
+		const chapterIndexIsMissing = chapterIndex === undefined;
+
+		if (!hasPreviousChapter || chapterIndexIsMissing || !state.comicDirectoryId) return;
 		await navigateToRelativeChapter(chapterIndex - 1);
 	}
 

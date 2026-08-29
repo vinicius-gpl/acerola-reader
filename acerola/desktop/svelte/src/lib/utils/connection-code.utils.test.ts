@@ -18,6 +18,12 @@ describe('encodeConnectionCode / decodeConnectionCode', () => {
 		const decoded = decodeConnectionCode(code);
 
 		expect(decoded).toEqual(addr);
+		// Checagem precisa e independente do toEqual sobre o array de bytes decodificado:
+		// tamanho exato e conteúdo exato por índice pra uma entrada conhecida, incluindo
+		// valores de fronteira 0 e 255.
+		expect(decoded.addrs).toHaveLength(5);
+		expect(decoded.addrs).toEqual([1, 2, 3, 255, 0]);
+		expect(Array.isArray(decoded.addrs)).toBe(true);
 	});
 
 	it('round-trips when device_id is null', () => {
@@ -51,6 +57,25 @@ describe('encodeConnectionCode / decodeConnectionCode', () => {
 		);
 	});
 
+	it('rejects a wrong prefix even when the remaining payload would otherwise decode fine', () => {
+		// Um payload base64/JSON malformado acaba normalizado em InvalidConnectionCodeError
+		// pelo catch-all mais abaixo independente do check de prefixo, então um teste como o
+		// de cima (prefixo errado + payload lixo) não distingue "o guard do prefixo lançou" de
+		// "o guard foi pulado e o JSON.parse/atob que explodiu". Pra provar de verdade que é o
+		// guard do prefixo que rejeita o código, o payload depois do prefixo falso (do mesmo
+		// tamanho) precisa ser um envelope *válido* — um que decodificaria com sucesso se o
+		// guard fosse pulado. Se o guard for removido/curto-circuitado, isso retorna um
+		// LocalPeerAddr válido em vez de lançar.
+		const addr: LocalPeerAddr = { id: { id: 'peer-x', device_id: null }, addrs: [1, 2, 3] };
+		const validCode = encodeConnectionCode(addr);
+		const realPrefixLength = 'acerola1:'.length;
+		const payload = validCode.slice(realPrefixLength);
+		const wrongPrefixCode = `${'x'.repeat(realPrefixLength)}${payload}`;
+
+		expect(wrongPrefixCode.startsWith('acerola1:')).toBe(false);
+		expect(() => decodeConnectionCode(wrongPrefixCode)).toThrow(InvalidConnectionCodeError);
+	});
+
 	it('throws InvalidConnectionCodeError for malformed base64 payload', () => {
 		expect(() => decodeConnectionCode('acerola1:###not-base64###')).toThrow(
 			InvalidConnectionCodeError
@@ -63,6 +88,34 @@ describe('encodeConnectionCode / decodeConnectionCode', () => {
 		expect(() => decodeConnectionCode(`acerola1:${badEnvelope}`)).toThrow(
 			InvalidConnectionCodeError
 		);
+	});
+
+	it('throws InvalidConnectionCodeError when i is missing even if a is a valid string', () => {
+		const badEnvelope = btoa(JSON.stringify({ d: null, a: 'validbase64' }));
+
+		expect(() => decodeConnectionCode(`acerola1:${badEnvelope}`)).toThrow(
+			InvalidConnectionCodeError
+		);
+	});
+
+	it('throws InvalidConnectionCodeError when i is present but a is not a string', () => {
+		const badEnvelope = btoa(JSON.stringify({ i: 'peer-1', d: null, a: 123 }));
+
+		expect(() => decodeConnectionCode(`acerola1:${badEnvelope}`)).toThrow(
+			InvalidConnectionCodeError
+		);
+	});
+
+	it('throws InvalidConnectionCodeError (not a raw TypeError) when the envelope itself is null', () => {
+		const nullEnvelope = btoa(JSON.stringify(null));
+
+		expect(() => decodeConnectionCode(`acerola1:${nullEnvelope}`)).toThrow(
+			InvalidConnectionCodeError
+		);
+	});
+
+	it('the thrown error carries the invalid_connection_code message', () => {
+		expect(() => decodeConnectionCode('')).toThrow('invalid_connection_code');
 	});
 
 	it('throws InvalidConnectionCodeError for an empty string', () => {
