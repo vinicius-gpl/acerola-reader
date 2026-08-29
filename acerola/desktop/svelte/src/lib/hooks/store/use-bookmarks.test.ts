@@ -59,6 +59,41 @@ describe('useBookmarks', () => {
 		expect(hook.isLoading).toBe(false);
 	});
 
+	it('is loading while the request is in flight, then settles back to false', async () => {
+		let resolveGetCategories: (value: unknown) => void = () => {};
+		invokeMock.mockImplementationOnce(
+			() =>
+				new Promise((resolve) => {
+					resolveGetCategories = resolve;
+				})
+		);
+		invokeMock.mockResolvedValueOnce([]);
+
+		const hook = await renderBookmarksHook();
+		const pending = hook.loadBookmarks();
+		await Promise.resolve();
+
+		expect(hook.isLoading).toBe(true);
+
+		resolveGetCategories([]);
+		await pending;
+
+		expect(hook.isLoading).toBe(false);
+	});
+
+	it('does not reload once already initialized', async () => {
+		invokeMock.mockResolvedValueOnce([]);
+		invokeMock.mockResolvedValueOnce([]);
+
+		const hook = await renderBookmarksHook();
+		await hook.loadBookmarks();
+		invokeMock.mockClear();
+
+		await hook.loadBookmarks();
+
+		expect(invokeMock).not.toHaveBeenCalled();
+	});
+
 	it('handles error when loading bookmarks', async () => {
 		invokeMock.mockRejectedValueOnce('Network error');
 		invokeMock.mockResolvedValueOnce([]);
@@ -88,29 +123,39 @@ describe('useBookmarks', () => {
 		expect(hook.bookmarks).toContainEqual(newBookmark);
 	});
 
-	it('deletes bookmark and removes it from the list', async () => {
-		const mockBookmarks = [{ id: 1, name: 'Fav', color: 0xfff44336 }];
+	it('deletes bookmark and removes only that one from the list', async () => {
+		const mockBookmarks = [
+			{ id: 1, name: 'Fav', color: 0xfff44336 },
+			{ id: 2, name: 'Lidos', color: 0xffe91e63 }
+		];
 		invokeMock.mockResolvedValueOnce(mockBookmarks);
 		invokeMock.mockResolvedValueOnce([]);
 
 		const hook = await renderBookmarksHook();
 		await hook.loadBookmarks(); // Preenche a lista
-		expect(hook.bookmarks).toHaveLength(1);
+		expect(hook.bookmarks).toHaveLength(2);
 
 		invokeMock.mockResolvedValueOnce(undefined); // delete_category
 
 		await hook.deleteBookmark(1);
 
 		expect(invokeMock).toHaveBeenCalledWith(BOOKMARKS_COMMANDS.deleteCategory, { id: 1 });
-		expect(hook.bookmarks).toHaveLength(0);
+		expect(hook.bookmarks).toEqual([{ id: 2, name: 'Lidos', color: 0xffe91e63 }]);
 	});
 
-	it('assigns bookmark to comic', async () => {
+	it('assigns bookmark to comic, replacing any prior assignment for that same comic but keeping others', async () => {
+		invokeMock.mockResolvedValueOnce([]);
+		invokeMock.mockResolvedValueOnce([
+			{ id: 1, comic_directory_fk: 123, category_id: 9 },
+			{ id: 2, comic_directory_fk: 456, category_id: 9 }
+		]);
+		const hook = await renderBookmarksHook();
+		await hook.loadBookmarks();
+
+		const assignment = { id: 3, comic_directory_fk: 123, category_id: 1 };
 		invokeMock.mockResolvedValueOnce(undefined); // remove_category_from_comic
-		const assignment = { id: 1, comic_directory_fk: 123, category_id: 1 };
 		invokeMock.mockResolvedValueOnce(assignment); // assign_category_to_comic
 
-		const hook = await renderBookmarksHook();
 		const result = await hook.assignToComic(123, 1);
 
 		expect(invokeMock).toHaveBeenCalledWith(BOOKMARKS_COMMANDS.removeCategoryFromComic, {
@@ -121,17 +166,31 @@ describe('useBookmarks', () => {
 			categoryId: 1
 		});
 		expect(result).toEqual(assignment);
+		// A atribuição antiga da comic 123 some (substituída), mas a da 456 (outra comic)
+		// continua intacta.
+		expect(hook.assignments).toEqual([
+			{ id: 2, comic_directory_fk: 456, category_id: 9 },
+			assignment
+		]);
 	});
 
-	it('removes bookmark from comic', async () => {
+	it('removes bookmark from comic, keeping assignments for other comics', async () => {
+		invokeMock.mockResolvedValueOnce([]);
+		invokeMock.mockResolvedValueOnce([
+			{ id: 1, comic_directory_fk: 123, category_id: 9 },
+			{ id: 2, comic_directory_fk: 456, category_id: 9 }
+		]);
+		const hook = await renderBookmarksHook();
+		await hook.loadBookmarks();
+
 		invokeMock.mockResolvedValueOnce(undefined); // remove_category_from_comic
 
-		const hook = await renderBookmarksHook();
 		await hook.removeComicBookmark(123);
 
 		expect(invokeMock).toHaveBeenCalledWith(BOOKMARKS_COMMANDS.removeCategoryFromComic, {
 			comicId: '123'
 		});
+		expect(hook.assignments).toEqual([{ id: 2, comic_directory_fk: 456, category_id: 9 }]);
 	});
 
 	it('gets comic bookmark', async () => {
