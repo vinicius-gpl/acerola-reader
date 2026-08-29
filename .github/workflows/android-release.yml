@@ -80,15 +80,6 @@ jobs:
         run: mv app/build/outputs/apk/release/app-release.apk "app/build/outputs/apk/release/acerola-${{ env.VERSION }}.apk"
         working-directory: acerola/android
 
-      - name: Upload APK to GitHub Release
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: ${{ env.TAG_NAME }}
-          files: acerola/android/app/build/outputs/apk/release/acerola-${{ env.VERSION }}.apk
-          name: "Acerola Android v${{ env.VERSION }}"
-          generate_release_notes: true
-          prerelease: ${{ env.CHANNEL != 'prod' }}
-
       - name: Commit version bump
         working-directory: ${{ github.workspace }}
         run: |
@@ -98,17 +89,30 @@ jobs:
           if ! git diff --staged --quiet; then
             git commit -m "[chore](android): bump version to ${{ env.VERSION }} [skip ci]"
             BUMP_SHA=$(git rev-parse HEAD)
+            git checkout -- .
 
             until git push origin HEAD:main; do
               git fetch origin main
+              git checkout -- .
               git rebase origin/main
             done
 
             git fetch origin develop
             git checkout -B develop origin/develop
             git cherry-pick "$BUMP_SHA"
+            git checkout -- .
             until git push origin develop; do
               git fetch origin develop
+              git checkout -- .
               git rebase origin/develop
             done
           fi
+
+      - name: Upload APK to GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ env.TAG_NAME }}
+          files: acerola/android/app/build/outputs/apk/release/acerola-${{ env.VERSION }}.apk
+          name: "Acerola Android v${{ env.VERSION }}"
+          generate_release_notes: true
+          prerelease: ${{ env.CHANNEL != 'prod' }}

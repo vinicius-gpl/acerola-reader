@@ -60,17 +60,21 @@ jobs:
           if ! git diff --staged --quiet; then
             git commit -m "[chore](p2p): bump version to ${{ env.VERSION }} [skip ci]"
             BUMP_SHA=$(git rev-parse HEAD)
+            git checkout -- .
 
             until git push origin HEAD:main; do
               git fetch origin main
+              git checkout -- .
               git rebase origin/main
             done
 
             git fetch origin develop
             git checkout -B develop origin/develop
             git cherry-pick "$BUMP_SHA"
+            git checkout -- .
             until git push origin develop; do
               git fetch origin develop
+              git checkout -- .
               git rebase origin/develop
             done
           fi
