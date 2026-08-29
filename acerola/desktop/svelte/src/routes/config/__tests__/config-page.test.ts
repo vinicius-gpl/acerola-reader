@@ -142,9 +142,7 @@ describe('config +page', () => {
 		await user.click(await screen.findByText(/sincronização com anilist|anilist sync/i));
 
 		await waitFor(() =>
-			expect(
-				notificationStore.notifications.some((n) => /offline/i.test(n.message))
-			).toBe(true)
+			expect(notificationStore.notifications.some((n) => /offline/i.test(n.message))).toBe(true)
 		);
 	});
 

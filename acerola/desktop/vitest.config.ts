@@ -62,7 +62,7 @@ export default defineConfig({
 				'svelte/src/**/*.browser.test.ts',
 				'svelte/src/**/*.stories.svelte',
 				'svelte/src/lib/paraglide/**',
-					'svelte/src/lib/components/ui/**',
+				'svelte/src/lib/components/ui/**',
 				'svelte/src/**/*.d.ts',
 				'svelte/tests/**'
 			],

@@ -3,7 +3,10 @@ import { userEvent } from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { READER_COMMANDS } from '$lib/contracts/reader/reader.commands';
 import { LIBRARY_COMMANDS } from '$lib/contracts/library/chapter.commands';
-import type { ReaderSessionPayload, ReaderPagePayload } from '$lib/contracts/reader/reader.payloads';
+import type {
+	ReaderSessionPayload,
+	ReaderPagePayload
+} from '$lib/contracts/reader/reader.payloads';
 import type { ReaderChapterPayload } from '$lib/contracts/reader/reader.payloads';
 import ReaderPage from '../+page.svelte';
 
@@ -194,8 +197,6 @@ describe('reader +page', () => {
 
 		renderReaderPage();
 
-		expect(
-			await screen.findByText(/não foi possível abrir|unable to open/i)
-		).toBeInTheDocument();
+		expect(await screen.findByText(/não foi possível abrir|unable to open/i)).toBeInTheDocument();
 	});
 });
