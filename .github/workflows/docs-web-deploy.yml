@@ -3,7 +3,7 @@ name: "Deploy/Docs/Web"
 on:
   push:
     tags:
-      - 'docs/*/v*'
+      - 'docs/**/v*'
   workflow_dispatch:
     inputs:
       channel:

@@ -3,7 +3,7 @@ name: "Release/P2P"
 on:
   push:
     tags:
-      - 'p2p/*/v*'
+      - 'p2p/**/v*'
   workflow_dispatch:
     inputs:
       channel:

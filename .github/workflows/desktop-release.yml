@@ -3,7 +3,7 @@ name: "Release/Desktop"
 on:
   push:
     tags:
-      - 'desktop/*/v*'
+      - 'desktop/**/v*'
   workflow_dispatch:
     inputs:
       channel:
