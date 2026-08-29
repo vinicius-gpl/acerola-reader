@@ -12,6 +12,16 @@ coverage:
           - docs-web
         target: auto
         threshold: 1%
+      desktop-rust:
+        flags:
+          - desktop-rust
+        target: auto
+        threshold: 1%
+      p2p:
+        flags:
+          - p2p
+        target: auto
+        threshold: 1%
     patch: false
 
 flags:
@@ -22,6 +32,14 @@ flags:
   docs-web:
     paths:
       - docs/web/src/
+    carryforward: false
+  desktop-rust:
+    paths:
+      - acerola/desktop/src-tauri/src/
+    carryforward: false
+  p2p:
+    paths:
+      - lib/p2p/src/
     carryforward: false
 
 # Corte alternativo ao das flags: em vez de "qual upload trouxe esse dado" (CI), aqui é "em
