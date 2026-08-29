@@ -1,13 +1,21 @@
-name: "Android/Release"
+name: "Release/Android"
 
 on:
   push:
     tags:
-      - 'android/v*'
+      - 'android/*/v*'
   workflow_dispatch:
     inputs:
+      channel:
+        description: "Canal da release"
+        required: true
+        type: choice
+        options:
+          - alpha
+          - beta
+          - prod
       version:
-        description: "Versão a liberar (ex: 0.2.4-beta) — cria a tag android/v<versão> e publica a release de verdade"
+        description: "Versão a liberar (ex: 1.0.0) — cria a tag android/<canal>/v<versão> e publica a release de verdade"
         required: true
         type: string
 
@@ -27,23 +35,32 @@ jobs:
       - name: Extract version
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            VERSION_FULL="${{ inputs.version }}"
+            CHANNEL="${{ inputs.channel }}"
+            VERSION="${{ inputs.version }}"
           else
-            VERSION_FULL=$(echo "${{ github.ref_name }}" | sed 's|^android/v||')
+            CHANNEL=$(echo "${{ github.ref_name }}" | cut -d'/' -f2)
+            VERSION=$(echo "${{ github.ref_name }}" | cut -d'/' -f3 | sed 's/^v//')
           fi
-          VERSION=$(echo "$VERSION_FULL" | sed 's/-/ /g')
-          VERSION_CODE=$(git tag -l 'android/v*' | wc -l | tr -d ' ')
-          TAG_NAME="android/v${VERSION_FULL}"
-          echo "VERSION_FULL=$VERSION_FULL" >> $GITHUB_ENV
+          VERSION_CODE=$(git tag -l 'android/*/v*' | wc -l | tr -d ' ')
+          TAG_NAME="android/${CHANNEL}/v${VERSION}"
+          echo "CHANNEL=$CHANNEL" >> $GITHUB_ENV
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
           echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24.20.0
+
+      - name: Install cargo-make
+        uses: davidB/rust-cargo-make@v1
+
       - name: Update build.gradle.kts
-        run: |
-          sed -i "s/versionName = \".*$/versionName = \"${{ env.VERSION }}\"/" app/build.gradle.kts
-          sed -i "s/versionCode = [0-9]*/versionCode = ${{ env.VERSION_CODE }}/" app/build.gradle.kts
-        working-directory: acerola/android
+        run: cargo make bump-android
+        env:
+          VERSION: ${{ env.VERSION }}
+          VERSION_CODE: ${{ env.VERSION_CODE }}
 
       - name: Set up JDK 21
         uses: actions/setup-java@v6
@@ -59,9 +76,6 @@ jobs:
 
       - name: Install cargo-ndk
         run: cargo install cargo-ndk
-
-      - name: Install cargo-make
-        run: cargo install cargo-make --locked
 
       - name: Decode keystore
         run: |
@@ -101,6 +115,6 @@ jobs:
         with:
           tag_name: ${{ env.TAG_NAME }}
           files: acerola/android/app/build/outputs/apk/release/acerola.apk
-          name: "Acerola Android v${{ env.VERSION_FULL }}"
+          name: "Acerola Android v${{ env.VERSION }}"
           generate_release_notes: true
-          prerelease: ${{ contains(env.VERSION_FULL, '-') }}
+          prerelease: ${{ env.CHANNEL != 'prod' }}

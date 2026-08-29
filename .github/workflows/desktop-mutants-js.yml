@@ -1,4 +1,4 @@
-name: "Desktop/JS Mutation Tests"
+name: "Tests/Desktop/Svelte/Mutation"
 
 on:
   schedule:

@@ -1,10 +1,23 @@
-name: "P2P/Release"
+name: "Release/P2P"
 
 on:
   push:
     tags:
-      - 'p2p/v*'
+      - 'p2p/*/v*'
   workflow_dispatch:
+    inputs:
+      channel:
+        description: "Canal da release"
+        required: true
+        type: choice
+        options:
+          - alpha
+          - beta
+          - prod
+      version:
+        description: "Versão a liberar (ex: 1.0.0) — cria a tag p2p/<canal>/v<versão>"
+        required: true
+        type: string
 
 jobs:
   build-release:
@@ -21,8 +34,29 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24.20.0
+
       - name: Install cargo-make
         uses: davidB/rust-cargo-make@v1
+
+      - name: Extract version
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ inputs.version }}"
+          else
+            VERSION=$(echo "${{ github.ref_name }}" | cut -d'/' -f3 | sed 's/^v//')
+          fi
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Update version (Cargo.toml)
+        working-directory: ${{ github.workspace }}
+        run: cargo make bump-p2p
+        env:
+          VERSION: ${{ env.VERSION }}
 
       - name: Build Release
         run: cargo make build-release

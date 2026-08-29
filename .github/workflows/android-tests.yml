@@ -1,4 +1,4 @@
-name: "Android/Tests"
+name: "Tests/Android"
 
 on:
   push:
