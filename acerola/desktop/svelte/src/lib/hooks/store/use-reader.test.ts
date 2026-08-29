@@ -128,6 +128,9 @@ describe('useReader', () => {
 		expect(reader.currentPage).toBe(4);
 		expect(reader.current?.index).toBe(4);
 		expect(reader.current?.mimeType).toBe('image/jpeg');
+		// Blob real: type e tamanho vêm de `payload.mimeType`/`payload.bytes`, não de um
+		// literal vazio — o mock de createObjectURL expõe isso no formato `blob:<type>:<size>`.
+		expect(reader.current?.url).toBe('blob:image/jpeg:2');
 		expect(invokeMock).toHaveBeenCalledWith(READER_COMMANDS.openChapter, {
 			chapter: chapterPayload
 		});
@@ -139,6 +142,53 @@ describe('useReader', () => {
 			center: 4,
 			radius: 2
 		});
+	});
+
+	it('goToPage before any chapter is open does nothing (no session to clamp against)', async () => {
+		const { reader } = await renderHook();
+
+		const page = await reader.goToPage(5);
+
+		expect(page).toBeUndefined();
+		expect(invokeMock).not.toHaveBeenCalled();
+	});
+
+	it('rejects a negative page index and an index at/after pageCount, accepts the last valid index', async () => {
+		const { reader } = await renderHook();
+
+		await reader.open(chapter(), 0);
+		await waitMicrotasks();
+		invokeMock.mockClear();
+
+		expect(await reader.loadPage(-1)).toBeUndefined();
+		expect(await reader.loadPage(5)).toBeUndefined();
+		expect(invokeMock).not.toHaveBeenCalled();
+
+		// pageCount é 5 (0..4) — o último índice válido é a fronteira, não pageCount.
+		const lastPage = await reader.loadPage(4);
+		expect(lastPage?.index).toBe(4);
+	});
+
+	it('nextPage/previousPage move relative to currentPage and clamp at the session bounds', async () => {
+		const { reader } = await renderHook();
+
+		await reader.open(chapter(), 2);
+		await waitMicrotasks();
+
+		await reader.nextPage();
+		await waitMicrotasks();
+		expect(reader.currentPage).toBe(3);
+
+		await reader.previousPage();
+		await waitMicrotasks();
+		expect(reader.currentPage).toBe(2);
+
+		await reader.previousPage();
+		await reader.previousPage();
+		await reader.previousPage();
+		await waitMicrotasks();
+		// Clampado em 0, não fica negativo.
+		expect(reader.currentPage).toBe(0);
 	});
 
 	it('reuses cached page without requesting bytes from backend again', async () => {
@@ -243,6 +293,77 @@ describe('useReader', () => {
 		expect(reader.pageAt(1)).toBeUndefined();
 	});
 
+	it('prefetches a window around the center, skipping the center itself and already-cached pages', async () => {
+		const { reader } = await renderHook();
+
+		// pageCount 10, abre na página 5: janela esperada = [3,4,6,7] (raio 2, sem o 5 que já
+		// virou "current" e já está em cache).
+		invokeMock.mockImplementation(async (command, args) => {
+			if (command === READER_COMMANDS.openChapter) {
+				return session(chapter(), 10);
+			}
+			if (command === READER_COMMANDS.loadPage) {
+				const payload = args as { index: number };
+				return page('chapter-1', payload.index);
+			}
+			return undefined;
+		});
+
+		await reader.open(chapter(), 5);
+		await waitMicrotasks();
+		await waitMicrotasks();
+
+		const loadedIndices = calls(READER_COMMANDS.loadPage).map(
+			([, args]) => (args as { index: number }).index
+		);
+
+		expect(loadedIndices).toContain(5); // current
+		for (const neighbor of [3, 4, 6, 7]) {
+			expect(loadedIndices).toContain(neighbor);
+		}
+		expect(loadedIndices).not.toContain(2);
+		expect(loadedIndices).not.toContain(8);
+		expect(invokeMock).toHaveBeenCalledWith(READER_COMMANDS.prefetchWindow, {
+			center: 5,
+			radius: 2
+		});
+	});
+
+	it('clamps the prefetch window near the start of the chapter (no negative indices)', async () => {
+		const { reader } = await renderHook();
+
+		await reader.open(chapter(), 0);
+		await waitMicrotasks();
+		await waitMicrotasks();
+
+		const loadedIndices = calls(READER_COMMANDS.loadPage).map(
+			([, args]) => (args as { index: number }).index
+		);
+
+		// pageCount 5, center 0, raio 2 -> janela real é [0,1,2], nunca índice negativo.
+		expect(Math.min(...loadedIndices)).toBe(0);
+		expect(loadedIndices).toContain(2);
+	});
+
+	it('records an error from setCurrentPage without throwing, still returning the cached page', async () => {
+		const { reader } = await renderHook();
+
+		await reader.open(chapter(), 0);
+		await waitMicrotasks();
+		invokeMock.mockClear();
+
+		const failure = new Error('backend unreachable');
+		invokeMock.mockImplementation(async (command) => {
+			if (command === READER_COMMANDS.setCurrentPage) throw failure;
+			return undefined;
+		});
+
+		const cachedPage = await reader.loadPage(0);
+
+		expect(cachedPage?.index).toBe(0);
+		expect(reader.error).toBe('backend unreachable');
+	});
+
 	it('closes chapter, clears cache and revokes object urls', async () => {
 		const { reader } = await renderHook();
 
@@ -257,7 +378,18 @@ describe('useReader', () => {
 		expect(reader.session).toBeUndefined();
 		expect(reader.currentPage).toBe(0);
 		expect(reader.cacheKeys).toEqual([]);
+		expect(reader.loading).toBe(false);
 		expect(URL.revokeObjectURL).toHaveBeenCalled();
+	});
+
+	it('pageAt returns the cached page for a loaded index', async () => {
+		const { reader } = await renderHook();
+
+		await reader.open(chapter(), 0);
+		await waitMicrotasks();
+		await waitMicrotasks();
+
+		expect(reader.pageAt(0)?.index).toBe(0);
 	});
 
 	it('cleans up resources when component unmounts', async () => {
