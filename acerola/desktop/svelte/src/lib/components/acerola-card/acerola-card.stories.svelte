@@ -3,7 +3,7 @@
 	import AcerolaCard from './acerola-card.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Components/AcerolaCard',
+		title: 'Primitivos/AcerolaCard',
 		component: AcerolaCard,
 		tags: ['autodocs'],
 		parameters: {

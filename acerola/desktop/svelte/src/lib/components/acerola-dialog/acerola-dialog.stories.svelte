@@ -4,7 +4,7 @@
 
 	const { Story } = defineMeta({
 		component: AcerolaDialog,
-		title: 'Components/AcerolaDialog'
+		title: 'Primitivos/AcerolaDialog'
 	});
 </script>
 

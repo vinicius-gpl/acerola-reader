@@ -3,7 +3,7 @@
 	import ReaderShell from './reader-shell.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Pages/Reader/ReaderShell',
+		title: 'Páginas/Reader/ReaderShell',
 		component: ReaderShell,
 		tags: ['autodocs']
 	});

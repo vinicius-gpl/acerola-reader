@@ -3,7 +3,7 @@
 	import ReaderModeToggle from './reader-mode-toggle.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Pages/Reader/ReaderModeToggle',
+		title: 'Páginas/Reader/ReaderModeToggle',
 		component: ReaderModeToggle,
 		tags: ['autodocs'],
 		argTypes: {

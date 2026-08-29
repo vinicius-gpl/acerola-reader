@@ -3,7 +3,7 @@
 	import ComicHeroBanner from './comic-hero-banner.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Pages/Comic/ComicHeroBanner',
+		title: 'Páginas/Comic/ComicHeroBanner',
 		component: ComicHeroBanner,
 		tags: ['autodocs'],
 		parameters: {

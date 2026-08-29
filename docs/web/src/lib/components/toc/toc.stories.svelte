@@ -3,7 +3,7 @@
 	import Toc from './toc.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Components/Toc',
+		title: 'Compositores/Toc',
 		component: Toc,
 		tags: ['autodocs'],
 		parameters: {

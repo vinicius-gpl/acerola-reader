@@ -4,7 +4,7 @@
 	import type { AcerolaSelectOption } from './acerola-select.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Components/AcerolaSelect',
+		title: 'Primitivos/AcerolaSelect',
 		component: AcerolaSelect,
 		tags: ['autodocs'],
 		argTypes: {

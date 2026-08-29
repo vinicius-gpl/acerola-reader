@@ -10,7 +10,7 @@
 
 	const { Story } = defineMeta({
 		component: AcerolaPeerPicker,
-		title: 'Components/AcerolaPeerPicker'
+		title: 'Compositores/AcerolaPeerPicker'
 	});
 </script>
 

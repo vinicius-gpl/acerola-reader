@@ -3,7 +3,7 @@
 	import AcerolaNotification, { notificationStore } from './acerola-notification.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Components/AcerolaNotification',
+		title: 'Compositores/AcerolaNotification',
 		component: AcerolaNotification,
 		tags: ['autodocs']
 	});

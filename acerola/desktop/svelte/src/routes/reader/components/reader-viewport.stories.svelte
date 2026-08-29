@@ -4,7 +4,7 @@
 	import ReaderViewport from './reader-viewport.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Pages/Reader/ReaderViewport',
+		title: 'Páginas/Reader/ReaderViewport',
 		component: ReaderViewport,
 		tags: ['autodocs'],
 		argTypes: {

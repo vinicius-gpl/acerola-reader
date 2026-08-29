@@ -3,7 +3,7 @@
 	import AcerolaButton from './acerola-button.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Components/AcerolaButton',
+		title: 'Primitivos/AcerolaButton',
 		component: AcerolaButton,
 		tags: ['autodocs'],
 		argTypes: {

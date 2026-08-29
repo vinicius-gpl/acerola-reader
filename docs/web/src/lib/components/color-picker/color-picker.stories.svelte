@@ -3,7 +3,7 @@
 	import ColorPicker from './color-picker.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Components/ColorPicker',
+		title: 'Primitivos/ColorPicker',
 		component: ColorPicker,
 		tags: ['autodocs'],
 		parameters: {

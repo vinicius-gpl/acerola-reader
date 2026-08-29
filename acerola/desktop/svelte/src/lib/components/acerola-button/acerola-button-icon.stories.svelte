@@ -6,7 +6,7 @@
 	import AcerolaButtonIcon from './acerola-button-icon.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Components/AcerolaButtonIcon',
+		title: 'Primitivos/AcerolaButtonIcon',
 		component: AcerolaButtonIcon,
 		tags: ['autodocs'],
 		argTypes: {

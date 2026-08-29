@@ -3,7 +3,7 @@
 	import ComicMetadataPanel from './comic-metadata-panel.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Pages/Comic/ComicMetadataPanel',
+		title: 'Páginas/Comic/ComicMetadataPanel',
 		component: ComicMetadataPanel,
 		tags: ['autodocs'],
 		parameters: {

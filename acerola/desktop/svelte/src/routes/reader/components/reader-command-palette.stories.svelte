@@ -3,7 +3,7 @@
 	import ReaderCommandPalette from './reader-command-palette.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Pages/Reader/ReaderCommandPalette',
+		title: 'Páginas/Reader/ReaderCommandPalette',
 		component: ReaderCommandPalette,
 		tags: ['autodocs'],
 		argTypes: {
