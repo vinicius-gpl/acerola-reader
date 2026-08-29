@@ -43,6 +43,7 @@ export default defineConfig({
 			$theme: path.resolve('./svelte/src/theme'),
 			$services: path.resolve('./svelte/src/services'),
 			'$app/state': path.resolve('./svelte/tests/mocks/app-state.ts'),
+			'$app/stores': path.resolve('./svelte/tests/mocks/app-stores.ts'),
 			'$app/environment': path.resolve('./svelte/tests/mocks/app-environment.ts'),
 			'$app/navigation': path.resolve('./svelte/tests/mocks/app-navigation.ts')
 		},
@@ -61,6 +62,7 @@ export default defineConfig({
 				'svelte/src/**/*.browser.test.ts',
 				'svelte/src/**/*.stories.svelte',
 				'svelte/src/lib/paraglide/**',
+					'svelte/src/lib/components/ui/**',
 				'svelte/src/**/*.d.ts',
 				'svelte/tests/**'
 			],
