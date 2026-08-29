@@ -95,17 +95,6 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
 
-      - name: Commit version bump
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add app/build.gradle.kts
-          if ! git diff --staged --quiet; then
-            git commit -m "[chore](android): bump version to ${{ env.VERSION }} [skip ci]"
-            git push origin HEAD:main HEAD:develop
-          fi
-        working-directory: acerola/android
-
       - name: Rename APK
         run: mv app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/acerola.apk
         working-directory: acerola/android
@@ -118,3 +107,19 @@ jobs:
           name: "Acerola Android v${{ env.VERSION }}"
           generate_release_notes: true
           prerelease: ${{ env.CHANNEL != 'prod' }}
+
+      - name: Commit version bump
+        working-directory: ${{ github.workspace }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add acerola/android/app/build.gradle.kts
+          if ! git diff --staged --quiet; then
+            git commit -m "[chore](android): bump version to ${{ env.VERSION }} [skip ci]"
+            BUMP_SHA=$(git rev-parse HEAD)
+            git push origin HEAD:main
+            git fetch origin develop
+            git checkout -B develop origin/develop
+            git cherry-pick "$BUMP_SHA"
+            git push origin develop
+          fi

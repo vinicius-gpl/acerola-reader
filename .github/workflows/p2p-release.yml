@@ -60,17 +60,6 @@ jobs:
         env:
           VERSION: ${{ env.VERSION }}
 
-      - name: Commit version bump
-        working-directory: ${{ github.workspace }}
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add lib/p2p/Cargo.toml
-          if ! git diff --staged --quiet; then
-            git commit -m "[chore](p2p): bump version to ${{ env.VERSION }} [skip ci]"
-            git push origin HEAD:main HEAD:develop
-          fi
-
       - name: Build Release
         run: cargo make build-release
 
@@ -79,3 +68,19 @@ jobs:
         with:
           name: release-build
           path: lib/p2p/target/release/
+
+      - name: Commit version bump
+        working-directory: ${{ github.workspace }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add lib/p2p/Cargo.toml
+          if ! git diff --staged --quiet; then
+            git commit -m "[chore](p2p): bump version to ${{ env.VERSION }} [skip ci]"
+            BUMP_SHA=$(git rev-parse HEAD)
+            git push origin HEAD:main
+            git fetch origin develop
+            git checkout -B develop origin/develop
+            git cherry-pick "$BUMP_SHA"
+            git push origin develop
+          fi
