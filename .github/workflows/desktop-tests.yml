@@ -93,6 +93,13 @@ jobs:
           name: rust-lcov
           path: acerola/desktop/src-tauri/lcov.info
 
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          files: acerola/desktop/src-tauri/lcov.info
+          flags: desktop-rust
+          token: ${{ secrets.CODECOV_TOKEN }}
+
   check:
     name: Svelte Check
     runs-on: ubuntu-latest
