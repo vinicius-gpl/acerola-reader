@@ -30,7 +30,13 @@ vi.mock('ogl', () => {
 		}
 	}
 
-	return { Renderer: FakeRenderer, Program: FakeProgram, Mesh: FakeMesh, Triangle: FakeTriangle, Color: FakeColor };
+	return {
+		Renderer: FakeRenderer,
+		Program: FakeProgram,
+		Mesh: FakeMesh,
+		Triangle: FakeTriangle,
+		Color: FakeColor
+	};
 });
 
 describe('landing +page', () => {

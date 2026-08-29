@@ -134,7 +134,7 @@ function renderComicPage(data: { comic: ComicSummaryItemPayload | null }) {
 	const activeComic = new ActiveComicState();
 
 	return render(ComicPage, {
-		props: { data },
+		props: { data: { ...data, initialVolumeViewMode: undefined } },
 		context: new Map([[CONTEXT_KEYS.activeComic, activeComic]])
 	});
 }

@@ -259,7 +259,11 @@ describe('useRelaySettings', () => {
 	});
 
 	function relayInfo(overrides: Partial<RelayInfo> = {}): RelayInfo {
-		return { defaultRelay: 'relay.default.example', activeRelay: 'relay.default.example', ...overrides };
+		return {
+			defaultRelay: 'relay.default.example',
+			activeRelay: 'relay.default.example',
+			...overrides
+		};
 	}
 
 	it('loads relay info from the backend', async () => {
