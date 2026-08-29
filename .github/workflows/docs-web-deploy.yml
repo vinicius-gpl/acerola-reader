@@ -1,0 +1,67 @@
+name: "Docs/Web Deploy"
+
+on:
+  push:
+    tags:
+      - 'docs/v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Versão a liberar (ex: 1.2.0) — cria a tag docs/v<versão> e publica o deploy"
+        required: true
+        type: string
+
+jobs:
+  deploy:
+    name: Build & Deploy (Cloudflare)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: docs/web
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Extract version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION_FULL="${{ inputs.version }}"
+          else
+            VERSION_FULL=$(echo "${{ github.ref_name }}" | sed 's|^docs/v||')
+          fi
+          echo "VERSION_FULL=$VERSION_FULL" >> $GITHUB_ENV
+          echo "TAG_NAME=docs/v${VERSION_FULL}" >> $GITHUB_ENV
+
+      - name: Create and push tag
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "${{ env.TAG_NAME }}"
+          git push origin "${{ env.TAG_NAME }}"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24.20.0
+          cache: npm
+          cache-dependency-path: docs/web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (includes Pagefind indexing)
+        run: npm run build
+
+      - name: Deploy to Cloudflare
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: docs/web
+          command: deploy
