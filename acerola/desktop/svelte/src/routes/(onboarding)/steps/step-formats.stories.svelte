@@ -4,7 +4,7 @@
 
 	const { Story } = defineMeta({
 		component: StepFormats,
-		title: 'Pages/Onboarding/StepFormats',
+		title: 'Páginas/Onboarding/StepFormats',
 		tags: ['autodocs'],
 		parameters: {
 			docs: {

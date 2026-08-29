@@ -5,7 +5,7 @@
 	import PlayIcon from '@lucide/svelte/icons/play';
 
 	const { Story } = defineMeta({
-		title: 'Components/AcerolaHeroButton',
+		title: 'Primitivos/AcerolaHeroButton',
 		component: AcerolaHeroButton,
 		tags: ['autodocs'],
 		args: {

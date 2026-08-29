@@ -21,7 +21,7 @@
 	];
 
 	const { Story } = defineMeta({
-		title: 'Components/Sidebar',
+		title: 'Layout/Sidebar',
 		component: Sidebar,
 		tags: ['autodocs'],
 		parameters: {

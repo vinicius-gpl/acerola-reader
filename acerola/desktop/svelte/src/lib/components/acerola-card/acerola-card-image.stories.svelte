@@ -7,7 +7,7 @@
 	import AcerolaCardImage from './acerola-card-image.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Components/AcerolaCardImage',
+		title: 'Primitivos/AcerolaCardImage',
 		component: AcerolaCardImage,
 		tags: ['autodocs'],
 

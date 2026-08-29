@@ -3,7 +3,7 @@
 	import AcerolaPopover from './acerola-popover.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Components/AcerolaPopover',
+		title: 'Primitivos/AcerolaPopover',
 		component: AcerolaPopover,
 		tags: ['autodocs'],
 		parameters: {

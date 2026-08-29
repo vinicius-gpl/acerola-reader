@@ -4,7 +4,7 @@
 
 	const { Story } = defineMeta({
 		component: StepComplete,
-		title: 'Pages/Onboarding/StepComplete',
+		title: 'Páginas/Onboarding/StepComplete',
 		tags: ['autodocs'],
 		parameters: {
 			docs: {

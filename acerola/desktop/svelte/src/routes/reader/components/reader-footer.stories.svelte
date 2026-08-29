@@ -3,7 +3,7 @@
 	import ReaderFooter from './reader-footer.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Pages/Reader/ReaderFooter',
+		title: 'Páginas/Reader/ReaderFooter',
 		component: ReaderFooter,
 		tags: ['autodocs'],
 		argTypes: {

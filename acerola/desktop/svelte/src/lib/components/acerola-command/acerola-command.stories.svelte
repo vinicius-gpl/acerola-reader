@@ -4,7 +4,7 @@
 	import AcerolaCommand from './acerola-command.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Components/AcerolaCommand',
+		title: 'Primitivos/AcerolaCommand',
 		component: AcerolaCommand,
 		tags: ['autodocs'],
 		parameters: {

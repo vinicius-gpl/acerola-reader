@@ -3,7 +3,7 @@
 	import ComicVolumeList, { type Volume } from './comic-volume-list.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Pages/Comic/ComicVolumeList',
+		title: 'Páginas/Comic/ComicVolumeList',
 		component: ComicVolumeList,
 		tags: ['autodocs'],
 		parameters: {

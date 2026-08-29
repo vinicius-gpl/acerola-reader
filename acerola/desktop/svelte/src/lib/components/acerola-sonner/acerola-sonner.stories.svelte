@@ -4,7 +4,7 @@
 	import AcerolaSonner from './acerola-sonner.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Components/AcerolaSonner',
+		title: 'Primitivos/AcerolaSonner',
 		component: AcerolaSonner,
 		tags: ['autodocs'],
 		parameters: {

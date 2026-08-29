@@ -32,7 +32,7 @@
 
 	const { Story } = defineMeta({
 		component: AcerolaNetworkTransfersLog,
-		title: 'Components/AcerolaNetworkTransfersLog'
+		title: 'Páginas/Network/AcerolaNetworkTransfersLog'
 	});
 </script>
 

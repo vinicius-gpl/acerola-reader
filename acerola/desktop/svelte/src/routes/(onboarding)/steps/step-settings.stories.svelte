@@ -26,7 +26,7 @@
 
 	const { Story } = defineMeta({
 		component: StepSettings,
-		title: 'Pages/Onboarding/StepSettings',
+		title: 'Páginas/Onboarding/StepSettings',
 		tags: ['autodocs'],
 		parameters: {
 			docs: {

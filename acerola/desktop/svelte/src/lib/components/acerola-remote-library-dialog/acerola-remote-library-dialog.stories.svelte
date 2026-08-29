@@ -11,7 +11,7 @@
 
 	const { Story } = defineMeta({
 		component: AcerolaRemoteLibraryDialog,
-		title: 'Components/AcerolaRemoteLibraryDialog'
+		title: 'Compositores/AcerolaRemoteLibraryDialog'
 	});
 </script>
 

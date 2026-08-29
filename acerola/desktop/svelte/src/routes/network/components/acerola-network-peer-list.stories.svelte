@@ -9,7 +9,7 @@
 
 	const { Story } = defineMeta({
 		component: AcerolaNetworkPeerList,
-		title: 'Components/AcerolaNetworkPeerList'
+		title: 'Páginas/Network/AcerolaNetworkPeerList'
 	});
 </script>
 
