@@ -72,6 +72,22 @@ describe('createNotifications', () => {
 		expect(store.notifications).toEqual([]);
 	});
 
+	// Nota: não mata os mutantes de notification.svelte.ts:28 (`options?.variant ?? variants[0]`
+	// -> `options.variant ?? ...` / `... && variants[0]`) — são mutantes equivalentes de
+	// verdade (ver comentário `Stryker disable` no source). add() é privada e só é chamada por
+	// notify.<variant>(...), que sempre injeta `variant` no options antes de add() rodar, e o
+	// `...options` logo depois sobrescreve o campo de qualquer jeito. Este teste continua útil
+	// como rede de segurança: garante que chamar sem nenhum objeto de options não lança e ainda
+	// resulta no variant correto.
+	it('assigns default variant when called without an options object at all', () => {
+		const store = createNotifications(['info', 'error'] as const);
+
+		expect(() => store.notify.error('Sem opções')).not.toThrow();
+
+		expect(store.notifications).toHaveLength(1);
+		expect(store.notifications[0].variant).toBe('error');
+	});
+
 	it('removes automatically after configured duration', () => {
 		const store = createNotifications(['info'] as const);
 		store.notify.info('Temporária', { duration: 1000 });
