@@ -56,6 +56,36 @@ describe('useOnboarding', () => {
 		expect(hook.isCompleted).toBe(false);
 	});
 
+	it('starts with isLoading=true and isCompleted=false before checkStatus resolves', async () => {
+		// Faz `store.get()` retornar uma Promise que só resolve quando mandarmos,
+		// segurando `checkStatus()` no meio do `await`. Com `vi.resetModules()` +
+		// import dinâmico, pegamos uma instância nova do módulo (o state de
+		// `isLoading`/`isCompleted` é module-level), então lemos os valores
+		// iniciais do hook antes de qualquer microtask de `checkStatus` rodar.
+		let resolveGet!: (value: boolean | null) => void;
+		mockStoreMethods.get.mockImplementationOnce(
+			() =>
+				new Promise<boolean | null>((resolve) => {
+					resolveGet = resolve;
+				})
+		);
+
+		vi.resetModules();
+		const { useOnboarding: freshUseOnboarding } = await import('./use-onboarding.svelte');
+		const hook = freshUseOnboarding();
+
+		expect(hook.isLoading).toBe(true);
+		expect(hook.isCompleted).toBe(false);
+
+		resolveGet(true);
+		await Promise.resolve();
+		await Promise.resolve();
+		await Promise.resolve();
+
+		expect(hook.isLoading).toBe(false);
+		expect(hook.isCompleted).toBe(true);
+	});
+
 	it('starts with step 0 and manages step forward and backward', async () => {
 		const hook = await renderHook();
 
