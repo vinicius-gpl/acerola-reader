@@ -58,21 +58,23 @@ describe('useComicSelection', () => {
 		expect(hook.isSelected(2)).toBe(true);
 	});
 
-	it('selectSingle replaces the whole selection', async () => {
+	it('selectSingle replaces the whole selection and enters selection mode', async () => {
 		const hook = await renderHook();
 
 		hook.selectAll([1, 2, 3]);
 		hook.selectSingle(9);
 
 		expect(hook.selectedIdsArray).toEqual([9]);
+		expect(hook.isSelectionMode).toBe(true);
 	});
 
-	it('selectAll with empty list exits selection mode', async () => {
+	it('selectAll enters selection mode for a non-empty list, exits for an empty one', async () => {
 		const hook = await renderHook();
 
 		hook.selectAll([1, 2]);
-		hook.selectAll([]);
+		expect(hook.isSelectionMode).toBe(true);
 
+		hook.selectAll([]);
 		expect(hook.selectedCount).toBe(0);
 		expect(hook.isSelectionMode).toBe(false);
 	});
