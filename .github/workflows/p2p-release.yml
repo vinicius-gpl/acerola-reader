@@ -23,6 +23,8 @@ jobs:
   build-release:
     name: Build Release
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     defaults:
       run:
         working-directory: lib/p2p
@@ -57,6 +59,17 @@ jobs:
         run: cargo make bump-p2p
         env:
           VERSION: ${{ env.VERSION }}
+
+      - name: Commit version bump
+        working-directory: ${{ github.workspace }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add lib/p2p/Cargo.toml
+          if ! git diff --staged --quiet; then
+            git commit -m "[chore](p2p): bump version to ${{ env.VERSION }} [skip ci]"
+            git push origin HEAD:main HEAD:develop
+          fi
 
       - name: Build Release
         run: cargo make build-release

@@ -75,6 +75,17 @@ jobs:
         env:
           VERSION: ${{ env.VERSION }}
 
+      - name: Commit version bump
+        working-directory: ${{ github.workspace }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/web/package.json
+          if ! git diff --staged --quiet; then
+            git commit -m "[chore](docs): bump version to ${{ env.VERSION }} [skip ci]"
+            git push origin HEAD:main HEAD:develop
+          fi
+
       - name: Build (includes Pagefind indexing)
         run: npm run build
 
