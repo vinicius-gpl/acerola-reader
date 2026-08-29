@@ -65,6 +65,34 @@ describe('encodeConnectionCode / decodeConnectionCode', () => {
 		);
 	});
 
+	it('throws InvalidConnectionCodeError when i is missing even if a is a valid string', () => {
+		const badEnvelope = btoa(JSON.stringify({ d: null, a: 'validbase64' }));
+
+		expect(() => decodeConnectionCode(`acerola1:${badEnvelope}`)).toThrow(
+			InvalidConnectionCodeError
+		);
+	});
+
+	it('throws InvalidConnectionCodeError when i is present but a is not a string', () => {
+		const badEnvelope = btoa(JSON.stringify({ i: 'peer-1', d: null, a: 123 }));
+
+		expect(() => decodeConnectionCode(`acerola1:${badEnvelope}`)).toThrow(
+			InvalidConnectionCodeError
+		);
+	});
+
+	it('throws InvalidConnectionCodeError (not a raw TypeError) when the envelope itself is null', () => {
+		const nullEnvelope = btoa(JSON.stringify(null));
+
+		expect(() => decodeConnectionCode(`acerola1:${nullEnvelope}`)).toThrow(
+			InvalidConnectionCodeError
+		);
+	});
+
+	it('the thrown error carries the invalid_connection_code message', () => {
+		expect(() => decodeConnectionCode('')).toThrow('invalid_connection_code');
+	});
+
 	it('throws InvalidConnectionCodeError for an empty string', () => {
 		expect(() => decodeConnectionCode('')).toThrow(InvalidConnectionCodeError);
 	});
