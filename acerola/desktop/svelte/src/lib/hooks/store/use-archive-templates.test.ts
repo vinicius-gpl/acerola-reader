@@ -69,6 +69,25 @@ describe('useArchiveTemplates', () => {
 		expect(hook.isLoading).toBe(false);
 	});
 
+	it('is loading while the request is in flight, then settles back to false', async () => {
+		let resolveGet: (value: ArchiveTemplate[]) => void = () => {};
+		invokeMock.mockImplementationOnce(
+			() =>
+				new Promise((resolve) => {
+					resolveGet = resolve;
+				})
+		);
+		const hook = await renderHook();
+
+		const pending = hook.loadTemplates();
+		await Promise.resolve();
+		expect(hook.isLoading).toBe(true);
+
+		resolveGet([]);
+		await pending;
+		expect(hook.isLoading).toBe(false);
+	});
+
 	it('does not request again once already initialized', async () => {
 		invokeMock.mockResolvedValueOnce([template()]);
 		const hook = await renderHook();
@@ -98,9 +117,10 @@ describe('useArchiveTemplates', () => {
 		expect(hook.templates).toEqual([created]);
 	});
 
-	it('deletes a template and removes it from the list', async () => {
+	it('deletes a template and removes only that one from the list', async () => {
+		const kept = template({ id: 4, label: 'Kept' });
 		const existing = template({ id: 5 });
-		invokeMock.mockResolvedValueOnce([existing]);
+		invokeMock.mockResolvedValueOnce([kept, existing]);
 		const hook = await renderHook();
 		await hook.loadTemplates();
 
@@ -110,7 +130,7 @@ describe('useArchiveTemplates', () => {
 		expect(invokeMock).toHaveBeenCalledWith(ARCHIVE_TEMPLATE_COMMANDS.deleteArchiveTemplate, {
 			id: 5
 		});
-		expect(hook.templates).toEqual([]);
+		expect(hook.templates).toEqual([kept]);
 	});
 
 	it('logs and rethrows when loading templates fails', async () => {
@@ -120,7 +140,9 @@ describe('useArchiveTemplates', () => {
 
 		await expect(hook.loadTemplates()).rejects.toThrow(failure);
 
-		expect(errorMock).toHaveBeenCalled();
+		expect(errorMock).toHaveBeenCalledWith(
+			expect.stringContaining('Failed to load archive templates: Error: backend unavailable')
+		);
 		expect(hook.isLoading).toBe(false);
 		expect(hook.templates).toEqual([]);
 	});
@@ -132,7 +154,9 @@ describe('useArchiveTemplates', () => {
 
 		await expect(hook.createTemplate('Dup', '{title}', 'Volume')).rejects.toThrow(failure);
 
-		expect(errorMock).toHaveBeenCalled();
+		expect(errorMock).toHaveBeenCalledWith(
+			expect.stringContaining('Failed to create archive template: Error: duplicate label')
+		);
 		expect(hook.templates).toEqual([]);
 	});
 
@@ -147,7 +171,9 @@ describe('useArchiveTemplates', () => {
 
 		await expect(hook.deleteTemplate(9)).rejects.toThrow(failure);
 
-		expect(errorMock).toHaveBeenCalled();
+		expect(errorMock).toHaveBeenCalledWith(
+			expect.stringContaining('Failed to delete archive template: Error: template in use')
+		);
 		expect(hook.templates).toEqual([existing]);
 	});
 });
