@@ -1,6 +1,6 @@
 import { render } from '@testing-library/svelte';
 import { tick } from 'svelte';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { invoke } from '@tauri-apps/api/core';
 import { error as tauriError } from '@tauri-apps/plugin-log';
 import HookHarness from '../../../../tests/harness/hooks/rune-wrapper.svelte';
@@ -37,6 +37,50 @@ async function renderBookmarksHook() {
 }
 
 describe('useBookmarks', () => {
+	// Capturado no beforeAll, que roda antes do primeiro beforeEach disparar.
+	// É o único ponto de toda a suíte onde o state do hook reflete os valores
+	// iniciais de verdade do `$state(...)` do módulo, em vez dos valores escritos
+	// por `_resetBookmarksState()` (que todo outro teste observa depois do beforeEach).
+	let pristineBookmarksSnapshot: unknown;
+	let pristineAssignmentsSnapshot: unknown;
+	let pristineIsLoadingSnapshot: boolean;
+	let invokeCalledDuringPristineLoad: boolean;
+	let fetchedAfterPristineLoad: unknown;
+
+	beforeAll(async () => {
+		const pristineHook = await renderBookmarksHook();
+
+		pristineBookmarksSnapshot = [...pristineHook.bookmarks];
+		pristineAssignmentsSnapshot = [...pristineHook.assignments];
+		pristineIsLoadingSnapshot = pristineHook.isLoading;
+
+		// isInitialized não tem getter, então observamos seu valor inicial de verdade
+		// indiretamente: se começou `false`, essa primeiríssima chamada de loadBookmarks()
+		// realmente busca os dados.
+		invokeMock.mockResolvedValueOnce([{ id: 99, name: 'Pristine', color: 1 }]);
+		invokeMock.mockResolvedValueOnce([]);
+
+		await pristineHook.loadBookmarks();
+
+		invokeCalledDuringPristineLoad = invokeMock.mock.calls.length > 0;
+		fetchedAfterPristineLoad = [...pristineHook.bookmarks];
+
+		invokeMock.mockClear();
+	});
+
+	it('has a genuinely empty bookmarks/assignments state and is not loading before anything ever ran', () => {
+		expect(pristineBookmarksSnapshot).toEqual([]);
+		expect(pristineBookmarksSnapshot).toHaveLength(0);
+		expect(pristineAssignmentsSnapshot).toEqual([]);
+		expect(pristineAssignmentsSnapshot).toHaveLength(0);
+		expect(pristineIsLoadingSnapshot).toBe(false);
+	});
+
+	it('starts uninitialized, so the very first loadBookmarks call actually performs the fetch', () => {
+		expect(invokeCalledDuringPristineLoad).toBe(true);
+		expect(fetchedAfterPristineLoad).toEqual([{ id: 99, name: 'Pristine', color: 1 }]);
+	});
+
 	beforeEach(() => {
 		vi.clearAllMocks();
 		_resetBookmarksState();
@@ -191,6 +235,22 @@ describe('useBookmarks', () => {
 			comicId: '123'
 		});
 		expect(hook.assignments).toEqual([{ id: 2, comic_directory_fk: 456, category_id: 9 }]);
+	});
+
+	it('resets assignments back to a genuinely empty array, not just a falsy/truthy one', async () => {
+		invokeMock.mockResolvedValueOnce([]);
+		invokeMock.mockResolvedValueOnce([{ id: 1, comic_directory_fk: 123, category_id: 9 }]);
+
+		const hook = await renderBookmarksHook();
+		await hook.loadBookmarks();
+		expect(hook.assignments).toHaveLength(1);
+
+		_resetBookmarksState();
+
+		expect(hook.assignments).toEqual([]);
+		expect(hook.assignments).toHaveLength(0);
+		expect(hook.bookmarks).toEqual([]);
+		expect(hook.isLoading).toBe(false);
 	});
 
 	it('gets comic bookmark', async () => {
