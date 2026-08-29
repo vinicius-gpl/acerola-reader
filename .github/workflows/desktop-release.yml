@@ -84,6 +84,35 @@ jobs:
           Rename-Item (Get-Item ".bin\windows\msi\*.msi").FullName "acerola-x64-${{ env.VERSION }}.msi"
           Rename-Item (Get-Item ".bin\windows\exe\*.exe").FullName "acerola-x64-${{ env.VERSION }}.exe"
 
+      - name: Commit version bump
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add acerola/desktop/src-tauri/tauri.conf.json acerola/desktop/src-tauri/Cargo.toml acerola/desktop/package.json
+          if ! git diff --staged --quiet; then
+            git commit -m "[chore](desktop): bump version to ${{ env.VERSION }} [skip ci]"
+            BUMP_SHA=$(git rev-parse HEAD)
+            git checkout -- .
+
+            until git push origin HEAD:main; do
+              git fetch origin main
+              git checkout -- .
+              git rebase origin/main
+            done
+
+            git fetch origin develop
+            git checkout -B develop origin/develop
+            git cherry-pick "$BUMP_SHA"
+            git checkout -- .
+            until git push origin develop; do
+              git fetch origin develop
+              git checkout -- .
+              git rebase origin/develop
+            done
+          fi
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
         with:
@@ -96,28 +125,3 @@ jobs:
             acerola/desktop/.bin/windows/msi/acerola-x64-${{ env.VERSION }}.msi
             acerola/desktop/.bin/windows/exe/acerola-x64-${{ env.VERSION }}.exe
           generate_release_notes: true
-
-      - name: Commit version bump
-        shell: bash
-        working-directory: ${{ github.workspace }}
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add acerola/desktop/src-tauri/tauri.conf.json acerola/desktop/src-tauri/Cargo.toml acerola/desktop/package.json
-          if ! git diff --staged --quiet; then
-            git commit -m "[chore](desktop): bump version to ${{ env.VERSION }} [skip ci]"
-            BUMP_SHA=$(git rev-parse HEAD)
-
-            until git push origin HEAD:main; do
-              git fetch origin main
-              git rebase origin/main
-            done
-
-            git fetch origin develop
-            git checkout -B develop origin/develop
-            git cherry-pick "$BUMP_SHA"
-            until git push origin develop; do
-              git fetch origin develop
-              git rebase origin/develop
-            done
-          fi
