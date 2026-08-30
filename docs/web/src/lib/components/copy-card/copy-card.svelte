@@ -10,8 +10,13 @@
 		href,
 		copyLabel = 'Copy',
 		copiedLabel = 'Copied'
-	}: { label: string; value: string; href?: string; copyLabel?: string; copiedLabel?: string } =
-		$props();
+	}: {
+		label: string;
+		value: string;
+		href?: string;
+		copyLabel?: string;
+		copiedLabel?: string;
+	} = $props();
 
 	let copied = $state(false);
 	// Módulo, não closure por instância — se duas CopyCard copiarem quase ao mesmo
@@ -31,8 +36,7 @@
 		<Card.Title class="text-sm font-semibold">{label}</Card.Title>
 		<Card.Description>
 			{#if href}
-				<a {href} class="text-foreground underline underline-offset-4 hover:text-primary"
-					>{value}</a
+				<a {href} class="text-foreground underline underline-offset-4 hover:text-primary">{value}</a
 				>
 			{:else}
 				<span class="text-foreground">{value}</span>
