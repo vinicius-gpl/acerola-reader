@@ -54,7 +54,15 @@
 		}
 
 		const search = await pagefind.search(value);
-		results = await Promise.all(search.results.slice(0, 8).map((result) => result.data()));
+		const data = await Promise.all(search.results.slice(0, 8).map((result) => result.data()));
+
+		// Pagefind indexa o build estático e devolve o caminho de arquivo real
+		// (ex.: "/docs/architecture.html"), mas as rotas do SvelteKit servem sem
+		// extensão — sem isso o link do resultado cai no 404.
+		results = data.map((result) => ({
+			...result,
+			url: result.url.replace(/(?:\/index)?\.html$/, '')
+		}));
 	}
 
 	$effect(() => {
