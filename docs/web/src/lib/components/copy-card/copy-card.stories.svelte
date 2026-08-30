@@ -16,7 +16,10 @@
 		},
 		argTypes: {
 			label: { description: 'Rótulo acima do valor.', control: 'text' },
-			value: { description: 'Valor exibido e copiado para a área de transferência.', control: 'text' },
+			value: {
+				description: 'Valor exibido e copiado para a área de transferência.',
+				control: 'text'
+			},
 			href: { description: 'Se definido, o valor vira um link (ex.: mailto:).', control: 'text' },
 			copyLabel: { description: 'Texto acessível do botão antes de copiar.', control: 'text' },
 			copiedLabel: { description: 'Texto acessível do botão logo após copiar.', control: 'text' }
