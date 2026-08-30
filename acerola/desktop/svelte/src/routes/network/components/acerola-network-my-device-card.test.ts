@@ -108,7 +108,9 @@ describe('AcerolaNetworkMyDeviceCard', () => {
 		await fireEvent.click(screen.getByRole('button', { name: /Save|Salvar/i }));
 
 		expect(onRenameDevice).toHaveBeenCalledWith('Notebook Novo');
-		expect(screen.queryByPlaceholderText(/device's name|Nome deste dispositivo/i)).not.toBeInTheDocument();
+		expect(
+			screen.queryByPlaceholderText(/device's name|Nome deste dispositivo/i)
+		).not.toBeInTheDocument();
 	});
 
 	it('cancels the rename without calling the handler', async () => {
