@@ -47,6 +47,7 @@
 	"search": {
 		"title": "Pesquisar",
 		"placeholder": "Digite para pesquisar...",
+		"idle": "Digite para buscar em toda a documentação.",
 		"no_results": "Nenhum resultado encontrado.",
 		"close": "Fechar",
 		"loading": "Carregando índice de busca...",
@@ -54,6 +55,19 @@
 	},
 	"toc": {
 		"title": "Nesta página"
+	},
+	"doc": {
+		"copy_markdown": "Copiar página como Markdown",
+		"copy_markdown_copied": "Copiado"
+	},
+	"mermaid": {
+		"zoom_in": "Aumentar zoom",
+		"zoom_out": "Diminuir zoom",
+		"reset": "Redefinir",
+		"pan_up": "Mover para cima",
+		"pan_down": "Mover para baixo",
+		"pan_left": "Mover para a esquerda",
+		"pan_right": "Mover para a direita"
 	},
 	"prev_next": {
 		"previous": "Anterior",

@@ -10,19 +10,27 @@
 
 <style>
 	/* Flexbox instead of CSS grid so a partially-filled last row (e.g. 5 cards in
-	   3 columns) centers instead of hugging the left edge. */
-	.card-grid > :global(*) {
+	   3 columns) centers instead of hugging the left edge.
+
+	   Targets `[data-slot=card]` rather than `> :global(*)`: a linked Card wraps
+	   itself in `<a class="group contents">` (`display: contents`), which takes
+	   the anchor out of the box tree entirely — the actual flex item the browser
+	   lays out is then the Card.Root div one level down, not `.card-grid`'s direct
+	   child. A `>` child selector misses it and every card falls back to its
+	   default size, which is what was stacking them into a single column instead
+	   of wrapping into a grid. */
+	.card-grid :global([data-slot='card']) {
 		flex: 1 1 100%;
 	}
 
 	@media (min-width: 40rem) {
-		.card-grid > :global(*) {
+		.card-grid :global([data-slot='card']) {
 			flex-basis: calc(50% - 0.5rem);
 		}
 	}
 
 	@media (min-width: 64rem) {
-		.card-grid > :global(*) {
+		.card-grid :global([data-slot='card']) {
 			flex-basis: calc(33.333% - 0.667rem);
 		}
 	}

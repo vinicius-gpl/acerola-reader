@@ -10,18 +10,23 @@ describe('docs/[...slug]/+page (component)', () => {
 				data: {
 					Doc: FakeDoc,
 					frontmatter: { title: 'Getting Started', section: 'Docs', description: 'Intro doc' },
+					raw: '# Getting Started',
 					prev: null,
 					next: {
 						locale: 'pt-br',
 						slug: 'next-doc',
 						component: FakeDoc,
-						frontmatter: { title: 'Próximo Artigo', section: 'Docs' }
+						frontmatter: { title: 'Próximo Artigo', section: 'Docs' },
+						raw: ''
 					}
 				}
 			}
 		});
 
 		expect(screen.getByTestId('doc-body')).toHaveTextContent('Conteúdo do artigo');
-		expect(screen.getByText('Próximo Artigo')).toBeInTheDocument();
+		// A navegação de anterior/próximo aparece tanto acima quanto abaixo do corpo
+		// do artigo (`position="top"` e o padrão `"bottom"`), então os links dela
+		// legitimamente aparecem duas vezes.
+		expect(screen.getAllByText('Próximo Artigo')).toHaveLength(2);
 	});
 });

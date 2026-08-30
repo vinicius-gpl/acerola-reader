@@ -15,6 +15,7 @@
 	}: { libraries: Library[]; nameLabel?: string; licenseLabel?: string } = $props();
 </script>
 
+<div class="my-6">
 <Table.Root>
 	<Table.Header>
 		<Table.Row class="hover:bg-transparent">
@@ -42,3 +43,4 @@
 		{/each}
 	</Table.Body>
 </Table.Root>
+</div>

@@ -17,6 +17,7 @@ export type DocEntry = {
 	slug: string;
 	component: Component;
 	frontmatter: DocFrontmatter;
+	raw: string;
 };
 
 export const FALLBACK_LOCALE = 'pt-br';
@@ -47,12 +48,25 @@ const PATH_PATTERN = /^\/src\/content\/docs\/([^/]+)\/(.+)\.md$/;
 // call, which breaks Vite's glob-import parser (see stryker.conf.mjs for context).
 const modules = import.meta.glob<DocModule>('/src/content/docs/*/**/*.md', { eager: true });
 
+// Segundo glob do mesmo conteúdo, só que como texto cru — usado pelo botão de
+// "copiar como Markdown" (ver copy-markdown-button). Precisa ser um glob à parte
+// porque `query: '?raw'` muda o que o Vite entrega por import, não dá pra pedir os
+// dois formatos de uma vez só.
+// Stryker disable next-line all -- mesmo motivo do glob acima.
+const rawModules = import.meta.glob<string>('/src/content/docs/*/**/*.md', {
+	eager: true,
+	query: '?raw',
+	import: 'default'
+});
+
 const entries: DocEntry[] = Object.entries(modules).flatMap(([path, mod]) => {
 	const match = PATH_PATTERN.exec(path);
 	if (!match) return [];
 
 	const [, locale, slug] = match;
-	return [{ locale, slug, component: mod.default, frontmatter: mod.metadata }];
+	return [
+		{ locale, slug, component: mod.default, frontmatter: mod.metadata, raw: rawModules[path] }
+	];
 });
 
 function entriesForLocale(locale: string): DocEntry[] {

@@ -15,16 +15,18 @@ function makeEvent(slug: string): PageLoadEvent {
 type LoadResult = {
 	Doc: unknown;
 	frontmatter: DocFrontmatter;
+	raw: string;
 	prev: DocEntry | null;
 	next: DocEntry | null;
 };
 
 describe('docs/[...slug] load', () => {
-	it('returns the doc component, frontmatter, and prev/next for a valid slug', () => {
+	it('returns the doc component, frontmatter, raw markdown, and prev/next for a valid slug', () => {
 		const result = load(makeEvent('getting-started')) as LoadResult;
 
 		expect(result.frontmatter.title).toBe('Primeiros passos');
 		expect(result.Doc).toBeDefined();
+		expect(result.raw).toContain('Primeiros passos');
 		expect(result).toHaveProperty('prev');
 		expect(result).toHaveProperty('next');
 	});

@@ -82,6 +82,8 @@
 			<Command.Empty>{m['search.unavailable_dev']()}</Command.Empty>
 		{:else if status === 'loading'}
 			<Command.Empty>{m['search.loading']()}</Command.Empty>
+		{:else if !query}
+			<Command.Empty>{m['search.idle']()}</Command.Empty>
 		{:else if query && results.length === 0}
 			<Command.Empty>{m['search.no_results']()}</Command.Empty>
 		{:else}

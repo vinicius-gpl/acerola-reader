@@ -12,6 +12,7 @@ export const load: PageLoad = ({ params }) => {
 	return {
 		Doc: doc.component,
 		frontmatter: doc.frontmatter,
+		raw: doc.raw,
 		...getPrevNext(locale, doc.slug)
 	};
 };

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { m } from '$lib/paraglide/messages';
-	import { cn } from '$lib/utils';
+	import { cn } from '$lib/cn.util';
 
 	type Heading = { id: string; text: string; depth: 2 | 3 };
 

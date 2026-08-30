@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { SidebarGroup } from '$lib/content/docs';
 	import { localizeHref } from '$lib/paraglide/runtime';
-	import { cn } from '$lib/utils';
+	import { cn } from '$lib/cn.util';
 
 	let { groups, activeSlug }: { groups: SidebarGroup[]; activeSlug: string } = $props();
 </script>

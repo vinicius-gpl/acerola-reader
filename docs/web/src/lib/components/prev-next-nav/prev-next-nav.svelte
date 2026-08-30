@@ -4,12 +4,24 @@
 	import type { DocEntry } from '$lib/content/docs';
 	import { m } from '$lib/paraglide/messages';
 	import { localizeHref } from '$lib/paraglide/runtime';
+	import { cn } from '$lib/cn.util';
 
-	let { prev, next }: { prev: DocEntry | null; next: DocEntry | null } = $props();
+	let {
+		prev,
+		next,
+		position = 'bottom'
+	}: { prev: DocEntry | null; next: DocEntry | null; position?: 'top' | 'bottom' } = $props();
 </script>
 
 {#if prev || next}
-	<div class="mt-12 grid grid-cols-1 gap-3 border-t border-border pt-6 sm:grid-cols-2">
+	<div
+		class={cn(
+			'grid grid-cols-1 gap-3 sm:grid-cols-2',
+			position === 'bottom'
+				? 'mt-12 border-t border-border pt-6'
+				: 'mb-10 border-b border-border pb-6'
+		)}
+	>
 		{#if prev}
 			<a
 				href={localizeHref(`/docs/${prev.slug}`)}

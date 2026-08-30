@@ -39,15 +39,21 @@
 
 	<Button
 		variant="outline"
-		class="ml-2 hidden min-w-0 flex-1 justify-start gap-2 font-normal text-muted-foreground hover:border-primary/40 hover:bg-background md:ml-4 md:flex md:max-w-xs"
+		class="ml-2 hidden h-9 min-w-0 flex-1 justify-start gap-2 border-border bg-muted/40 font-normal text-muted-foreground hover:border-primary/40 hover:bg-muted md:ml-4 md:flex md:max-w-xs"
 		onclick={onOpenSearch}
 	>
 		<SearchIcon size={15} class="shrink-0" />
 		<span class="min-w-0 flex-1 truncate text-left">{m['nav.search_placeholder']()}</span>
-		<kbd
-			class="hidden shrink-0 rounded border border-border bg-background px-1.5 py-0.5 text-[10px] lg:inline-block"
-			>Ctrl K</kbd
-		>
+		<span class="hidden shrink-0 items-center gap-0.5 lg:flex">
+			<kbd
+				class="rounded border border-border bg-background px-1.5 py-0.5 font-sans text-[10px] font-medium"
+				>Ctrl</kbd
+			>
+			<kbd
+				class="rounded border border-border bg-background px-1.5 py-0.5 font-sans text-[10px] font-medium"
+				>K</kbd
+			>
+		</span>
 	</Button>
 
 	<Button

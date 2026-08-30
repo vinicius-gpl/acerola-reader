@@ -47,6 +47,7 @@
 	"search": {
 		"title": "Search",
 		"placeholder": "Type to search...",
+		"idle": "Type to search the whole documentation.",
 		"no_results": "No results found.",
 		"close": "Close",
 		"loading": "Loading search index...",
@@ -54,6 +55,19 @@
 	},
 	"toc": {
 		"title": "On this page"
+	},
+	"doc": {
+		"copy_markdown": "Copy page as Markdown",
+		"copy_markdown_copied": "Copied"
+	},
+	"mermaid": {
+		"zoom_in": "Zoom in",
+		"zoom_out": "Zoom out",
+		"reset": "Reset",
+		"pan_up": "Pan up",
+		"pan_down": "Pan down",
+		"pan_left": "Pan left",
+		"pan_right": "Pan right"
 	},
 	"prev_next": {
 		"previous": "Previous",

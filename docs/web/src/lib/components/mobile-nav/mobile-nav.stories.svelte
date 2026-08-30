@@ -11,6 +11,7 @@
 					locale: 'pt-br',
 					slug: 'getting-started',
 					component: {} as never,
+					raw: '',
 					frontmatter: { title: 'Primeiros passos', section: 'Primeiros passos', order: 1 }
 				}
 			]
@@ -22,6 +23,7 @@
 					locale: 'pt-br',
 					slug: 'architecture',
 					component: {} as never,
+					raw: '',
 					frontmatter: { title: 'Arquitetura', section: 'Conceitos', order: 1 }
 				}
 			]
