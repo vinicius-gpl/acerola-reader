@@ -47,6 +47,7 @@
 	"search": {
 		"title": "Pesquisar",
 		"placeholder": "Digite para pesquisar...",
+		"idle": "Digite para buscar em toda a documentação.",
 		"no_results": "Nenhum resultado encontrado.",
 		"close": "Fechar",
 		"loading": "Carregando índice de busca...",

@@ -47,6 +47,7 @@
 	"search": {
 		"title": "Search",
 		"placeholder": "Type to search...",
+		"idle": "Type to search the whole documentation.",
 		"no_results": "No results found.",
 		"close": "Close",
 		"loading": "Loading search index...",
