@@ -99,7 +99,9 @@ describe('AcerolaReaderViewport', () => {
 		const zoomController = zoom({
 			zoomLayerStyle: 'transform: translate3d(10px, 20px, 0) scale(1.5);'
 		});
-		const { container } = render(AcerolaReaderViewport, { props: props('vertical', zoomController) });
+		const { container } = render(AcerolaReaderViewport, {
+			props: props('vertical', zoomController)
+		});
 
 		expect(container.querySelector('main > div')).toHaveAttribute(
 			'style',
