@@ -56,6 +56,10 @@
 	"toc": {
 		"title": "On this page"
 	},
+	"doc": {
+		"copy_markdown": "Copy page as Markdown",
+		"copy_markdown_copied": "Copied"
+	},
 	"mermaid": {
 		"zoom_in": "Zoom in",
 		"zoom_out": "Zoom out",

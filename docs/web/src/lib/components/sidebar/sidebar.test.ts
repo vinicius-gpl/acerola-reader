@@ -15,6 +15,7 @@ function makeGroups(): SidebarGroup[] {
 					locale: 'pt-br',
 					slug: 'getting-started',
 					component: {} as never,
+					raw: '',
 					frontmatter: { title: 'Guia de instalação', section: 'Primeiros passos', order: 1 }
 				}
 			]
@@ -26,6 +27,7 @@ function makeGroups(): SidebarGroup[] {
 					locale: 'pt-br',
 					slug: 'architecture',
 					component: {} as never,
+					raw: '',
 					frontmatter: { title: 'Visão geral da arquitetura', section: 'Conceitos', order: 1 }
 				}
 			]

@@ -8,6 +8,7 @@ function makeDoc(slug: string, title: string): DocEntry {
 		locale: 'pt-br',
 		slug,
 		component: {} as never,
+		raw: '',
 		frontmatter: { title, section: 'Docs', order: 1 }
 	};
 }

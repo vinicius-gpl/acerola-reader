@@ -6,9 +6,12 @@
 	import MinusIcon from '@lucide/svelte/icons/minus';
 	import PlusIcon from '@lucide/svelte/icons/plus';
 	import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
+	import { page } from '$app/state';
+	import CopyMarkdownButton from '$lib/components/copy-markdown-button/copy-markdown-button.svelte';
+	import { DOC_RAW_CONTEXT_KEY, type DocRawContext } from '$lib/content/doc-raw-context';
 	import { useTheme } from '$lib/hooks/theme/use-theme.svelte';
 	import { m } from '$lib/paraglide/messages';
-	import { mount, type Snippet } from 'svelte';
+	import { getContext, mount, type Snippet } from 'svelte';
 
 	let {
 		title,
@@ -17,6 +20,7 @@
 	}: { title?: string; description?: string; children: Snippet } = $props();
 
 	const themeCtx = useTheme();
+	const docRaw = getContext<DocRawContext | undefined>(DOC_RAW_CONTEXT_KEY);
 	let container = $state<HTMLElement>();
 
 	const MIN_SCALE = 0.5;
@@ -177,7 +181,17 @@
 
 <article bind:this={container} class="doc-content max-w-none">
 	{#if title}
-		<h1 class="mb-2 font-heading text-4xl font-semibold">{title}</h1>
+		<div class="mb-2 flex items-center gap-2">
+			<h1 class="font-heading text-4xl font-semibold">{title}</h1>
+			{#if docRaw}
+				<CopyMarkdownButton
+					raw={docRaw.value}
+					url={page.url.href}
+					label={m['doc.copy_markdown']()}
+					copiedLabel={m['doc.copy_markdown_copied']()}
+				/>
+			{/if}
+		</div>
 	{/if}
 	{#if description}
 		<p class="mb-8 text-lg text-muted-foreground">{description}</p>
