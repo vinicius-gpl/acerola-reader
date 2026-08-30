@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import { m } from '$lib/paraglide/messages';
 	import { cn } from '$lib/cn.util';
 
@@ -10,8 +11,16 @@
 	let activeId = $state<string | null>(null);
 
 	$effect(() => {
+		// Lê a rota atual só para forçar o efeito a rodar de novo a cada navegação
+		// entre páginas de doc — o container `.doc-content` não é remontado porque
+		// o Toc vive no layout, então sem essa dependência os headings ficam presos
+		// na primeira página visitada.
+		page.url.pathname;
+
 		const container = document.querySelector(containerSelector);
 		if (!container) return;
+
+		activeId = null;
 
 		const nodes = [...container.querySelectorAll('h2, h3')] as HTMLElement[];
 		headings = nodes

@@ -57,8 +57,11 @@
 		"title": "On this page"
 	},
 	"doc": {
-		"copy_markdown": "Copy page as Markdown",
-		"copy_markdown_copied": "Copied"
+		"copy": {
+			"markdown": "Copy page as Markdown",
+			"copied": "Copied",
+			"failed": "Couldn't copy"
+		}
 	},
 	"mermaid": {
 		"zoom_in": "Zoom in",

@@ -57,8 +57,11 @@
 		"title": "Nesta página"
 	},
 	"doc": {
-		"copy_markdown": "Copiar página como Markdown",
-		"copy_markdown_copied": "Copiado"
+		"copy": {
+			"markdown": "Copiar página como Markdown",
+			"copied": "Copiado",
+			"failed": "Não foi possível copiar"
+		}
 	},
 	"mermaid": {
 		"zoom_in": "Aumentar zoom",
