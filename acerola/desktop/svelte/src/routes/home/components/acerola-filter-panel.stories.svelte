@@ -11,7 +11,16 @@
 
 	const { Story } = defineMeta({
 		component: AcerolaFilterPanel,
-		title: 'Páginas/Home/AcerolaFilterPanel'
+		title: 'Páginas/Home/AcerolaFilterPanel',
+		tags: ['autodocs'],
+		parameters: {
+			docs: {
+				description: {
+					component:
+						'Painel de filtros e ordenação da biblioteca: ordem, exibição de ocultos, fonte de metadados e categoria de marcação.'
+				}
+			}
+		}
 	});
 </script>
 

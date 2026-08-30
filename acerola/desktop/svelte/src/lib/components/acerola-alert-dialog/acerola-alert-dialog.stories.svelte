@@ -5,7 +5,16 @@
 
 	const { Story } = defineMeta({
 		component: AcerolaAlertDialog,
-		title: 'Primitivos/AcerolaAlertDialog'
+		title: 'Primitivos/AcerolaAlertDialog',
+		tags: ['autodocs'],
+		parameters: {
+			docs: {
+				description: {
+					component:
+						'Diálogo de confirmação com ações de cancelar/confirmar, usado antes de ações destrutivas ou irreversíveis.'
+				}
+			}
+		}
 	});
 </script>
 

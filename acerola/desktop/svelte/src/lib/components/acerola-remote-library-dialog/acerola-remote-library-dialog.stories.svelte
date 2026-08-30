@@ -11,7 +11,16 @@
 
 	const { Story } = defineMeta({
 		component: AcerolaRemoteLibraryDialog,
-		title: 'Compositores/AcerolaRemoteLibraryDialog'
+		title: 'Compositores/AcerolaRemoteLibraryDialog',
+		tags: ['autodocs'],
+		parameters: {
+			docs: {
+				description: {
+					component:
+						'Diálogo que lista a biblioteca de quadrinhos de um peer remoto, com estados de carregamento, erro, vazio e sincronização.'
+				}
+			}
+		}
 	});
 </script>
 

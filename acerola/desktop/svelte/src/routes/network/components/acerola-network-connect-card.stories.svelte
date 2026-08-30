@@ -4,7 +4,16 @@
 
 	const { Story } = defineMeta({
 		component: AcerolaNetworkConnectCard,
-		title: 'Páginas/Network/AcerolaNetworkConnectCard'
+		title: 'Páginas/Network/AcerolaNetworkConnectCard',
+		tags: ['autodocs'],
+		parameters: {
+			docs: {
+				description: {
+					component:
+						'Cartão para iniciar a conexão com um peer a partir de um código de pareamento.'
+				}
+			}
+		}
 	});
 </script>
 

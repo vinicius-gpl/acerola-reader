@@ -11,7 +11,16 @@
 
 	const { Story } = defineMeta({
 		component: AcerolaComicActionDialog,
-		title: 'Páginas/Home/AcerolaComicActionDialog'
+		title: 'Páginas/Home/AcerolaComicActionDialog',
+		tags: ['autodocs'],
+		parameters: {
+			docs: {
+				description: {
+					component:
+						'Diálogo de ações em lote para quadrinhos selecionados: ocultar, deletar, limpar metadados e marcar em uma categoria.'
+				}
+			}
+		}
 	});
 </script>
 

@@ -5,6 +5,15 @@
 	const { Story } = defineMeta({
 		title: 'Páginas/Comic/AcerolaComicVolumeButton',
 		component: AcerolaComicVolumeButton,
+		tags: ['autodocs'],
+		parameters: {
+			docs: {
+				description: {
+					component:
+						'Botão que representa um volume de quadrinho na lista, com variações de capa, banner e estado expandido.'
+				}
+			}
+		},
 		argTypes: {
 			data: { control: 'object' },
 			events: { control: 'object' }
