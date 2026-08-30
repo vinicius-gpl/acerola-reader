@@ -29,4 +29,22 @@ describe('Card (mdsvex)', () => {
 
 		expect(screen.getByRole('link')).toHaveAttribute('href', '/docs/getting-started');
 	});
+
+	it('does not open internal links in a new tab', () => {
+		render(Card, {
+			props: { title: 'Getting Started', href: '/docs/getting-started' }
+		});
+
+		expect(screen.getByRole('link')).not.toHaveAttribute('target');
+	});
+
+	it('opens external links in a new tab without leaking a referrer', () => {
+		render(Card, {
+			props: { title: 'Storybook', href: 'https://storybook-web.acerola-comic.com' }
+		});
+
+		const link = screen.getByRole('link');
+		expect(link).toHaveAttribute('target', '_blank');
+		expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+	});
 });

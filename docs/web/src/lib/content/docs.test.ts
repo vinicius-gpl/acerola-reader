@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { FALLBACK_LOCALE, getDoc, getFlatOrder, getPrevNext, getSidebar } from './docs';
 
-// Real content lives at src/content/docs/{en,pt-br}/{architecture,getting-started}.md — only
-// these two docs exist per locale, each alone in its own section. Tests below avoid hardcoding
-// which of the two ends up first in glob order and instead assert on the relative/boundary
-// behavior described by the module's contract.
+// Real content lives at src/content/docs/{en,pt-br}/*.md and grows over time — tests below
+// avoid hardcoding the doc count or which slug ends up first in glob order, and instead assert
+// on the relative/boundary behavior described by the module's contract.
 
 describe('FALLBACK_LOCALE', () => {
 	it('is pt-br', () => {
@@ -38,15 +37,36 @@ describe('getDoc', () => {
 });
 
 describe('getSidebar', () => {
-	it('groups the two known docs into their own sections', () => {
+	it('groups every doc under its frontmatter section, with no doc lost or duplicated', () => {
 		const sidebar = getSidebar('pt-br');
 		const allDocs = sidebar.flatMap((group) => group.docs);
 
-		expect(allDocs).toHaveLength(2);
-		expect(sidebar.every((group) => group.docs.length === 1)).toBe(true);
-		expect(sidebar.map((group) => group.section).sort()).toEqual(
-			['Conceitos', 'Primeiros passos'].sort()
-		);
+		expect(allDocs.length).toBeGreaterThan(0);
+		expect(new Set(allDocs.map((doc) => doc.slug)).size).toBe(allDocs.length);
+		expect(sidebar.every((group) => group.docs.length > 0)).toBe(true);
+	});
+
+	it('puts Getting Started first and Contributing right after it', () => {
+		const sections = getSidebar('pt-br').map((group) => group.section);
+
+		expect(sections[0]).toBe('Primeiros passos');
+		expect(sections[1]).toBe('Contribuindo');
+	});
+
+	it('sorts sections not in the canonical order after the ones that are', () => {
+		const sections = getSidebar('pt-br').map((group) => group.section);
+		const canonical = [
+			'Primeiros passos',
+			'Contribuindo',
+			'Conceitos',
+			'Privacidade',
+			'Bibliotecas'
+		];
+		const canonicalPositions = canonical
+			.map((section) => sections.indexOf(section))
+			.filter((index) => index !== -1);
+
+		expect(canonicalPositions).toEqual([...canonicalPositions].sort((a, b) => a - b));
 	});
 
 	it('falls back to FALLBACK_LOCALE sections for an unknown locale', () => {
@@ -55,10 +75,24 @@ describe('getSidebar', () => {
 });
 
 describe('getFlatOrder', () => {
-	it('flattens the sidebar groups into a single ordered list of both docs', () => {
+	it('flattens every sidebar group into a single list with no doc lost or duplicated', () => {
+		const sidebar = getSidebar('pt-br');
 		const flat = getFlatOrder('pt-br');
-		expect(flat).toHaveLength(2);
-		expect(flat.map((doc) => doc.slug).sort()).toEqual(['architecture', 'getting-started']);
+
+		expect(flat).toHaveLength(sidebar.flatMap((group) => group.docs).length);
+		expect(flat.map((doc) => doc.slug).sort()).toEqual(
+			sidebar
+				.flatMap((group) => group.docs)
+				.map((doc) => doc.slug)
+				.sort()
+		);
+	});
+
+	it('starts with the first doc of the first section', () => {
+		const [firstSection] = getSidebar('pt-br');
+		const [firstDoc] = getFlatOrder('pt-br');
+
+		expect(firstDoc.slug).toBe(firstSection.docs[0].slug);
 	});
 });
 
@@ -71,11 +105,13 @@ describe('getPrevNext', () => {
 		expect(next?.slug).toBe(second.slug);
 	});
 
-	it('gives the last doc the first doc as prev and a null next', () => {
-		const [first, second] = getFlatOrder('pt-br');
-		const { prev, next } = getPrevNext('pt-br', second.slug);
+	it('gives the last doc the second-to-last doc as prev and a null next', () => {
+		const flat = getFlatOrder('pt-br');
+		const last = flat[flat.length - 1];
+		const secondToLast = flat[flat.length - 2];
+		const { prev, next } = getPrevNext('pt-br', last.slug);
 
-		expect(prev?.slug).toBe(first.slug);
+		expect(prev?.slug).toBe(secondToLast.slug);
 		expect(next).toBeNull();
 	});
 
