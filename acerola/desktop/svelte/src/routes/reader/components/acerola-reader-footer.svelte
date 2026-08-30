@@ -1,5 +1,5 @@
 <script module lang="ts">
-	import type { ReaderMode } from '../hooks/acerola-use-reader-zoom.svelte';
+	import type { ReaderMode } from '../hooks/use-reader-zoom.svelte';
 
 	export type ReaderFooterProps = {
 		data: {

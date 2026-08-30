@@ -1,6 +1,6 @@
 <script lang="ts" module>
 	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import type { ReaderZoomController } from '../hooks/acerola-use-reader-zoom.svelte';
+	import type { ReaderZoomController } from '../hooks/use-reader-zoom.svelte';
 	import ReaderViewport from './acerola-reader-viewport.svelte';
 
 	const { Story } = defineMeta({

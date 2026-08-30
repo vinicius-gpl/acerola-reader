@@ -24,7 +24,7 @@
 		isReaderEditableTarget,
 		type ReaderMode,
 		useReaderZoom
-	} from './hooks/acerola-use-reader-zoom.svelte';
+	} from './hooks/use-reader-zoom.svelte';
 
 	const reader = useReader();
 	const zoom = useReaderZoom();

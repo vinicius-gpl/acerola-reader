@@ -1,7 +1,7 @@
 import { render } from '@testing-library/svelte';
 import { tick } from 'svelte';
 import { describe, expect, it, vi } from 'vitest';
-import { isReaderEditableTarget, useReaderZoom } from './acerola-use-reader-zoom.svelte';
+import { isReaderEditableTarget, useReaderZoom } from './use-reader-zoom.svelte';
 import ReaderZoomHarness from '../../../../tests/harness/hooks/reader-zoom.svelte';
 
 async function renderHook() {

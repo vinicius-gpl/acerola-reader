@@ -1,7 +1,7 @@
 <script module lang="ts">
 	import type { ReaderCachedPagePayload } from '$lib/contracts/reader/reader.payloads';
 	import type { Action } from 'svelte/action';
-	import type { ReaderMode } from '../hooks/acerola-use-reader-zoom.svelte';
+	import type { ReaderMode } from '../hooks/use-reader-zoom.svelte';
 
 	export type ReaderPageTracker = Action<HTMLElement, number>;
 

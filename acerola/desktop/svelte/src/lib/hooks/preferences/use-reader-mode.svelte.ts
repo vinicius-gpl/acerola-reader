@@ -1,6 +1,6 @@
 import { STORE_FILE, STORE_KEYS } from '$lib/constants/store-plugin';
 import { load } from '@tauri-apps/plugin-store';
-import type { ReaderMode } from '../../../routes/reader/hooks/acerola-use-reader-zoom.svelte';
+import type { ReaderMode } from '../../../routes/reader/hooks/use-reader-zoom.svelte';
 
 export function useReaderMode() {
 	let readerMode = $state<ReaderMode>('vertical');
