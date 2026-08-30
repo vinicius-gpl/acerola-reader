@@ -94,7 +94,7 @@
 				placeholder={m['search.placeholder']()}
 			>
 				{#snippet child({ props })}
-					<InputGroup.Input {...props} />
+					<InputGroup.Input {...props} bind:value={query} />
 				{/snippet}
 			</CommandPrimitive.Input>
 		</InputGroup.Root>
@@ -122,11 +122,7 @@
 			</Command.Empty>
 		{:else}
 			{#each results as result (result.url)}
-				<Command.LinkItem
-					href={result.url}
-					onclick={() => (open = false)}
-					class="rounded-lg py-2"
-				>
+				<Command.LinkItem href={result.url} onclick={() => (open = false)} class="rounded-lg py-2">
 					<FileTextIcon size={16} class="mt-0.5 shrink-0 self-start" />
 					<div class="flex min-w-0 flex-col gap-0.5">
 						<span class="truncate font-medium">{result.meta?.title ?? result.url}</span>
