@@ -20,5 +20,10 @@ test.describe('search dialog', () => {
 		const result = dialog.locator('a[href*="/docs/architecture"]');
 		await expect(result).toBeVisible({ timeout: 20_000 });
 		await expect(result).toContainText('Arquitetura');
+
+		// O Pagefind indexa o build estático e devolve a URL do arquivo real
+		// (ex.: "/docs/architecture.html"), mas as rotas do SvelteKit servem sem
+		// extensão — um href com ".html" aqui é 404 em produção.
+		await expect(result).not.toHaveAttribute('href', /\.html$/);
 	});
 });
