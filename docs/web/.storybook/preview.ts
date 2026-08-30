@@ -1,6 +1,13 @@
 /// <reference types="vite/client" />
 import type { Preview } from '@storybook/sveltekit';
+import { overwriteSetLocale } from '$lib/paraglide/runtime';
 import './storybook.css';
+
+// setLocale() real navega/recarrega a página (ver src/lib/paraglide/runtime.js) — dentro do
+// preview do Storybook isso navega o iframe pra uma URL que não existe no build estático,
+// quebrando a página (AcerolaNavControls/AcerolaTopNav). overwriteSetLocale é o hook oficial
+// do paraglide pra isso, então nenhum componente precisa saber que está rodando no Storybook.
+overwriteSetLocale(() => {});
 
 const DARK_THEMES = ['catppuccin-mocha', 'nord-dark', 'dracula', 'tokyo-night-storm'];
 

@@ -2,6 +2,9 @@
 	import { defineMeta } from '@storybook/addon-svelte-csf';
 	import AcerolaFaultyTerminal from './acerola-faulty-terminal.svelte';
 
+	// O componente é `h-full w-full` (pensado pra preencher um ancestral com altura definida,
+	// como o hero da landing page) — por isso o template das stories abaixo o envolve num
+	// container com altura fixa; sem isso ele colapsa pra 0px e não aparece no canvas.
 	const { Story } = defineMeta({
 		title: 'Primitivos/AcerolaFaultyTerminal',
 		component: AcerolaFaultyTerminal,
@@ -57,6 +60,12 @@
 	});
 </script>
 
+{#snippet template(args: Record<string, unknown>)}
+	<div class="relative h-64 w-full overflow-hidden bg-crust">
+		<AcerolaFaultyTerminal {...args} />
+	</div>
+{/snippet}
+
 <Story
 	name="Default"
 	args={{ tint: '#cba6f7' }}
@@ -67,6 +76,7 @@
 			}
 		}
 	}}
+	{template}
 />
 
 <Story
@@ -79,4 +89,5 @@
 			}
 		}
 	}}
+	{template}
 />
