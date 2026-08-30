@@ -3,7 +3,8 @@
 	import ColorPicker from '$lib/components/color-picker/color-picker.svelte';
 	import ThemePicker from '$lib/components/theme-picker/theme-picker.svelte';
 	import GithubIcon from '$lib/icons/github.svelte';
-	import { GITHUB_URL } from '$lib/constants/site';
+	import BookOpenIcon from '@lucide/svelte/icons/book-open';
+	import { GITHUB_URL, STORYBOOK_WEB_URL, STORYBOOK_DESKTOP_URL } from '$lib/constants/site';
 	import { m } from '$lib/paraglide/messages';
 	import { getLocale, locales, setLocale, type Locale } from '$lib/paraglide/runtime';
 
@@ -20,6 +21,26 @@
 	</Button>
 	<ThemePicker />
 	<ColorPicker />
+	<Button
+		variant="ghost"
+		size="icon"
+		href={STORYBOOK_WEB_URL}
+		target="_blank"
+		rel="noreferrer"
+		aria-label={m['nav.storybook_web']()}
+	>
+		<BookOpenIcon size={17} />
+	</Button>
+	<Button
+		variant="ghost"
+		size="icon"
+		href={STORYBOOK_DESKTOP_URL}
+		target="_blank"
+		rel="noreferrer"
+		aria-label={m['nav.storybook_desktop']()}
+	>
+		<BookOpenIcon size={17} />
+	</Button>
 	<Button
 		variant="ghost"
 		size="icon"

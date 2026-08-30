@@ -11,6 +11,8 @@
 	"nav": {
 		"docs": "Docs",
 		"github": "GitHub",
+		"storybook_web": "Storybook (Web)",
+		"storybook_desktop": "Storybook (Desktop)",
 		"search_placeholder": "Pesquisar na documentação...",
 		"search_shortcut_hint": "Buscar",
 		"menu_toggle": "Alternar menu",
