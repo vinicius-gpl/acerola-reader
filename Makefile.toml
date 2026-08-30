@@ -49,9 +49,9 @@ script_extension = "js"
 script = '''
 const fs = require("fs");
 const pkgPath = "docs/web/package.json";
-const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
-pkg.version = process.env.VERSION;
-fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n");
+let pkg = fs.readFileSync(pkgPath, "utf8");
+pkg = pkg.replace(/^(\s*)"version":\s*".*"/m, `$1"version": "${process.env.VERSION}"`);
+fs.writeFileSync(pkgPath, pkg);
 '''
 
 [tasks.bump-p2p]

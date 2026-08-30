@@ -32,7 +32,11 @@
 </script>
 
 <Card.Root class="flex-row items-center justify-between gap-3 py-3">
-	<Card.Header class="gap-0.5 px-4">
+	<!-- Card.Header (ui/) tem `@container/card-header` (container-type: inline-size) — como
+	     item de flex-row, isso zera o tamanho mínimo automático do container e faz o valor
+	     quebrar linha bem antes do necessário, mesmo sobrando espaço no card. Desativado só
+	     aqui via override de classe, sem editar ui/. -->
+	<Card.Header class="[container-type:normal] min-w-0 gap-0.5 px-4">
 		<Card.Title class="text-sm font-semibold">{label}</Card.Title>
 		<Card.Description>
 			{#if href}
