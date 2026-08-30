@@ -5,7 +5,7 @@
 	import AcerolaPopover from '$lib/components/acerola-popover/acerola-popover.svelte';
 	import AcerolaSwitch from '$lib/components/acerola-switch/acerola-switch.svelte';
 	import { Button } from '$lib/components/ui/button';
-	import ThemePicker from './components/theme-picker.svelte';
+	import ThemePicker from './components/acerola-theme-picker.svelte';
 
 	import * as Command from '$lib/components/ui/command';
 	import { LANGUAGES, type LanguageCode } from '$lib/constants/languages';

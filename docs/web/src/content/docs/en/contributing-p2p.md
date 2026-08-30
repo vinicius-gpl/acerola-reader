@@ -6,7 +6,7 @@ order: 4
 ---
 
 <script>
-	import Callout from '$lib/mdsvex/callout.svelte';
+	import Callout from '$lib/components/acerola-callout/acerola-callout.svelte';
 </script>
 
 `lib/p2p` is the ecosystem's central P2P library, shared between Desktop and Android (iOS in the future). Built on [iroh](https://github.com/n0-computer/iroh) (QUIC / TLS 1.3) with the [Tokio](https://tokio.rs) async runtime.

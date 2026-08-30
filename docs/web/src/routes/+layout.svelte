@@ -1,8 +1,8 @@
 <script lang="ts">
 	import '$theme/layout.css';
-	import MobileNav from '$lib/components/mobile-nav/mobile-nav.svelte';
-	import SearchDialog from '$lib/components/search-dialog/search-dialog.svelte';
-	import TopNav from '$lib/components/top-nav/top-nav.svelte';
+	import AcerolaMobileNav from '$lib/components/acerola-mobile-nav/acerola-mobile-nav.svelte';
+	import AcerolaSearchDialog from '$lib/components/acerola-search-dialog/acerola-search-dialog.svelte';
+	import AcerolaTopNav from '$lib/components/acerola-top-nav/acerola-top-nav.svelte';
 	import { GITHUB_URL, OG_IMAGE_URL, SITE_URL } from '$lib/constants/site';
 	import { getSidebar } from '$lib/content/docs';
 	import { m } from '$lib/paraglide/messages';
@@ -106,8 +106,11 @@
 	{@html jsonLdScript}
 </svelte:head>
 
-<TopNav onOpenSearch={() => (searchOpen = true)} onOpenMobileNav={() => (mobileNavOpen = true)} />
-<SearchDialog bind:open={searchOpen} />
-<MobileNav bind:open={mobileNavOpen} {groups} {activeSlug} />
+<AcerolaTopNav
+	onOpenSearch={() => (searchOpen = true)}
+	onOpenMobileNav={() => (mobileNavOpen = true)}
+/>
+<AcerolaSearchDialog bind:open={searchOpen} />
+<AcerolaMobileNav bind:open={mobileNavOpen} {groups} {activeSlug} />
 
 {@render children()}
