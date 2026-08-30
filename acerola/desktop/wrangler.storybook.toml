@@ -1,0 +1,9 @@
+name = "acerola-storybook-desktop"
+compatibility_date = "2024-09-23"
+
+routes = [
+	{ pattern = "storybook-desktop.acerola-comic.com", custom_domain = true }
+]
+
+[assets]
+directory = "storybook-static"
