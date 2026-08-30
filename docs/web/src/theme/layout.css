@@ -73,3 +73,82 @@ figure[data-rehype-pretty-code-figure] code[data-line-numbers] > [data-line]::be
 .doc-content h4 .heading-anchor {
 	@apply scroll-mt-24;
 }
+
+/* Prosa do conteúdo em markdown — não usamos @tailwindcss/typography porque seu
+   `prose` é baseado em uma paleta cinza fixa, e o site troca entre 4 paletas de
+   cor (Catppuccin/Nord/Dracula/Tokyo Night) via essas custom properties. */
+.doc-content :where(h2) {
+	@apply mt-10 mb-4 font-heading text-2xl font-semibold first:mt-0;
+}
+
+.doc-content :where(h3) {
+	@apply mt-8 mb-3 font-heading text-xl font-semibold;
+}
+
+.doc-content :where(h4) {
+	@apply mt-6 mb-2 font-heading text-lg font-semibold;
+}
+
+.doc-content :where(p) {
+	@apply my-4 leading-relaxed text-foreground;
+}
+
+.doc-content :where(a):not(.heading-anchor) {
+	@apply text-primary underline underline-offset-4 hover:text-primary/80;
+}
+
+.doc-content :where(ul, ol) {
+	@apply my-4 ml-6 space-y-1.5;
+}
+
+.doc-content :where(ul) {
+	@apply list-disc;
+}
+
+.doc-content :where(ol) {
+	@apply list-decimal;
+}
+
+.doc-content :where(li) {
+	@apply leading-relaxed;
+}
+
+.doc-content :where(li > ul, li > ol) {
+	@apply my-1.5;
+}
+
+.doc-content :where(strong) {
+	@apply font-semibold text-foreground;
+}
+
+.doc-content :where(blockquote) {
+	@apply my-6 border-l-4 border-border pl-4 text-muted-foreground italic;
+}
+
+.doc-content :where(hr) {
+	@apply my-8 border-border;
+}
+
+.doc-content :where(table) {
+	@apply my-6 w-full border-collapse overflow-hidden rounded-lg border border-border text-sm;
+}
+
+.doc-content :where(thead) {
+	@apply bg-muted;
+}
+
+.doc-content :where(th) {
+	@apply border-b border-border px-4 py-2.5 text-left font-semibold text-foreground;
+}
+
+.doc-content :where(td) {
+	@apply border-b border-border px-4 py-2.5 align-top text-foreground;
+}
+
+.doc-content :where(tbody tr:last-child td) {
+	@apply border-b-0;
+}
+
+.doc-content :where(tbody tr:hover) {
+	@apply bg-accent/50;
+}

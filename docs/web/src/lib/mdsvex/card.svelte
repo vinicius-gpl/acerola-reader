@@ -16,6 +16,8 @@
 		class?: string;
 		children?: Snippet;
 	} = $props();
+
+	const isExternal = $derived(href?.startsWith('http') ?? false);
 </script>
 
 {#snippet body()}
@@ -39,7 +41,12 @@
 {/snippet}
 
 {#if href}
-	<a {href} class="group contents">
+	<a
+		{href}
+		target={isExternal ? '_blank' : undefined}
+		rel={isExternal ? 'noopener noreferrer' : undefined}
+		class="group contents"
+	>
 		<Card.Root
 			class={['transition-colors group-hover:bg-accent group-hover:ring-primary/50', className]}
 		>

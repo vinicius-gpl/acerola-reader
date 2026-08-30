@@ -7,6 +7,8 @@ order: 1
 
 <script>
 	import Callout from '$lib/mdsvex/callout.svelte';
+	import CardGrid from '$lib/mdsvex/card-grid.svelte';
+	import Card from '$lib/mdsvex/card.svelte';
 </script>
 
 <Callout type="note" title="Fonte de verdade">
@@ -15,8 +17,10 @@ Esta página espelha o [`PRIVACY_POLICY.md`](https://github.com/Vinicius-Gabriel
 
 </Callout>
 
-**Controlador:** Vinícius Gabriel Pereira Leitão, desenvolvedor independente do aplicativo Acerola.
-**Contato:** contato@acerola-comic.com
+<CardGrid>
+	<Card title="Controlador">Vinícius Gabriel Pereira Leitão, desenvolvedor independente do aplicativo Acerola.</Card>
+	<Card title="Contato">contato@acerola-comic.com</Card>
+</CardGrid>
 
 ## 1. Natureza do aplicativo
 
@@ -28,14 +32,30 @@ Todos os dados gerados pelo uso do aplicativo (biblioteca, progresso de leitura,
 
 ## 3. Conectividade e sincronização entre dispositivos
 
-O Acerola sincroniza biblioteca, histórico e progresso de leitura diretamente entre os dispositivos do próprio usuário (ex.: desktop e Android), sem passar por uma conta ou banco de dados central. Essa sincronização é opcional e a forma como a conexão é estabelecida depende da configuração escolhida pelo usuário:
+O Acerola sincroniza biblioteca, histórico e progresso de leitura diretamente entre os dispositivos do próprio usuário, sem passar por uma conta ou banco de dados central. Essa sincronização é opcional. Para como cada modo funciona tecnicamente, veja [Arquitetura](/docs/architecture) — aqui o foco é o que cada um implica em termos de dados:
 
-- **Somente descoberta local (padrão, gratuito)**: os dispositivos se encontram via mDNS na mesma rede local (Wi-Fi/LAN). Nenhum dado de conectividade sai da rede local.
-- **Relay público do iroh**: quando os dispositivos não estão na mesma rede, o app pode usar a infraestrutura de relay pública do projeto [iroh](https://iroh.computer) para viabilizar a conexão (NAT traversal). O relay apenas retransmite tráfego QUIC criptografado ponta a ponta (TLS 1.3) entre os dispositivos — não tem acesso ao conteúdo da biblioteca, histórico ou progresso, mas, como em qualquer relay de rede, os endereços IP dos dispositivos conectados passam por essa infraestrutura de terceiros durante a retransmissão.
-- **Relay do próprio usuário (self-hosted)**: o usuário pode rodar sua própria instância do `acerola-relay` (código aberto, MPL-2.0) em uma VPS própria. Nesse modo, nenhuma infraestrutura de terceiros ou do desenvolvedor do Acerola participa da conexão — o usuário é o único operador do relay.
-- **Relay hospedado pelo Acerola (tier pago, opcional)**: alternativa paga em que o desenvolvedor do Acerola opera a infraestrutura de relay. Como nos demais modos, o conteúdo da biblioteca, histórico e progresso permanece criptografado ponta a ponta (TLS 1.3) e não é acessível ao relay — apenas metadados de conexão (endereços IP dos dispositivos, horário e volume de tráfego, necessários para rotear a conexão) passam pela infraestrutura do desenvolvedor enquanto a sincronização remota está em uso. Dados de pagamento da assinatura são tratados pelo provedor de pagamentos utilizado no momento da contratação — a política específica desse provedor será apresentada na tela de assinatura.
+<CardGrid>
+	<Card title="Somente descoberta local">
+		Padrão, gratuito. Nenhum dado de conectividade sai da rede local.
+	</Card>
+	<Card title="Relay público do iroh">
+		O relay retransmite apenas tráfego QUIC criptografado ponta a ponta (TLS 1.3) — não acessa o conteúdo, mas os endereços IP dos dispositivos passam pela infraestrutura de terceiros do <a href="https://iroh.computer" target="_blank" rel="noopener noreferrer">iroh</a> durante a retransmissão.
+	</Card>
+	<Card title="Relay do próprio usuário">
+		Rodando a própria instância do <code>acerola-relay</code> (MPL-2.0), nenhuma infraestrutura de terceiros ou do desenvolvedor do Acerola participa da conexão.
+	</Card>
+	<Card title="Relay hospedado pelo Acerola (pago)">
+		Conteúdo continua criptografado ponta a ponta; apenas metadados de conexão (IPs, horário, volume de tráfego) passam pela infraestrutura do desenvolvedor. Dados de pagamento são tratados pelo provedor de pagamentos usado na contratação.
+	</Card>
+</CardGrid>
 
-Em nenhum dos modos acima o conteúdo da biblioteca (arquivos, progresso, histórico) é armazenado em servidores de relay, sejam eles públicos, do usuário ou do desenvolvedor — o relay atua apenas como intermediário de tráfego de rede, nunca como local de armazenamento. O tratamento de metadados de conexão nesse contexto se baseia no legítimo interesse do controlador em viabilizar a funcionalidade de sincronização solicitada pelo usuário (Art. 7º, IX, LGPD); no caso do tier pago, a contratação em si se baseia no consentimento do usuário ao assinar o serviço (Art. 7º, I, LGPD).
+Em nenhum dos quatro modos o conteúdo da biblioteca (arquivos, progresso, histórico) é armazenado em servidores de relay — o relay atua só como intermediário de tráfego de rede.
+
+<Callout type="tip" title="Base legal">
+
+O tratamento de metadados de conexão se baseia no legítimo interesse do controlador em viabilizar a sincronização solicitada pelo usuário (Art. 7º, IX, LGPD); no tier pago, a contratação em si se baseia no consentimento do usuário ao assinar o serviço (Art. 7º, I, LGPD).
+
+</Callout>
 
 ## 4. Requisições a terceiros
 
@@ -47,10 +67,7 @@ Para busca de metadados e capas de obras, o aplicativo realiza requisições HTT
 
 O tratamento de dados nesse contexto se baseia no legítimo interesse do controlador em fornecer a funcionalidade solicitada pelo usuário (Art. 7º, IX, LGPD). Os dados retornados são usados apenas durante a execução do app e não são armazenados externamente por nós.
 
-Políticas de privacidade dos terceiros:
-
-- MangaDex: <https://mangadex.org/compliance/privacy>
-- AniList: <https://anilist.co/terms>
+Políticas de privacidade dos terceiros: [MangaDex](https://mangadex.org/compliance/privacy) · [AniList](https://anilist.co/terms)
 
 ## 5. Compartilhamento de dados
 

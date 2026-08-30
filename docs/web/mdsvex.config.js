@@ -37,6 +37,23 @@ function rehypeMermaid() {
 	};
 }
 
+// Markdown links to `http(s)://` targets navigate away from the docs entirely on
+// click — open those in a new tab so the reader never loses their place in the
+// sidebar. Internal links (`/docs/...`, `#anchor`) are left alone.
+function rehypeExternalLinks() {
+	return (tree) => {
+		visit(tree, 'element', (node) => {
+			if (node.tagName !== 'a') return;
+
+			const href = node.properties?.href;
+			if (typeof href !== 'string' || !/^https?:\/\//.test(href)) return;
+
+			node.properties.target = '_blank';
+			node.properties.rel = 'noopener noreferrer';
+		});
+	};
+}
+
 /** @type {import('mdsvex').MdsvexOptions} */
 const config = {
 	extensions: ['.md'],
@@ -50,6 +67,7 @@ const config = {
 		rehypeSlug,
 		[rehypeAutolinkHeadings, { behavior: 'wrap', properties: { class: 'heading-anchor' } }],
 		rehypeMermaid,
+		rehypeExternalLinks,
 		[
 			rehypePrettyCode,
 			{ theme: { light: 'github-light', dark: 'github-dark' }, keepBackground: false }

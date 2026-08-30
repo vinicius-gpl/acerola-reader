@@ -21,6 +21,25 @@ export type DocEntry = {
 
 export const FALLBACK_LOCALE = 'pt-br';
 
+// Section order in the sidebar isn't derived from anything structural (file names,
+// locales) — it has to be picked on purpose. Listed here in both locales so the
+// index lookup below works regardless of which one is active; anything not listed
+// falls back after these, in whatever order it was first encountered.
+const SECTION_ORDER = [
+	'Primeiros passos',
+	'Getting Started',
+	'Contribuindo',
+	'Contributing',
+	'Conceitos',
+	'Concepts',
+	'Privacidade',
+	'Privacy',
+	'Bibliotecas',
+	'Libraries',
+	'Docs externas',
+	'External docs'
+];
+
 const PATH_PATTERN = /^\/src\/content\/docs\/([^/]+)\/(.+)\.md$/;
 
 // Stryker disable next-line all -- `import.meta.glob` is a Vite build-time macro that
@@ -70,7 +89,16 @@ export function getSidebar(locale: string): SidebarGroup[] {
 		group.sort((a, b) => (a.frontmatter.order ?? 0) - (b.frontmatter.order ?? 0));
 	}
 
-	return [...bySection.entries()].map(([section, docs]) => ({ section, docs }));
+	return [...bySection.entries()]
+		.map(([section, docs]) => ({ section, docs }))
+		.sort((a, b) => {
+			const indexA = SECTION_ORDER.indexOf(a.section);
+			const indexB = SECTION_ORDER.indexOf(b.section);
+			if (indexA === -1 && indexB === -1) return 0;
+			if (indexA === -1) return 1;
+			if (indexB === -1) return -1;
+			return indexA - indexB;
+		});
 }
 
 export function getFlatOrder(locale: string): DocEntry[] {
