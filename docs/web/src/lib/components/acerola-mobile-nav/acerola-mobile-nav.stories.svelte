@@ -50,10 +50,27 @@
 	});
 </script>
 
+<script lang="ts">
+	// `open: true` como arg inicial faz o Sheet "nascer" já aberto — a lógica de "presence"
+	// do bits-ui que revela o conteúdo só roda numa transição fechado→aberto de verdade, então
+	// o painel nunca aparece (só o overlay em tela cheia, borrando a aba de Docs inteira atrás
+	// dele). Abrir via efeito, um instante após montar, gera essa transição de verdade.
+	let open = $state(false);
+
+	$effect(() => {
+		const raf = requestAnimationFrame(() => (open = true));
+		return () => cancelAnimationFrame(raf);
+	});
+</script>
+
 <Story
 	name="Open"
-	args={{ open: true, groups, activeSlug: 'architecture' }}
+	args={{ groups, activeSlug: 'architecture' }}
 	parameters={{
 		docs: { description: { story: 'Menu aberto, exibindo a navegacao completa e os controles.' } }
 	}}
-/>
+>
+	{#snippet template(args: { groups: SidebarGroup[]; activeSlug: string })}
+		<AcerolaMobileNav {...args} bind:open />
+	{/snippet}
+</Story>
