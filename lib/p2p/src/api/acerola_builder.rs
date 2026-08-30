@@ -1,6 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use secrecy::ExposeSecret;
+use tokio::sync::RwLock;
 
 use super::acerola_p2p::AcerolaP2p;
 use crate::{
@@ -166,11 +167,16 @@ impl<TB: TransportP2pBuilder> AcerolaP2pBuilder<TB> {
 
         Self::restore_cached_peers(self.storage.as_ref(), &state).await;
 
+        // Compartilhado com `AcerolaP2p` (não clonado por valor) — é essa referência comum que
+        // permite `set_local_device_name` valer no próximo handshake sem reconstruir os
+        // handlers nem reiniciar o node.
+        let device_info = Arc::new(RwLock::new(self.device_info));
+
         manager.register_inbound(
             b"acerola/handshake/1",
             Arc::new(RpcServerHandler::new(
                 Arc::clone(&self.emit),
-                self.device_info.clone(),
+                Arc::clone(&device_info),
                 Arc::clone(&state) as Arc<dyn DeviceInfoStore>,
             )),
         );
@@ -179,7 +185,7 @@ impl<TB: TransportP2pBuilder> AcerolaP2pBuilder<TB> {
             b"acerola/handshake/1",
             Arc::new(RpcClientHandler::new(
                 Arc::clone(&self.emit),
-                self.device_info.clone(),
+                Arc::clone(&device_info),
                 Arc::clone(&state) as Arc<dyn DeviceInfoStore>,
             )),
         );
@@ -198,7 +204,7 @@ impl<TB: TransportP2pBuilder> AcerolaP2pBuilder<TB> {
             local_id,
             local_addr,
             state,
-            device_info: self.device_info,
+            device_info,
             transport: transport as Arc<dyn P2pTransport>,
         })
     }

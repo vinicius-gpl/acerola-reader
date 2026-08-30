@@ -1,7 +1,10 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use tokio::io::{AsyncRead, AsyncWrite};
+use tokio::{
+    io::{AsyncRead, AsyncWrite},
+    sync::RwLock,
+};
 use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
 
 use super::{read_byte, read_device_info, write_byte, write_device_info, Recv, Writer, PING, PONG};
@@ -15,7 +18,9 @@ use crate::{
 
 pub struct RpcClientHandler {
     emit: EventEmitter,
-    local_info: DeviceInfo,
+    /// Compartilhado com `AcerolaP2p` (ver `set_local_device_name`) — mesma razão do campo
+    /// homônimo em `RpcServerHandler`.
+    local_info: Arc<RwLock<DeviceInfo>>,
     state: Arc<dyn DeviceInfoStore>,
 }
 
@@ -37,7 +42,7 @@ impl ProtocolHandler for RpcClientHandler {
 
 impl RpcClientHandler {
     pub fn new(
-        emit: EventEmitter, local_info: DeviceInfo, state: Arc<dyn DeviceInfoStore>,
+        emit: EventEmitter, local_info: Arc<RwLock<DeviceInfo>>, state: Arc<dyn DeviceInfoStore>,
     ) -> Self {
         Self { emit, local_info, state }
     }
@@ -62,7 +67,8 @@ impl RpcClientHandler {
     async fn exchange_device_info(
         &self, peer: &PeerId, send: &mut Writer, recv: &mut Recv,
     ) -> Result<(), ConnectionError> {
-        write_device_info(send, &self.local_info).await?;
+        let local_info = self.local_info.read().await.clone();
+        write_device_info(send, &local_info).await?;
         (self.emit)("rpc:device_info_sent", peer.id.clone());
 
         match read_device_info(recv).await {
@@ -115,6 +121,10 @@ mod tests {
         DeviceInfo { name: name.to_string(), os: "linux".to_string(), version: "0.0.1".to_string() }
     }
 
+    fn shared_device_info(name: &str) -> Arc<RwLock<DeviceInfo>> {
+        Arc::new(RwLock::new(make_device_info(name)))
+    }
+
     fn make_state() -> Arc<dyn DeviceInfoStore> {
         Arc::new(TestDeviceInfoStore::default())
     }
@@ -134,7 +144,7 @@ mod tests {
     async fn client_sends_ping_first() {
         let (client_side, server_side) = tokio::io::duplex(4096);
         let (emit, events) = capture_emitter();
-        let client = RpcClientHandler::new(emit, make_device_info("client"), make_state());
+        let client = RpcClientHandler::new(emit, shared_device_info("client"), make_state());
 
         let peer = make_peer("peer-1");
         let peer_clone = peer.clone();
@@ -169,7 +179,7 @@ mod tests {
     async fn client_terminates_if_wrong_byte_received_after_ping() {
         let (client_side, server_side) = tokio::io::duplex(4096);
         let (emit, _) = capture_emitter();
-        let client = RpcClientHandler::new(emit, make_device_info("client"), make_state());
+        let client = RpcClientHandler::new(emit, shared_device_info("client"), make_state());
 
         let peer = make_peer("peer-1");
         let client_task = tokio::spawn(async move {
@@ -200,7 +210,7 @@ mod tests {
         let (client_side, server_side) = tokio::io::duplex(4096);
         let (emit, _) = capture_emitter();
         let store = Arc::new(TestDeviceInfoStore::default());
-        let client = RpcClientHandler::new(emit, make_device_info("client"), store.clone());
+        let client = RpcClientHandler::new(emit, shared_device_info("client"), store.clone());
 
         let peer = make_peer("peer-1");
         let peer_clone = peer.clone();
@@ -238,7 +248,7 @@ mod tests {
     async fn handle_returns_ok_immediately_after_device_info_exchange() {
         let (client_side, server_side) = tokio::io::duplex(4096);
         let (emit, _) = capture_emitter();
-        let client = RpcClientHandler::new(emit, make_device_info("client"), make_state());
+        let client = RpcClientHandler::new(emit, shared_device_info("client"), make_state());
 
         let peer = make_peer("peer-1");
         let client_task = tokio::spawn(async move {

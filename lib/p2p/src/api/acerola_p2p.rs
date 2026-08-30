@@ -31,7 +31,7 @@ use crate::{
 pub struct AcerolaP2p {
     pub(super) command_tx: mpsc::Sender<NetworkCommand>,
     pub(super) state: Arc<RwLock<NetworkState>>,
-    pub(super) device_info: DeviceInfo,
+    pub(super) device_info: Arc<RwLock<DeviceInfo>>,
     pub(super) local_addr: PeerAddr,
     pub(super) local_id: PeerId,
     pub(super) transport: Arc<dyn P2pTransport>,
@@ -63,9 +63,18 @@ impl AcerolaP2p {
         self.local_id.device_id.as_deref()
     }
 
-    /// Retorna os metadados do dispositivo local informados no builder.
-    pub fn local_device_info(&self) -> &DeviceInfo {
-        &self.device_info
+    /// Retorna os metadados do dispositivo local informados no builder (ou o apelido
+    /// definido depois via [`Self::set_local_device_name`]).
+    pub async fn local_device_info(&self) -> DeviceInfo {
+        self.device_info.read().await.clone()
+    }
+
+    /// Sobrescreve o nome exibido do dispositivo local (ex: apelido custom estilo LocalSend em
+    /// vez do hostname). Vale a partir do próximo handshake — `RpcServerHandler`/
+    /// `RpcClientHandler` compartilham a mesma referência e leem o valor atual a cada troca de
+    /// `DeviceInfo`, então não é preciso reiniciar o node pra um peer novo já ver o nome novo.
+    pub async fn set_local_device_name(&self, name: String) {
+        self.device_info.write().await.name = name;
     }
 
     /// Pede ativamente ao daemon de gerência para abrir um pipe QUIC até um determinado Nó.
@@ -298,7 +307,7 @@ mod tests {
             .build()
             .await
             .unwrap();
-        assert_eq!(node.local_device_info().name, "my-pc");
+        assert_eq!(node.local_device_info().await.name, "my-pc");
     }
 
     #[tokio::test]
@@ -312,7 +321,7 @@ mod tests {
             .build()
             .await
             .unwrap();
-        assert_eq!(node.local_device_info().os, "windows");
+        assert_eq!(node.local_device_info().await.os, "windows");
     }
 
     #[tokio::test]
@@ -326,7 +335,7 @@ mod tests {
             .build()
             .await
             .unwrap();
-        assert_eq!(node.local_device_info().version, "2.3.1");
+        assert_eq!(node.local_device_info().await.version, "2.3.1");
     }
 
     #[tokio::test]
@@ -360,8 +369,26 @@ mod tests {
         .await
         .unwrap();
 
-        assert_ne!(node_a.local_device_info().name, node_b.local_device_info().name);
-        assert_ne!(node_a.local_device_info().os, node_b.local_device_info().os);
+        assert_ne!(node_a.local_device_info().await.name, node_b.local_device_info().await.name);
+        assert_ne!(node_a.local_device_info().await.os, node_b.local_device_info().await.os);
+    }
+
+    #[tokio::test]
+    async fn set_local_device_name_is_visible_immediately_without_rebuilding() {
+        let node = AcerolaP2p::builder(
+            no_op_emitter(),
+            IrohTransportBuilder::default(),
+            DeviceInfo { name: "old-name".to_string(), os: "linux".to_string(), version: "1.0.0".to_string() },
+        )
+        .build()
+        .await
+        .unwrap();
+
+        assert_eq!(node.local_device_info().await.name, "old-name");
+
+        node.set_local_device_name("new-name".to_string()).await;
+
+        assert_eq!(node.local_device_info().await.name, "new-name");
     }
 
     #[tokio::test]
