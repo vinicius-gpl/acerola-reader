@@ -10,11 +10,20 @@
 
 	const { Story } = defineMeta({
 		component: AcerolaPeerPicker,
-		title: 'Compositores/AcerolaPeerPicker'
+		title: 'Compositores/AcerolaPeerPicker',
+		tags: ['autodocs'],
+		parameters: {
+			docs: {
+				description: {
+					component:
+						'Diálogo para selecionar um peer pareado da rede, usado antes de ações que dependem de um dispositivo de destino.'
+				}
+			}
+		}
 	});
 </script>
 
-<Story name="With Peers">
+<Story name="With Peers" asChild>
 	{#snippet children()}
 		<div class="min-h-[300px] bg-surface p-8">
 			<AcerolaPeerPicker
@@ -26,7 +35,7 @@
 	{/snippet}
 </Story>
 
-<Story name="Empty">
+<Story name="Empty" asChild>
 	{#snippet children()}
 		<div class="min-h-[300px] bg-surface p-8">
 			<AcerolaPeerPicker

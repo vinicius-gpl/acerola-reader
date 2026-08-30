@@ -23,6 +23,7 @@
 </script>
 
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import * as ToggleGroup from '$lib/components/ui/toggle-group/index.js';
 
 	let { children, config, events, state: control, ui }: AcerolaToggleGroupProps = $props();
@@ -39,7 +40,7 @@
 
 		const nextValue = control.value;
 
-		if (nextValue !== lastValue) {
+		if (nextValue !== untrack(() => lastValue)) {
 			value = nextValue;
 			lastValue = nextValue;
 		}

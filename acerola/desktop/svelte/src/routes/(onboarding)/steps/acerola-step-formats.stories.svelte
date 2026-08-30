@@ -17,7 +17,7 @@
 </script>
 
 <Story name="Default" asChild>
-	<div class="h-96 bg-surface">
+	<div class="h-[720px] overflow-y-auto bg-surface">
 		<AcerolaStepFormats onNext={() => {}} onPrev={() => {}} />
 	</div>
 </Story>

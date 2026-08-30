@@ -13,6 +13,7 @@
 </script>
 
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import * as Command from '$lib/components/ui/command/index.js';
 
 	let { children, events, state: control }: AcerolaCommandProps = $props();
@@ -25,7 +26,7 @@
 
 		const nextValue = control.value;
 
-		if (nextValue !== lastValue) {
+		if (nextValue !== untrack(() => lastValue)) {
 			commandValue = nextValue;
 			lastValue = nextValue;
 		}

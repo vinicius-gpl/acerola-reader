@@ -24,6 +24,7 @@
 </script>
 
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import * as Popover from '$lib/components/ui/popover/index.js';
 
 	let {
@@ -42,7 +43,7 @@
 
 		const nextOpen = control.open;
 
-		if (nextOpen !== lastOpen) {
+		if (nextOpen !== untrack(() => lastOpen)) {
 			open = nextOpen;
 			lastOpen = nextOpen;
 		}

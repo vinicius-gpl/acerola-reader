@@ -32,11 +32,20 @@
 
 	const { Story } = defineMeta({
 		component: AcerolaNetworkTransfersLog,
-		title: 'Páginas/Network/AcerolaNetworkTransfersLog'
+		title: 'Páginas/Network/AcerolaNetworkTransfersLog',
+		tags: ['autodocs'],
+		parameters: {
+			docs: {
+				description: {
+					component:
+						'Log de transferências de rede em andamento e concluídas, com status por entrada (progresso, completo ou erro).'
+				}
+			}
+		}
 	});
 </script>
 
-<Story name="With Entries">
+<Story name="With Entries" asChild>
 	{#snippet children()}
 		<div class="max-w-md bg-surface p-8">
 			<AcerolaNetworkTransfersLog data={{ entries, peerLabel: () => 'Meu Celular' }} />
@@ -44,7 +53,7 @@
 	{/snippet}
 </Story>
 
-<Story name="Empty">
+<Story name="Empty" asChild>
 	{#snippet children()}
 		<div class="max-w-md bg-surface p-8">
 			<AcerolaNetworkTransfersLog data={{ entries: [], peerLabel: () => '' }} />
