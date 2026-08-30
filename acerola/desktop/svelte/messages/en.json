@@ -640,7 +640,15 @@
 				"relay_label": "Relay",
 				"relay_default": "default",
 				"relay_custom": "custom",
-				"copy_id": "Copy ID"
+				"copy_id": "Copy ID",
+				"rename": {
+					"action": "Rename device",
+					"placeholder": "This device's name",
+					"save": "Save",
+					"cancel": "Cancel",
+					"success": "Device name updated!",
+					"error": "Couldn't rename the device: {msg}"
+				}
 			},
 			"pairing": {
 				"title": "Connection code",

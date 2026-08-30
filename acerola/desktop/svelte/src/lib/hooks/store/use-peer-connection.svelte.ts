@@ -1,5 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+import { load } from '@tauri-apps/plugin-store';
+import { STORE_FILE, STORE_KEYS } from '$lib/constants/store-plugin';
 import { NETWORK_COMMANDS } from '$lib/contracts/network/network.commands';
 import { NETWORK_EVENTS } from '$lib/contracts/network/network.events';
 import type {
@@ -134,6 +136,21 @@ export function usePeerConnection() {
 		}
 	}
 
+	/// Define um apelido pro dispositivo local (estilo LocalSend, em vez do hostname
+	/// automático) — aplica na hora no node P2P (próximo handshake já usa o nome novo, sem
+	/// precisar reiniciar o app) e persiste em `settings.json` pra sobreviver a um restart.
+	async function setDeviceName(name: string) {
+		const trimmed = name.trim();
+		if (!trimmed) return;
+
+		await invoke(NETWORK_COMMANDS.setLocalDeviceName, { name: trimmed });
+		if (localDeviceInfo) localDeviceInfo = { ...localDeviceInfo, name: trimmed };
+
+		const store = await load(STORE_FILE);
+		await store.set(STORE_KEYS.deviceAlias, trimmed);
+		await store.save();
+	}
+
 	function getKnownAddr(peerId: string): number[] | undefined {
 		return knownAddrs.get(peerId);
 	}
@@ -167,6 +184,7 @@ export function usePeerConnection() {
 		connectionCode,
 		connectWithCode,
 		getKnownAddr,
+		setDeviceName,
 		removePeer,
 		peerLabel,
 		get localId() {

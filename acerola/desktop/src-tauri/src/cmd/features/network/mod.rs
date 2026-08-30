@@ -67,7 +67,23 @@ pub async fn get_local_addr(
 pub async fn get_local_device_info(
     service: State<'_, Arc<dyn NetworkServiceApi>>,
 ) -> Result<DeviceInfoPayload, String> {
-    Ok(DeviceInfoPayload::from(service.local_device_info()?))
+    Ok(DeviceInfoPayload::from(service.local_device_info().await?))
+}
+
+/// Define um apelido customizado pro dispositivo local (estilo LocalSend, em vez do hostname
+/// automático) — vale a partir do próximo handshake, sem precisar reiniciar o app. Persistência
+/// entre reinícios é responsabilidade do frontend (`settings.json`, chave `device_alias`), que
+/// `bios::network::setup_network` relê no próximo boot.
+#[tauri::command]
+pub async fn set_local_device_name(
+    service: State<'_, Arc<dyn NetworkServiceApi>>, name: String,
+) -> Result<(), String> {
+    let trimmed = name.trim();
+    if trimmed.is_empty() {
+        return Err("device name cannot be empty".to_string());
+    }
+
+    service.set_local_device_name(trimmed.to_string()).await
 }
 
 /// Retorna o relay padrão do Acerola e o que está ativo de fato (que pode ter sido
