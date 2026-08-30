@@ -23,7 +23,13 @@ const config = {
 		prerender: {
 			// The locale toggle switches via `setLocale()`, not an `<a href>`, so the
 			// crawler never finds these on its own — list them explicitly.
-			entries: ['*', '/en', '/en/docs/getting-started', '/en/docs/architecture']
+			entries: [
+				'*',
+				'/en',
+				'/en/docs/getting-started',
+				'/en/docs/architecture',
+				'/en/docs/storybook'
+			]
 		}
 	}
 };
