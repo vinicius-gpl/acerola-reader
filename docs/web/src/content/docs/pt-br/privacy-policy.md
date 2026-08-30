@@ -1,7 +1,22 @@
-# Política de Privacidade — Acerola
+---
+title: Política de Privacidade
+description: Como o Acerola trata dados locais, requisições a terceiros e conectividade entre dispositivos.
+section: Privacidade
+order: 1
+---
+
+<script>
+	import Callout from '$lib/mdsvex/callout.svelte';
+</script>
+
+<Callout type="note" title="Fonte de verdade">
+
+Esta página espelha o [`PRIVACY_POLICY.md`](https://github.com/Vinicius-Gabriel-P-Leitao/acerola-reader/blob/main/PRIVACY_POLICY.md) na raiz do repositório. Em caso de divergência, o arquivo no repositório é a versão oficial.
+
+</Callout>
 
 **Controlador:** Vinícius Gabriel Pereira Leitão, desenvolvedor independente do aplicativo Acerola.
-**Contato:** <contato@acerola-comic.com>
+**Contato:** contato@acerola-comic.com
 
 ## 1. Natureza do aplicativo
 

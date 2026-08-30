@@ -28,7 +28,13 @@ const config = {
 				'/en',
 				'/en/docs/getting-started',
 				'/en/docs/architecture',
-				'/en/docs/storybook'
+				'/en/docs/storybook',
+				'/en/docs/contributing-overview',
+				'/en/docs/contributing-desktop',
+				'/en/docs/contributing-android',
+				'/en/docs/contributing-p2p',
+				'/en/docs/privacy-policy',
+				'/en/docs/libraries'
 			]
 		}
 	}
