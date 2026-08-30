@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, fireEvent } from '@testing-library/svelte';
-import ComicVolumeButton from './acerola-comic-volume-button.svelte';
+import AcerolaComicVolumeButton from './acerola-comic-volume-button.svelte';
 
-describe('ComicVolumeButton', () => {
+describe('AcerolaComicVolumeButton', () => {
 	it('should render the title and chapter count correctly', () => {
-		const { getByText } = render(ComicVolumeButton, {
+		const { getByText } = render(AcerolaComicVolumeButton, {
 			props: {
 				data: {
 					title: 'Volume 1',
@@ -22,7 +22,7 @@ describe('ComicVolumeButton', () => {
 
 	it('should call onclick when button is clicked', async () => {
 		const mockClick = vi.fn();
-		const { getByRole } = render(ComicVolumeButton, {
+		const { getByRole } = render(AcerolaComicVolumeButton, {
 			props: {
 				data: {
 					title: 'Volume 1',
@@ -41,7 +41,7 @@ describe('ComicVolumeButton', () => {
 	});
 
 	it('should render cover image when viewMode is cover and coverUri is provided', () => {
-		const { getByAltText } = render(ComicVolumeButton, {
+		const { getByAltText } = render(AcerolaComicVolumeButton, {
 			props: {
 				data: {
 					title: 'Volume 1',
@@ -61,7 +61,7 @@ describe('ComicVolumeButton', () => {
 	});
 
 	it('should fallback to bannerUri when viewMode is cover but coverUri is missing', () => {
-		const { getByAltText } = render(ComicVolumeButton, {
+		const { getByAltText } = render(AcerolaComicVolumeButton, {
 			props: {
 				data: {
 					title: 'Volume 1',
@@ -81,7 +81,7 @@ describe('ComicVolumeButton', () => {
 	});
 
 	it('should render banner image when viewMode is banner and bannerUri is provided', () => {
-		const { getAllByAltText } = render(ComicVolumeButton, {
+		const { getAllByAltText } = render(AcerolaComicVolumeButton, {
 			props: {
 				data: {
 					title: 'Volume 1',
@@ -101,7 +101,7 @@ describe('ComicVolumeButton', () => {
 	});
 
 	it('should fallback to coverUri when viewMode is banner but bannerUri is missing', () => {
-		const { getAllByAltText } = render(ComicVolumeButton, {
+		const { getAllByAltText } = render(AcerolaComicVolumeButton, {
 			props: {
 				data: {
 					title: 'Volume 1',

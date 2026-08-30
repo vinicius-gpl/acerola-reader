@@ -1,10 +1,10 @@
 <script lang="ts" module>
 	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import ComicChapterList, { type Chapter } from './acerola-comic-chapter-list.svelte';
+	import AcerolaComicChapterList, { type Chapter } from './acerola-comic-chapter-list.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Páginas/Comic/ComicChapterList',
-		component: ComicChapterList,
+		title: 'Páginas/Comic/AcerolaComicChapterList',
+		component: AcerolaComicChapterList,
 		tags: ['autodocs'],
 		parameters: {
 			docs: {
@@ -41,15 +41,15 @@
 </script>
 
 <Story name="With Chapters" asChild>
-	<ComicChapterList data={{ pagesData, totalChapters: 2, pageSize: 25 }} />
+	<AcerolaComicChapterList data={{ pagesData, totalChapters: 2, pageSize: 25 }} />
 </Story>
 
 <Story name="Empty" asChild>
-	<ComicChapterList data={{ pagesData: [], totalChapters: 0, pageSize: 25 }} />
+	<AcerolaComicChapterList data={{ pagesData: [], totalChapters: 0, pageSize: 25 }} />
 </Story>
 
 <Story name="With Conflict" asChild>
-	<ComicChapterList
+	<AcerolaComicChapterList
 		data={{
 			pagesData: [
 				{

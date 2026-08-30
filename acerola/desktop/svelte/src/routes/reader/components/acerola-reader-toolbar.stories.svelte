@@ -1,10 +1,10 @@
 <script lang="ts" module>
 	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import ReaderToolbar from './acerola-reader-toolbar.svelte';
+	import AcerolaReaderToolbar from './acerola-reader-toolbar.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Páginas/Reader/ReaderToolbar',
-		component: ReaderToolbar,
+		title: 'Páginas/Reader/AcerolaReaderToolbar',
+		component: AcerolaReaderToolbar,
 		tags: ['autodocs'],
 		argTypes: {
 			data: { control: 'object' },
@@ -40,11 +40,11 @@
 </script>
 
 <Story name="Default" asChild>
-	<ReaderToolbar data={baseData} state={{ readingMode }} {events} />
+	<AcerolaReaderToolbar data={baseData} state={{ readingMode }} {events} />
 </Story>
 
 <Story name="Zoom Active" asChild>
-	<ReaderToolbar
+	<AcerolaReaderToolbar
 		data={{ ...baseData, zoomLevel: 1.65, zoomMode: true }}
 		state={{ readingMode }}
 		{events}
@@ -52,11 +52,11 @@
 </Story>
 
 <Story name="No Subtitle" asChild>
-	<ReaderToolbar data={{ ...baseData, subtitle: undefined }} state={{ readingMode }} {events} />
+	<AcerolaReaderToolbar data={{ ...baseData, subtitle: undefined }} state={{ readingMode }} {events} />
 </Story>
 
 <Story name="Locked Pagination" asChild>
-	<ReaderToolbar
+	<AcerolaReaderToolbar
 		data={{ ...baseData, pageControlsDisabled: true }}
 		state={{ readingMode }}
 		{events}
@@ -64,7 +64,7 @@
 </Story>
 
 <Story name="Webtoon Mode" asChild>
-	<ReaderToolbar
+	<AcerolaReaderToolbar
 		data={{ ...baseData, isPaginatedMode: false }}
 		state={{ readingMode: 'webtoon' }}
 		{events}

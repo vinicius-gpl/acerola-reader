@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/svelte';
 import { userEvent } from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import ReaderToolbar from './acerola-reader-toolbar.svelte';
+import AcerolaReaderToolbar from './acerola-reader-toolbar.svelte';
 
 function props(overrides = {}) {
 	return {
@@ -31,9 +31,9 @@ function props(overrides = {}) {
 	} as const;
 }
 
-describe('ReaderToolbar', () => {
+describe('AcerolaReaderToolbar', () => {
 	it('renders title, subtitle and paginated controls', () => {
-		render(ReaderToolbar, { props: props() });
+		render(AcerolaReaderToolbar, { props: props() });
 
 		expect(screen.getByText('Chapter 12')).toBeInTheDocument();
 		expect(screen.getByText('Volume 2')).toBeInTheDocument();
@@ -41,7 +41,7 @@ describe('ReaderToolbar', () => {
 	});
 
 	it('does not render subtitle when not provided', () => {
-		render(ReaderToolbar, {
+		render(AcerolaReaderToolbar, {
 			props: props({
 				data: {
 					...props().data,
@@ -58,7 +58,7 @@ describe('ReaderToolbar', () => {
 		const user = userEvent.setup();
 		const toolbarProps = props();
 
-		render(ReaderToolbar, { props: toolbarProps });
+		render(AcerolaReaderToolbar, { props: toolbarProps });
 
 		await user.click(screen.getByTitle('Voltar'));
 		await user.click(screen.getByTitle(/Aplicar zoom/));
@@ -79,7 +79,7 @@ describe('ReaderToolbar', () => {
 		const user = userEvent.setup();
 		const toolbarProps = props();
 
-		render(ReaderToolbar, { props: toolbarProps });
+		render(AcerolaReaderToolbar, { props: toolbarProps });
 
 		await user.click(screen.getByTitle('Paginado horizontal'));
 		await user.click(screen.getByTitle('Webtoon'));
@@ -97,7 +97,7 @@ describe('ReaderToolbar', () => {
 			}
 		});
 
-		render(ReaderToolbar, { props: toolbarProps });
+		render(AcerolaReaderToolbar, { props: toolbarProps });
 
 		await user.click(screen.getByTitle(/Resetar zoom/));
 
@@ -106,7 +106,7 @@ describe('ReaderToolbar', () => {
 	});
 
 	it('hides page navigation outside paginated mode', () => {
-		render(ReaderToolbar, {
+		render(AcerolaReaderToolbar, {
 			props: props({
 				data: {
 					...props().data,
@@ -120,7 +120,7 @@ describe('ReaderToolbar', () => {
 	});
 
 	it('disables navigation when pages are locked by zoom', () => {
-		render(ReaderToolbar, {
+		render(AcerolaReaderToolbar, {
 			props: props({
 				data: {
 					...props().data,
@@ -135,7 +135,7 @@ describe('ReaderToolbar', () => {
 	});
 
 	it('disables only buttons without previous or next page', () => {
-		render(ReaderToolbar, {
+		render(AcerolaReaderToolbar, {
 			props: props({
 				data: {
 					...props().data,

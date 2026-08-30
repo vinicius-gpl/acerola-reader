@@ -1,16 +1,16 @@
 <script lang="ts" module>
 	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import ReaderShell from './acerola-reader-shell.svelte';
+	import AcerolaReaderShell from './acerola-reader-shell.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Páginas/Reader/ReaderShell',
-		component: ReaderShell,
+		title: 'Páginas/Reader/AcerolaReaderShell',
+		component: AcerolaReaderShell,
 		tags: ['autodocs']
 	});
 </script>
 
 <Story name="Default" asChild>
-	<ReaderShell>
+	<AcerolaReaderShell>
 		{#snippet toolbar()}
 			<div class="border-b border-surface/40 bg-base p-4 font-bold">Toolbar</div>
 		{/snippet}
@@ -22,11 +22,11 @@
 		{#snippet footer()}
 			<div class="border-t border-surface/40 bg-base p-4">Footer</div>
 		{/snippet}
-	</ReaderShell>
+	</AcerolaReaderShell>
 </Story>
 
 <Story name="With Command" asChild>
-	<ReaderShell>
+	<AcerolaReaderShell>
 		{#snippet toolbar()}
 			<div class="border-b border-surface/40 bg-base p-4 font-bold">Toolbar</div>
 		{/snippet}
@@ -44,5 +44,5 @@
 				<div class="rounded-lg border border-surface/40 bg-base p-6">Command palette</div>
 			</div>
 		{/snippet}
-	</ReaderShell>
+	</AcerolaReaderShell>
 </Story>

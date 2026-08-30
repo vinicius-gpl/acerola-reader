@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/svelte';
 import { describe, expect, it, vi } from 'vitest';
-import ReaderPages from './acerola-reader-pages.svelte';
+import AcerolaReaderPages from './acerola-reader-pages.svelte';
 import type { ReaderPageTracker } from './acerola-reader-pages.svelte';
 
 function trackPage(): ReaderPageTracker {
@@ -36,9 +36,9 @@ function props(overrides = {}) {
 	} as const;
 }
 
-describe('ReaderPages', () => {
+describe('AcerolaReaderPages', () => {
 	it('renders message when chapter is unavailable', () => {
-		render(ReaderPages, {
+		render(AcerolaReaderPages, {
 			props: props({
 				data: {
 					...props().data,
@@ -59,7 +59,7 @@ describe('ReaderPages', () => {
 	});
 
 	it('prioritizes unavailable fallback over loading', () => {
-		render(ReaderPages, {
+		render(AcerolaReaderPages, {
 			props: props({
 				data: {
 					...props().data,
@@ -75,7 +75,7 @@ describe('ReaderPages', () => {
 	});
 
 	it('renders loading when chapter is available without pages', () => {
-		const { container } = render(ReaderPages, {
+		const { container } = render(AcerolaReaderPages, {
 			props: props({
 				data: {
 					...props().data,
@@ -91,7 +91,7 @@ describe('ReaderPages', () => {
 	it('renders one section per page and applies tracking', () => {
 		const tracker = trackPage();
 
-		const { container } = render(ReaderPages, {
+		const { container } = render(AcerolaReaderPages, {
 			props: props({
 				services: {
 					pageAt: (index: number) => (index === 1 ? page(index) : undefined),
@@ -121,7 +121,7 @@ describe('ReaderPages', () => {
 		];
 
 		for (const entry of cases) {
-			const { container, unmount } = render(ReaderPages, {
+			const { container, unmount } = render(AcerolaReaderPages, {
 				props: props({
 					data: {
 						...props().data,
@@ -137,7 +137,7 @@ describe('ReaderPages', () => {
 	});
 
 	it('marks nearby images as eager and distant as lazy', () => {
-		render(ReaderPages, {
+		render(AcerolaReaderPages, {
 			props: props({
 				data: {
 					...props().data,
@@ -155,7 +155,7 @@ describe('ReaderPages', () => {
 	it('renders failure state with retry when chapter opening fails', async () => {
 		const onRetry = vi.fn();
 
-		render(ReaderPages, {
+		render(AcerolaReaderPages, {
 			props: {
 				...props({
 					data: {
@@ -177,7 +177,7 @@ describe('ReaderPages', () => {
 	});
 
 	it('prioritizes unavailable chapter fallback over open failure', () => {
-		render(ReaderPages, {
+		render(AcerolaReaderPages, {
 			props: props({
 				data: {
 					...props().data,
@@ -193,7 +193,7 @@ describe('ReaderPages', () => {
 	});
 
 	it('uses webtoon placeholder for missing pages', () => {
-		const { container } = render(ReaderPages, {
+		const { container } = render(AcerolaReaderPages, {
 			props: props({
 				data: {
 					...props().data,

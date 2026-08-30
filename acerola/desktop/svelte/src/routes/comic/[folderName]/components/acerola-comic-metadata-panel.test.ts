@@ -1,9 +1,9 @@
 import { render, screen } from '@testing-library/svelte';
 import { userEvent } from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import ComicMetadataPanel from './acerola-comic-metadata-panel.svelte';
+import AcerolaComicMetadataPanel from './acerola-comic-metadata-panel.svelte';
 
-describe('ComicMetadataPanel', () => {
+describe('AcerolaComicMetadataPanel', () => {
 	const defaultProps = {
 		data: {
 			title: 'Test Manga',
@@ -20,7 +20,7 @@ describe('ComicMetadataPanel', () => {
 	};
 
 	it('renders title, author, category and chapter count', () => {
-		render(ComicMetadataPanel, { props: defaultProps });
+		render(AcerolaComicMetadataPanel, { props: defaultProps });
 		expect(screen.getByRole('heading', { name: 'Test Manga', level: 1 })).toBeInTheDocument();
 		expect(screen.getByText('Test Author')).toBeInTheDocument();
 		expect(screen.getByText('Ongoing')).toBeInTheDocument();
@@ -32,7 +32,7 @@ describe('ComicMetadataPanel', () => {
 	it('calls onBack when back button is clicked', async () => {
 		const user = userEvent.setup();
 		const onBack = vi.fn();
-		const { container } = render(ComicMetadataPanel, {
+		const { container } = render(AcerolaComicMetadataPanel, {
 			props: {
 				...defaultProps,
 				events: { onBack }

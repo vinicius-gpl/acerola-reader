@@ -2,9 +2,9 @@ import { render, screen } from '@testing-library/svelte';
 import { userEvent } from '@testing-library/user-event';
 import { tick } from 'svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import ComicChapterList from './acerola-comic-chapter-list.svelte';
+import AcerolaComicChapterList from './acerola-comic-chapter-list.svelte';
 
-describe('ComicChapterList', () => {
+describe('AcerolaComicChapterList', () => {
 	let intersectionCallback: IntersectionObserverCallback;
 
 	beforeEach(() => {
@@ -42,7 +42,7 @@ describe('ComicChapterList', () => {
 	];
 
 	it('renders chapter list when provided', async () => {
-		render(ComicChapterList, {
+		render(AcerolaComicChapterList, {
 			props: { data: { pagesData, totalChapters: 2, pageSize: 2 } }
 		});
 
@@ -63,7 +63,7 @@ describe('ComicChapterList', () => {
 	});
 
 	it('renders empty state when list is empty', () => {
-		render(ComicChapterList, {
+		render(AcerolaComicChapterList, {
 			props: { data: { pagesData: [], totalChapters: 0, pageSize: 2 } }
 		});
 
@@ -71,7 +71,7 @@ describe('ComicChapterList', () => {
 	});
 
 	it('mounts real content only when page enters rendering window', async () => {
-		render(ComicChapterList, {
+		render(AcerolaComicChapterList, {
 			props: { data: { pagesData, totalChapters: 2, pageSize: 2 } }
 		});
 
@@ -88,7 +88,7 @@ describe('ComicChapterList', () => {
 	});
 
 	it('unmounts real content when leaving rendering window', async () => {
-		render(ComicChapterList, {
+		render(AcerolaComicChapterList, {
 			props: { data: { pagesData, totalChapters: 2, pageSize: 2 } }
 		});
 
@@ -112,7 +112,7 @@ describe('ComicChapterList', () => {
 	it('opens chapter when clicking item', async () => {
 		const user = userEvent.setup();
 		const onOpenChapter = vi.fn();
-		render(ComicChapterList, {
+		render(AcerolaComicChapterList, {
 			props: {
 				data: { pagesData, totalChapters: 2, pageSize: 2 },
 				events: { onOpenChapter }

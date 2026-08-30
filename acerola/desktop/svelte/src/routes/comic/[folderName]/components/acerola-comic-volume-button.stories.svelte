@@ -1,10 +1,10 @@
 <script module lang="ts">
 	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import ComicVolumeButton from './acerola-comic-volume-button.svelte';
+	import AcerolaComicVolumeButton from './acerola-comic-volume-button.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Páginas/Comic/ComicVolumeButton',
-		component: ComicVolumeButton,
+		title: 'Páginas/Comic/AcerolaComicVolumeButton',
+		component: AcerolaComicVolumeButton,
 		argTypes: {
 			data: { control: 'object' },
 			events: { control: 'object' }

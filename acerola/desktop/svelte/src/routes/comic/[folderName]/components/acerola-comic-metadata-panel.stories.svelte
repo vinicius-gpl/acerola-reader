@@ -1,10 +1,10 @@
 <script lang="ts" module>
 	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import ComicMetadataPanel from './acerola-comic-metadata-panel.svelte';
+	import AcerolaComicMetadataPanel from './acerola-comic-metadata-panel.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Páginas/Comic/ComicMetadataPanel',
-		component: ComicMetadataPanel,
+		title: 'Páginas/Comic/AcerolaComicMetadataPanel',
+		component: AcerolaComicMetadataPanel,
 		tags: ['autodocs'],
 		parameters: {
 			docs: {
@@ -27,7 +27,7 @@
 </script>
 
 <Story name="Default" asChild>
-	<ComicMetadataPanel
+	<AcerolaComicMetadataPanel
 		data={{
 			title,
 			author,

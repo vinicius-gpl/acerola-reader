@@ -1,10 +1,10 @@
 <script lang="ts" module>
 	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import ReaderModeToggle from './acerola-reader-mode-toggle.svelte';
+	import AcerolaReaderModeToggle from './acerola-reader-mode-toggle.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Páginas/Reader/ReaderModeToggle',
-		component: ReaderModeToggle,
+		title: 'Páginas/Reader/AcerolaReaderModeToggle',
+		component: AcerolaReaderModeToggle,
 		tags: ['autodocs'],
 		argTypes: {
 			state: { control: 'object' },
@@ -23,13 +23,13 @@
 </script>
 
 <Story name="Desktop" asChild>
-	<ReaderModeToggle state={{ value }} {events} />
+	<AcerolaReaderModeToggle state={{ value }} {events} />
 </Story>
 
 <Story name="Mobile" asChild>
-	<ReaderModeToggle state={{ value }} {events} ui={{ variant: 'mobile' }} />
+	<AcerolaReaderModeToggle state={{ value }} {events} ui={{ variant: 'mobile' }} />
 </Story>
 
 <Story name="Webtoon Active" asChild>
-	<ReaderModeToggle state={{ value: 'webtoon' }} {events} />
+	<AcerolaReaderModeToggle state={{ value: 'webtoon' }} {events} />
 </Story>

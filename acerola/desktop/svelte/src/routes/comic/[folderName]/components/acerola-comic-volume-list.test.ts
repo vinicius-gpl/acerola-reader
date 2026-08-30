@@ -2,7 +2,7 @@ import { render, screen, waitFor } from '@testing-library/svelte';
 import { userEvent } from '@testing-library/user-event';
 import { tick } from 'svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import ComicVolumeList from './acerola-comic-volume-list.svelte';
+import AcerolaComicVolumeList from './acerola-comic-volume-list.svelte';
 
 vi.mock('svelte/transition', () => ({
 	slide: () => ({ duration: 0 })
@@ -21,7 +21,7 @@ if (typeof window !== 'undefined' && !window.HTMLElement.prototype.animate) {
 	});
 }
 
-describe('ComicVolumeList', () => {
+describe('AcerolaComicVolumeList', () => {
 	let intersectionCallback: IntersectionObserverCallback;
 	let observedElements: Element[];
 
@@ -59,7 +59,7 @@ describe('ComicVolumeList', () => {
 	];
 
 	it('renders volume list when provided', () => {
-		render(ComicVolumeList, {
+		render(AcerolaComicVolumeList, {
 			props: {
 				data: { volumes, pagesData },
 				events: { onExpand: vi.fn() }
@@ -72,7 +72,7 @@ describe('ComicVolumeList', () => {
 
 	it('expands volume on click to show chapters', async () => {
 		const user = userEvent.setup();
-		render(ComicVolumeList, {
+		render(AcerolaComicVolumeList, {
 			props: {
 				data: { volumes, pagesData },
 				events: { onExpand: vi.fn() }
@@ -103,7 +103,7 @@ describe('ComicVolumeList', () => {
 	it('collapses expanded volume', async () => {
 		const user = userEvent.setup();
 		const onExpand = vi.fn();
-		render(ComicVolumeList, {
+		render(AcerolaComicVolumeList, {
 			props: {
 				data: { volumes, pagesData },
 				events: { onExpand }
@@ -136,7 +136,7 @@ describe('ComicVolumeList', () => {
 
 	it('displays message when expanded volume has no chapters', async () => {
 		const user = userEvent.setup();
-		render(ComicVolumeList, {
+		render(AcerolaComicVolumeList, {
 			props: {
 				data: {
 					volumes: [
@@ -161,7 +161,7 @@ describe('ComicVolumeList', () => {
 
 	it('unmounts real content when leaving rendering window', async () => {
 		const user = userEvent.setup();
-		render(ComicVolumeList, {
+		render(AcerolaComicVolumeList, {
 			props: {
 				data: { volumes, pagesData },
 				events: { onExpand: vi.fn() }
@@ -201,7 +201,7 @@ describe('ComicVolumeList', () => {
 	it('opens chapter when clicking expanded item', async () => {
 		const user = userEvent.setup();
 		const onOpenChapter = vi.fn();
-		render(ComicVolumeList, {
+		render(AcerolaComicVolumeList, {
 			props: {
 				data: { volumes, pagesData },
 				events: { onExpand: vi.fn(), onOpenChapter }
@@ -227,7 +227,7 @@ describe('ComicVolumeList', () => {
 	});
 
 	it('renders empty state when list is empty', () => {
-		render(ComicVolumeList, {
+		render(AcerolaComicVolumeList, {
 			props: {
 				data: { volumes: [] },
 				events: { onExpand: vi.fn() }

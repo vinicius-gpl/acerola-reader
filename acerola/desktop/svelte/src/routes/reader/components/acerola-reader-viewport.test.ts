@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/svelte';
 import { createRawSnippet } from 'svelte';
 import { describe, expect, it, vi } from 'vitest';
 import type { ReaderMode, ReaderZoomController } from '../hooks/use-reader-zoom.svelte';
-import ReaderViewport from './acerola-reader-viewport.svelte';
+import AcerolaReaderViewport from './acerola-reader-viewport.svelte';
 
 function children() {
 	return createRawSnippet(() => ({
@@ -48,10 +48,10 @@ function props(mode: ReaderMode = 'vertical', zoomController = zoom()) {
 	} as const;
 }
 
-describe('ReaderViewport', () => {
+describe('AcerolaReaderViewport', () => {
 	it('renders content and registers viewport on mount and destroy', () => {
 		const zoomController = zoom();
-		const { unmount } = render(ReaderViewport, { props: props('vertical', zoomController) });
+		const { unmount } = render(AcerolaReaderViewport, { props: props('vertical', zoomController) });
 
 		expect(screen.getByTestId('reader-content')).toHaveTextContent('Reader content');
 		expect(zoomController.setViewport).toHaveBeenCalledWith(screen.getByRole('main'));
@@ -68,7 +68,7 @@ describe('ReaderViewport', () => {
 		] as const;
 
 		for (const entry of cases) {
-			const { container, unmount } = render(ReaderViewport, { props: props(entry.mode) });
+			const { container, unmount } = render(AcerolaReaderViewport, { props: props(entry.mode) });
 			const main = screen.getByRole('main');
 			const layer = container.querySelector('main > div');
 
@@ -86,7 +86,7 @@ describe('ReaderViewport', () => {
 		];
 
 		for (const entry of cases) {
-			const { unmount } = render(ReaderViewport, {
+			const { unmount } = render(AcerolaReaderViewport, {
 				props: props('vertical', entry.zoom)
 			});
 
@@ -99,7 +99,7 @@ describe('ReaderViewport', () => {
 		const zoomController = zoom({
 			zoomLayerStyle: 'transform: translate3d(10px, 20px, 0) scale(1.5);'
 		});
-		const { container } = render(ReaderViewport, { props: props('vertical', zoomController) });
+		const { container } = render(AcerolaReaderViewport, { props: props('vertical', zoomController) });
 
 		expect(container.querySelector('main > div')).toHaveAttribute(
 			'style',
@@ -110,7 +110,7 @@ describe('ReaderViewport', () => {
 	it('forwards pointer, wheel and double click events to zoom', async () => {
 		const zoomController = zoom();
 
-		render(ReaderViewport, { props: props('vertical', zoomController) });
+		render(AcerolaReaderViewport, { props: props('vertical', zoomController) });
 		const main = screen.getByRole('main');
 
 		await fireEvent.wheel(main);

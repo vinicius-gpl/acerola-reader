@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/svelte';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import ReaderFooter from './acerola-reader-footer.svelte';
+import AcerolaReaderFooter from './acerola-reader-footer.svelte';
 
 function props(overrides = {}) {
 	return {
@@ -23,9 +23,9 @@ function props(overrides = {}) {
 	} as const;
 }
 
-describe('ReaderFooter', () => {
+describe('AcerolaReaderFooter', () => {
 	it('renders progress, mode, zoom and remaining chapters', () => {
-		render(ReaderFooter, { props: props() });
+		render(AcerolaReaderFooter, { props: props() });
 
 		expect(screen.getByText('45% lido')).toBeInTheDocument();
 		expect(screen.getByText('Vertical - Zoom 100%')).toBeInTheDocument();
@@ -44,7 +44,7 @@ describe('ReaderFooter', () => {
 		];
 
 		for (const value of values) {
-			const { unmount } = render(ReaderFooter, {
+			const { unmount } = render(AcerolaReaderFooter, {
 				props: props({
 					data: {
 						...props().data,
@@ -66,7 +66,7 @@ describe('ReaderFooter', () => {
 		const user = userEvent.setup();
 		const footerProps = props();
 
-		render(ReaderFooter, { props: footerProps });
+		render(AcerolaReaderFooter, { props: footerProps });
 		await user.click(screen.getByTitle('Paginado horizontal'));
 		await user.click(screen.getByTitle('Webtoon'));
 

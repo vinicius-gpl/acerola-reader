@@ -1,10 +1,10 @@
 <script module lang="ts">
 	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import StepFormats from './acerola-step-formats.svelte';
+	import AcerolaStepFormats from './acerola-step-formats.svelte';
 
 	const { Story } = defineMeta({
-		component: StepFormats,
-		title: 'Páginas/Onboarding/StepFormats',
+		component: AcerolaStepFormats,
+		title: 'Páginas/Onboarding/AcerolaStepFormats',
 		tags: ['autodocs'],
 		parameters: {
 			docs: {
@@ -18,6 +18,6 @@
 
 <Story name="Default" asChild>
 	<div class="h-96 bg-surface">
-		<StepFormats onNext={() => {}} onPrev={() => {}} />
+		<AcerolaStepFormats onNext={() => {}} onPrev={() => {}} />
 	</div>
 </Story>

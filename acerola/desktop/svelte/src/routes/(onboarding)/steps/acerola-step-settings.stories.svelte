@@ -22,11 +22,11 @@
 	}));
 
 	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import StepSettings from './acerola-step-settings.svelte';
+	import AcerolaStepSettings from './acerola-step-settings.svelte';
 
 	const { Story } = defineMeta({
-		component: StepSettings,
-		title: 'Páginas/Onboarding/StepSettings',
+		component: AcerolaStepSettings,
+		title: 'Páginas/Onboarding/AcerolaStepSettings',
 		tags: ['autodocs'],
 		parameters: {
 			docs: {
@@ -41,6 +41,6 @@
 
 <Story name="Default" asChild>
 	<div class="h-96 bg-surface">
-		<StepSettings onNext={() => {}} onPrev={() => {}} />
+		<AcerolaStepSettings onNext={() => {}} onPrev={() => {}} />
 	</div>
 </Story>

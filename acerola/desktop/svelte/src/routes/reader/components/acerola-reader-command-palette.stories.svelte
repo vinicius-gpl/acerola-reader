@@ -1,10 +1,10 @@
 <script lang="ts" module>
 	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import ReaderCommandPalette from './acerola-reader-command-palette.svelte';
+	import AcerolaReaderCommandPalette from './acerola-reader-command-palette.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Páginas/Reader/ReaderCommandPalette',
-		component: ReaderCommandPalette,
+		title: 'Páginas/Reader/AcerolaReaderCommandPalette',
+		component: AcerolaReaderCommandPalette,
 		tags: ['autodocs'],
 		argTypes: {
 			data: { control: 'object' },
@@ -32,11 +32,11 @@
 </script>
 
 <Story name="Open" asChild>
-	<ReaderCommandPalette data={{ zoomMode }} state={{ open, value, readingMode }} {events} />
+	<AcerolaReaderCommandPalette data={{ zoomMode }} state={{ open, value, readingMode }} {events} />
 </Story>
 
 <Story name="Zoom Mode Active" asChild>
-	<ReaderCommandPalette
+	<AcerolaReaderCommandPalette
 		data={{ zoomMode: true }}
 		state={{ open: true, value: 'zoom', readingMode: 'horizontal' }}
 		{events}
@@ -45,7 +45,7 @@
 
 <Story name="Closed" asChild>
 	<div class="relative h-64 overflow-hidden rounded-lg border border-surface/40 bg-base">
-		<ReaderCommandPalette
+		<AcerolaReaderCommandPalette
 			data={{ zoomMode: false }}
 			state={{ open: false, value: '', readingMode: 'vertical' }}
 			{events}

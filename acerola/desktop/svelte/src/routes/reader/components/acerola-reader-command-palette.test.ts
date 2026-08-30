@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/svelte';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import ReaderCommandPalette from './acerola-reader-command-palette.svelte';
+import AcerolaReaderCommandPalette from './acerola-reader-command-palette.svelte';
 
 function props(overrides = {}) {
 	return {
@@ -31,9 +31,9 @@ async function selectCommand(label: string) {
 	await user.click(screen.getByText(label));
 }
 
-describe('ReaderCommandPalette', () => {
+describe('AcerolaReaderCommandPalette', () => {
 	it('does not render when closed', () => {
-		render(ReaderCommandPalette, {
+		render(AcerolaReaderCommandPalette, {
 			props: props({
 				state: {
 					...props().state,
@@ -47,7 +47,7 @@ describe('ReaderCommandPalette', () => {
 	});
 
 	it('renders groups, input and commands when open', () => {
-		render(ReaderCommandPalette, { props: props() });
+		render(AcerolaReaderCommandPalette, { props: props() });
 
 		expect(screen.getByPlaceholderText('Comandos do leitor...')).toBeInTheDocument();
 		expect(screen.getByText('Zoom')).toBeInTheDocument();
@@ -62,7 +62,7 @@ describe('ReaderCommandPalette', () => {
 	});
 
 	it('changes zoom command text when zoom mode is active', () => {
-		render(ReaderCommandPalette, {
+		render(AcerolaReaderCommandPalette, {
 			props: props({
 				data: {
 					zoomMode: true
@@ -83,7 +83,7 @@ describe('ReaderCommandPalette', () => {
 			}
 		});
 
-		render(ReaderCommandPalette, { props: paletteProps });
+		render(AcerolaReaderCommandPalette, { props: paletteProps });
 		await user.click(screen.getByLabelText('Fechar comandos'));
 
 		expect(paletteProps.events.onOpenChange).toHaveBeenCalledWith(false);
@@ -94,7 +94,7 @@ describe('ReaderCommandPalette', () => {
 		const user = userEvent.setup();
 		const paletteProps = props();
 
-		render(ReaderCommandPalette, { props: paletteProps });
+		render(AcerolaReaderCommandPalette, { props: paletteProps });
 		await user.type(screen.getByPlaceholderText('Comandos do leitor...'), 'zoom');
 
 		expect(paletteProps.events.onValueChange).toHaveBeenCalled();
@@ -103,7 +103,7 @@ describe('ReaderCommandPalette', () => {
 	it('executes zoom commands and closes palette', async () => {
 		const paletteProps = props();
 
-		render(ReaderCommandPalette, { props: paletteProps });
+		render(AcerolaReaderCommandPalette, { props: paletteProps });
 
 		await selectCommand('Ativar modo zoom');
 		await selectCommand('Aumentar zoom');
@@ -121,7 +121,7 @@ describe('ReaderCommandPalette', () => {
 	it('executes reading mode commands and closes palette', async () => {
 		const paletteProps = props();
 
-		render(ReaderCommandPalette, { props: paletteProps });
+		render(AcerolaReaderCommandPalette, { props: paletteProps });
 
 		await selectCommand('Paginado vertical');
 		await selectCommand('Paginado horizontal');

@@ -1,11 +1,11 @@
 <script lang="ts" module>
 	import { defineMeta } from '@storybook/addon-svelte-csf';
 	import type { ReaderZoomController } from '../hooks/use-reader-zoom.svelte';
-	import ReaderViewport from './acerola-reader-viewport.svelte';
+	import AcerolaReaderViewport from './acerola-reader-viewport.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Páginas/Reader/ReaderViewport',
-		component: ReaderViewport,
+		title: 'Páginas/Reader/AcerolaReaderViewport',
+		component: AcerolaReaderViewport,
 		tags: ['autodocs'],
 		argTypes: {
 			data: { control: 'object' },
@@ -41,33 +41,33 @@
 </script>
 
 <Story name="Vertical" asChild>
-	<ReaderViewport data={{ mode: 'vertical' }} context={{ zoom: zoom() }}>
+	<AcerolaReaderViewport data={{ mode: 'vertical' }} context={{ zoom: zoom() }}>
 		{#snippet children()}
 			<div class="grid h-full place-items-center p-8">Vertical viewport</div>
 		{/snippet}
-	</ReaderViewport>
+	</AcerolaReaderViewport>
 </Story>
 
 <Story name="Horizontal" asChild>
-	<ReaderViewport data={{ mode: 'horizontal' }} context={{ zoom: zoom() }}>
+	<AcerolaReaderViewport data={{ mode: 'horizontal' }} context={{ zoom: zoom() }}>
 		{#snippet children()}
 			<div class="grid h-full w-screen place-items-center p-8">Horizontal viewport</div>
 		{/snippet}
-	</ReaderViewport>
+	</AcerolaReaderViewport>
 </Story>
 
 <Story name="Webtoon" asChild>
-	<ReaderViewport data={{ mode: 'webtoon' }} context={{ zoom: zoom() }}>
+	<AcerolaReaderViewport data={{ mode: 'webtoon' }} context={{ zoom: zoom() }}>
 		{#snippet children()}
 			<div class="mx-auto grid min-h-[36rem] max-w-3xl place-items-center p-8">
 				Webtoon viewport
 			</div>
 		{/snippet}
-	</ReaderViewport>
+	</AcerolaReaderViewport>
 </Story>
 
 <Story name="Zoomed" asChild>
-	<ReaderViewport
+	<AcerolaReaderViewport
 		data={{ mode: 'vertical' }}
 		context={{
 			zoom: zoom({
@@ -82,5 +82,5 @@
 		{#snippet children()}
 			<div class="grid h-full place-items-center p-8">Zoomed viewport</div>
 		{/snippet}
-	</ReaderViewport>
+	</AcerolaReaderViewport>
 </Story>

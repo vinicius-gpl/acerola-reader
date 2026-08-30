@@ -1,10 +1,10 @@
 <script lang="ts" module>
 	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import ReaderPages from './acerola-reader-pages.svelte';
+	import AcerolaReaderPages from './acerola-reader-pages.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Páginas/Reader/ReaderPages',
-		component: ReaderPages,
+		title: 'Páginas/Reader/AcerolaReaderPages',
+		component: AcerolaReaderPages,
 		tags: ['autodocs'],
 		argTypes: {
 			data: { control: 'object' },
@@ -55,26 +55,26 @@
 </script>
 
 <Story name="Vertical" asChild>
-	<ReaderPages data={data('vertical')} services={{ pageAt, trackPage }} />
+	<AcerolaReaderPages data={data('vertical')} services={{ pageAt, trackPage }} />
 </Story>
 
 <Story name="Horizontal Partial Cache" asChild>
-	<ReaderPages data={data('horizontal')} services={{ pageAt: partialPageAt, trackPage }} />
+	<AcerolaReaderPages data={data('horizontal')} services={{ pageAt: partialPageAt, trackPage }} />
 </Story>
 
 <Story name="Webtoon" asChild>
-	<ReaderPages data={data('webtoon')} services={{ pageAt, trackPage }} />
+	<AcerolaReaderPages data={data('webtoon')} services={{ pageAt, trackPage }} />
 </Story>
 
 <Story name="Loading" asChild>
-	<ReaderPages
+	<AcerolaReaderPages
 		data={{ ...data('vertical'), pageCount: 0 }}
 		services={{ pageAt: () => undefined, trackPage }}
 	/>
 </Story>
 
 <Story name="Unavailable" asChild>
-	<ReaderPages
+	<AcerolaReaderPages
 		data={{ ...data('vertical'), openFailed: true, chapterAvailable: false }}
 		services={{ pageAt: () => undefined, trackPage }}
 	/>

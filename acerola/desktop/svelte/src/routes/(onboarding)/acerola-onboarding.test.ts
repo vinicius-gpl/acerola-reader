@@ -23,17 +23,17 @@ vi.mock('@tauri-apps/api/core', () => ({
 	invoke: vi.fn()
 }));
 
-import Onboarding from './acerola-onboarding.svelte';
+import AcerolaOnboarding from './acerola-onboarding.svelte';
 import { useOnboarding } from '$lib/hooks/onboarding/use-onboarding.svelte';
 
-describe('Onboarding Component', () => {
+describe('AcerolaOnboarding', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		useOnboarding().setStep(0);
 	});
 
 	it('renders the first step (Welcome) by default', () => {
-		render(Onboarding);
+		render(AcerolaOnboarding);
 
 		expect(screen.getByText('Acerola')).toBeInTheDocument();
 		expect(screen.getByText('Bem-vindo ao Acerola, seu leitor de quadrinhos.')).toBeInTheDocument();
@@ -42,7 +42,7 @@ describe('Onboarding Component', () => {
 
 	it('advances to Language step when clicking Start', async () => {
 		const user = userEvent.setup();
-		render(Onboarding);
+		render(AcerolaOnboarding);
 
 		await user.click(screen.getByText('Começar'));
 
@@ -52,7 +52,7 @@ describe('Onboarding Component', () => {
 
 	it('advances through Language steps to Formats when clicking Next', async () => {
 		const user = userEvent.setup();
-		render(Onboarding);
+		render(AcerolaOnboarding);
 
 		await user.click(screen.getByText('Começar'));
 		await user.click(screen.getByText('Próximo'));

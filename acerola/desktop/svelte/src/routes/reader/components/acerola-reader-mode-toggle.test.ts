@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/svelte';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import ReaderModeToggle from './acerola-reader-mode-toggle.svelte';
+import AcerolaReaderModeToggle from './acerola-reader-mode-toggle.svelte';
 
 function props(overrides = {}) {
 	return {
@@ -15,9 +15,9 @@ function props(overrides = {}) {
 	} as const;
 }
 
-describe('ReaderModeToggle', () => {
+describe('AcerolaReaderModeToggle', () => {
 	it('renders all modes in default desktop variant', () => {
-		const { container } = render(ReaderModeToggle, { props: props() });
+		const { container } = render(AcerolaReaderModeToggle, { props: props() });
 
 		expect(screen.getByTitle('Paginado vertical')).toBeInTheDocument();
 		expect(screen.getByTitle('Paginado horizontal')).toBeInTheDocument();
@@ -26,7 +26,7 @@ describe('ReaderModeToggle', () => {
 	});
 
 	it('renders mobile variant and custom class', () => {
-		const { container } = render(ReaderModeToggle, {
+		const { container } = render(AcerolaReaderModeToggle, {
 			props: props({
 				ui: {
 					variant: 'mobile',
@@ -42,7 +42,7 @@ describe('ReaderModeToggle', () => {
 	});
 
 	it('marks active mode received from state', () => {
-		render(ReaderModeToggle, {
+		render(AcerolaReaderModeToggle, {
 			props: props({
 				state: {
 					value: 'webtoon'
@@ -68,7 +68,7 @@ describe('ReaderModeToggle', () => {
 					value: entry.initial
 				}
 			});
-			const { unmount } = render(ReaderModeToggle, { props: toggleProps });
+			const { unmount } = render(AcerolaReaderModeToggle, { props: toggleProps });
 
 			await user.click(screen.getByTitle(entry.title));
 

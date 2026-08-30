@@ -1,11 +1,11 @@
 import { render, screen } from '@testing-library/svelte';
 import { userEvent } from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import ThemePicker from './acerola-theme-picker.svelte';
+import AcerolaThemePicker from './acerola-theme-picker.svelte';
 
-describe('ThemePicker', () => {
+describe('AcerolaThemePicker', () => {
 	it('renders available themes', () => {
-		render(ThemePicker, {
+		render(AcerolaThemePicker, {
 			props: {
 				data: { theme: 'catppuccin', mode: 'dark' },
 				events: { onSelect: vi.fn() }
@@ -22,7 +22,7 @@ describe('ThemePicker', () => {
 		const user = userEvent.setup();
 		const onselect = vi.fn();
 
-		render(ThemePicker, {
+		render(AcerolaThemePicker, {
 			props: {
 				data: { theme: 'catppuccin', mode: 'dark' },
 				events: { onSelect: onselect }
@@ -35,7 +35,7 @@ describe('ThemePicker', () => {
 	});
 
 	it('applies selected style to active theme', () => {
-		const { container } = render(ThemePicker, {
+		const { container } = render(AcerolaThemePicker, {
 			props: {
 				data: { theme: 'nord', mode: 'dark' },
 				events: { onSelect: vi.fn() }
@@ -49,7 +49,7 @@ describe('ThemePicker', () => {
 	});
 
 	it('does not apply selected style to inactive themes', () => {
-		const { container } = render(ThemePicker, {
+		const { container } = render(AcerolaThemePicker, {
 			props: {
 				data: { theme: 'nord', mode: 'dark' },
 				events: { onSelect: vi.fn() }
@@ -63,7 +63,7 @@ describe('ThemePicker', () => {
 	});
 
 	it('renders correct colors in light mode', () => {
-		const { container } = render(ThemePicker, {
+		const { container } = render(AcerolaThemePicker, {
 			props: {
 				data: { theme: 'catppuccin', mode: 'light' },
 				events: { onSelect: vi.fn() }

@@ -1,10 +1,10 @@
 <script lang="ts" module>
 	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import ComicPreferences from './acerola-comic-preferences.svelte';
+	import AcerolaComicPreferences from './acerola-comic-preferences.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Páginas/Comic/ComicPreferences',
-		component: ComicPreferences,
+		title: 'Páginas/Comic/AcerolaComicPreferences',
+		component: AcerolaComicPreferences,
 		tags: ['autodocs'],
 		parameters: {
 			docs: {
@@ -23,7 +23,7 @@
 </script>
 
 <Story name="Default" asChild>
-	<ComicPreferences
+	<AcerolaComicPreferences
 		data={{ hasVolumeStructure: true }}
 		state={{
 			volumeViewMode,

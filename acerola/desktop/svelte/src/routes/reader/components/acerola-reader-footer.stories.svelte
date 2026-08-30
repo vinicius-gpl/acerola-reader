@@ -1,10 +1,10 @@
 <script lang="ts" module>
 	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import ReaderFooter from './acerola-reader-footer.svelte';
+	import AcerolaReaderFooter from './acerola-reader-footer.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Páginas/Reader/ReaderFooter',
-		component: ReaderFooter,
+		title: 'Páginas/Reader/AcerolaReaderFooter',
+		component: AcerolaReaderFooter,
 		tags: ['autodocs'],
 		argTypes: {
 			data: { control: 'object' },
@@ -23,7 +23,7 @@
 </script>
 
 <Story name="Default" asChild>
-	<ReaderFooter
+	<AcerolaReaderFooter
 		data={{
 			pageProgressPercent: 45,
 			pageProgressWidth: '45%',
@@ -38,7 +38,7 @@
 </Story>
 
 <Story name="Start" asChild>
-	<ReaderFooter
+	<AcerolaReaderFooter
 		data={{
 			pageProgressPercent: 0,
 			pageProgressWidth: '0%',
@@ -53,7 +53,7 @@
 </Story>
 
 <Story name="Complete" asChild>
-	<ReaderFooter
+	<AcerolaReaderFooter
 		data={{
 			pageProgressPercent: 100,
 			pageProgressWidth: '100%',

@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/svelte';
 import { createRawSnippet } from 'svelte';
 import { describe, expect, it } from 'vitest';
-import ReaderShell from './acerola-reader-shell.svelte';
+import AcerolaReaderShell from './acerola-reader-shell.svelte';
 
 function snippet(testId: string, label: string) {
 	return createRawSnippet(() => ({
@@ -18,9 +18,9 @@ function props(overrides = {}) {
 	};
 }
 
-describe('ReaderShell', () => {
+describe('AcerolaReaderShell', () => {
 	it('renders mandatory toolbar, viewport and footer', () => {
-		const { container } = render(ReaderShell, { props: props() });
+		const { container } = render(AcerolaReaderShell, { props: props() });
 
 		expect(screen.getByTestId('toolbar')).toHaveTextContent('Toolbar');
 		expect(screen.getByTestId('viewport')).toHaveTextContent('Viewport');
@@ -30,7 +30,7 @@ describe('ReaderShell', () => {
 	});
 
 	it('renders optional command when provided', () => {
-		render(ReaderShell, {
+		render(AcerolaReaderShell, {
 			props: props({
 				command: snippet('command', 'Command')
 			})
@@ -40,7 +40,7 @@ describe('ReaderShell', () => {
 	});
 
 	it('does not render command when not provided', () => {
-		render(ReaderShell, { props: props() });
+		render(AcerolaReaderShell, { props: props() });
 
 		expect(screen.queryByTestId('command')).not.toBeInTheDocument();
 	});

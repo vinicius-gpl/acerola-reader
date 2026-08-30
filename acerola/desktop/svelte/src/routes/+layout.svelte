@@ -62,7 +62,7 @@
 	import AcerolaNotification from '$lib/components/acerola-notification/acerola-notification.svelte';
 	import AcerolaBookmarkRibbon from '$lib/components/acerola-bookmark-ribbon/acerola-bookmark-ribbon.svelte';
 	import AcerolaCardImage from '$lib/components/acerola-card/acerola-card-image.svelte';
-	import Onboarding from './(onboarding)/onboarding.svelte';
+	import AcerolaOnboarding from './(onboarding)/acerola-onboarding.svelte';
 	import '$theme/layout.css';
 	import Search from '@lucide/svelte/icons/search';
 	import GlobeIcon from '@lucide/svelte/icons/globe';
@@ -202,7 +202,7 @@
 					Loading...
 				</div>
 			{:else if !onboarding.isCompleted}
-				<Onboarding />
+				<AcerolaOnboarding />
 			{:else}
 				<header
 					class="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-surface/50 bg-base/80 px-8 backdrop-blur-xl transition-all"

@@ -1,9 +1,9 @@
 import { render, screen } from '@testing-library/svelte';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import ComicPreferences from './acerola-comic-preferences.svelte';
+import AcerolaComicPreferences from './acerola-comic-preferences.svelte';
 
-describe('ComicPreferences', () => {
+describe('AcerolaComicPreferences', () => {
 	function defaultProps() {
 		return {
 			state: {
@@ -20,20 +20,20 @@ describe('ComicPreferences', () => {
 	}
 
 	it('renders preference options', () => {
-		render(ComicPreferences, { props: defaultProps() });
+		render(AcerolaComicPreferences, { props: defaultProps() });
 
 		expect(screen.getByText('Leitura')).toBeInTheDocument();
 	});
 
 	it('hides volume preference when there is no volume structure', () => {
-		render(ComicPreferences, { props: defaultProps() });
+		render(AcerolaComicPreferences, { props: defaultProps() });
 
 		expect(screen.queryByText('Destaque do Volume')).not.toBeInTheDocument();
 		expect(screen.queryByRole('radio', { name: 'Capa' })).not.toBeInTheDocument();
 	});
 
 	it('displays volume preference when volume structure exists', () => {
-		render(ComicPreferences, {
+		render(AcerolaComicPreferences, {
 			props: {
 				...defaultProps(),
 				data: { hasVolumeStructure: true }
@@ -48,7 +48,7 @@ describe('ComicPreferences', () => {
 	it('changes volume highlight when clicking banner', async () => {
 		const user = userEvent.setup();
 		const props = defaultProps();
-		render(ComicPreferences, {
+		render(AcerolaComicPreferences, {
 			props: {
 				...props,
 				data: { hasVolumeStructure: true }

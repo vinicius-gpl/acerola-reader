@@ -1,10 +1,10 @@
 <script lang="ts" module>
 	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import ComicVolumeList, { type Volume } from './acerola-comic-volume-list.svelte';
+	import AcerolaComicVolumeList, { type Volume } from './acerola-comic-volume-list.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Páginas/Comic/ComicVolumeList',
-		component: ComicVolumeList,
+		title: 'Páginas/Comic/AcerolaComicVolumeList',
+		component: AcerolaComicVolumeList,
 		tags: ['autodocs'],
 		parameters: {
 			docs: {
@@ -39,9 +39,9 @@
 </script>
 
 <Story name="With Volumes" asChild>
-	<ComicVolumeList data={{ volumes }} events={{ onExpand: () => {} }} />
+	<AcerolaComicVolumeList data={{ volumes }} events={{ onExpand: () => {} }} />
 </Story>
 
 <Story name="Empty" asChild>
-	<ComicVolumeList data={{ volumes: [] }} events={{ onExpand: () => {} }} />
+	<AcerolaComicVolumeList data={{ volumes: [] }} events={{ onExpand: () => {} }} />
 </Story>

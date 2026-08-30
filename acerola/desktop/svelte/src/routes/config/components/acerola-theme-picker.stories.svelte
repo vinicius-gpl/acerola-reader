@@ -1,10 +1,10 @@
 <script lang="ts" module>
 	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import ThemePicker from './acerola-theme-picker.svelte';
+	import AcerolaThemePicker from './acerola-theme-picker.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Páginas/Config/ThemePicker',
-		component: ThemePicker,
+		title: 'Páginas/Config/AcerolaThemePicker',
+		component: AcerolaThemePicker,
 		tags: ['autodocs'],
 		parameters: {
 			docs: {
@@ -41,5 +41,5 @@
 </script>
 
 <Story name="Default" asChild>
-	<ThemePicker data={{ theme, mode }} events={{ onSelect }} />
+	<AcerolaThemePicker data={{ theme, mode }} events={{ onSelect }} />
 </Story>

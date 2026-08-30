@@ -1,10 +1,10 @@
 <script lang="ts" module>
 	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import ComicHeroBanner from './acerola-comic-hero-banner.svelte';
+	import AcerolaComicHeroBanner from './acerola-comic-hero-banner.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Páginas/Comic/ComicHeroBanner',
-		component: ComicHeroBanner,
+		title: 'Páginas/Comic/AcerolaComicHeroBanner',
+		component: AcerolaComicHeroBanner,
 		tags: ['autodocs'],
 		parameters: {
 			docs: {
@@ -21,9 +21,9 @@
 </script>
 
 <Story name="With Banner" asChild>
-	<ComicHeroBanner data={{ banner }} />
+	<AcerolaComicHeroBanner data={{ banner }} />
 </Story>
 
 <Story name="Without Banner" asChild>
-	<ComicHeroBanner data={{ banner: null }} />
+	<AcerolaComicHeroBanner data={{ banner: null }} />
 </Story>
