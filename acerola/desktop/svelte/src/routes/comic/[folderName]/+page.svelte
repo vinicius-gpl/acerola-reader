@@ -40,7 +40,9 @@
 	import ComicHeroBanner from './components/acerola-comic-hero-banner.svelte';
 	import ComicMetadataPanel from './components/acerola-comic-metadata-panel.svelte';
 	import ComicPreferences from './components/acerola-comic-preferences.svelte';
-	import ComicVolumeList, { type VolumeChapter } from './components/acerola-comic-volume-list.svelte';
+	import ComicVolumeList, {
+		type VolumeChapter
+	} from './components/acerola-comic-volume-list.svelte';
 
 	let { data } = $props();
 

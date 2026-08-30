@@ -52,7 +52,11 @@
 </Story>
 
 <Story name="No Subtitle" asChild>
-	<AcerolaReaderToolbar data={{ ...baseData, subtitle: undefined }} state={{ readingMode }} {events} />
+	<AcerolaReaderToolbar
+		data={{ ...baseData, subtitle: undefined }}
+		state={{ readingMode }}
+		{events}
+	/>
 </Story>
 
 <Story name="Locked Pagination" asChild>
