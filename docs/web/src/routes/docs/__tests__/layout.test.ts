@@ -4,7 +4,10 @@ import { describe, expect, it, vi } from 'vitest';
 import DocsLayout from '../+layout.svelte';
 
 vi.mock('$app/state', () => ({
-	page: { params: { slug: 'getting-started' } }
+	page: {
+		params: { slug: 'getting-started' },
+		url: new URL('http://localhost/docs/getting-started')
+	}
 }));
 
 function childrenSnippet() {

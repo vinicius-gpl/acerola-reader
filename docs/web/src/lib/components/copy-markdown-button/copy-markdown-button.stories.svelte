@@ -10,7 +10,7 @@
 			docs: {
 				description: {
 					component:
-						'Botão-ícone que copia o fonte Markdown de uma página de documentação (mais um comentário com a URL) para a área de transferência, para colar em uma IA e pedir um resumo.'
+						'Botão com ícone e rótulo visível que copia o fonte Markdown de uma página de documentação (mais um comentário com a URL) para a área de transferência, para colar em uma IA e pedir um resumo. Mostra feedback de sucesso ou falha por alguns segundos.'
 				}
 			}
 		},
@@ -21,7 +21,11 @@
 				control: 'text'
 			},
 			label: { description: 'Texto acessível do botão antes de copiar.', control: 'text' },
-			copiedLabel: { description: 'Texto acessível do botão logo após copiar.', control: 'text' }
+			copiedLabel: { description: 'Texto acessível do botão logo após copiar.', control: 'text' },
+			failedLabel: {
+				description: 'Texto acessível do botão quando a cópia falha.',
+				control: 'text'
+			}
 		}
 	});
 </script>
@@ -54,6 +58,23 @@
 			description: {
 				story:
 					'Rótulos acessíveis customizados (por exemplo, para uso fora do contexto i18n padrão).'
+			}
+		}
+	}}
+/>
+
+<Story
+	name="CustomFailedLabel"
+	args={{
+		raw: '# Doc',
+		url: 'https://docs.acerola-comic.com/docs/doc',
+		failedLabel: 'Falha ao copiar'
+	}}
+	parameters={{
+		docs: {
+			description: {
+				story:
+					'Rótulo de falha customizado, mostrado quando a área de transferência rejeita a cópia (ex.: contexto não seguro ou permissão negada).'
 			}
 		}
 	}}
