@@ -14,7 +14,7 @@ use acerola_p2p::api::{
 use tauri::{Emitter, Manager};
 
 use crate::{
-    bios::scopes::{read_library_path, read_relay_url_override},
+    bios::scopes::{read_device_alias_override, read_library_path, read_relay_url_override},
     core::services::{
         network::{NetworkService, NetworkServiceApi},
         sync::{file_sync::FileSyncService, history_sync::HistorySyncService},
@@ -147,10 +147,17 @@ pub async fn setup_network(app_handle: &tauri::AppHandle) -> Result<(), ComicErr
     // imediatamente enquanto o hang do FsStore é isolado/corrigido.
     let transport_builder = IrohTransportBuilder::default().relay(&relay_url).blobs(IrohBlobsConfig::mem());
 
-    let device_information =
+    // Apelido custom estilo LocalSend (`device_alias` em `settings.json`) sobrescreve o
+    // hostname automático nesta inicialização. Renomear em runtime depois (`set_local_device_name`,
+    // exposto via comando Tauri) não precisa reiniciar o node — só precisa dessa releitura aqui
+    // pra sobreviver ao PRÓXIMO restart do app.
+    let mut device_information =
         DefaultDeviceInfoProvider::new("0.0.1-beta").provide().map_err(|device_error| {
             ComicError::SystemFailure(format!("Failed to read device info: {:?}", device_error))
         })?;
+    if let Some(alias) = read_device_alias_override(&app_data_directory) {
+        device_information.name = alias;
+    }
 
     // `database_pool`/`sync_log_repo` já resolvidos mais acima, antes da abertura do
     // trust/peer storage.

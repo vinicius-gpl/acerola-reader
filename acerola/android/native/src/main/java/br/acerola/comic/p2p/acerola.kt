@@ -972,6 +972,8 @@ internal open class UniffiVTableCallbackInterfaceSecureBlobStore(
 
 
 
+
+
 // A JNA Library to expose the extern-C FFI definitions.
 // This is an implementation detail which will be called internally by the public API.
 
@@ -1079,6 +1081,8 @@ internal interface UniffiLib : Library {
     fun uniffi_acerola_fn_method_p2pnode_notify_network_change(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
     fun uniffi_acerola_fn_method_p2pnode_remove_paired_peer(`ptr`: Pointer,`id`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): Unit
+    fun uniffi_acerola_fn_method_p2pnode_set_local_device_name(`ptr`: Pointer,`name`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
     fun uniffi_acerola_fn_method_p2pnode_shutdown(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
@@ -1264,6 +1268,8 @@ internal interface UniffiLib : Library {
     ): Short
     fun uniffi_acerola_checksum_method_p2pnode_remove_paired_peer(
     ): Short
+    fun uniffi_acerola_checksum_method_p2pnode_set_local_device_name(
+    ): Short
     fun uniffi_acerola_checksum_method_p2pnode_shutdown(
     ): Short
     fun uniffi_acerola_checksum_method_p2pnode_switch_to_local(
@@ -1374,6 +1380,9 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_acerola_checksum_method_p2pnode_remove_paired_peer() != 11699.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_acerola_checksum_method_p2pnode_set_local_device_name() != 189.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_acerola_checksum_method_p2pnode_shutdown() != 3258.toShort()) {
@@ -3446,6 +3455,17 @@ public interface P2pNodeInterface {
      */
     fun `removePairedPeer`(`id`: kotlin.String)
     
+    /**
+     * Sobrescreve o nome exibido deste dispositivo (apelido custom estilo LocalSend, em vez do
+     * `Build.MODEL` padrão) — vale a partir do próximo handshake, sem precisar reiniciar o
+     * app, já que `AcerolaP2p::set_local_device_name` escreve no mesmo `DeviceInfo`
+     * compartilhado lido pelos handlers de handshake a cada troca de identidade (ver
+     * `lib/p2p/src/api/acerola_p2p.rs`). Persistência entre reinícios é responsabilidade do
+     * lado Kotlin (DataStore), que relê o apelido salvo pra passar como `device_name` no
+     * próximo `P2PNode::new`.
+     */
+    fun `setLocalDeviceName`(`name`: kotlin.String)
+    
     fun `shutdown`()
     
     fun `switchToLocal`()
@@ -3710,6 +3730,26 @@ open class P2pNode: Disposable, AutoCloseable, P2pNodeInterface {
     uniffiRustCall() { _status ->
     UniffiLib.INSTANCE.uniffi_acerola_fn_method_p2pnode_remove_paired_peer(
         it, FfiConverterString.lower(`id`),_status)
+}
+    }
+    
+    
+
+    
+    /**
+     * Sobrescreve o nome exibido deste dispositivo (apelido custom estilo LocalSend, em vez do
+     * `Build.MODEL` padrão) — vale a partir do próximo handshake, sem precisar reiniciar o
+     * app, já que `AcerolaP2p::set_local_device_name` escreve no mesmo `DeviceInfo`
+     * compartilhado lido pelos handlers de handshake a cada troca de identidade (ver
+     * `lib/p2p/src/api/acerola_p2p.rs`). Persistência entre reinícios é responsabilidade do
+     * lado Kotlin (DataStore), que relê o apelido salvo pra passar como `device_name` no
+     * próximo `P2PNode::new`.
+     */override fun `setLocalDeviceName`(`name`: kotlin.String)
+        = 
+    callWithPointer {
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_acerola_fn_method_p2pnode_set_local_device_name(
+        it, FfiConverterString.lower(`name`),_status)
 }
     }
     

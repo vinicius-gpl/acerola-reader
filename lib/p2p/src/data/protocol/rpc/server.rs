@@ -1,7 +1,10 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use tokio::io::{AsyncRead, AsyncWrite};
+use tokio::{
+    io::{AsyncRead, AsyncWrite},
+    sync::RwLock,
+};
 use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
 
 use super::{read_byte, read_device_info, write_byte, write_device_info, Recv, Writer, PING, PONG};
@@ -15,7 +18,10 @@ use crate::{
 
 pub struct RpcServerHandler {
     emit: EventEmitter,
-    local_info: DeviceInfo,
+    /// Compartilhado com `AcerolaP2p` (ver `set_local_device_name`) — lido de novo a cada
+    /// handshake, não capturado por valor na construção, pra um apelido renomeado em runtime
+    /// já valer na próxima sessão sem precisar reiniciar o node.
+    local_info: Arc<RwLock<DeviceInfo>>,
     state: Arc<dyn DeviceInfoStore>,
 }
 
@@ -37,7 +43,7 @@ impl ProtocolHandler for RpcServerHandler {
 
 impl RpcServerHandler {
     pub fn new(
-        emit: EventEmitter, local_info: DeviceInfo, state: Arc<dyn DeviceInfoStore>,
+        emit: EventEmitter, local_info: Arc<RwLock<DeviceInfo>>, state: Arc<dyn DeviceInfoStore>,
     ) -> Self {
         Self { emit, local_info, state }
     }
@@ -63,7 +69,8 @@ impl RpcServerHandler {
         &self, peer: &PeerId, send: &mut Writer, recv: &mut Recv,
     ) -> Result<(), ConnectionError> {
         let device_info = read_device_info(recv).await?;
-        write_device_info(send, &self.local_info).await?;
+        let local_info = self.local_info.read().await.clone();
+        write_device_info(send, &local_info).await?;
 
         (self.emit)("rpc:device_info_exchanged", peer.id.clone());
         self.state.store_device_info(peer.clone(), device_info).await;
@@ -105,6 +112,10 @@ mod tests {
         DeviceInfo { name: name.to_string(), os: "linux".to_string(), version: "0.0.1".to_string() }
     }
 
+    fn shared_device_info(name: &str) -> Arc<RwLock<DeviceInfo>> {
+        Arc::new(RwLock::new(make_device_info(name)))
+    }
+
     fn make_state() -> Arc<dyn DeviceInfoStore> {
         Arc::new(TestDeviceInfoStore::default())
     }
@@ -124,7 +135,7 @@ mod tests {
     async fn server_responds_pong_on_receiving_ping() {
         let (client_side, server_side) = tokio::io::duplex(4096);
         let (emit, events) = capture_emitter();
-        let server = RpcServerHandler::new(emit, make_device_info("server"), make_state());
+        let server = RpcServerHandler::new(emit, shared_device_info("server"), make_state());
 
         let peer = make_peer("peer-1");
         let peer_clone = peer.clone();
@@ -159,7 +170,7 @@ mod tests {
         let (client_side, server_side) = tokio::io::duplex(4096);
         let (emit, _) = capture_emitter();
         let store = Arc::new(TestDeviceInfoStore::default());
-        let server = RpcServerHandler::new(emit, make_device_info("server"), store.clone());
+        let server = RpcServerHandler::new(emit, shared_device_info("server"), store.clone());
 
         let peer = make_peer("peer-1");
         let peer_clone = peer.clone();
@@ -188,11 +199,48 @@ mod tests {
         assert_eq!(stored, Some("client-pc".to_string()));
     }
 
+    /// Renomear o dispositivo local (`AcerolaP2p::set_local_device_name`, que escreve no mesmo
+    /// `Arc<RwLock<DeviceInfo>>` passado aqui) tem que valer no próximo handshake mesmo sem
+    /// reconstruir o handler — é essa propriedade que permite o apelido aplicar na hora, sem
+    /// reiniciar o app.
+    #[tokio::test]
+    async fn exchange_uses_current_local_info_after_runtime_rename() {
+        let (client_side, server_side) = tokio::io::duplex(4096);
+        let (emit, _) = capture_emitter();
+        let local_info = shared_device_info("server-old-name");
+        let server = RpcServerHandler::new(emit, Arc::clone(&local_info), make_state());
+
+        local_info.write().await.name = "server-new-name".to_string();
+
+        let peer = make_peer("peer-1");
+        tokio::spawn(async move {
+            let (read, write) = tokio::io::split(server_side);
+            let _ = server.handle(&peer, Box::new(write), Box::new(read)).await;
+        });
+
+        let (read, write) = tokio::io::split(client_side);
+        let mut recv = FramedRead::new(
+            Box::new(read) as Box<dyn tokio::io::AsyncRead + Send + Unpin>,
+            LengthDelimitedCodec::new(),
+        );
+        let mut send = FramedWrite::new(
+            Box::new(write) as Box<dyn tokio::io::AsyncWrite + Send + Unpin>,
+            LengthDelimitedCodec::new(),
+        );
+
+        write_byte(&mut send, PING).await.unwrap();
+        read_byte(&mut recv).await.unwrap();
+        write_device_info(&mut send, &make_device_info("client")).await.unwrap();
+
+        let received = read_device_info(&mut recv).await.unwrap();
+        assert_eq!(received.name, "server-new-name");
+    }
+
     #[tokio::test]
     async fn server_terminates_if_ping_not_received() {
         let (client_side, server_side) = tokio::io::duplex(4096);
         let (emit, _) = capture_emitter();
-        let server = RpcServerHandler::new(emit, make_device_info("server"), make_state());
+        let server = RpcServerHandler::new(emit, shared_device_info("server"), make_state());
 
         let peer = make_peer("peer-1");
         let server_task = tokio::spawn(async move {
@@ -213,7 +261,7 @@ mod tests {
     async fn handle_returns_ok_immediately_after_device_info_exchange() {
         let (client_side, server_side) = tokio::io::duplex(4096);
         let (emit, _) = capture_emitter();
-        let server = RpcServerHandler::new(emit, make_device_info("server"), make_state());
+        let server = RpcServerHandler::new(emit, shared_device_info("server"), make_state());
 
         let peer = make_peer("peer-1");
         let server_task = tokio::spawn(async move {

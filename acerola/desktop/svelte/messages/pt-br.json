@@ -640,7 +640,15 @@
 				"relay_label": "Relay",
 				"relay_default": "padrão",
 				"relay_custom": "customizado",
-				"copy_id": "Copiar ID"
+				"copy_id": "Copiar ID",
+				"rename": {
+					"action": "Renomear dispositivo",
+					"placeholder": "Nome deste dispositivo",
+					"save": "Salvar",
+					"cancel": "Cancelar",
+					"success": "Nome do dispositivo atualizado!",
+					"error": "Não foi possível renomear o dispositivo: {msg}"
+				}
 			},
 			"pairing": {
 				"title": "Código de conexão",

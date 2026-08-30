@@ -18,7 +18,13 @@ pub type ConnectedPeerInfo = (PeerIdentity, HashSet<Vec<u8>>, Option<DeviceInfo>
 pub trait NetworkServiceApi: Send + Sync + 'static {
     fn local_id(&self) -> Result<String, String>;
     fn local_addr(&self) -> Result<PeerAddr, String>;
-    fn local_device_info(&self) -> Result<DeviceInfo, String>;
+    async fn local_device_info(&self) -> Result<DeviceInfo, String>;
+    /// Sobrescreve o nome exibido do dispositivo local (apelido custom estilo LocalSend). Vale
+    /// a partir do próximo handshake — não precisa reiniciar o app (ver
+    /// `AcerolaP2p::set_local_device_name`). Persistir entre reinícios é responsabilidade do
+    /// chamador (frontend grava em `settings.json`, `bios::network::setup_network` reaplica no
+    /// próximo boot).
+    async fn set_local_device_name(&self, name: String) -> Result<(), String>;
     async fn connected_peers_with_info(&self) -> Result<Vec<ConnectedPeerInfo>, String>;
     /// Todo peer já pareado (TOFU) alguma vez, com o último endereço conhecido — persiste
     /// entre reinícios e independe de conexão ativa agora, diferente de
@@ -79,8 +85,13 @@ impl NetworkServiceApi for NetworkService {
 
     /// Nome/OS/versão deste dispositivo — usado na tela de Rede pra exibir algo mais
     /// legível que o peer id cru (ex: "Notebook do Vinicius" em vez de um hex de 64 chars).
-    fn local_device_info(&self) -> Result<DeviceInfo, String> {
-        Ok(self.node.local_device_info().clone())
+    async fn local_device_info(&self) -> Result<DeviceInfo, String> {
+        Ok(self.node.local_device_info().await)
+    }
+
+    async fn set_local_device_name(&self, name: String) -> Result<(), String> {
+        self.node.set_local_device_name(name).await;
+        Ok(())
     }
 
     async fn connected_peers_with_info(&self) -> Result<Vec<ConnectedPeerInfo>, String> {

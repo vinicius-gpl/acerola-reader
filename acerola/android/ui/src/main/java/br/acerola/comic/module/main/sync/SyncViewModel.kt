@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Build
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import br.acerola.comic.config.preference.DeviceAliasPreference
 import br.acerola.comic.config.preference.RelayPreference
 import br.acerola.comic.logging.AcerolaLogger
 import br.acerola.comic.logging.LogSource
@@ -97,6 +98,16 @@ class SyncViewModel
                 }
             }
 
+            // Apelido salvo já foi lido pra construir o node (`NetworkCaseModule`) — essa
+            // segunda leitura é só pra refletir o mesmo valor aqui na UI, já que o node não
+            // devolve o `DeviceInfo` que recebeu no boot. Depois disso, `localDeviceName` só
+            // muda via `renameDevice` — nunca por `refreshLocalInfo`, que rodaria por cima do
+            // que acabou de ser renomeado a cada evento de rede.
+            viewModelScope.launch {
+                val alias = DeviceAliasPreference.deviceAliasFlow(context).first()
+                _uiState.update { it.copy(localDeviceName = alias ?: Build.MODEL) }
+            }
+
             viewModelScope.launch {
                 p2pEventBus.events.collect(::handleEvent)
             }
@@ -162,6 +173,7 @@ class SyncViewModel
 
         fun onAction(action: SyncAction) {
             when (action) {
+                is SyncAction.RenameDevice -> renameDevice(action.name)
                 is SyncAction.ProposeConnect -> proposeConnect(action.code)
                 SyncAction.ConfirmConnect -> confirmConnect()
                 SyncAction.CancelConnect -> _uiState.update { it.copy(pendingConnect = null) }
@@ -280,6 +292,23 @@ class SyncViewModel
                         syncingKeys = it.syncingKeys.filterNot { key -> key.startsWith("$peerId:") }.toSet(),
                     )
                 }
+            }
+        }
+
+        /** Sets a custom local device alias — applies on the P2P node right away (next
+         *  handshake already uses it) and persists it via DataStore so it survives a restart.
+         *  Updates [SyncUiState.localDeviceName] optimistically since the FFI call is
+         *  fire-and-forget (no synchronous confirmation from the Rust side). */
+        private fun renameDevice(name: String) {
+            val trimmed = name.trim()
+            if (trimmed.isEmpty()) return
+
+            AcerolaLogger.i("SyncViewModel", "Renaming local device to: $trimmed", LogSource.UI)
+            _uiState.update { it.copy(localDeviceName = trimmed) }
+
+            viewModelScope.launch(Dispatchers.IO) {
+                p2pUseCase.setLocalDeviceName(trimmed)
+                DeviceAliasPreference.saveAlias(context, trimmed)
             }
         }
 
@@ -589,7 +618,6 @@ class SyncViewModel
                 _uiState.update {
                     it.copy(
                         localId = localId,
-                        localDeviceName = Build.MODEL,
                         pairingCode = pairingCode,
                         mode = mode,
                         pairedPeers = paired,

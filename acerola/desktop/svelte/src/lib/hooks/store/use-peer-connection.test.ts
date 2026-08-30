@@ -3,6 +3,8 @@ import { tick } from 'svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { load } from '@tauri-apps/plugin-store';
+import { STORE_KEYS } from '$lib/constants/store-plugin';
 import { NETWORK_COMMANDS } from '$lib/contracts/network/network.commands';
 import { NETWORK_EVENTS } from '$lib/contracts/network/network.events';
 import type { PairedPeerPayload } from '$lib/contracts/network/network.payloads';
@@ -22,8 +24,23 @@ vi.mock('@tauri-apps/api/event', () => ({
 	listen: vi.fn()
 }));
 
+vi.mock('@tauri-apps/plugin-store', () => ({
+	load: vi.fn()
+}));
+
 const invokeMock = vi.mocked(invoke);
 const listenMock = vi.mocked(listen);
+const loadMock = vi.mocked(load);
+
+function mockStore() {
+	const store = {
+		set: vi.fn(() => Promise.resolve()),
+		delete: vi.fn(() => Promise.resolve()),
+		save: vi.fn(() => Promise.resolve())
+	};
+	loadMock.mockResolvedValue(store as never);
+	return store;
+}
 
 async function renderHook() {
 	let hook: ReturnType<typeof usePeerConnection> | undefined;
@@ -257,6 +274,40 @@ describe('usePeerConnection', () => {
 
 		await expect(hook.connectWithCode(code)).rejects.toThrow('handshake failed');
 		expect(hook.connecting).toBe(false);
+	});
+
+	it('setDeviceName invokes the backend, updates local state and persists the alias', async () => {
+		defaultInvokeImpl();
+		const store = mockStore();
+		const hook = await renderHook();
+		await hook.loadLocalInfo();
+
+		await hook.setDeviceName('  Notebook do Vinicius  ');
+
+		expect(invokeMock).toHaveBeenCalledWith(NETWORK_COMMANDS.setLocalDeviceName, {
+			name: 'Notebook do Vinicius'
+		});
+		expect(hook.localDeviceInfo).toEqual({
+			name: 'Notebook do Vinicius',
+			os: 'windows',
+			version: '1.0'
+		});
+		expect(store.set).toHaveBeenCalledWith(STORE_KEYS.deviceAlias, 'Notebook do Vinicius');
+		expect(store.save).toHaveBeenCalledOnce();
+	});
+
+	it('setDeviceName does nothing for a blank name', async () => {
+		defaultInvokeImpl();
+		const hook = await renderHook();
+		await hook.loadLocalInfo();
+
+		await hook.setDeviceName('   ');
+
+		expect(invokeMock).not.toHaveBeenCalledWith(
+			NETWORK_COMMANDS.setLocalDeviceName,
+			expect.anything()
+		);
+		expect(hook.localDeviceInfo).toEqual({ name: 'Desktop', os: 'windows', version: '1.0' });
 	});
 
 	it('removePeer drops only the target peer, keeping others in the list and known addresses', async () => {

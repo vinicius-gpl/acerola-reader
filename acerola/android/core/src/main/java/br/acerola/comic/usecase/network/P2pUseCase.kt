@@ -26,6 +26,11 @@ class P2pUseCase
             return addr
         }
 
+        fun setLocalDeviceName(name: String) {
+            AcerolaLogger.i("P2pUseCase", "Renaming local device to: $name", LogSource.NETWORK)
+            p2pService.setLocalDeviceName(name)
+        }
+
         fun connect(
             peerAddress: PeerAddress,
             alpn: ByteArray,
