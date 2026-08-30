@@ -44,6 +44,10 @@
     <string name="label_sync_relay_default">padrão</string>
     <string name="label_sync_relay_custom">customizado</string>
     <string name="action_sync_copy_id">Copiar ID</string>
+    <string name="action_sync_rename_device">Renomear dispositivo</string>
+    <string name="hint_sync_rename_device">Nome deste dispositivo</string>
+    <string name="action_sync_rename_save">Salvar</string>
+    <string name="label_sync_rename_success">Nome do dispositivo atualizado!</string>
 
     <string name="action_sync_add_device">Adicionar dispositivo</string>
     <string name="tab_sync_my_code">Meu código</string>

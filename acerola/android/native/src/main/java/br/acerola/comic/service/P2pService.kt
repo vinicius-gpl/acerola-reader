@@ -40,6 +40,11 @@ data class ConnectedPeerInfo(
 class P2pService(
     context: Context,
     relayUrlOverride: String?,
+    /** Apelido custom salvo pelo usuário (DataStore, `DeviceAliasPreference`) — `null` quando
+     *  nunca definido, e o `Build.MODEL` padrão é usado. Só lido aqui, na construção do node;
+     *  renomear depois de iniciado é feito em runtime via [setLocalDeviceName], sem
+     *  reconstruir nada. */
+    deviceNameOverride: String?,
     secureStore: SecureBlobStore,
     historyProvider: HistorySyncProvider,
     fileProvider: FileSyncProvider,
@@ -82,7 +87,7 @@ class P2pService(
             legacyDataDir,
             blobsDir,
             relayUrlOverride,
-            Build.MODEL,
+            deviceNameOverride ?: Build.MODEL,
             appVersion,
             secureStore,
             historyProvider,
@@ -125,6 +130,13 @@ class P2pService(
     }
 
     fun getLocalId(): String = p2pNode.getLocalId()
+
+    /** Apelido custom estilo LocalSend (em vez do `Build.MODEL` padrão) — aplica na hora no
+     *  node P2P (próximo handshake já usa o nome novo, sem precisar reiniciar o app). */
+    fun setLocalDeviceName(name: String) {
+        Log.d("P2pService", "Renaming local device to: $name")
+        p2pNode.setLocalDeviceName(name)
+    }
 
     fun getLocalAddress(): PeerAddress {
         val addr = p2pNode.getLocalAddr()

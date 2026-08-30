@@ -26,7 +26,10 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentPaste
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
@@ -222,7 +225,7 @@ private fun SyncLayout(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
-            ThisDeviceSection(uiState = uiState)
+            ThisDeviceSection(uiState = uiState, onAction = onAction)
 
             PeersSection(
                 uiState = uiState,
@@ -292,12 +295,57 @@ private fun SyncLayout(
 }
 
 @Composable
-private fun ThisDeviceSection(uiState: SyncUiState) {
+private fun ThisDeviceSection(
+    uiState: SyncUiState,
+    onAction: (SyncAction) -> Unit,
+) {
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = LocalSnackbarHostState.current
     val copiedMessage = stringResource(id = R.string.label_sync_copied)
+    val renamedMessage = stringResource(id = R.string.label_sync_rename_success)
+
+    // Apelido custom estilo LocalSend — edição inline em vez de um dialog separado, já que é
+    // um campo único e essa tela já é o lugar natural pra mexer nisso (mesma abordagem do
+    // lado desktop, ver `acerola-network-my-device-card.svelte`).
+    var editingName by remember { mutableStateOf(false) }
+    var nameDraft by remember { mutableStateOf("") }
+
+    if (editingName) {
+        Card(shape = ShapeTokens.Huge, modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier.padding(SpacingTokens.Large),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(SpacingTokens.Small),
+            ) {
+                OutlinedTextField(
+                    value = nameDraft,
+                    onValueChange = { nameDraft = it },
+                    placeholder = { Text(text = stringResource(id = R.string.hint_sync_rename_device)) },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                )
+                IconButton(
+                    enabled = nameDraft.isNotBlank(),
+                    onClick = {
+                        onAction(SyncAction.RenameDevice(nameDraft))
+                        scope.launch { snackbarHostState.showSnackbar(renamedMessage, SnackbarVariant.Success) }
+                        editingName = false
+                    },
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = stringResource(id = R.string.action_sync_rename_save),
+                    )
+                }
+                IconButton(onClick = { editingName = false }) {
+                    Icon(imageVector = Icons.Default.Close, contentDescription = stringResource(id = R.string.action_cancel))
+                }
+            }
+        }
+        return
+    }
 
     Acerola.Component.HeroButton(
         title = uiState.localDeviceName,
@@ -312,17 +360,28 @@ private fun ThisDeviceSection(uiState: SyncUiState) {
             )
         },
         action = {
-            OutlinedButton(onClick = {
-                clipboardManager.setText(AnnotatedString(uiState.localId))
-                scope.launch { snackbarHostState.showSnackbar(copiedMessage, SnackbarVariant.Success) }
-            }) {
-                Icon(
-                    imageVector = Icons.Default.ContentCopy,
-                    contentDescription = null,
-                    modifier = Modifier.size(SizeTokens.IconExtraSmall),
-                )
-                Spacer(modifier = Modifier.width(SpacingTokens.ExtraSmall))
-                Text(text = stringResource(id = R.string.action_sync_copy_id))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = {
+                    nameDraft = uiState.localDeviceName
+                    editingName = true
+                }) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = stringResource(id = R.string.action_sync_rename_device),
+                    )
+                }
+                OutlinedButton(onClick = {
+                    clipboardManager.setText(AnnotatedString(uiState.localId))
+                    scope.launch { snackbarHostState.showSnackbar(copiedMessage, SnackbarVariant.Success) }
+                }) {
+                    Icon(
+                        imageVector = Icons.Default.ContentCopy,
+                        contentDescription = null,
+                        modifier = Modifier.size(SizeTokens.IconExtraSmall),
+                    )
+                    Spacer(modifier = Modifier.width(SpacingTokens.ExtraSmall))
+                    Text(text = stringResource(id = R.string.action_sync_copy_id))
+                }
             }
         },
         bottomContent = {
