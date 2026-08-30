@@ -30,7 +30,9 @@ describe('AcerolaPrevNextNav', () => {
 	});
 
 	it('renders only the next link when prev is null', () => {
-		render(AcerolaPrevNextNav, { props: { prev: null, next: makeDoc('architecture', 'Arquitetura') } });
+		render(AcerolaPrevNextNav, {
+			props: { prev: null, next: makeDoc('architecture', 'Arquitetura') }
+		});
 
 		expect(screen.queryByText('Anterior')).not.toBeInTheDocument();
 		expect(screen.getByRole('link', { name: /Arquitetura/ })).toHaveAttribute(
