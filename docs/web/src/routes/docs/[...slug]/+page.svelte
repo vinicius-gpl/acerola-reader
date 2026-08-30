@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { setContext } from 'svelte';
-	import PrevNextNav from '$lib/components/prev-next-nav/prev-next-nav.svelte';
+	import AcerolaPrevNextNav from '$lib/components/acerola-prev-next-nav/acerola-prev-next-nav.svelte';
 	import { DOC_RAW_CONTEXT_KEY } from '$lib/content/doc-raw-context';
 	import { m } from '$lib/paraglide/messages';
 	import type { PageData } from './$types';
@@ -28,6 +28,6 @@
 	{/if}
 </svelte:head>
 
-<PrevNextNav prev={data.prev} next={data.next} position="top" />
+<AcerolaPrevNextNav prev={data.prev} next={data.next} position="top" />
 <Doc />
-<PrevNextNav prev={data.prev} next={data.next} />
+<AcerolaPrevNextNav prev={data.prev} next={data.next} />

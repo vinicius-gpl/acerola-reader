@@ -60,6 +60,14 @@ figure[data-rehype-pretty-code-figure] code[data-line-numbers] > [data-line]::be
 	@apply no-underline;
 }
 
+/* Card e CopyCard usados soltos no markdown (fora de um CardGrid) não têm
+   margem própria — CardGrid é quem cuida do espaçamento quando eles estão
+   dentro dela (via `gap`). Seletor de filho direto pra não afetar os cards
+   aninhados no CardGrid, que já têm seu próprio espaçamento. */
+.doc-content > :where([data-slot='card']) {
+	@apply my-6;
+}
+
 .doc-content .mermaid {
 	/* overflow-hidden, não overflow-auto: o movimento é feito pelo D-pad
 	   (transform: translate no svg, ver addZoomControls) em vez de scrollbars

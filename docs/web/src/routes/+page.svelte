@@ -5,8 +5,8 @@
 	import ServerIcon from '@lucide/svelte/icons/server';
 	import SmartphoneIcon from '@lucide/svelte/icons/smartphone';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import FaultyTerminal from '$lib/components/faulty-terminal/faulty-terminal.svelte';
-	import ShinyText from '$lib/components/shiny-text/shiny-text.svelte';
+	import AcerolaFaultyTerminal from '$lib/components/acerola-faulty-terminal/acerola-faulty-terminal.svelte';
+	import AcerolaShinyText from '$lib/components/acerola-shiny-text/acerola-shiny-text.svelte';
 	import Card from '$lib/mdsvex/card.svelte';
 	import CardGrid from '$lib/mdsvex/card-grid.svelte';
 	import GithubIcon from '$lib/icons/github.svelte';
@@ -79,7 +79,7 @@
 			class:opacity-0={!bgReady}
 			style="mask-image: linear-gradient(to bottom, black 85%, transparent); -webkit-mask-image: linear-gradient(to bottom, black 85%, transparent);"
 		>
-			<FaultyTerminal
+			<AcerolaFaultyTerminal
 				tint={heroTint}
 				scale={2}
 				digitSize={1.5}
@@ -97,7 +97,7 @@
 	<section class="relative">
 		<div class="mx-auto flex max-w-2xl flex-col items-center px-4 py-16 text-center sm:py-20">
 			<h1 class="font-heading text-3xl font-semibold text-balance sm:text-4xl md:text-5xl">
-				<ShinyText text={m['landing.hero_title']()} />
+				<AcerolaShinyText text={m['landing.hero_title']()} />
 			</h1>
 			<div class="mt-8 flex flex-wrap items-center justify-center gap-3">
 				<Button href={localizeHref('/docs/getting-started')} size="lg">

@@ -6,7 +6,7 @@ order: 2
 ---
 
 <script>
-	import Callout from '$lib/mdsvex/callout.svelte';
+	import Callout from '$lib/components/acerola-callout/acerola-callout.svelte';
 	import Steps from '$lib/mdsvex/steps.svelte';
 </script>
 
