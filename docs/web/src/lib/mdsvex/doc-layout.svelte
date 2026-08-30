@@ -7,7 +7,7 @@
 	import PlusIcon from '@lucide/svelte/icons/plus';
 	import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
 	import { page } from '$app/state';
-	import CopyMarkdownButton from '$lib/components/copy-markdown-button/copy-markdown-button.svelte';
+	import AcerolaCopyMarkdownButton from '$lib/components/acerola-copy-markdown-button/acerola-copy-markdown-button.svelte';
 	import { DOC_RAW_CONTEXT_KEY, type DocRawContext } from '$lib/content/doc-raw-context';
 	import { useTheme } from '$lib/hooks/theme/use-theme.svelte';
 	import { m } from '$lib/paraglide/messages';
@@ -184,7 +184,7 @@
 		<div class="mb-2 flex items-center gap-2">
 			<h1 class="font-heading text-4xl font-semibold">{title}</h1>
 			{#if docRaw}
-				<CopyMarkdownButton
+				<AcerolaCopyMarkdownButton
 					raw={docRaw.value}
 					url={page.url.href}
 					label={m['doc.copy.markdown']()}

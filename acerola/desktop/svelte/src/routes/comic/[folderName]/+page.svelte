@@ -36,11 +36,11 @@
 	import { toast } from 'svelte-sonner';
 	import { extractErrorMessage } from '$lib/utils/error.utils';
 
-	import ComicChapterList, { type Chapter } from './components/comic-chapter-list.svelte';
-	import ComicHeroBanner from './components/comic-hero-banner.svelte';
-	import ComicMetadataPanel from './components/comic-metadata-panel.svelte';
-	import ComicPreferences from './components/comic-preferences.svelte';
-	import ComicVolumeList, { type VolumeChapter } from './components/comic-volume-list.svelte';
+	import ComicChapterList, { type Chapter } from './components/acerola-comic-chapter-list.svelte';
+	import ComicHeroBanner from './components/acerola-comic-hero-banner.svelte';
+	import ComicMetadataPanel from './components/acerola-comic-metadata-panel.svelte';
+	import ComicPreferences from './components/acerola-comic-preferences.svelte';
+	import ComicVolumeList, { type VolumeChapter } from './components/acerola-comic-volume-list.svelte';
 
 	let { data } = $props();
 

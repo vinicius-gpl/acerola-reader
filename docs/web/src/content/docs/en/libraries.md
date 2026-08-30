@@ -6,7 +6,7 @@ order: 1
 ---
 
 <script>
-	import Callout from '$lib/mdsvex/callout.svelte';
+	import Callout from '$lib/components/acerola-callout/acerola-callout.svelte';
 	import LibraryTable from '$lib/mdsvex/library-table.svelte';
 
 	const desktopRust = [

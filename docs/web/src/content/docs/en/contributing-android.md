@@ -6,7 +6,7 @@ order: 3
 ---
 
 <script>
-	import Callout from '$lib/mdsvex/callout.svelte';
+	import Callout from '$lib/components/acerola-callout/acerola-callout.svelte';
 </script>
 
 <Callout type="note" title="No dedicated contribution guide yet">

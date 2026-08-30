@@ -6,10 +6,10 @@ order: 1
 ---
 
 <script>
-	import Callout from '$lib/mdsvex/callout.svelte';
+	import Callout from '$lib/components/acerola-callout/acerola-callout.svelte';
 	import CardGrid from '$lib/mdsvex/card-grid.svelte';
 	import Card from '$lib/mdsvex/card.svelte';
-	import CopyCard from '$lib/components/copy-card/copy-card.svelte';
+	import AcerolaCopyCard from '$lib/components/acerola-copy-card/acerola-copy-card.svelte';
 </script>
 
 <Callout type="note" title="Fonte de verdade">
@@ -20,7 +20,7 @@ Esta página espelha o [`PRIVACY_POLICY.md`](https://github.com/Vinicius-Gabriel
 
 <Card title="Controlador">Vinícius Gabriel Pereira Leitão, desenvolvedor independente do aplicativo Acerola.</Card>
 
-<CopyCard
+<AcerolaCopyCard
 	label="Contato"
 	value="contato@acerola-comic.com"
 	href="mailto:contato@acerola-comic.com"
