@@ -5,7 +5,13 @@
 	const { Story } = defineMeta({
 		title: 'Páginas/Reader/AcerolaReaderShell',
 		component: AcerolaReaderShell,
-		tags: ['autodocs']
+		tags: ['autodocs'],
+		parameters: {
+			// AcerolaReaderShell usa `position: fixed` ancorado à viewport real, o que
+			// escapa do canvas inline da página de docs. Renderizar em um iframe isolado
+			// faz o `fixed` preencher corretamente a área do preview.
+			docs: { story: { inline: false, iframeHeight: 500 } }
+		}
 	});
 </script>
 

@@ -11,11 +11,20 @@
 
 	const { Story } = defineMeta({
 		component: AcerolaRemoteLibraryDialog,
-		title: 'Compositores/AcerolaRemoteLibraryDialog'
+		title: 'Compositores/AcerolaRemoteLibraryDialog',
+		tags: ['autodocs'],
+		parameters: {
+			docs: {
+				description: {
+					component:
+						'Diálogo que lista a biblioteca de quadrinhos de um peer remoto, com estados de carregamento, erro, vazio e sincronização.'
+				}
+			}
+		}
 	});
 </script>
 
-<Story name="Default">
+<Story name="Default" asChild>
 	{#snippet children()}
 		<div class="min-h-[500px] bg-surface p-8">
 			<AcerolaRemoteLibraryDialog
@@ -33,7 +42,7 @@
 	{/snippet}
 </Story>
 
-<Story name="Loading">
+<Story name="Loading" asChild>
 	{#snippet children()}
 		<div class="min-h-[500px] bg-surface p-8">
 			<AcerolaRemoteLibraryDialog
@@ -51,7 +60,7 @@
 	{/snippet}
 </Story>
 
-<Story name="Error">
+<Story name="Error" asChild>
 	{#snippet children()}
 		<div class="min-h-[500px] bg-surface p-8">
 			<AcerolaRemoteLibraryDialog
@@ -70,7 +79,7 @@
 	{/snippet}
 </Story>
 
-<Story name="Empty">
+<Story name="Empty" asChild>
 	{#snippet children()}
 		<div class="min-h-[500px] bg-surface p-8">
 			<AcerolaRemoteLibraryDialog
@@ -88,7 +97,7 @@
 	{/snippet}
 </Story>
 
-<Story name="Syncing">
+<Story name="Syncing" asChild>
 	{#snippet children()}
 		<div class="min-h-[500px] bg-surface p-8">
 			<AcerolaRemoteLibraryDialog

@@ -391,7 +391,7 @@
 		{/each}
 	{:else}
 		<div
-			class="space-y-4 rounded-3xl border-2 border-dashed border-surface py-20 text-center opacity-50"
+			class="flex flex-col items-center space-y-4 rounded-3xl border-2 border-dashed border-surface py-20 text-center opacity-50"
 		>
 			<RefreshCw size={48} class="animate-spin text-primary" />
 			<p class="text-sm font-black tracking-widest uppercase">

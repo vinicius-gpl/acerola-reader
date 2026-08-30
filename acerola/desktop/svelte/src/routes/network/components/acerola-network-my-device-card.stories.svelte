@@ -4,11 +4,20 @@
 
 	const { Story } = defineMeta({
 		component: AcerolaNetworkMyDeviceCard,
-		title: 'Páginas/Network/AcerolaNetworkMyDeviceCard'
+		title: 'Páginas/Network/AcerolaNetworkMyDeviceCard',
+		tags: ['autodocs'],
+		parameters: {
+			docs: {
+				description: {
+					component:
+						'Cartão com as informações do dispositivo local: nome, identificador e modo de conexão (local ou relay).'
+				}
+			}
+		}
 	});
 </script>
 
-<Story name="Local Mode">
+<Story name="Local Mode" asChild>
 	{#snippet children()}
 		<div class="max-w-md bg-surface p-8">
 			<AcerolaNetworkMyDeviceCard
@@ -24,7 +33,7 @@
 	{/snippet}
 </Story>
 
-<Story name="Relay Mode (Custom)">
+<Story name="Relay Mode (Custom)" asChild>
 	{#snippet children()}
 		<div class="max-w-md bg-surface p-8">
 			<AcerolaNetworkMyDeviceCard
@@ -40,7 +49,7 @@
 	{/snippet}
 </Story>
 
-<Story name="Loading">
+<Story name="Loading" asChild>
 	{#snippet children()}
 		<div class="max-w-md bg-surface p-8">
 			<AcerolaNetworkMyDeviceCard

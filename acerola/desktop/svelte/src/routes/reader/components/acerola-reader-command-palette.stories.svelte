@@ -32,15 +32,23 @@
 </script>
 
 <Story name="Open" asChild>
-	<AcerolaReaderCommandPalette data={{ zoomMode }} state={{ open, value, readingMode }} {events} />
+	<div class="relative h-96 overflow-hidden rounded-lg border border-surface/40 bg-base">
+		<AcerolaReaderCommandPalette
+			data={{ zoomMode }}
+			state={{ open, value, readingMode }}
+			{events}
+		/>
+	</div>
 </Story>
 
 <Story name="Zoom Mode Active" asChild>
-	<AcerolaReaderCommandPalette
-		data={{ zoomMode: true }}
-		state={{ open: true, value: 'zoom', readingMode: 'horizontal' }}
-		{events}
-	/>
+	<div class="relative h-96 overflow-hidden rounded-lg border border-surface/40 bg-base">
+		<AcerolaReaderCommandPalette
+			data={{ zoomMode: true }}
+			state={{ open: true, value: 'zoom', readingMode: 'horizontal' }}
+			{events}
+		/>
+	</div>
 </Story>
 
 <Story name="Closed" asChild>

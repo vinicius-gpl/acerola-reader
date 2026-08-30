@@ -11,11 +11,20 @@
 
 	const { Story } = defineMeta({
 		component: AcerolaFilterPanel,
-		title: 'Páginas/Home/AcerolaFilterPanel'
+		title: 'Páginas/Home/AcerolaFilterPanel',
+		tags: ['autodocs'],
+		parameters: {
+			docs: {
+				description: {
+					component:
+						'Painel de filtros e ordenação da biblioteca: ordem, exibição de ocultos, fonte de metadados e categoria de marcação.'
+				}
+			}
+		}
 	});
 </script>
 
-<Story name="Default">
+<Story name="Default" asChild>
 	{#snippet children()}
 		<div class="min-h-[600px] bg-surface">
 			<AcerolaFilterPanel
@@ -34,7 +43,7 @@
 	{/snippet}
 </Story>
 
-<Story name="Active Filters">
+<Story name="Active Filters" asChild>
 	{#snippet children()}
 		<div class="min-h-[600px] bg-surface">
 			<AcerolaFilterPanel
@@ -53,7 +62,7 @@
 	{/snippet}
 </Story>
 
-<Story name="No Bookmarks">
+<Story name="No Bookmarks" asChild>
 	{#snippet children()}
 		<div class="min-h-[600px] bg-surface">
 			<AcerolaFilterPanel
@@ -72,7 +81,7 @@
 	{/snippet}
 </Story>
 
-<Story name="Closed">
+<Story name="Closed" asChild>
 	{#snippet children()}
 		<div class="min-h-[200px] bg-surface p-8 text-sm text-muted-foreground">
 			Panel is closed - nothing renders when state.open is false.

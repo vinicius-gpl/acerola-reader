@@ -16,11 +16,20 @@
 
 	const { Story } = defineMeta({
 		component: AcerolaSidebar,
-		title: 'Layout/AcerolaSidebar'
+		title: 'Layout/AcerolaSidebar',
+		tags: ['autodocs'],
+		parameters: {
+			docs: {
+				description: {
+					component:
+						'Barra lateral de navegação do app, com itens de menu e slot opcional para a marca.'
+				}
+			}
+		}
 	});
 </script>
 
-<Story name="Default">
+<Story name="Default" asChild>
 	{#snippet children()}
 		<div class="flex h-96 bg-surface">
 			<AcerolaSidebar data={{ items }} />
@@ -28,7 +37,7 @@
 	{/snippet}
 </Story>
 
-<Story name="With Brand">
+<Story name="With Brand" asChild>
 	{#snippet children()}
 		<div class="flex h-96 bg-surface">
 			<AcerolaSidebar data={{ items }}>

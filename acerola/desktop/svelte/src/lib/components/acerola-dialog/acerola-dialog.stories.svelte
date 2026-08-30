@@ -4,7 +4,16 @@
 
 	const { Story } = defineMeta({
 		component: AcerolaDialog,
-		title: 'Primitivos/AcerolaDialog'
+		title: 'Primitivos/AcerolaDialog',
+		tags: ['autodocs'],
+		parameters: {
+			docs: {
+				description: {
+					component:
+						'Diálogo modal genérico com título e descrição, base para composições mais específicas.'
+				}
+			}
+		}
 	});
 </script>
 
@@ -17,6 +26,7 @@
 			description: 'Dialog description goes here.'
 		}
 	}}
+	asChild
 >
 	{#snippet children()}
 		<AcerolaDialog
