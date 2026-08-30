@@ -1,5 +1,11 @@
 <script lang="ts">
+	import { Command as CommandPrimitive } from 'bits-ui';
+	import FileTextIcon from '@lucide/svelte/icons/file-text';
+	import Loader2Icon from '@lucide/svelte/icons/loader-2';
+	import SearchIcon from '@lucide/svelte/icons/search';
+	import SearchXIcon from '@lucide/svelte/icons/search-x';
 	import * as Command from '$lib/components/ui/command/index.js';
+	import * as InputGroup from '$lib/components/ui/input-group/index.js';
 	import { m } from '$lib/paraglide/messages';
 
 	type PagefindResult = { url: string; excerpt: string; meta: { title?: string } };
@@ -75,20 +81,53 @@
 	shouldFilter={false}
 	title={m['search.title']()}
 	description={m['search.title']()}
+	class="top-1/4 w-full max-w-lg translate-y-0 gap-0 overflow-hidden rounded-xl! p-0 shadow-2xl ring-1 ring-border sm:max-w-lg"
 >
-	<Command.Input bind:value={query} placeholder={m['search.placeholder']()} />
-	<Command.List>
+	<div data-slot="command-input-wrapper" class="p-3 pb-2">
+		<InputGroup.Root class="h-11 rounded-lg border-border bg-input/50">
+			<InputGroup.Addon>
+				<SearchIcon class="size-4 shrink-0 opacity-50" />
+			</InputGroup.Addon>
+			<CommandPrimitive.Input
+				bind:value={query}
+				data-slot="command-input"
+				placeholder={m['search.placeholder']()}
+			>
+				{#snippet child({ props })}
+					<InputGroup.Input {...props} />
+				{/snippet}
+			</CommandPrimitive.Input>
+		</InputGroup.Root>
+	</div>
+	<Command.List class="px-2 pb-2">
 		{#if status === 'unavailable'}
-			<Command.Empty>{m['search.unavailable_dev']()}</Command.Empty>
+			<Command.Empty class="flex flex-col items-center gap-2 py-10 text-muted-foreground">
+				<SearchXIcon size={20} />
+				<span>{m['search.unavailable_dev']()}</span>
+			</Command.Empty>
 		{:else if status === 'loading'}
-			<Command.Empty>{m['search.loading']()}</Command.Empty>
+			<Command.Empty class="flex flex-col items-center gap-2 py-10 text-muted-foreground">
+				<Loader2Icon size={20} class="animate-spin" />
+				<span>{m['search.loading']()}</span>
+			</Command.Empty>
 		{:else if !query}
-			<Command.Empty>{m['search.idle']()}</Command.Empty>
+			<Command.Empty class="flex flex-col items-center gap-2 py-10 text-muted-foreground">
+				<SearchIcon size={20} />
+				<span>{m['search.idle']()}</span>
+			</Command.Empty>
 		{:else if query && results.length === 0}
-			<Command.Empty>{m['search.no_results']()}</Command.Empty>
+			<Command.Empty class="flex flex-col items-center gap-2 py-10 text-muted-foreground">
+				<SearchXIcon size={20} />
+				<span>{m['search.no_results']()}</span>
+			</Command.Empty>
 		{:else}
 			{#each results as result (result.url)}
-				<Command.LinkItem href={result.url} onclick={() => (open = false)}>
+				<Command.LinkItem
+					href={result.url}
+					onclick={() => (open = false)}
+					class="rounded-lg py-2"
+				>
+					<FileTextIcon size={16} class="mt-0.5 shrink-0 self-start" />
 					<div class="flex min-w-0 flex-col gap-0.5">
 						<span class="truncate font-medium">{result.meta?.title ?? result.url}</span>
 						<span class="line-clamp-2 text-xs text-muted-foreground">{@html result.excerpt}</span>
