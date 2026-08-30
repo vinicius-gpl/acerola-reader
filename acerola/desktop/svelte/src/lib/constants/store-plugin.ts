@@ -9,5 +9,6 @@ export const STORE_KEYS = {
 	readerMode: 'reader_mode',
 	onboardingCompleted: 'onboarding_completed',
 	metadataLanguage: 'metadata_language',
-	relayUrl: 'relay_url'
+	relayUrl: 'relay_url',
+	deviceAlias: 'device_alias'
 } as const;

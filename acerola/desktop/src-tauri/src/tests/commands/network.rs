@@ -27,6 +27,7 @@ struct MockNetworkService {
 
 struct MockNetworkState {
     local_id: String,
+    device_name: String,
     mode: NetworkMode,
     peers: Vec<ConnectedPeerInfo>,
     paired_peers: Vec<(PeerAddr, Option<DeviceInfo>)>,
@@ -39,6 +40,7 @@ impl MockNetworkService {
         Self {
             state: Arc::new(Mutex::new(MockNetworkState {
                 local_id: "local-peer-id".to_string(),
+                device_name: "mock-device".to_string(),
                 mode: NetworkMode::Local,
                 peers: Vec::new(),
                 paired_peers: Vec::new(),
@@ -103,14 +105,21 @@ impl NetworkServiceApi for MockNetworkService {
         })
     }
 
-    fn local_device_info(&self) -> Result<DeviceInfo, String> {
+    async fn local_device_info(&self) -> Result<DeviceInfo, String> {
         let mut state = self.state.lock().expect("network mock mutex should not be poisoned");
         Self::take_failure(&mut state)?;
         Ok(DeviceInfo {
-            name: "mock-device".to_string(),
+            name: state.device_name.clone(),
             os: "test-os".to_string(),
             version: "0.0.0".to_string(),
         })
+    }
+
+    async fn set_local_device_name(&self, name: String) -> Result<(), String> {
+        let mut state = self.state.lock().expect("network mock mutex should not be poisoned");
+        Self::take_failure(&mut state)?;
+        state.device_name = name;
+        Ok(())
     }
 
     async fn connected_peers_with_info(&self) -> Result<Vec<ConnectedPeerInfo>, String> {
@@ -181,6 +190,8 @@ fn build_network_app(
             network_cmd::switch_to_local,
             network_cmd::switch_to_relay,
             network_cmd::get_local_id,
+            network_cmd::get_local_device_info,
+            network_cmd::set_local_device_name,
             network_cmd::connect_to_peer,
             network_cmd::get_paired_peers,
             network_cmd::remove_paired_peer,
@@ -308,6 +319,45 @@ async fn test_get_local_id_serializes_service_error() -> Result<()> {
     let error = invoke_err(&webview, "get_local_id", json!({}))?;
 
     assert_eq!(error, json!("id failure"));
+
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_set_local_device_name_updates_local_device_info() -> Result<()> {
+    let service = mock_network_service();
+    let (_app, webview) = build_network_app(service)?;
+
+    let _: Value =
+        invoke_ok(&webview, "set_local_device_name", json!({ "name": "Notebook do Vinicius" }))?;
+
+    let device_info: Value = invoke_ok(&webview, "get_local_device_info", json!({}))?;
+    assert_eq!(device_info["name"], "Notebook do Vinicius");
+
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_set_local_device_name_rejects_blank_name() -> Result<()> {
+    let service = mock_network_service();
+    let (_app, webview) = build_network_app(service)?;
+
+    let error = invoke_err(&webview, "set_local_device_name", json!({ "name": "   " }))?;
+
+    assert_eq!(error, json!("device name cannot be empty"));
+
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_set_local_device_name_serializes_service_error() -> Result<()> {
+    let service = mock_network_service();
+    service.fail_next("rename failure");
+    let (_app, webview) = build_network_app(service)?;
+
+    let error = invoke_err(&webview, "set_local_device_name", json!({ "name": "New Name" }))?;
+
+    assert_eq!(error, json!("rename failure"));
 
     Ok(())
 }

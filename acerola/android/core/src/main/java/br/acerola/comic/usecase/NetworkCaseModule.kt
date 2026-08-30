@@ -1,6 +1,8 @@
 package br.acerola.comic.usecase
 
 import android.content.Context
+import android.os.Build
+import br.acerola.comic.config.preference.DeviceAliasPreference
 import br.acerola.comic.config.preference.RelayPreference
 import br.acerola.comic.service.P2pService
 import br.acerola.comic.service.network.CoverBrowseProviderImpl
@@ -33,9 +35,14 @@ object NetworkCaseModule {
     ): P2pService {
         // Read once at startup (no runtime hot-swap) — changing the relay requires restarting the app.
         val relayUrlOverride = runBlocking { RelayPreference.relayUrlOverrideFlow(context).first() }
+        // Renaming the device afterwards doesn't need a restart (see
+        // `P2pService.setLocalDeviceName`) — this initial read only seeds the very first
+        // `DeviceInfo` the node boots with, matching whatever was last saved.
+        val deviceNameOverride = runBlocking { DeviceAliasPreference.deviceAliasFlow(context).first() }
         return P2pService(
             context,
             relayUrlOverride,
+            deviceNameOverride,
             secureStore,
             historyProvider,
             fileProvider,

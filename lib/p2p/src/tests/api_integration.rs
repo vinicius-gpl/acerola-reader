@@ -26,6 +26,11 @@ fn make_device(name: &str) -> DeviceInfo {
 }
 
 #[allow(dead_code)]
+fn shared_device(name: &str) -> Arc<RwLock<DeviceInfo>> {
+    Arc::new(RwLock::new(make_device(name)))
+}
+
+#[allow(dead_code)]
 fn no_op_emitter() -> EventEmitter {
     Arc::new(|_: &str, _: String| {})
 }
@@ -42,12 +47,12 @@ async fn full_handshake_between_client_and_server() {
 
     let server = RpcServerHandler::new(
         no_op_emitter(),
-        make_device("server-pc"),
+        shared_device("server-pc"),
         Arc::clone(&state_server) as Arc<dyn DeviceInfoStore>,
     );
     let client = RpcClientHandler::new(
         no_op_emitter(),
-        make_device("client-pc"),
+        shared_device("client-pc"),
         Arc::clone(&state_client) as Arc<dyn DeviceInfoStore>,
     );
 
@@ -91,7 +96,7 @@ async fn server_fails_if_stream_closes_before_ping() {
     let state = Arc::new(RwLock::new(NetworkState::new()));
     let server = RpcServerHandler::new(
         no_op_emitter(),
-        make_device("server-pc"),
+        shared_device("server-pc"),
         Arc::clone(&state) as Arc<dyn DeviceInfoStore>,
     );
 
@@ -114,7 +119,7 @@ async fn client_fails_if_stream_closes_before_pong() {
     let state = Arc::new(RwLock::new(NetworkState::new()));
     let client = RpcClientHandler::new(
         no_op_emitter(),
-        make_device("client-pc"),
+        shared_device("client-pc"),
         Arc::clone(&state) as Arc<dyn DeviceInfoStore>,
     );
 
@@ -139,12 +144,12 @@ async fn neither_side_stores_device_info_if_connection_drops_before_exchange() {
 
     let server = RpcServerHandler::new(
         no_op_emitter(),
-        make_device("server-pc"),
+        shared_device("server-pc"),
         Arc::clone(&state_server) as Arc<dyn DeviceInfoStore>,
     );
     let client = RpcClientHandler::new(
         no_op_emitter(),
-        make_device("client-pc"),
+        shared_device("client-pc"),
         Arc::clone(&state_client) as Arc<dyn DeviceInfoStore>,
     );
 

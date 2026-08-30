@@ -98,6 +98,24 @@ object ComicDirectoryPreference {
     fun tutorialShownFlow(context: Context): Flow<Boolean> = context.dataStore.data.map { prefs -> prefs[TUTORIAL_SHOWN] ?: false }
 }
 
+object DeviceAliasPreference {
+    private val Context.dataStore by preferencesDataStore(name = "device_alias_prefs")
+    private val DEVICE_ALIAS = stringPreferencesKey(name = "device_alias")
+
+    suspend fun saveAlias(
+        context: Context,
+        name: String,
+    ) {
+        context.dataStore.edit { prefs ->
+            prefs[DEVICE_ALIAS] = name
+        }
+    }
+
+    /** `null` quando o usuário nunca definiu um apelido — quem chama deve cair pro nome
+     *  automático (`Build.MODEL`). */
+    fun deviceAliasFlow(context: Context): Flow<String?> = context.dataStore.data.map { prefs -> prefs[DEVICE_ALIAS] }
+}
+
 object RelayPreference {
     const val DEFAULT_RELAY_URL = "https://relay.acerola-comic.com/"
 

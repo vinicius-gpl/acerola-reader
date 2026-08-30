@@ -170,6 +170,7 @@
 			activeRelay: relay.relayInfo?.activeRelay,
 			isRelayOverridden: relay.isOverridden
 		}}
+		events={{ onRenameDevice: (name) => peers.setDeviceName(name) }}
 	/>
 
 	<AcerolaNetworkPairingCard data={{ code: peers.connectionCode() }} />

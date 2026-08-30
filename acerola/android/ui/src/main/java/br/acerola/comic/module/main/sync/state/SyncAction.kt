@@ -1,6 +1,13 @@
 package br.acerola.comic.module.main.sync.state
 
 sealed interface SyncAction {
+    /** Sets a custom local device alias (LocalSend-style) — applies immediately on the P2P
+     *  node (next handshake already uses it, no restart needed) and persists it for future
+     *  launches. */
+    data class RenameDevice(
+        val name: String,
+    ) : SyncAction
+
     /** Decodes a code (pasted or scanned) and proposes pairing for confirmation. */
     data class ProposeConnect(
         val code: String,

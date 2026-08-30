@@ -37,6 +37,24 @@ pub fn read_relay_url_override(app_data_directory: &std::path::Path) -> Option<S
     Some(relay_url)
 }
 
+/// Lê o apelido custom do dispositivo local (`device_alias`, estilo LocalSend) de
+/// `settings.json`. Ausente/vazio (caso comum) faz o chamador cair no hostname automático do
+/// `DeviceInfoProvider`. É lido só na inicialização do node P2P — depois disso, um apelido
+/// definido em runtime (`set_local_device_name`) já não passa mais por aqui, só é persistido
+/// nesta chave pelo frontend pra sobreviver ao próximo restart.
+pub fn read_device_alias_override(app_data_directory: &std::path::Path) -> Option<String> {
+    let settings_file_path = app_data_directory.join("settings.json");
+    let file_content = std::fs::read_to_string(&settings_file_path).ok()?;
+    let json_value: Value = serde_json::from_str(&file_content).ok()?;
+    let alias = json_value.get("device_alias")?.as_str()?.trim().to_string();
+
+    if alias.is_empty() {
+        return None;
+    }
+
+    Some(alias)
+}
+
 /// Registra as permissões de acesso ao sistema de arquivos no Tauri usando Early Returns (Guard Clauses)
 /// para manter a complexidade ciclomática mínima e o código linear.
 pub async fn setup_scopes_from_store<R: tauri::Runtime>(
@@ -77,7 +95,8 @@ mod tests {
     use tauri_plugin_fs::FsExt;
 
     use super::{
-        apply_library_scope, extract_library_path, read_library_path, read_relay_url_override,
+        apply_library_scope, extract_library_path, read_device_alias_override, read_library_path,
+        read_relay_url_override,
     };
 
     #[test]
@@ -131,6 +150,41 @@ mod tests {
             .unwrap();
 
         assert_eq!(read_relay_url_override(app_data_directory.path()), None);
+    }
+
+    #[test]
+    fn test_read_device_alias_override_returns_the_configured_value() {
+        let app_data_directory = tempfile::tempdir().unwrap();
+        std::fs::write(
+            app_data_directory.path().join("settings.json"),
+            r#"{"device_alias":"Notebook do Vinicius"}"#,
+        )
+        .unwrap();
+
+        assert_eq!(
+            read_device_alias_override(app_data_directory.path()),
+            Some("Notebook do Vinicius".to_string())
+        );
+    }
+
+    #[test]
+    fn test_read_device_alias_override_missing_key_returns_none() {
+        let app_data_directory = tempfile::tempdir().unwrap();
+        std::fs::write(app_data_directory.path().join("settings.json"), r#"{}"#).unwrap();
+
+        assert_eq!(read_device_alias_override(app_data_directory.path()), None);
+    }
+
+    #[test]
+    fn test_read_device_alias_override_empty_value_returns_none() {
+        let app_data_directory = tempfile::tempdir().unwrap();
+        std::fs::write(
+            app_data_directory.path().join("settings.json"),
+            r#"{"device_alias":"   "}"#,
+        )
+        .unwrap();
+
+        assert_eq!(read_device_alias_override(app_data_directory.path()), None);
     }
 
     fn build_mock_app() -> tauri::App<tauri::test::MockRuntime> {

@@ -68,6 +68,71 @@ describe('AcerolaNetworkMyDeviceCard', () => {
 		expect(navigator.clipboard.writeText).toHaveBeenCalledWith('abcdefghijklmnop');
 	});
 
+	it('does not show a rename button when no onRenameDevice handler is provided', () => {
+		render(AcerolaNetworkMyDeviceCard, {
+			props: {
+				data: {
+					deviceName: 'Meu Notebook',
+					localId: 'abcdefghijklmnop',
+					mode: 'local',
+					activeRelay: null,
+					isRelayOverridden: false
+				}
+			}
+		});
+
+		expect(screen.queryByRole('button', { name: /Rename|Renomear/i })).not.toBeInTheDocument();
+	});
+
+	it('renames the device: opens the editor pre-filled, saves and calls the handler', async () => {
+		const onRenameDevice = vi.fn().mockResolvedValue(undefined);
+		render(AcerolaNetworkMyDeviceCard, {
+			props: {
+				data: {
+					deviceName: 'Meu Notebook',
+					localId: 'abcdefghijklmnop',
+					mode: 'local',
+					activeRelay: null,
+					isRelayOverridden: false
+				},
+				events: { onRenameDevice }
+			}
+		});
+
+		await fireEvent.click(screen.getByRole('button', { name: /Rename|Renomear/i }));
+
+		const input = screen.getByPlaceholderText(/device's name|Nome deste dispositivo/i);
+		expect(input).toHaveValue('Meu Notebook');
+
+		await fireEvent.input(input, { target: { value: 'Notebook Novo' } });
+		await fireEvent.click(screen.getByRole('button', { name: /Save|Salvar/i }));
+
+		expect(onRenameDevice).toHaveBeenCalledWith('Notebook Novo');
+		expect(screen.queryByPlaceholderText(/device's name|Nome deste dispositivo/i)).not.toBeInTheDocument();
+	});
+
+	it('cancels the rename without calling the handler', async () => {
+		const onRenameDevice = vi.fn();
+		render(AcerolaNetworkMyDeviceCard, {
+			props: {
+				data: {
+					deviceName: 'Meu Notebook',
+					localId: 'abcdefghijklmnop',
+					mode: 'local',
+					activeRelay: null,
+					isRelayOverridden: false
+				},
+				events: { onRenameDevice }
+			}
+		});
+
+		await fireEvent.click(screen.getByRole('button', { name: /Rename|Renomear/i }));
+		await fireEvent.click(screen.getByRole('button', { name: /Cancel|Cancelar/i }));
+
+		expect(onRenameDevice).not.toHaveBeenCalled();
+		expect(screen.getByText('Meu Notebook')).toBeInTheDocument();
+	});
+
 	it('shows the active relay address', () => {
 		render(AcerolaNetworkMyDeviceCard, {
 			props: {

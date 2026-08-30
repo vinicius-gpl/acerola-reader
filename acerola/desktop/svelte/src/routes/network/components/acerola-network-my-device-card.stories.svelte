@@ -49,6 +49,23 @@
 	{/snippet}
 </Story>
 
+<Story name="With Rename Action" asChild>
+	{#snippet children()}
+		<div class="max-w-md bg-surface p-8">
+			<AcerolaNetworkMyDeviceCard
+				data={{
+					deviceName: 'Meu Notebook',
+					localId: 'abcdefghijklmnopqrstuvwxyz012345',
+					mode: 'local',
+					activeRelay: null,
+					isRelayOverridden: false
+				}}
+				events={{ onRenameDevice: async () => {} }}
+			/>
+		</div>
+	{/snippet}
+</Story>
+
 <Story name="Loading" asChild>
 	{#snippet children()}
 		<div class="max-w-md bg-surface p-8">

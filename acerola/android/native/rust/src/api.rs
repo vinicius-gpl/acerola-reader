@@ -283,6 +283,20 @@ impl P2PNode {
         });
     }
 
+    /// Sobrescreve o nome exibido deste dispositivo (apelido custom estilo LocalSend, em vez do
+    /// `Build.MODEL` padrão) — vale a partir do próximo handshake, sem precisar reiniciar o
+    /// app, já que `AcerolaP2p::set_local_device_name` escreve no mesmo `DeviceInfo`
+    /// compartilhado lido pelos handlers de handshake a cada troca de identidade (ver
+    /// `lib/p2p/src/api/acerola_p2p.rs`). Persistência entre reinícios é responsabilidade do
+    /// lado Kotlin (DataStore), que relê o apelido salvo pra passar como `device_name` no
+    /// próximo `P2PNode::new`.
+    pub fn set_local_device_name(&self, name: String) {
+        let node = Arc::clone(&self.node);
+        self.runtime.spawn(async move {
+            node.set_local_device_name(name).await;
+        });
+    }
+
     pub fn connect(&self, peer_addr: FfiPeerAddr, alpn: Vec<u8>) {
         let node = Arc::clone(&self.node);
         let addr = PeerAddr {
