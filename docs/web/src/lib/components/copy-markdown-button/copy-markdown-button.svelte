@@ -10,8 +10,13 @@
 		label = 'Copy page as Markdown',
 		copiedLabel = 'Copied',
 		failedLabel = "Couldn't copy"
-	}: { raw: string; url: string; label?: string; copiedLabel?: string; failedLabel?: string } =
-		$props();
+	}: {
+		raw: string;
+		url: string;
+		label?: string;
+		copiedLabel?: string;
+		failedLabel?: string;
+	} = $props();
 
 	type Status = 'idle' | 'copied' | 'failed';
 	let status = $state<Status>('idle');
