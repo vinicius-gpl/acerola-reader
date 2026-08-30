@@ -129,26 +129,7 @@ figure[data-rehype-pretty-code-figure] code[data-line-numbers] > [data-line]::be
 	@apply my-8 border-border;
 }
 
-.doc-content :where(table) {
-	@apply my-6 w-full border-collapse overflow-hidden rounded-lg border border-border text-sm;
-}
-
-.doc-content :where(thead) {
-	@apply bg-muted;
-}
-
-.doc-content :where(th) {
-	@apply border-b border-border px-4 py-2.5 text-left font-semibold text-foreground;
-}
-
-.doc-content :where(td) {
-	@apply border-b border-border px-4 py-2.5 align-top text-foreground;
-}
-
-.doc-content :where(tbody tr:last-child td) {
-	@apply border-b-0;
-}
-
-.doc-content :where(tbody tr:hover) {
-	@apply bg-accent/50;
-}
+/* No `table`/`thead`/`th`/`td` rules here on purpose — every table in docs content
+   goes through the Table component (src/lib/components/ui/table/), which styles
+   and spaces itself. A generic `.doc-content table` rule here would double up
+   borders/margins with that component's own wrapper. */

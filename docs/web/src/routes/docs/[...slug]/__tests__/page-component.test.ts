@@ -22,6 +22,8 @@ describe('docs/[...slug]/+page (component)', () => {
 		});
 
 		expect(screen.getByTestId('doc-body')).toHaveTextContent('Conteúdo do artigo');
-		expect(screen.getByText('Próximo Artigo')).toBeInTheDocument();
+		// The prev/next nav renders both above and below the doc body (`position="top"` and
+		// the default `"bottom"`), so its links legitimately appear twice.
+		expect(screen.getAllByText('Próximo Artigo')).toHaveLength(2);
 	});
 });

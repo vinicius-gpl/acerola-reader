@@ -15,5 +15,6 @@
 	{/if}
 </svelte:head>
 
+<PrevNextNav prev={data.prev} next={data.next} position="top" />
 <Doc />
 <PrevNextNav prev={data.prev} next={data.next} />
