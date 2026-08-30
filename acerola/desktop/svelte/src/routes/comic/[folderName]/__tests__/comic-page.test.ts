@@ -181,9 +181,9 @@ describe('comic/[folderName] +page', () => {
 			save: vi.fn().mockResolvedValue(undefined)
 		});
 
-		// comic-chapter-list.svelte só monta o conteúdo real (AcerolaHeroButton) quando o
+		// acerola-comic-chapter-list.svelte só monta o conteúdo real (AcerolaHeroButton) quando o
 		// IntersectionObserver reporta a página como visível — capturamos o callback pra
-		// simular isso manualmente (ver revealFirstPage), igual comic-chapter-list.test.ts.
+		// simular isso manualmente (ver revealFirstPage), igual acerola-comic-chapter-list.test.ts.
 		intersectionCallback = undefined;
 		globalThis.IntersectionObserver = class {
 			constructor(callback: IntersectionObserverCallback) {

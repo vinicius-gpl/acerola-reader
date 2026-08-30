@@ -2,7 +2,7 @@ import { render, screen, waitFor } from '@testing-library/svelte';
 import { userEvent } from '@testing-library/user-event';
 import { tick } from 'svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import ComicVolumeList from './comic-volume-list.svelte';
+import ComicVolumeList from './acerola-comic-volume-list.svelte';
 
 vi.mock('svelte/transition', () => ({
 	slide: () => ({ duration: 0 })

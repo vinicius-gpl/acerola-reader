@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/svelte';
 import { userEvent } from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import ThemePicker from './theme-picker.svelte';
+import ThemePicker from './acerola-theme-picker.svelte';
 
 describe('ThemePicker', () => {
 	it('renders available themes', () => {

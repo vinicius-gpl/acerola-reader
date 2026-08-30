@@ -1,6 +1,6 @@
 <script lang="ts" module>
 	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import ReaderToolbar from './reader-toolbar.svelte';
+	import ReaderToolbar from './acerola-reader-toolbar.svelte';
 
 	const { Story } = defineMeta({
 		title: 'Páginas/Reader/ReaderToolbar',

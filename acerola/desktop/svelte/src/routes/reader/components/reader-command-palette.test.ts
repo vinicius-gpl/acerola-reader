@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/svelte';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import ReaderCommandPalette from './reader-command-palette.svelte';
+import ReaderCommandPalette from './acerola-reader-command-palette.svelte';
 
 function props(overrides = {}) {
 	return {

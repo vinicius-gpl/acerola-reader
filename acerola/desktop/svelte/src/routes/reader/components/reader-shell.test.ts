@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/svelte';
 import { createRawSnippet } from 'svelte';
 import { describe, expect, it } from 'vitest';
-import ReaderShell from './reader-shell.svelte';
+import ReaderShell from './acerola-reader-shell.svelte';
 
 function snippet(testId: string, label: string) {
 	return createRawSnippet(() => ({

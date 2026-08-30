@@ -56,7 +56,7 @@
 	import AcerolaHeroButton from '$lib/components/acerola-hero-button/acerola-hero-button.svelte';
 	import AcerolaButton from '$lib/components/acerola-button/acerola-button.svelte';
 	import AcerolaPopover from '$lib/components/acerola-popover/acerola-popover.svelte';
-	import ComicVolumeButton from './comic-volume-button.svelte';
+	import ComicVolumeButton from './acerola-comic-volume-button.svelte';
 	import Folder from '@lucide/svelte/icons/folder';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import BookOpen from '@lucide/svelte/icons/book-open';
@@ -81,7 +81,7 @@
 	let expandedVolumeId = $state<string | null>(null);
 
 	// INFO: Reativo de propósito — decide o que fica montado no DOM, não só o
-	// que dispara fetch. Ver o mesmo raciocínio em comic-chapter-list.svelte.
+	// que dispara fetch. Ver o mesmo raciocínio em acerola-comic-chapter-list.svelte.
 	let visiblePages = new SvelteSet<number>();
 
 	const ITEM_HEIGHT = 112;
@@ -137,7 +137,7 @@
 	}
 
 	/**
-	 * Reciclagem de nós de DOM — mesmo raciocínio de comic-chapter-list.svelte.
+	 * Reciclagem de nós de DOM — mesmo raciocínio de acerola-comic-chapter-list.svelte.
 	 * Só um volume fica expandido por vez, então um único pool compartilhado
 	 * serve pra qualquer volume que esteja aberto no momento.
 	 */

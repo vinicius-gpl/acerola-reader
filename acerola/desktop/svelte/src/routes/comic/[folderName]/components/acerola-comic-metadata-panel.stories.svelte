@@ -1,6 +1,6 @@
 <script lang="ts" module>
 	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import ComicMetadataPanel from './comic-metadata-panel.svelte';
+	import ComicMetadataPanel from './acerola-comic-metadata-panel.svelte';
 
 	const { Story } = defineMeta({
 		title: 'Páginas/Comic/ComicMetadataPanel',

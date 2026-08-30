@@ -1,6 +1,6 @@
 <script lang="ts" module>
 	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import ThemePicker from './theme-picker.svelte';
+	import ThemePicker from './acerola-theme-picker.svelte';
 
 	const { Story } = defineMeta({
 		title: 'Páginas/Config/ThemePicker',

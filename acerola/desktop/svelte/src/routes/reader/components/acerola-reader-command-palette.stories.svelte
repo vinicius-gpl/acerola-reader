@@ -1,6 +1,6 @@
 <script lang="ts" module>
 	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import ReaderCommandPalette from './reader-command-palette.svelte';
+	import ReaderCommandPalette from './acerola-reader-command-palette.svelte';
 
 	const { Story } = defineMeta({
 		title: 'Páginas/Reader/ReaderCommandPalette',

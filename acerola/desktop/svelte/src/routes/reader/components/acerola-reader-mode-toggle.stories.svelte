@@ -1,6 +1,6 @@
 <script lang="ts" module>
 	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import ReaderModeToggle from './reader-mode-toggle.svelte';
+	import ReaderModeToggle from './acerola-reader-mode-toggle.svelte';
 
 	const { Story } = defineMeta({
 		title: 'Páginas/Reader/ReaderModeToggle',

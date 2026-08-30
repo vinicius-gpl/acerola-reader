@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/svelte';
 import { userEvent } from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import ReaderToolbar from './reader-toolbar.svelte';
+import ReaderToolbar from './acerola-reader-toolbar.svelte';
 
 function props(overrides = {}) {
 	return {

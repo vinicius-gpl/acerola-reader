@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, fireEvent } from '@testing-library/svelte';
-import ComicVolumeButton from './comic-volume-button.svelte';
+import ComicVolumeButton from './acerola-comic-volume-button.svelte';
 
 describe('ComicVolumeButton', () => {
 	it('should render the title and chapter count correctly', () => {

@@ -1,6 +1,6 @@
 <script module lang="ts">
 	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import StepFormats from './step-formats.svelte';
+	import StepFormats from './acerola-step-formats.svelte';
 
 	const { Story } = defineMeta({
 		component: StepFormats,

@@ -6,7 +6,7 @@
 	import PaletteIcon from '@lucide/svelte/icons/palette';
 	import { useSelectFolder } from '$lib/hooks/store/use-select-folder.svelte';
 	import { useTheme, type ThemeColor } from '$lib/hooks/theme/use-theme.svelte';
-	import ThemePicker from '../../config/components/theme-picker.svelte';
+	import ThemePicker from '../../config/components/acerola-theme-picker.svelte';
 
 	import { onMount } from 'svelte';
 

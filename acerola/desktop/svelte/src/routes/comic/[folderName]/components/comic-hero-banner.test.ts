@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/svelte';
 import { describe, expect, it } from 'vitest';
-import ComicHeroBanner from './comic-hero-banner.svelte';
+import ComicHeroBanner from './acerola-comic-hero-banner.svelte';
 
 describe('ComicHeroBanner', () => {
 	it('renders banner image when url is provided', () => {

@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/svelte';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import ReaderModeToggle from './reader-mode-toggle.svelte';
+import ReaderModeToggle from './acerola-reader-mode-toggle.svelte';
 
 function props(overrides = {}) {
 	return {

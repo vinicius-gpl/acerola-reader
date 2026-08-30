@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/svelte';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import ReaderFooter from './reader-footer.svelte';
+import ReaderFooter from './acerola-reader-footer.svelte';
 
 function props(overrides = {}) {
 	return {

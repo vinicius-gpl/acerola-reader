@@ -1,6 +1,6 @@
 <script lang="ts" module>
 	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import ReaderFooter from './reader-footer.svelte';
+	import ReaderFooter from './acerola-reader-footer.svelte';
 
 	const { Story } = defineMeta({
 		title: 'Páginas/Reader/ReaderFooter',

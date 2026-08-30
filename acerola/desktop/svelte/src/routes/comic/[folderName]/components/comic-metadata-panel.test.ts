@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/svelte';
 import { userEvent } from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import ComicMetadataPanel from './comic-metadata-panel.svelte';
+import ComicMetadataPanel from './acerola-comic-metadata-panel.svelte';
 
 describe('ComicMetadataPanel', () => {
 	const defaultProps = {

@@ -14,17 +14,17 @@
 	import { onMount, tick, untrack } from 'svelte';
 	import { useReaderNavigation } from '$lib/hooks/store/use-reader-navigation.svelte';
 	import { useHistory } from '$lib/hooks/store/use-history.svelte';
-	import ReaderCommandPalette from './components/reader-command-palette.svelte';
-	import ReaderFooter from './components/reader-footer.svelte';
-	import ReaderPages from './components/reader-pages.svelte';
-	import ReaderShell from './components/reader-shell.svelte';
-	import ReaderToolbar from './components/reader-toolbar.svelte';
-	import ReaderViewport from './components/reader-viewport.svelte';
+	import ReaderCommandPalette from './components/acerola-reader-command-palette.svelte';
+	import ReaderFooter from './components/acerola-reader-footer.svelte';
+	import ReaderPages from './components/acerola-reader-pages.svelte';
+	import ReaderShell from './components/acerola-reader-shell.svelte';
+	import ReaderToolbar from './components/acerola-reader-toolbar.svelte';
+	import ReaderViewport from './components/acerola-reader-viewport.svelte';
 	import {
 		isReaderEditableTarget,
 		type ReaderMode,
 		useReaderZoom
-	} from './hooks/use-reader-zoom.svelte';
+	} from './hooks/acerola-use-reader-zoom.svelte';
 
 	const reader = useReader();
 	const zoom = useReaderZoom();

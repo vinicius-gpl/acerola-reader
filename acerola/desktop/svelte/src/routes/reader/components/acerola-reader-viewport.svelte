@@ -1,6 +1,6 @@
 <script module lang="ts">
 	import type { Snippet } from 'svelte';
-	import type { ReaderMode, ReaderZoomController } from '../hooks/use-reader-zoom.svelte';
+	import type { ReaderMode, ReaderZoomController } from '../hooks/acerola-use-reader-zoom.svelte';
 
 	export type ReaderViewportProps = {
 		data: {

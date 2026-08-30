@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/svelte';
 import { userEvent } from '@testing-library/user-event';
 import { tick } from 'svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import ComicChapterList from './comic-chapter-list.svelte';
+import ComicChapterList from './acerola-comic-chapter-list.svelte';
 
 describe('ComicChapterList', () => {
 	let intersectionCallback: IntersectionObserverCallback;

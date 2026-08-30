@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/svelte';
 import { describe, expect, it, vi } from 'vitest';
-import ReaderPages from './reader-pages.svelte';
-import type { ReaderPageTracker } from './reader-pages.svelte';
+import ReaderPages from './acerola-reader-pages.svelte';
+import type { ReaderPageTracker } from './acerola-reader-pages.svelte';
 
 function trackPage(): ReaderPageTracker {
 	return vi.fn(() => ({

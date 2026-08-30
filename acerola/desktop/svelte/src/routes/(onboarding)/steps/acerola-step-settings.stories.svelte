@@ -22,7 +22,7 @@
 	}));
 
 	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import StepSettings from './step-settings.svelte';
+	import StepSettings from './acerola-step-settings.svelte';
 
 	const { Story } = defineMeta({
 		component: StepSettings,

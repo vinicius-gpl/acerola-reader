@@ -1,15 +1,15 @@
 <script module lang="ts">
 	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import StepWelcome from './step-welcome.svelte';
+	import StepComplete from './acerola-step-complete.svelte';
 
 	const { Story } = defineMeta({
-		component: StepWelcome,
-		title: 'Páginas/Onboarding/StepWelcome',
+		component: StepComplete,
+		title: 'Páginas/Onboarding/StepComplete',
 		tags: ['autodocs'],
 		parameters: {
 			docs: {
 				description: {
-					component: 'Primeiro passo do onboarding: boas-vindas ao Acerola.'
+					component: 'Último passo do onboarding: confirmação de conclusão.'
 				}
 			}
 		}
@@ -18,6 +18,6 @@
 
 <Story name="Default" asChild>
 	<div class="h-96 bg-surface">
-		<StepWelcome onNext={() => {}} />
+		<StepComplete onPrev={() => {}} onComplete={() => {}} />
 	</div>
 </Story>

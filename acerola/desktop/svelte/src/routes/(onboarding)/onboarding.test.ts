@@ -23,7 +23,7 @@ vi.mock('@tauri-apps/api/core', () => ({
 	invoke: vi.fn()
 }));
 
-import Onboarding from './onboarding.svelte';
+import Onboarding from './acerola-onboarding.svelte';
 import { useOnboarding } from '$lib/hooks/onboarding/use-onboarding.svelte';
 
 describe('Onboarding Component', () => {

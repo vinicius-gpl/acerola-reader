@@ -1,6 +1,6 @@
 <script lang="ts" module>
 	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import ComicPreferences from './comic-preferences.svelte';
+	import ComicPreferences from './acerola-comic-preferences.svelte';
 
 	const { Story } = defineMeta({
 		title: 'Páginas/Comic/ComicPreferences',

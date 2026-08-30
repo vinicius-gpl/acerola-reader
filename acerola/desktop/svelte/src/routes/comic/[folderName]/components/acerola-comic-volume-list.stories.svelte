@@ -1,6 +1,6 @@
 <script lang="ts" module>
 	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import ComicVolumeList, { type Volume } from './comic-volume-list.svelte';
+	import ComicVolumeList, { type Volume } from './acerola-comic-volume-list.svelte';
 
 	const { Story } = defineMeta({
 		title: 'Páginas/Comic/ComicVolumeList',

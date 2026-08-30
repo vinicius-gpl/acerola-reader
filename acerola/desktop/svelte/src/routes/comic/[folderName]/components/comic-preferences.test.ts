@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/svelte';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import ComicPreferences from './comic-preferences.svelte';
+import ComicPreferences from './acerola-comic-preferences.svelte';
 
 describe('ComicPreferences', () => {
 	function defaultProps() {

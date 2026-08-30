@@ -1,5 +1,5 @@
 <script module lang="ts">
-	import type { ReaderMode } from '../hooks/use-reader-zoom.svelte';
+	import type { ReaderMode } from '../hooks/acerola-use-reader-zoom.svelte';
 
 	export type ReaderFooterProps = {
 		data: {
@@ -25,7 +25,7 @@
 
 <script lang="ts">
 	import { m } from '$lib/paraglide/messages';
-	import ReaderModeToggle from './reader-mode-toggle.svelte';
+	import ReaderModeToggle from './acerola-reader-mode-toggle.svelte';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 

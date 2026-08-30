@@ -4,11 +4,11 @@
 	import { useLibraryScanner } from '$lib/hooks/store/use-comic-scanner.svelte';
 	import { DIRECTORY_SCAN_COMMANDS } from '$lib/contracts/library/library.commands';
 	import { useSelectFolder } from '$lib/hooks/store/use-select-folder.svelte';
-	import StepWelcome from './steps/step-welcome.svelte';
-	import StepLanguage from './steps/step-language.svelte';
-	import StepFormats from './steps/step-formats.svelte';
-	import StepSettings from './steps/step-settings.svelte';
-	import StepComplete from './steps/step-complete.svelte';
+	import StepWelcome from './steps/acerola-step-welcome.svelte';
+	import StepLanguage from './steps/acerola-step-language.svelte';
+	import StepFormats from './steps/acerola-step-formats.svelte';
+	import StepSettings from './steps/acerola-step-settings.svelte';
+	import StepComplete from './steps/acerola-step-complete.svelte';
 	import { goto } from '$app/navigation';
 	import { fly } from 'svelte/transition';
 

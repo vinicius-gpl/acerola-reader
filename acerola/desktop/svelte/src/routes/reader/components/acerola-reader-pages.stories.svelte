@@ -1,6 +1,6 @@
 <script lang="ts" module>
 	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import ReaderPages from './reader-pages.svelte';
+	import ReaderPages from './acerola-reader-pages.svelte';
 
 	const { Story } = defineMeta({
 		title: 'Páginas/Reader/ReaderPages',
@@ -15,8 +15,8 @@
 
 <script lang="ts">
 	import type { ReaderCachedPagePayload } from '$lib/contracts/reader/reader.payloads';
-	import type { ReaderMode } from '../hooks/use-reader-zoom.svelte';
-	import type { ReaderPageTracker } from './reader-pages.svelte';
+	import type { ReaderMode } from '../hooks/acerola-use-reader-zoom.svelte';
+	import type { ReaderPageTracker } from './acerola-reader-pages.svelte';
 
 	const images = [
 		'https://placehold.co/900x1300/png?text=Page+1',

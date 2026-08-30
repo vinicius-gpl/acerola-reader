@@ -1,6 +1,6 @@
 <script lang="ts" module>
 	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import ComicHeroBanner from './comic-hero-banner.svelte';
+	import ComicHeroBanner from './acerola-comic-hero-banner.svelte';
 
 	const { Story } = defineMeta({
 		title: 'Páginas/Comic/ComicHeroBanner',

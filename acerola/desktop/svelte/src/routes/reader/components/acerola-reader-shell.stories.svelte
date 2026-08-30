@@ -1,6 +1,6 @@
 <script lang="ts" module>
 	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import ReaderShell from './reader-shell.svelte';
+	import ReaderShell from './acerola-reader-shell.svelte';
 
 	const { Story } = defineMeta({
 		title: 'Páginas/Reader/ReaderShell',
