@@ -8,12 +8,14 @@ test.describe('prev/next doc navigation', () => {
 		await page.goto('/docs/architecture');
 		await expect(page.getByRole('heading', { level: 1, name: 'Arquitetura' })).toBeVisible();
 
-		await page.getByRole('link', { name: /Próximo/ }).click();
+		// A navegação Anterior/Próximo aparece duas vezes (acima e abaixo do
+		// conteúdo) — `.first()` pega a do topo, mas as duas levam ao mesmo lugar.
+		await page.getByRole('link', { name: /Próximo/ }).first().click();
 
 		await expect(page).toHaveURL(/\/docs\/getting-started$/);
 		await expect(page.getByRole('heading', { level: 1, name: 'Primeiros passos' })).toBeVisible();
 
-		await page.getByRole('link', { name: /Anterior/ }).click();
+		await page.getByRole('link', { name: /Anterior/ }).first().click();
 
 		await expect(page).toHaveURL(/\/docs\/architecture$/);
 		await expect(page.getByRole('heading', { level: 1, name: 'Arquitetura' })).toBeVisible();
