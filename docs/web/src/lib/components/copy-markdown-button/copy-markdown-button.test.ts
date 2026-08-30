@@ -53,4 +53,26 @@ describe('CopyMarkdownButton', () => {
 
 		expect(screen.getByRole('button', { name: 'Copiado' })).toBeInTheDocument();
 	});
+
+	it('shows failure feedback that resets when the clipboard write rejects', async () => {
+		writeText.mockRejectedValueOnce(new Error('denied'));
+		const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+		render(CopyMarkdownButton, {
+			props: {
+				raw: '# Doc',
+				url: 'https://docs.acerola-comic.com/docs/doc',
+				failedLabel: "Couldn't copy"
+			}
+		});
+
+		await fireEvent.click(screen.getByRole('button', { name: 'Copy page as Markdown' }));
+
+		expect(await screen.findByRole('button', { name: "Couldn't copy" })).toBeInTheDocument();
+
+		await vi.advanceTimersByTimeAsync(3000);
+
+		expect(screen.getByRole('button', { name: 'Copy page as Markdown' })).toBeInTheDocument();
+		consoleError.mockRestore();
+	});
 });

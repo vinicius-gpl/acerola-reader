@@ -187,8 +187,9 @@
 				<CopyMarkdownButton
 					raw={docRaw.value}
 					url={page.url.href}
-					label={m['doc.copy_markdown']()}
-					copiedLabel={m['doc.copy_markdown_copied']()}
+					label={m['doc.copy.markdown']()}
+					copiedLabel={m['doc.copy.copied']()}
+					failedLabel={m['doc.copy.failed']()}
 				/>
 			{/if}
 		</div>

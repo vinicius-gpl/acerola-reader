@@ -1,37 +1,59 @@
 <script lang="ts">
 	import CheckIcon from '@lucide/svelte/icons/check';
 	import ClipboardCopyIcon from '@lucide/svelte/icons/clipboard-copy';
+	import XIcon from '@lucide/svelte/icons/x';
 	import { Button } from '$lib/components/ui/button/index.js';
 
 	let {
 		raw,
 		url,
 		label = 'Copy page as Markdown',
-		copiedLabel = 'Copied'
-	}: { raw: string; url: string; label?: string; copiedLabel?: string } = $props();
+		copiedLabel = 'Copied',
+		failedLabel = "Couldn't copy"
+	}: { raw: string; url: string; label?: string; copiedLabel?: string; failedLabel?: string } =
+		$props();
 
-	let copied = $state(false);
+	type Status = 'idle' | 'copied' | 'failed';
+	let status = $state<Status>('idle');
 	let resetTimeout: ReturnType<typeof setTimeout> | undefined;
 
-	async function copy() {
-		await navigator.clipboard.writeText(`<!-- URL: ${url} -->\n\n${raw}`);
-		copied = true;
+	function resetAfter(next: Status, ms: number) {
+		status = next;
 		clearTimeout(resetTimeout);
-		resetTimeout = setTimeout(() => (copied = false), 2000);
+		resetTimeout = setTimeout(() => (status = 'idle'), ms);
 	}
+
+	async function copy() {
+		try {
+			await navigator.clipboard.writeText(`<!-- URL: ${url} -->\n\n${raw}`);
+			resetAfter('copied', 2000);
+		} catch (error) {
+			// navigator.clipboard.writeText rejeita em contexto não seguro ou sem
+			// permissão — sem esse catch a promise falha em silêncio e o botão
+			// nunca dá nenhum feedback de erro pro usuário.
+			console.error('Failed to copy page as Markdown', error);
+			resetAfter('failed', 3000);
+		}
+	}
+
+	const views: Record<Status, { icon: typeof ClipboardCopyIcon; text: string; class: string }> =
+		$derived({
+			idle: { icon: ClipboardCopyIcon, text: label, class: 'text-muted-foreground' },
+			copied: { icon: CheckIcon, text: copiedLabel, class: 'text-primary' },
+			failed: { icon: XIcon, text: failedLabel, class: 'text-destructive' }
+		});
+	const view = $derived(views[status]);
 </script>
 
 <Button
-	variant="ghost"
-	size="icon-sm"
-	class="text-muted-foreground"
+	variant="outline"
+	size="sm"
+	class={view.class}
 	onclick={copy}
-	aria-label={copied ? copiedLabel : label}
-	title={copied ? copiedLabel : label}
+	aria-label={view.text}
+	title={view.text}
 >
-	{#if copied}
-		<CheckIcon class="text-primary" />
-	{:else}
-		<ClipboardCopyIcon />
-	{/if}
+	{@const Icon = view.icon}
+	<Icon data-icon="inline-start" />
+	<span>{view.text}</span>
 </Button>
