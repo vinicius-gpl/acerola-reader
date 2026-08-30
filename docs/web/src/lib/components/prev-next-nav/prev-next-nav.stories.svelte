@@ -8,6 +8,7 @@
 			locale: 'pt-br',
 			slug,
 			component: {} as never,
+			raw: '',
 			frontmatter: { title, section: 'Docs', order: 1 }
 		};
 	}

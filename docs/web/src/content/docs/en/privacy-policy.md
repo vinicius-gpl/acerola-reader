@@ -9,6 +9,7 @@ order: 1
 	import Callout from '$lib/mdsvex/callout.svelte';
 	import CardGrid from '$lib/mdsvex/card-grid.svelte';
 	import Card from '$lib/mdsvex/card.svelte';
+	import CopyCard from '$lib/components/copy-card/copy-card.svelte';
 </script>
 
 <Callout type="note" title="Source of truth">
@@ -17,10 +18,9 @@ This page mirrors [`PRIVACY_POLICY.md`](https://github.com/Vinicius-Gabriel-P-Le
 
 </Callout>
 
-<CardGrid>
-	<Card title="Controller">Vinícius Gabriel Pereira Leitão, independent developer of the Acerola app.</Card>
-	<Card title="Contact">contato@acerola-comic.com</Card>
-</CardGrid>
+<Card title="Controller">Vinícius Gabriel Pereira Leitão, independent developer of the Acerola app.</Card>
+
+<CopyCard label="Contact" value="contato@acerola-comic.com" href="mailto:contato@acerola-comic.com" />
 
 ## 1. Nature of the app
 
@@ -50,6 +50,12 @@ Acerola syncs library, history, and reading progress directly between the user's
 </CardGrid>
 
 In none of the four modes is library content (files, progress, history) ever stored on relay servers — the relay only ever acts as a network traffic intermediary.
+
+<Callout type="note" title="See for yourself">
+
+This isn't asking for blind trust: the relay code is open source (MPL-2.0) and lives at [`lib/relay/`](https://github.com/Vinicius-Gabriel-P-Leitao/acerola-reader/tree/main/lib/relay) in the repository — anyone can read exactly what it does with the traffic that passes through it.
+
+</Callout>
 
 <Callout type="tip" title="Legal basis">
 

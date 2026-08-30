@@ -11,6 +11,7 @@ const groups: SidebarGroup[] = [
 				locale: 'pt-br',
 				slug: 'getting-started',
 				component: {} as never,
+				raw: '',
 				frontmatter: { title: 'Primeiros passos', section: 'Primeiros passos', order: 1 }
 			}
 		]

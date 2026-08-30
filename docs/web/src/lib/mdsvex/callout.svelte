@@ -29,7 +29,7 @@
 	const config = $derived(CALLOUT_CONFIG[type]);
 </script>
 
-<Alert.Root variant={config.variant} class="my-6 border-l-4 py-3">
+<Alert.Root variant={config.variant} class="my-6 py-3">
 	<config.icon size={18} />
 	<Alert.Title>{title ?? type}</Alert.Title>
 	<Alert.Description class="text-foreground [&>p]:my-0">
