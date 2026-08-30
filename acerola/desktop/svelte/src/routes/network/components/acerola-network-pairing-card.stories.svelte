@@ -17,7 +17,7 @@
 	});
 </script>
 
-<Story name="With Code">
+<Story name="With Code" asChild>
 	{#snippet children()}
 		<div class="max-w-md bg-surface p-8">
 			<AcerolaNetworkPairingCard data={{ code: 'acerola://connect/abc123' }} />
@@ -25,7 +25,7 @@
 	{/snippet}
 </Story>
 
-<Story name="Loading">
+<Story name="Loading" asChild>
 	{#snippet children()}
 		<div class="max-w-md bg-surface p-8">
 			<AcerolaNetworkPairingCard data={{ code: undefined }} />

@@ -24,7 +24,7 @@
 	});
 </script>
 
-<Story name="Default">
+<Story name="Default" asChild>
 	{#snippet children()}
 		<div class="min-h-[500px] bg-surface p-8">
 			<AcerolaRemoteLibraryDialog
@@ -42,7 +42,7 @@
 	{/snippet}
 </Story>
 
-<Story name="Loading">
+<Story name="Loading" asChild>
 	{#snippet children()}
 		<div class="min-h-[500px] bg-surface p-8">
 			<AcerolaRemoteLibraryDialog
@@ -60,7 +60,7 @@
 	{/snippet}
 </Story>
 
-<Story name="Error">
+<Story name="Error" asChild>
 	{#snippet children()}
 		<div class="min-h-[500px] bg-surface p-8">
 			<AcerolaRemoteLibraryDialog
@@ -79,7 +79,7 @@
 	{/snippet}
 </Story>
 
-<Story name="Empty">
+<Story name="Empty" asChild>
 	{#snippet children()}
 		<div class="min-h-[500px] bg-surface p-8">
 			<AcerolaRemoteLibraryDialog
@@ -97,7 +97,7 @@
 	{/snippet}
 </Story>
 
-<Story name="Syncing">
+<Story name="Syncing" asChild>
 	{#snippet children()}
 		<div class="min-h-[500px] bg-surface p-8">
 			<AcerolaRemoteLibraryDialog

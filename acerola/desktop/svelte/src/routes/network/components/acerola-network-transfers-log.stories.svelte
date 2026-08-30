@@ -45,7 +45,7 @@
 	});
 </script>
 
-<Story name="With Entries">
+<Story name="With Entries" asChild>
 	{#snippet children()}
 		<div class="max-w-md bg-surface p-8">
 			<AcerolaNetworkTransfersLog data={{ entries, peerLabel: () => 'Meu Celular' }} />
@@ -53,7 +53,7 @@
 	{/snippet}
 </Story>
 
-<Story name="Empty">
+<Story name="Empty" asChild>
 	{#snippet children()}
 		<div class="max-w-md bg-surface p-8">
 			<AcerolaNetworkTransfersLog data={{ entries: [], peerLabel: () => '' }} />

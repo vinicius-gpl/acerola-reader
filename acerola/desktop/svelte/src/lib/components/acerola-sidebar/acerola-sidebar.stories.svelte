@@ -29,7 +29,7 @@
 	});
 </script>
 
-<Story name="Default">
+<Story name="Default" asChild>
 	{#snippet children()}
 		<div class="flex h-96 bg-surface">
 			<AcerolaSidebar data={{ items }} />
@@ -37,7 +37,7 @@
 	{/snippet}
 </Story>
 
-<Story name="With Brand">
+<Story name="With Brand" asChild>
 	{#snippet children()}
 		<div class="flex h-96 bg-surface">
 			<AcerolaSidebar data={{ items }}>

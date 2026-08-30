@@ -17,7 +17,7 @@
 	});
 </script>
 
-<Story name="Default">
+<Story name="Default" asChild>
 	{#snippet children()}
 		<div class="max-w-md bg-surface p-8">
 			<AcerolaNetworkConnectCard
@@ -28,7 +28,7 @@
 	{/snippet}
 </Story>
 
-<Story name="Connecting">
+<Story name="Connecting" asChild>
 	{#snippet children()}
 		<div class="max-w-md bg-surface p-8">
 			<AcerolaNetworkConnectCard

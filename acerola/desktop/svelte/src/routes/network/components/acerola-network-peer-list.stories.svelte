@@ -22,7 +22,7 @@
 	});
 </script>
 
-<Story name="With Peers">
+<Story name="With Peers" asChild>
 	{#snippet children()}
 		<div class="max-w-md bg-surface p-8">
 			<AcerolaNetworkPeerList
@@ -44,7 +44,7 @@
 	{/snippet}
 </Story>
 
-<Story name="Empty">
+<Story name="Empty" asChild>
 	{#snippet children()}
 		<div class="max-w-md bg-surface p-8">
 			<AcerolaNetworkPeerList

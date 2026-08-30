@@ -24,7 +24,7 @@
 	});
 </script>
 
-<Story name="Default">
+<Story name="Default" asChild>
 	{#snippet children()}
 		<div class="min-h-[400px] bg-surface p-8">
 			<AcerolaComicActionDialog
@@ -42,7 +42,7 @@
 	{/snippet}
 </Story>
 
-<Story name="Single Selection">
+<Story name="Single Selection" asChild>
 	{#snippet children()}
 		<div class="min-h-[400px] bg-surface p-8">
 			<AcerolaComicActionDialog
@@ -60,7 +60,7 @@
 	{/snippet}
 </Story>
 
-<Story name="Many Selected">
+<Story name="Many Selected" asChild>
 	{#snippet children()}
 		<div class="min-h-[400px] bg-surface p-8">
 			<AcerolaComicActionDialog
@@ -78,7 +78,7 @@
 	{/snippet}
 </Story>
 
-<Story name="Empty">
+<Story name="Empty" asChild>
 	{#snippet children()}
 		<div class="min-h-[400px] bg-surface p-8">
 			<AcerolaComicActionDialog
@@ -96,7 +96,7 @@
 	{/snippet}
 </Story>
 
-<Story name="No Bookmarks">
+<Story name="No Bookmarks" asChild>
 	{#snippet children()}
 		<div class="min-h-[400px] bg-surface p-8">
 			<AcerolaComicActionDialog

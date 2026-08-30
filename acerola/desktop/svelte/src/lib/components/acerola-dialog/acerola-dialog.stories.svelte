@@ -26,6 +26,7 @@
 			description: 'Dialog description goes here.'
 		}
 	}}
+	asChild
 >
 	{#snippet children()}
 		<AcerolaDialog

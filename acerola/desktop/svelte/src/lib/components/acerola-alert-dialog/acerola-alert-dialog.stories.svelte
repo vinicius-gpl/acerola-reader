@@ -33,6 +33,7 @@
 			variant: 'default'
 		}
 	}}
+	asChild
 >
 	{#snippet children()}
 		<AcerolaAlertDialog
@@ -64,6 +65,7 @@
 			variant: 'destructive'
 		}
 	}}
+	asChild
 >
 	{#snippet children()}
 		<AcerolaAlertDialog

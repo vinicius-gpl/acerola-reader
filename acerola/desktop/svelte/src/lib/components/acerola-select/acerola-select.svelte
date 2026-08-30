@@ -23,6 +23,7 @@
 </script>
 
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { Select, SelectContent, SelectItem, SelectTrigger } from '$lib/components/ui/select';
 	import { m } from '$lib/paraglide/messages';
 	import { cn } from '$lib/utils/cn.utils';
@@ -42,7 +43,7 @@
 
 		const nextValue = control.value;
 
-		if (nextValue !== lastValue) {
+		if (nextValue !== untrack(() => lastValue)) {
 			value = nextValue;
 			lastValue = nextValue;
 		}

@@ -17,7 +17,7 @@
 	});
 </script>
 
-<Story name="Local Mode">
+<Story name="Local Mode" asChild>
 	{#snippet children()}
 		<div class="max-w-md bg-surface p-8">
 			<AcerolaNetworkMyDeviceCard
@@ -33,7 +33,7 @@
 	{/snippet}
 </Story>
 
-<Story name="Relay Mode (Custom)">
+<Story name="Relay Mode (Custom)" asChild>
 	{#snippet children()}
 		<div class="max-w-md bg-surface p-8">
 			<AcerolaNetworkMyDeviceCard
@@ -49,7 +49,7 @@
 	{/snippet}
 </Story>
 
-<Story name="Loading">
+<Story name="Loading" asChild>
 	{#snippet children()}
 		<div class="max-w-md bg-surface p-8">
 			<AcerolaNetworkMyDeviceCard
