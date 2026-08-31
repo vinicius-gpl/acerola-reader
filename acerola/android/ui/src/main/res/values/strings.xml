@@ -92,6 +92,7 @@
     <string name="title_sync_peer_picker">Escolher dispositivo</string>
     <string name="error_sync_comic_peer_not_paired">Esse dispositivo não está mais pareado.</string>
     <string name="error_sync_comic_peer_failed">Falha ao sincronizar com o dispositivo.</string>
+    <string name="message_sync_comic_already_syncing">Já existe uma sincronização em andamento com esse dispositivo.</string>
 
     <string name="title_sync_remote_library">Biblioteca de \"%1$s\"</string>
     <string name="label_sync_remote_library_loading">Buscando quadrinhos…</string>

@@ -36,7 +36,7 @@ npm run tauri dev
 
 {#snippet androidInstall()}
 
-Download the latest APK from the [GitHub releases page](https://github.com/Vinicius-Gabriel-P-Leitao/acerola-reader/releases).
+Download the latest APK [here](https://binary.acerola-comic.com/android/latest.apk).
 
 {/snippet}
 

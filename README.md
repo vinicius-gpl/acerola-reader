@@ -16,6 +16,11 @@ Este é um monorepo: cada plataforma vive isolada em `acerola/`, com sua própri
 | [`lib/p2p/`](lib/p2p/README.md) | Biblioteca P2P compartilhada | Rust (iroh / QUIC) | [lib/p2p/README.md](lib/p2p/README.md) |
 | [`lib/relay/`](lib/relay/) | Código do relay iroh vendorizado, base para `acerola/relay/` | Rust | — |
 
+## Instalação
+
+- **Android**: APK assinado, disponível nos [GitHub Releases](https://github.com/Vinicius-Gabriel-P-Leitao/acerola-reader/releases). Ainda não publicado na Play Store.
+- **Desktop (Windows)**: só o pacote da **Microsoft Store** é assinado com certificado confiável. Os binários soltos publicados nos GitHub Releases (`.exe`, `.msi`, `.msix`) **não têm certificado** — o Windows SmartScreen vai avisar ao instalar.
+
 ## Como as peças se conectam
 
 ```mermaid
