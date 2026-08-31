@@ -107,6 +107,12 @@
 
 ---
 
+## Distribuição
+
+- [ ] **[Média] Automatizar submissão do MSIX na Microsoft Store via CD** - Hoje a publicação no Partner Center é manual. Adicionar a `msstore` CLI no `desktop-release.yml` pra preparar/atualizar a submissão a cada release automaticamente, parando antes do envio pra certificação — esse último clique continua manual, como revisão final.
+
+---
+
 ## Pendente
 
 - [x] **Marcar quadrinho / capítulo como concluído manualmente** - Ação direta pro Tauri alterar a prop bool no banco.
