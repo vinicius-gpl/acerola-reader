@@ -800,7 +800,7 @@ describe('useNetworkSync', () => {
 	});
 
 	it('syncComic calls the backend with the comic name and guards the "comic" kind specifically', async () => {
-		setupListeners();
+		const { callbacks } = setupListeners();
 		let resolveSync: () => void = () => {};
 		invokeMock.mockImplementationOnce(
 			() =>
@@ -819,13 +819,40 @@ describe('useNetworkSync', () => {
 		expect(hook.isSyncing('peer-4', 'files')).toBe(false);
 
 		resolveSync();
-		await pending;
+		// O `invoke` resolver só enfileira a conexão — sem a sessão P2P ter "terminado" de
+		// verdade (evento abaixo), a promise de `syncComic` não resolve, então nada além do
+		// invoke pode ser checado até ali.
+		await Promise.resolve();
 
 		expect(invokeMock).toHaveBeenCalledWith(NETWORK_COMMANDS.syncComic, {
 			peerId: 'peer-4',
 			addrs: [9],
 			comicName: 'One Piece'
 		});
+		expect(hook.isSyncing('peer-4', 'comic')).toBe(true);
+
+		await hook.startListening();
+		callbacks.get(NETWORK_EVENTS.comicComplete)?.({ payload: 'peer-4' });
+
+		await expect(pending).resolves.toBe('peer-4');
+		expect(hook.isSyncing('peer-4', 'comic')).toBe(false);
+	});
+
+	it('syncComic rejects with the real error once sync:comic:error arrives, not just on an immediate invoke failure', async () => {
+		const { callbacks } = setupListeners();
+		invokeMock.mockResolvedValueOnce(undefined);
+		const hook = await renderHook();
+		await hook.startListening();
+
+		const pending = hook.syncComic('peer-4', [9], 'One Piece');
+		expect(hook.isSyncing('peer-4', 'comic')).toBe(true);
+
+		callbacks.get(NETWORK_EVENTS.comicError)?.({
+			payload: JSON.stringify({ peerId: 'peer-4', message: 'peer disconnected' })
+		});
+
+		await expect(pending).rejects.toBe('peer disconnected');
+		expect(hook.isSyncing('peer-4', 'comic')).toBe(false);
 	});
 
 	it('lastSyncedAt returns the timestamp of the most recent complete entry for a peer', async () => {
@@ -933,9 +960,9 @@ describe('useNetworkSync', () => {
 
 		hook.stopListening();
 
-		// `inFlightTimeouts.clear()` + `inFlightEntryId.clear()` — exatamente duas chamadas
-		// de `Map.prototype.clear` nesta janela síncrona.
-		expect(clearSpy).toHaveBeenCalledTimes(2);
+		// `inFlightTimeouts.clear()` + `inFlightEntryId.clear()` + `pendingSettlement.clear()`
+		// — exatamente três chamadas de `Map.prototype.clear` nesta janela síncrona.
+		expect(clearSpy).toHaveBeenCalledTimes(3);
 
 		clearSpy.mockRestore();
 	});

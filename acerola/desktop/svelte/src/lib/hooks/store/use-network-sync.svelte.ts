@@ -78,6 +78,22 @@ export function useNetworkSync() {
 	const syncingKeys = new SvelteSet<string>();
 	const inFlightTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
 
+	// Resolvers de quem está esperando a conclusão *de verdade* de uma sessão (ver
+	// `syncComic`) — só é populado por chamadas que pedem essa espera, então settlePending
+	// é um no-op seguro pra `history`/`files`/`all`, que ninguém aguarda hoje.
+	const pendingSettlement = new Map<
+		string,
+		{ resolve: (message: string) => void; reject: (message: string) => void }
+	>();
+
+	function settlePending(key: string, ok: boolean, message: string) {
+		const pending = pendingSettlement.get(key);
+		if (!pending) return;
+		pendingSettlement.delete(key);
+		if (ok) pending.resolve(message);
+		else pending.reject(message);
+	}
+
 	function markSyncing(peerId: string, kind: SyncKind) {
 		const key = syncKey(peerId, kind);
 		syncingKeys.add(key);
@@ -90,7 +106,12 @@ export function useNetworkSync() {
 		clearTimeout(inFlightTimeouts.get(key));
 		inFlightTimeouts.set(
 			key,
-			setTimeout(() => clearSyncing(peerId, kind), IN_FLIGHT_TIMEOUT_MS)
+			setTimeout(() => {
+				clearSyncing(peerId, kind);
+				// Peer sumiu no meio da sessão sem emitir `complete`/`error` — sem isso, um
+				// `syncComic` aguardando a conclusão real ficaria pendurado pra sempre.
+				settlePending(key, false, 'sync timed out');
+			}, IN_FLIGHT_TIMEOUT_MS)
 		);
 	}
 
@@ -263,11 +284,13 @@ export function useNetworkSync() {
 			await listen<string>(NETWORK_EVENTS.comicComplete, (event) => {
 				clearSyncing(event.payload, 'comic');
 				push(event.payload, 'comic', 'complete', event.payload);
+				settlePending(syncKey(event.payload, 'comic'), true, event.payload);
 			}),
 			await listen<string>(NETWORK_EVENTS.comicError, (event) => {
 				const { peerId, message } = parseErrorPayload(event.payload);
 				if (peerId) clearSyncing(peerId, 'comic');
 				push(peerId ?? '', 'comic', 'error', message);
+				if (peerId) settlePending(syncKey(peerId, 'comic'), false, message);
 			})
 		);
 	}
@@ -279,6 +302,11 @@ export function useNetworkSync() {
 		inFlightTimeouts.forEach((timeout) => clearTimeout(timeout));
 		inFlightTimeouts.clear();
 		inFlightEntryId.clear();
+		// Sem isso, um `await syncComic(...)` cujo componente desmontou no meio da sessão
+		// ficaria pendurado pra sempre — os listeners que resolveriam essa promise acabaram
+		// de ser desregistrados acima.
+		pendingSettlement.forEach(({ reject }) => reject('sync cancelled: listener stopped'));
+		pendingSettlement.clear();
 	}
 
 	/// Chama o comando Tauri de sync marcando/limpando a(s) chave(s) `peerId:kind` ao redor
@@ -316,12 +344,35 @@ export function useNetworkSync() {
 	/// Sync individual de UM quadrinho (push ou pull, ver `comic_handler.rs` no backend) — o
 	/// `comicName` é o mesmo nome (`comic_directory.name`) usado como chave natural em todo o
 	/// resto do protocolo de sync de arquivos.
-	async function syncComic(peerId: string, addrs: number[], comicName: string) {
-		await withSyncGuard(peerId, ['comic'], NETWORK_COMMANDS.syncComic, {
-			peerId,
-			addrs,
-			comicName
+	///
+	/// Ao contrário de `syncHistory`/`syncFiles`/`syncAll`, a promise retornada só resolve
+	/// (ou rejeita) quando a sessão termina de verdade (`sync:comic:complete`/`error`, ou o
+	/// timeout de `markSyncing`) — o `invoke` do comando Tauri resolve assim que a conexão é
+	/// só enfileirada, muito antes do handshake/transferência acontecer, então usar aquela
+	/// promise direto pra decidir sucesso/erro (como a tela do quadrinho fazia antes) dispara
+	/// o toast de sucesso cedo demais e nunca mostra o de erro se a sessão falhar depois.
+	async function syncComic(peerId: string, addrs: number[], comicName: string): Promise<string> {
+		if (isSyncing(peerId, 'comic')) {
+			throw new Error('sync already in progress');
+		}
+
+		const key = syncKey(peerId, 'comic');
+		const settlement = new Promise<string>((resolve, reject) => {
+			pendingSettlement.set(key, { resolve, reject });
 		});
+
+		try {
+			await withSyncGuard(peerId, ['comic'], NETWORK_COMMANDS.syncComic, {
+				peerId,
+				addrs,
+				comicName
+			});
+		} catch (err) {
+			pendingSettlement.delete(key);
+			throw err;
+		}
+
+		return settlement;
 	}
 
 	/// Timestamp da última sessão concluída com sucesso pra esse peer (qualquer `kind`), ou

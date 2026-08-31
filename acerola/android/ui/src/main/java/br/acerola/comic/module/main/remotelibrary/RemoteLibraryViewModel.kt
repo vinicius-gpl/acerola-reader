@@ -87,7 +87,15 @@ class RemoteLibraryViewModel
 
         fun syncComic(comicName: String) {
             val peerId = peerId ?: return
-            if (_uiState.value.syncingComicName != null) return
+            if (_uiState.value.syncingComicName != null) {
+                // Toque no card enquanto ele só mostra o spinner de loading — sem cancelamento
+                // real disponível no fluxo P2P hoje, o mínimo é avisar por que o toque não fez
+                // nada, em vez de ignorar em silêncio.
+                viewModelScope.launch {
+                    _uiEvents.send(UserMessage.Raw(UiText.StringResource(R.string.message_sync_comic_already_syncing)))
+                }
+                return
+            }
 
             AcerolaLogger.audit(
                 TAG,

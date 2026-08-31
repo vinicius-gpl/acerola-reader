@@ -108,7 +108,7 @@
 	}
 
 	async function withSync(
-		action: (peerId: string, addrs: number[]) => Promise<void>,
+		action: (peerId: string, addrs: number[]) => Promise<unknown>,
 		peerId: string
 	) {
 		const addrs = peers.getKnownAddr(peerId);

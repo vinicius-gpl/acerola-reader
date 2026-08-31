@@ -1,0 +1,30 @@
+# Força LF em todo arquivo de texto, em qualquer SO — sem isso, checkouts no
+# Windows com core.autocrlf=true (padrão do instalador do Git for Windows)
+# convertem tudo pra CRLF no disco, gerando ruído no Prettier/git status sem
+# nenhuma mudança de conteúdo real. `eol=lf` tem precedência sobre
+# core.autocrlf pra qualquer arquivo que bater aqui, então isso vale
+# independente da configuração local de quem clonar o repo.
+* text=auto eol=lf
+
+# Binários — nunca passam por normalização de fim de linha.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.icns binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.jar binary
+*.so binary
+*.dll binary
+*.dylib binary
+*.pdf binary
+*.cbz binary
+*.cbr binary
+*.zip binary
+*.jks binary
+*.keystore binary
