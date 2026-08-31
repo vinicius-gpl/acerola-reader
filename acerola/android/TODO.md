@@ -108,6 +108,12 @@
 
 ---
 
+## 📦 Distribuição
+
+- [ ] **[Média] Publicar APK no Cloudflare R2 com link estável de download** - Hoje o APK só é distribuído via GitHub Releases, cujo nome de asset muda a cada versão e não dá um link fixo pra usar no `docs/web`. Etapa 1: CD sobe o APK pro R2 (mesma conta Cloudflare do `docs/web`) e a página de instalação linka direto pra lá. Etapa 2 (depois): o nome do arquivo baixado ainda fica feio numa chave fixa tipo `latest.apk`; resolver com `Content-Disposition` correto no upload ou uma rota de redirect no SvelteKit apontando pro objeto versionado.
+
+---
+
 ## 🚧 Pendente
 
 - [ ] **Permitir que o app Android possa ser fechado e rodar em segundo plano o sync** *(Alta)* - Fazer um worker que permite o app mobile fazer todos os syncs em segundo plano sem interferir no usuário.
