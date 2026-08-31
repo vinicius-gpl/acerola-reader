@@ -27,7 +27,7 @@
 	import PlaceholderManga from '$lib/assets/placeholder/placeholder_manga.svg?component';
 	import SearchIcon from '@lucide/svelte/icons/search';
 	import BookOpenIcon from '@lucide/svelte/icons/book-open';
-	import CloudDownloadIcon from '@lucide/svelte/icons/cloud-download';
+	import Loader2Icon from '@lucide/svelte/icons/loader-2';
 
 	// Renomeado de `state` na desestruturação — um binding local chamado `state` no mesmo
 	// escopo da rune `$state(...)` abaixo colide com o açúcar de auto-subscribe de store do
@@ -143,7 +143,7 @@
 						{#snippet overlay()}
 							{#if comicSyncing}
 								<div class="absolute inset-0 flex items-center justify-center bg-crust/60">
-									<CloudDownloadIcon size={24} class="animate-spin text-primary" />
+									<Loader2Icon size={24} class="animate-spin text-primary" />
 								</div>
 							{/if}
 						{/snippet}
