@@ -116,3 +116,16 @@ jobs:
           name: "Acerola Android v${{ env.VERSION }}"
           generate_release_notes: true
           prerelease: ${{ env.CHANNEL != 'prod' }}
+
+      - name: Upload APK to R2
+        if: env.CHANNEL == 'prod'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: acerola/android
+          command: >
+            r2 object put acerola/android/latest.apk
+            --file=app/build/outputs/apk/release/acerola-${{ env.VERSION }}.apk
+            --content-type=application/vnd.android.package-archive
+            --remote
