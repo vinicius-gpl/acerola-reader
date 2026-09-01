@@ -45,7 +45,14 @@ impl BlobChapterTransfer {
 impl ChapterTransfer for BlobChapterTransfer {
     async fn publish(&self, bytes: Vec<u8>) -> Result<String, P2pError> {
         let store = self.context.blob_store().await?;
-        let hash = store.put(bytes).await.map_err(|err| P2pError::StreamFailed(err.to_string()))?;
+        // `P2pBlobStore::put` já retorna `ConnectionError` (= `P2pError`, mesmo tipo — ver
+        // `acerola_p2p::api::error`) — sem o `.map_err(|err| P2pError::StreamFailed(err.to_string()))`
+        // que tinha aqui antes, o `?` propaga a variante de verdade (`Timeout`,
+        // `PeerDisconnected`, etc.) direto pro chamador. Re-envelopar tudo em `StreamFailed`
+        // achatava essa classificação já corrigida na origem (ver `classify_get_error` em
+        // `lib/p2p/src/infra/error/iroh_blobs.rs`) de volta em texto cru, obrigando quem
+        // consumia esse erro a adivinhar a causa fazendo substring matching no `to_string()`.
+        let hash = store.put(bytes).await?;
         Ok(hash.to_string())
     }
 
@@ -53,13 +60,17 @@ impl ChapterTransfer for BlobChapterTransfer {
         &self, blob_hash: &str, peer: &PeerIdentity,
     ) -> Result<Box<dyn AsyncRead + Send + Unpin>, P2pError> {
         let store = self.context.blob_store().await?;
+        // Formato do hash é local/estático (não vem da rede) — não tem paralelo em
+        // `ConnectionError` além do genérico `StreamFailed`, então mantém `.map_err` só aqui.
         let hash = blob_hash
             .parse()
             .map_err(|_| P2pError::StreamFailed(format!("invalid blob hash: {blob_hash}")))?;
         let addr = self.context.resolve_addr(peer).await?;
 
-        store.fetch(&hash, &addr).await.map_err(|err| P2pError::StreamFailed(err.to_string()))?;
-        store.get(&hash).await.map_err(|err| P2pError::StreamFailed(err.to_string()))
+        // Ver comentário em `publish` — `fetch`/`get` já retornam `ConnectionError` estruturado,
+        // propaga direto em vez de achatar em `StreamFailed(err.to_string())`.
+        store.fetch(&hash, &addr).await?;
+        store.get(&hash).await
     }
 }
 
@@ -74,26 +85,39 @@ pub const SESSION_BUSY_REASON: &str = "file sync session already in progress for
 /// essa mensagem específica em vez de um `FileManifest` normal.
 pub(super) const SESSION_BUSY_TAG: &str = "busy";
 
-/// Classifica a mensagem técnica de um `P2pError` num `code` estável que o frontend traduz via
-/// Paraglide (`SYNC_ERROR_MESSAGES` em `use-network-sync.svelte.ts`) — sem isso, texto de baixo
-/// nível da stack de transporte (QUIC/iroh: "stream reset by peer", "connection lost" etc.,
-/// visto em produção sem tradução: "blob fetch failed: ...: stream failed: stream failed: io:
-/// stream reset by peer: error 3") vaza cru pro usuário final mesmo com o app todo em pt-BR.
-/// Cobre só as causas observadas; texto não reconhecido cai no fallback (mensagem técnica crua)
-/// já usado por `errors.i18n.ts` pros demais erros do app — não é uma tentativa de mapear toda
-/// variante de `ConnectionError`/io error possível, só as recorrentes o bastante pra valer a
-/// tradução.
-pub(super) fn classify_sync_error(message: &str) -> Option<&'static str> {
-    if message.contains(SESSION_BUSY_REASON) {
-        return Some(SESSION_BUSY_TAG);
+/// Identificador estável de causa de erro de sync, serializado em `snake_case` (`"busy"`,
+/// `"timeout"`, `"connection_lost"`) — o mesmo valor que o frontend já esperava quando isso era
+/// uma `&'static str` solta, então trocar pra enum não muda o contrato de wire (`SYNC_ERROR_MESSAGES`
+/// em `use-network-sync.svelte.ts` continua igual). A vantagem do enum é o `match` em
+/// `classify_sync_error` ser exaustivo e verificado em tempo de compilação — sem isso, cada causa
+/// nova era "só mais um `.contains()`" testando texto arbitrário de uma lib externa, frágil (quebra
+/// se a mensagem mudar) e sem nenhuma garantia de estar cobrindo os casos reais.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub(super) enum SyncErrorCode {
+    Busy,
+    Timeout,
+    ConnectionLost,
+}
+
+/// Classifica um `P2pError` (não seu texto) num `SyncErrorCode` que o frontend traduz via
+/// Paraglide (`SYNC_ERROR_MESSAGES` em `use-network-sync.svelte.ts`). Isso só é possível de
+/// forma confiável porque `ChapterTransfer::publish`/`fetch_reader` (`BlobChapterTransfer`, logo
+/// acima) pararam de achatar `ConnectionError` em `StreamFailed(err.to_string())` — o erro que
+/// chega aqui já é a variante de verdade que `lib/p2p` classificou na origem
+/// (`classify_connection_error`/`classify_get_error`, ver `infra/error/{iroh,iroh_blobs}.rs` no
+/// crate `acerola-p2p`), não texto pra adivinhar via substring matching. `Busy` continua sendo a
+/// exceção: não é uma variante de `ConnectionError` (é um conceito deste protocolo de sync, não
+/// do transporte), então a única forma de reconhecê-la através do `Result<(), P2pError>` fixo de
+/// `Handler::handle` é o texto que ESTE MÓDULO controla (`SESSION_BUSY_REASON`) — igualdade
+/// exata numa constante nossa, não uma heurística sobre texto de terceiros.
+pub(super) fn classify_sync_error(error: &P2pError) -> Option<SyncErrorCode> {
+    match error {
+        P2pError::Timeout => Some(SyncErrorCode::Timeout),
+        P2pError::PeerDisconnected(_) => Some(SyncErrorCode::ConnectionLost),
+        P2pError::StreamFailed(msg) if msg.contains(SESSION_BUSY_REASON) => Some(SyncErrorCode::Busy),
+        _ => None,
     }
-    if message.contains("timed out") {
-        return Some("timeout");
-    }
-    if message.contains("stream failed") || message.contains("stream error") {
-        return Some("connection_lost");
-    }
-    None
 }
 
 /// Emitido quando `FileSyncSessionGuard` recusa uma sessão porque já existe uma ativa pro
@@ -104,15 +128,25 @@ pub(super) fn classify_sync_error(message: &str) -> Option<&'static str> {
 /// mostrado como está) — `code` é o identificador estável que o frontend usa pra traduzir via
 /// Paraglide (`tauri_errors.sync.session_busy.label`), no mesmo padrão de `errors.i18n.ts`.
 pub fn emit_busy(emit: &EventEmitter, event_name: &str, peer_id: &str) {
-    (emit)(
-        event_name,
-        serde_json::json!({
-            "peerId": peer_id,
-            "message": SESSION_BUSY_REASON,
-            "code": SESSION_BUSY_TAG,
-        })
-        .to_string(),
-    );
+    (emit)(event_name, sync_error_payload(peer_id, SESSION_BUSY_REASON, Some(SyncErrorCode::Busy), None));
+}
+
+/// Monta o JSON de `sync:*:error` usado tanto por `emit_busy` quanto pelo branch `Err(error)`
+/// genérico de `FileSyncOutbound`/`FileSyncInbound`/`ComicSyncOutbound`/`ComicSyncInbound`
+/// (`file_handler.rs`/`comic_handler.rs`) — um lugar só pro shape do payload em vez de 5
+/// `serde_json::json!({...})` quase-iguais espalhados, que já divergiam entre si (nem todos
+/// incluíam `comicName`). `code: None` serializa como `null` — o frontend trata isso como "sem
+/// tradução conhecida, mostra o `message` cru" (`translateSyncMessage`).
+pub(super) fn sync_error_payload(
+    peer_id: &str, message: &str, code: Option<SyncErrorCode>, comic_name: Option<&str>,
+) -> String {
+    serde_json::json!({
+        "peerId": peer_id,
+        "message": message,
+        "code": code,
+        "comicName": comic_name,
+    })
+    .to_string()
 }
 
 /// Escreve a mensagem de rejeição de sessão diretamente no stream, no lugar do manifesto —

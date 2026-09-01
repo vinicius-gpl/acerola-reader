@@ -21,7 +21,7 @@ use crate::{
             file_session_guard::FileSyncSessionGuard,
             transfer::{
                 classify_sync_error, emit_busy, read_or_busy, receive_extras, receive_files, send_extras,
-                send_files, write_session_busy, ChapterTransfer,
+                send_files, sync_error_payload, write_session_busy, ChapterTransfer,
             },
         },
     },
@@ -145,11 +145,11 @@ impl Handler for FileSyncOutbound {
             },
             Err(error) => {
                 let message = error.to_string();
-                let code = classify_sync_error(&message);
-                (self.emit)(
-                    ERROR_EVENT,
-                    serde_json::json!({ "peerId": peer.id, "message": &message, "code": code }).to_string(),
-                );
+                let code = classify_sync_error(&error);
+                // Log técnico sempre em inglês, independente do `code` — é o que vai pro
+                // arquivo de log/suporte; a tradução (`code`) é só pra UI.
+                tracing::warn!(peer = %peer.id, ?code, error = %message, "[FileSync] session failed");
+                (self.emit)(ERROR_EVENT, sync_error_payload(&peer.id, &message, code, None));
                 self.log_repo
                     .base
                     .insert(&SyncHistoryLogEntry::new(&peer.id, LOG_KIND, "error", Some(&message)))
@@ -268,11 +268,11 @@ impl Handler for FileSyncInbound {
             },
             Err(error) => {
                 let message = error.to_string();
-                let code = classify_sync_error(&message);
-                (self.emit)(
-                    ERROR_EVENT,
-                    serde_json::json!({ "peerId": peer.id, "message": &message, "code": code }).to_string(),
-                );
+                let code = classify_sync_error(&error);
+                // Log técnico sempre em inglês, independente do `code` — é o que vai pro
+                // arquivo de log/suporte; a tradução (`code`) é só pra UI.
+                tracing::warn!(peer = %peer.id, ?code, error = %message, "[FileSync] session failed");
+                (self.emit)(ERROR_EVENT, sync_error_payload(&peer.id, &message, code, None));
                 self.log_repo
                     .base
                     .insert(&SyncHistoryLogEntry::new(&peer.id, LOG_KIND, "error", Some(&message)))

@@ -22,7 +22,7 @@ use crate::{
             file_session_guard::FileSyncSessionGuard,
             transfer::{
                 classify_sync_error, emit_busy, read_or_busy, receive_extras, receive_files, send_extras,
-                send_files, write_session_busy, ChapterTransfer,
+                send_files, sync_error_payload, write_session_busy, ChapterTransfer,
             },
         },
     },
@@ -173,11 +173,9 @@ impl Handler for ComicSyncOutbound {
             },
             Err(error) => {
                 let message = error.to_string();
-                let code = classify_sync_error(&message);
-                (self.emit)(
-                    ERROR_EVENT,
-                    serde_json::json!({ "peerId": peer.id, "message": &message, "code": code }).to_string(),
-                );
+                let code = classify_sync_error(&error);
+                tracing::warn!(peer = %peer.id, ?code, error = %message, "[ComicSync] session failed");
+                (self.emit)(ERROR_EVENT, sync_error_payload(&peer.id, &message, code, None));
                 self.log_repo
                     .base
                     .insert(&SyncHistoryLogEntry::new(&peer.id, LOG_KIND, "error", Some(&message)))
@@ -305,11 +303,9 @@ impl Handler for ComicSyncInbound {
             },
             Err(error) => {
                 let message = error.to_string();
-                let code = classify_sync_error(&message);
-                (self.emit)(
-                    ERROR_EVENT,
-                    serde_json::json!({ "peerId": peer.id, "message": &message, "code": code }).to_string(),
-                );
+                let code = classify_sync_error(&error);
+                tracing::warn!(peer = %peer.id, ?code, error = %message, "[ComicSync] session failed");
+                (self.emit)(ERROR_EVENT, sync_error_payload(&peer.id, &message, code, None));
                 self.log_repo
                     .base
                     .insert(&SyncHistoryLogEntry::new(&peer.id, LOG_KIND, "error", Some(&message)))
@@ -413,7 +409,19 @@ mod tests {
         let (outbound_log, outbound_service, outbound_metadata, _outbound_dir) = setup().await;
         let (inbound_log, inbound_service, inbound_metadata, _inbound_dir) = setup().await;
 
-        let guard = FileSyncSessionGuard::new();
+        // `FileSyncSessionGuard` é estado LOCAL de cada device (protege contra duas sessões
+        // concorrentes pro MESMO peer visto por aquele device) — outbound e inbound aqui
+        // simulam dois devices DIFERENTES na mesma sessão (via `tokio::io::duplex`), então cada
+        // um precisa da sua própria instância. Compartilhar uma só (como este teste fazia antes)
+        // cria uma corrida real: `tokio::join!` sondra `outbound_fut` primeiro, que adquire a
+        // lease sincronamente antes de `inbound_fut` sequer ser sondado uma vez — inbound sempre
+        // perde a corrida, cai no branch de "busy" e fecha o stream imediatamente, e a escrita
+        // seguinte do outbound (que ainda não tinha lido isso) quebra com "broken pipe". Nunca
+        // pego antes porque `cargo test` bruto travava com STATUS_ENTRYPOINT_NOT_FOUND neste
+        // crate no Windows (ambiente) — só via `cargo make test` (nextest, com o setup de
+        // manifest/DLL do Windows) esse teste chegou a rodar de verdade pela primeira vez.
+        let outbound_guard = FileSyncSessionGuard::new();
+        let inbound_guard = FileSyncSessionGuard::new();
         let registry = PendingComicSyncRegistry::new();
         let (outbound_emit, outbound_events) = mock_emitter();
         let (inbound_emit, inbound_events) = mock_emitter();
@@ -426,12 +434,18 @@ mod tests {
             outbound_service,
             outbound_metadata,
             outbound_log,
-            Arc::clone(&guard),
+            outbound_guard,
             registry,
             test_transfer(),
         );
-        let inbound =
-            ComicSyncInbound::new(inbound_emit, inbound_service, inbound_metadata, inbound_log, guard, test_transfer());
+        let inbound = ComicSyncInbound::new(
+            inbound_emit,
+            inbound_service,
+            inbound_metadata,
+            inbound_log,
+            inbound_guard,
+            test_transfer(),
+        );
 
         let (client_io, server_io) = tokio::io::duplex(64 * 1024);
         let (client_recv, client_send) = tokio::io::split(client_io);
