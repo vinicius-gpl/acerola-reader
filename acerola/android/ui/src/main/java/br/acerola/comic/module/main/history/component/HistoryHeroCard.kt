@@ -71,6 +71,8 @@ fun Main.History.Component.HistoryHeroCard(
                     ImageRequest
                         .Builder(context)
                         .data(bannerUri)
+                        .memoryCacheKey("${bannerUri}_${comic.directory.lastModified}")
+                        .diskCacheKey("${bannerUri}_${comic.directory.lastModified}")
                         .crossfade(true)
                         .build(),
                 contentDescription = null,

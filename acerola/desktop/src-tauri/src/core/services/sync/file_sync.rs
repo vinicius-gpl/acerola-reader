@@ -8,7 +8,7 @@ use std::{
 use sqlx::SqlitePool;
 
 use crate::{
-    core::services::archive::path_guard::path_hash,
+    core::services::{archive::path_guard::path_hash, metadata::find_comic_info_path},
     data::{
         models::archive::{
             chapter_archive::{is_special_name, ChapterArchive},
@@ -20,7 +20,10 @@ use crate::{
     },
     infra::{
         error::{ComicError, DbError},
-        sync::messages::{ComicSummaryEntry, FileChapterInfo, FileComicInfo, FileManifest},
+        sync::messages::{
+            ComicSummaryEntry, FileChapterInfo, FileComicInfo, FileExtraInfo, FileManifest,
+            EXTRA_KIND_BANNER, EXTRA_KIND_COMIC_INFO, EXTRA_KIND_COVER,
+        },
     },
 };
 
@@ -35,6 +38,11 @@ fn sanitize_folder_name(name: &str) -> String {
         .collect::<String>()
         .trim()
         .to_string()
+}
+
+fn sha256_hex(bytes: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
+    format!("{:x}", Sha256::digest(bytes))
 }
 
 /// Monta e aplica manifestos de arquivos (os `.cbz`/`.cbr` reais) entre dois devices.
@@ -91,12 +99,56 @@ impl FileSyncService {
             });
         }
 
-        let comics = by_comic
-            .into_iter()
-            .map(|(comic_name, chapters)| FileComicInfo { comic_name, chapters })
-            .collect();
+        // Capa/banner/ComicInfo.xml vivem em `comic_directory`, não em `chapter_archive` —
+        // precisa da linha inteira do quadrinho (não só o nome) pra montar os três, então
+        // itera `comic_directory` em vez de só os nomes já coletados em `by_comic` acima
+        // (cobre também um quadrinho com capa mas ainda sem nenhum capítulo indexado).
+        let all_comics = self.comic_repo.base.find_all().await?;
+        let mut comics = Vec::with_capacity(all_comics.len());
+
+        for comic in &all_comics {
+            let chapters = by_comic.remove(&comic.name).unwrap_or_default();
+            let (cover, banner, comic_info) = self.build_comic_extras(comic).await;
+
+            if chapters.is_empty() && cover.is_none() && banner.is_none() && comic_info.is_none() {
+                continue;
+            }
+
+            comics.push(FileComicInfo { comic_name: comic.name.clone(), chapters, cover, banner, comic_info });
+        }
+
+        // Defensivo: um capítulo cujo `comic_name` não bateu com nenhuma linha de
+        // `comic_directory` não deveria existir (a FK garante consistência), mas não descarta
+        // silenciosamente se acontecer.
+        comics.extend(
+            by_comic
+                .into_iter()
+                .map(|(comic_name, chapters)| FileComicInfo { comic_name, chapters, ..Default::default() }),
+        );
 
         Ok(FileManifest { comics })
+    }
+
+    /// Lê e hasheia (se existir) a capa, o banner e o `ComicInfo.xml` locais de um quadrinho —
+    /// arquivos pequenos (thumbnail/xml), diferente de capítulos, então ok recalcular o
+    /// checksum a cada `build_manifest()` em vez de depender de uma coluna cacheada.
+    async fn build_comic_extras(
+        &self, comic: &ComicDirectory,
+    ) -> (Option<FileExtraInfo>, Option<FileExtraInfo>, Option<FileExtraInfo>) {
+        let cover = Self::hash_extra_file(comic.cover.as_deref().map(Path::new)).await;
+        let banner = Self::hash_extra_file(comic.banner.as_deref().map(Path::new)).await;
+        let comic_info_path = find_comic_info_path(Path::new(&comic.path));
+        let comic_info = Self::hash_extra_file(comic_info_path.as_deref()).await;
+
+        (cover, banner, comic_info)
+    }
+
+    async fn hash_extra_file(path: Option<&Path>) -> Option<FileExtraInfo> {
+        let path = path?;
+        let bytes = tokio::fs::read(path).await.ok()?;
+        let file_name = path.file_name()?.to_str()?.to_string();
+
+        Some(FileExtraInfo { file_name, checksum: sha256_hex(&bytes), size: bytes.len() as u64 })
     }
 
     /// Resumo da biblioteca (título + contagem de capítulos + versão de capa) via
@@ -129,11 +181,15 @@ impl FileSyncService {
     }
 
     /// Calcula o que EU quero, comparando o manifesto do peer contra a base local: capítulos
-    /// ausentes ou com checksum diferente (arquivo desatualizado/corrompido localmente).
+    /// ausentes ou com checksum diferente (arquivo desatualizado/corrompido localmente), mais
+    /// os itens extra (capa/banner/ComicInfo.xml) ausentes ou desatualizados. Retorna
+    /// `(wanted, wanted_extras)` — capítulos e extras são conceitos independentes, então dois
+    /// vetores em vez de misturar tudo numa única lista com um discriminador.
     pub async fn diff_wanted(
         &self, peer_manifest: &FileManifest,
-    ) -> Result<Vec<(String, String)>, ComicError> {
+    ) -> Result<(Vec<(String, String)>, Vec<(String, String)>), ComicError> {
         let mut wanted = Vec::new();
+        let mut wanted_extras = Vec::new();
 
         for comic in &peer_manifest.comics {
             let local_comic = self.comic_repo.find_by_name(&comic.comic_name).await?;
@@ -160,9 +216,38 @@ impl FileSyncService {
                     wanted.push((comic.comic_name.clone(), chapter.chapter.clone()));
                 }
             }
+
+            for (kind, peer_extra) in [
+                (EXTRA_KIND_COVER, &comic.cover),
+                (EXTRA_KIND_BANNER, &comic.banner),
+                (EXTRA_KIND_COMIC_INFO, &comic.comic_info),
+            ] {
+                let Some(peer_extra) = peer_extra else { continue };
+
+                let local_checksum = match &local_comic {
+                    Some(existing) => self.local_extra_info(existing, kind).await.map(|info| info.checksum),
+                    None => None,
+                };
+
+                if local_checksum.as_deref() != Some(peer_extra.checksum.as_str()) {
+                    wanted_extras.push((comic.comic_name.clone(), kind.to_string()));
+                }
+            }
         }
 
-        Ok(wanted)
+        Ok((wanted, wanted_extras))
+    }
+
+    async fn local_extra_info(&self, comic: &ComicDirectory, kind: &str) -> Option<FileExtraInfo> {
+        match kind {
+            EXTRA_KIND_COVER => Self::hash_extra_file(comic.cover.as_deref().map(Path::new)).await,
+            EXTRA_KIND_BANNER => Self::hash_extra_file(comic.banner.as_deref().map(Path::new)).await,
+            EXTRA_KIND_COMIC_INFO => {
+                let path = find_comic_info_path(Path::new(&comic.path));
+                Self::hash_extra_file(path.as_deref()).await
+            },
+            _ => None,
+        }
     }
 
     /// Resolve o path local + metadados de um capítulo já existente, pra enviar ao peer.
@@ -184,6 +269,36 @@ impl FileSyncService {
             path.file_name().and_then(|name| name.to_str()).unwrap_or(chapter).to_string();
 
         Ok(Some((path, size, chapter_row.checksum, file_name)))
+    }
+
+    /// Resolve path + metadados de um item extra (capa/banner/ComicInfo.xml) local já
+    /// existente, pra enviar ao peer — mesmo shape de retorno de `resolve_local_file`. O
+    /// checksum não vem de uma coluna cacheada (não existe uma pra extras): é recalculado
+    /// aqui, do mesmo jeito que em `build_comic_extras`/`local_extra_info`.
+    pub async fn resolve_local_extra(
+        &self, comic_name: &str, kind: &str,
+    ) -> Result<Option<(PathBuf, u64, Option<String>, String)>, ComicError> {
+        let Some(comic) = self.comic_repo.find_by_name(comic_name).await? else {
+            return Ok(None);
+        };
+
+        let path = match kind {
+            EXTRA_KIND_COVER => comic.cover.map(PathBuf::from),
+            EXTRA_KIND_BANNER => comic.banner.map(PathBuf::from),
+            EXTRA_KIND_COMIC_INFO => find_comic_info_path(Path::new(&comic.path)),
+            _ => None,
+        };
+        let Some(path) = path else {
+            return Ok(None);
+        };
+
+        let Ok(bytes) = tokio::fs::read(&path).await else {
+            return Ok(None);
+        };
+        let file_name =
+            path.file_name().and_then(|name| name.to_str()).unwrap_or(kind).to_string();
+
+        Ok(Some((path, bytes.len() as u64, Some(sha256_hex(&bytes)), file_name)))
     }
 
     /// Capa local (versão + bytes) de `comic_name`, usada por `acerola/browse-cover/1`. `None`
@@ -304,6 +419,79 @@ impl FileSyncService {
         }
     }
 
+    /// Persiste um item extra recebido (capa/banner/ComicInfo.xml) — contraparte de
+    /// `persist_received_chapter` pra itens que não são capítulos. Retorna o `ComicDirectory`
+    /// já atualizado (com o novo path de capa/banner, quando for o caso), pra quem chama em
+    /// `transfer.rs` saber o `id` sem uma segunda consulta e decidir se dispara o
+    /// reprocessamento de metadata do `ComicInfo.xml`.
+    pub async fn persist_received_extra(
+        &self, comic_name: &str, kind: &str, file_name: &str, temp_path: &Path,
+    ) -> Result<ComicDirectory, ComicError> {
+        let comic = self.resolve_comic_dir(comic_name).await?;
+        let comic_dir = PathBuf::from(&comic.path);
+
+        match kind {
+            EXTRA_KIND_COVER => self.persist_artwork_extra(&comic, &comic_dir, "cover", file_name, temp_path).await,
+            EXTRA_KIND_BANNER => {
+                self.persist_artwork_extra(&comic, &comic_dir, "banner", file_name, temp_path).await
+            },
+            EXTRA_KIND_COMIC_INFO => {
+                let dest_path = comic_dir.join("ComicInfo.xml");
+
+                // Um `ComicInfo.xml` pré-existente com capitalização diferente (o guard que
+                // valida esse nome é case-insensitive, mas o filesystem pode ter mais de uma
+                // entrada em disco em sistemas case-sensitive) precisa sumir antes de gravar o
+                // nome canônico — senão as duas coexistem e o próximo `find_comic_info_path`
+                // vira ambíguo sobre qual é a "verdadeira".
+                if let Some(existing_path) = find_comic_info_path(&comic_dir) {
+                    if existing_path != dest_path {
+                        let _ = tokio::fs::remove_file(&existing_path).await;
+                    }
+                }
+
+                tokio::fs::rename(temp_path, &dest_path).await.map_err(ComicError::Io)?;
+                Ok(comic)
+            },
+            _ => Err(ComicError::SystemFailure(format!("unknown extra kind: {kind}"))),
+        }
+    }
+
+    /// Renomeia `temp_path` pra `<stem>.<extensão>` na raiz do diretório do quadrinho, limpa
+    /// qualquer `<stem>.<outra extensão>` órfão (mesma limpeza que
+    /// `cover_extractor::persist_cover` já faz pra capa, replicada aqui em vez de generalizar
+    /// aquela função pública — evita mexer num contrato já usado pelo fluxo manual de
+    /// metadata), e atualiza a coluna correspondente (`cover`/`banner`) + `last_modified`.
+    async fn persist_artwork_extra(
+        &self, comic: &ComicDirectory, comic_dir: &Path, stem: &str, file_name: &str, temp_path: &Path,
+    ) -> Result<ComicDirectory, ComicError> {
+        let extension = Path::new(file_name)
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .unwrap_or("jpg")
+            .to_ascii_lowercase();
+        let dest_path = comic_dir.join(format!("{stem}.{extension}"));
+
+        for stale_extension in ["jpg", "jpeg", "png"] {
+            if stale_extension == extension {
+                continue;
+            }
+            let _ = tokio::fs::remove_file(comic_dir.join(format!("{stem}.{stale_extension}"))).await;
+        }
+
+        tokio::fs::rename(temp_path, &dest_path).await.map_err(ComicError::Io)?;
+
+        let mut updated = comic.clone();
+        let dest_str = Some(dest_path.to_string_lossy().to_string());
+        match stem {
+            "cover" => updated.cover = dest_str,
+            "banner" => updated.banner = dest_str,
+            _ => {},
+        }
+        updated.last_modified = now_secs();
+
+        self.comic_repo.base.update(&updated).await.map_err(ComicError::from)
+    }
+
     /// Cria um novo `comic_directory` sob `<library_root>/<nome>` — usado quando um
     /// capítulo recebido pertence a um quadrinho que ainda não existe localmente. Mesmo
     /// path que o scanner normal da biblioteca usaria pra um quadrinho adicionado
@@ -341,6 +529,8 @@ impl FileSyncService {
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     use super::FileSyncService;
     use crate::infra::sync::messages::{FileChapterInfo, FileComicInfo, FileManifest};
 
@@ -382,11 +572,13 @@ mod tests {
                     checksum: Some("abc".into()),
                     size: 10,
                 }],
+                ..Default::default()
             }],
         };
 
-        let wanted = service.diff_wanted(&peer_manifest).await.unwrap();
+        let (wanted, wanted_extras) = service.diff_wanted(&peer_manifest).await.unwrap();
         assert!(wanted.is_empty());
+        assert!(wanted_extras.is_empty());
     }
 
     #[tokio::test]
@@ -402,10 +594,11 @@ mod tests {
                     checksum: Some("different".into()),
                     size: 10,
                 }],
+                ..Default::default()
             }],
         };
 
-        let wanted = service.diff_wanted(&peer_manifest).await.unwrap();
+        let (wanted, _) = service.diff_wanted(&peer_manifest).await.unwrap();
         assert_eq!(wanted, vec![("Test".to_string(), "Cap 1".to_string())]);
     }
 
@@ -422,11 +615,33 @@ mod tests {
                     checksum: Some("x".into()),
                     size: 10,
                 }],
+                ..Default::default()
             }],
         };
 
-        let wanted = service.diff_wanted(&peer_manifest).await.unwrap();
+        let (wanted, _) = service.diff_wanted(&peer_manifest).await.unwrap();
         assert_eq!(wanted, vec![("Novo Quadrinho".to_string(), "Cap 1".to_string())]);
+    }
+
+    #[tokio::test]
+    async fn diff_wanted_wants_extra_missing_locally() {
+        let (_, _dir, service) = setup().await;
+
+        let peer_manifest = FileManifest {
+            comics: vec![FileComicInfo {
+                comic_name: "Test".into(),
+                chapters: vec![],
+                cover: Some(crate::infra::sync::messages::FileExtraInfo {
+                    file_name: "cover.jpg".into(),
+                    checksum: "cover-hash".into(),
+                    size: 100,
+                }),
+                ..Default::default()
+            }],
+        };
+
+        let (_, wanted_extras) = service.diff_wanted(&peer_manifest).await.unwrap();
+        assert_eq!(wanted_extras, vec![("Test".to_string(), "cover".to_string())]);
     }
 
     #[tokio::test]
@@ -542,5 +757,104 @@ mod tests {
 
         assert_eq!(rows.len(), 1, "reenvio não pode criar uma segunda linha pro mesmo capítulo");
         assert_eq!(rows[0].0, "checksum-novo", "o reenvio precisa sobrescrever o checksum antigo");
+    }
+
+    #[tokio::test]
+    async fn persist_received_extra_cover_moves_file_and_updates_comic_directory() {
+        let (pool, dir, service) = setup().await;
+
+        let temp_path = dir.path().join("incoming-cover.tmp");
+        tokio::fs::write(&temp_path, b"fake jpeg bytes").await.unwrap();
+
+        let comic = service
+            .persist_received_extra("Quadrinho Com Capa", "cover", "cover.jpg", &temp_path)
+            .await
+            .unwrap();
+
+        assert!(comic.cover.as_deref().is_some_and(|path| path.ends_with("cover.jpg")));
+        assert!(tokio::fs::metadata(comic.cover.as_deref().unwrap()).await.is_ok());
+        assert!(!temp_path.exists(), "arquivo temporário deveria ter sido movido, não copiado");
+
+        let row: (Option<String>,) =
+            sqlx::query_as("SELECT cover FROM comic_directory WHERE name = 'Quadrinho Com Capa'")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert!(row.0.as_deref().is_some_and(|path| path.ends_with("cover.jpg")));
+    }
+
+    /// Trocar a extensão da capa (ex.: `cover.png` -> `cover.jpg`) não pode deixar as duas
+    /// coexistindo — mesma limpeza de órfão que `cover_extractor::persist_cover` já garante
+    /// pro fluxo manual, replicada em `persist_artwork_extra`.
+    #[tokio::test]
+    async fn persist_received_extra_cover_removes_stale_extension() {
+        let (_, dir, service) = setup().await;
+
+        let first_temp = dir.path().join("first-cover.tmp");
+        tokio::fs::write(&first_temp, b"png bytes").await.unwrap();
+        service
+            .persist_received_extra("Quadrinho Capa Trocada", "cover", "cover.png", &first_temp)
+            .await
+            .unwrap();
+
+        let comic_dir = service.library_root().join("Quadrinho Capa Trocada");
+        assert!(tokio::fs::metadata(comic_dir.join("cover.png")).await.is_ok());
+
+        let second_temp = dir.path().join("second-cover.tmp");
+        tokio::fs::write(&second_temp, b"jpg bytes").await.unwrap();
+        let comic = service
+            .persist_received_extra("Quadrinho Capa Trocada", "cover", "cover.jpg", &second_temp)
+            .await
+            .unwrap();
+
+        assert!(comic.cover.as_deref().is_some_and(|path| path.ends_with("cover.jpg")));
+        assert!(tokio::fs::metadata(comic_dir.join("cover.jpg")).await.is_ok());
+        assert!(
+            tokio::fs::metadata(comic_dir.join("cover.png")).await.is_err(),
+            "cover.png órfão deveria ter sido removido"
+        );
+    }
+
+    #[tokio::test]
+    async fn persist_received_extra_comic_info_writes_canonical_filename() {
+        let (_, dir, service) = setup().await;
+
+        let temp_path = dir.path().join("incoming-comicinfo.tmp");
+        tokio::fs::write(&temp_path, b"<ComicInfo><Title>X</Title></ComicInfo>").await.unwrap();
+
+        let comic = service
+            .persist_received_extra("Quadrinho Com Info", "comic_info", "ComicInfo.xml", &temp_path)
+            .await
+            .unwrap();
+
+        let dest = PathBuf::from(&comic.path).join("ComicInfo.xml");
+        assert!(tokio::fs::metadata(&dest).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn resolve_local_extra_round_trips_persisted_cover() {
+        let (_, dir, service) = setup().await;
+
+        let temp_path = dir.path().join("incoming-cover.tmp");
+        tokio::fs::write(&temp_path, b"fake jpeg bytes").await.unwrap();
+        service
+            .persist_received_extra("Quadrinho Resolve", "cover", "cover.jpg", &temp_path)
+            .await
+            .unwrap();
+
+        let resolved = service.resolve_local_extra("Quadrinho Resolve", "cover").await.unwrap();
+        let (path, size, checksum, file_name) = resolved.expect("capa deveria ter sido encontrada");
+        assert!(path.ends_with("cover.jpg"));
+        assert_eq!(size, b"fake jpeg bytes".len() as u64);
+        assert!(checksum.is_some());
+        assert_eq!(file_name, "cover.jpg");
+    }
+
+    #[tokio::test]
+    async fn resolve_local_extra_returns_none_for_unknown_comic() {
+        let (_, _dir, service) = setup().await;
+
+        let resolved = service.resolve_local_extra("Nao Existe", "cover").await.unwrap();
+        assert!(resolved.is_none());
     }
 }

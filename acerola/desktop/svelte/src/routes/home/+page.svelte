@@ -89,26 +89,38 @@
 		remoteLibrary.stopListening();
 	});
 
-	// `sync.syncComic` só resolve quando a conexão é aberta, não quando a sessão termina de
-	// fato — o resultado real (e portanto o momento de recarregar a biblioteca local) chega
-	// aqui via `sync.log`, alimentado pelos mesmos eventos `sync:comic:*` que a tela de Rede
-	// escuta.
+	// `sync.syncComic`/`sync.syncFiles` só resolvem quando a conexão é aberta, não quando a
+	// sessão termina de fato — o resultado real (e portanto o momento de recarregar a
+	// biblioteca local) chega aqui via `sync.log`, alimentado pelos mesmos eventos
+	// `sync:comic:*`/`sync:files:*` que a tela de Rede escuta. `sync:files:*` (sync em massa —
+	// pode trazer quadrinhos inteiros novos) também precisa recarregar a Home; antes só
+	// `'comic'` disparava esse refresh, deixando a biblioteca desatualizada até o usuário
+	// navegar manualmente pra fora e voltar.
 	$effect(() => {
 		const entry = sync.log[0];
-		if (!entry || entry.kind !== 'comic' || entry.id === lastHandledSyncLogId) return;
+		if (!entry || (entry.kind !== 'comic' && entry.kind !== 'files') || entry.id === lastHandledSyncLogId)
+			return;
 
 		if (entry.status === 'complete') {
 			lastHandledSyncLogId = entry.id;
-			toast.success(
-				m['pages.network.transfers.comic_complete']({ peer: peers.peerLabel(entry.message) })
-			);
+			const peer = peers.peerLabel(entry.peerId);
+			if (entry.kind === 'comic') {
+				toast.success(m['pages.network.transfers.comic_complete']({ peer }));
+			} else {
+				toast.success(m['pages.network.transfers.files_complete']({ peer }));
+			}
 			summary.fetch();
 			return;
 		}
 
 		if (entry.status === 'error') {
 			lastHandledSyncLogId = entry.id;
-			toast.error(m['pages.network.transfers.comic_error']({ msg: entry.message }));
+			const msg = entry.message;
+			if (entry.kind === 'comic') {
+				toast.error(m['pages.network.transfers.comic_error']({ msg }));
+			} else {
+				toast.error(m['pages.network.transfers.files_error']({ msg }));
+			}
 			return;
 		}
 	});
@@ -347,7 +359,7 @@
 				{@const isSelected = selection.isSelected(comic.relations.directoryId)}
 				<AcerolaCardImage
 					data={{
-						title: comic.metadata.title ?? comic.filesystem.folderName,
+						title: comic.metadata.title || comic.filesystem.folderName,
 						cover
 					}}
 					ui={{ class: 'w-full' }}

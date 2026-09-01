@@ -343,7 +343,7 @@
 							>
 								<AcerolaCardImage
 									data={{
-										title: comic.metadata.title ?? comic.filesystem.folderName,
+										title: comic.metadata.title || comic.filesystem.folderName,
 										cover
 									}}
 									ui={{ size: 'sm', hideTitle: true }}
@@ -359,7 +359,7 @@
 								</AcerolaCardImage>
 								<div class="flex flex-col gap-2 overflow-hidden">
 									<span class="truncate text-xl font-bold text-foreground">
-										{comic.metadata.title ?? comic.filesystem.folderName}
+										{comic.metadata.title || comic.filesystem.folderName}
 									</span>
 									<span class="truncate text-sm font-medium text-muted-foreground">
 										{comic.filesystem.folderName}

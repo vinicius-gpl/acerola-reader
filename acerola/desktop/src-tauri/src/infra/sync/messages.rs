@@ -44,10 +44,33 @@ pub struct FileChapterInfo {
     pub size: u64,
 }
 
+/// Metadado de um item "extra" por quadrinho (capa, banner ou `ComicInfo.xml`) — mesmo shape
+/// pra os três, distinguidos pelo campo que os carrega em `FileComicInfo` (`cover`/`banner`/
+/// `comic_info`) e, na hora da transferência, pelo campo `kind` de `FileExtraHeader`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileExtraInfo {
+    pub file_name: String,
+    /// SHA-256 hex dos bytes do arquivo — recalculado a cada `build_manifest()` (arquivos
+    /// pequenos, ao contrário dos capítulos, então não precisa de um checksum cacheado em
+    /// banco como `ChapterArchive.checksum`).
+    pub checksum: String,
+    pub size: u64,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct FileComicInfo {
     pub comic_name: String,
     pub chapters: Vec<FileChapterInfo>,
+    /// `None` cobre tanto "quadrinho sem capa salva" quanto "arquivo da capa sumiu do disco" —
+    /// os três campos abaixo (`cover`/`banner`/`comic_info`) seguem essa mesma convenção.
+    /// `skip_serializing_if` omite a chave em vez de escrever `null` quando ausente — um
+    /// quadrinho sem nenhum dos três produz exatamente o mesmo JSON de antes desta mudança.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cover: Option<FileExtraInfo>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub banner: Option<FileExtraInfo>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub comic_info: Option<FileExtraInfo>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -55,11 +78,22 @@ pub struct FileManifest {
     pub comics: Vec<FileComicInfo>,
 }
 
+pub const EXTRA_KIND_COVER: &str = "cover";
+pub const EXTRA_KIND_BANNER: &str = "banner";
+pub const EXTRA_KIND_COMIC_INFO: &str = "comic_info";
+
 /// O que este lado quer *do outro lado* — calculado localmente depois de comparar
 /// os dois manifestos, e enviado de volta pro peer decidir o que transmitir.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct FileWantList {
     pub wanted: Vec<(String, String)>,
+    /// Pares `(comic_name, kind)`, `kind` sendo um dos `EXTRA_KIND_*` — mesma ideia de
+    /// `wanted`, só que pra capa/banner/ComicInfo.xml em vez de capítulo. `#[serde(default)]`
+    /// pra um peer sem essa versão do protocolo ainda desserializar como lista vazia em vez de
+    /// falhar; `skip_serializing_if` mantém o wire idêntico a antes desta mudança quando não
+    /// há nenhum item extra pra pedir.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub wanted_extras: Vec<(String, String)>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -74,6 +108,22 @@ pub struct FileHeader {
     /// Hash de blob (BLAKE3, hex) devolvido por `P2pBlobStore::put` no lado que enviou —
     /// é o que o lado que recebe usa em `P2pBlobStore::fetch` pra puxar os bytes de verdade.
     /// `None` só no header vazio de "não tenho mais esse capítulo" (`size: 0`).
+    pub blob_hash: Option<String>,
+}
+
+/// Header de transferência de um item extra (capa/banner/`ComicInfo.xml`) — paralelo a
+/// `FileHeader`, mas com `kind` (`EXTRA_KIND_*`) no lugar de `chapter`: são conceitos
+/// diferentes (um item extra não pertence a nenhum capítulo), um header dedicado evita
+/// sobrecarregar o campo `chapter` com um valor que não é um capítulo de verdade.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileExtraHeader {
+    pub comic_name: String,
+    pub kind: String,
+    pub file_name: String,
+    pub size: u64,
+    /// `None` só no header vazio de "não tenho mais esse item" (`size: 0`) — mesma convenção
+    /// de `FileHeader`.
+    pub checksum: Option<String>,
     pub blob_hash: Option<String>,
 }
 
@@ -230,5 +280,112 @@ mod wire_contract_tests {
     fn library_browse_request_serializes_as_empty_object() {
         let value = serde_json::to_value(LibraryBrowseRequest::default()).unwrap();
         assert_eq!(value, serde_json::json!({}));
+    }
+
+    /// Trava o schema de wire de `FileComicInfo` com os campos `cover`/`banner`/`comic_info`
+    /// novos contra o formato produzido/esperado pelo Android
+    /// (`protocol/files/model.rs::FileComicInfo`) — mesma convenção dos outros testes desta
+    /// suíte: sem tag de enum, `#[serde(default)]` cobrindo o caso "item ausente".
+    #[test]
+    fn file_comic_info_matches_android_wire_shape_with_extras() {
+        let comic = FileComicInfo {
+            comic_name: "Berserk".into(),
+            chapters: vec![FileChapterInfo {
+                chapter: "Cap 1".into(),
+                file_name: "Cap 1.cbz".into(),
+                checksum: Some("abc123".into()),
+                size: 42,
+            }],
+            cover: Some(FileExtraInfo {
+                file_name: "cover.jpg".into(),
+                checksum: "cover-hash".into(),
+                size: 1024,
+            }),
+            banner: None,
+            comic_info: Some(FileExtraInfo {
+                file_name: "ComicInfo.xml".into(),
+                checksum: "info-hash".into(),
+                size: 256,
+            }),
+        };
+
+        let value = serde_json::to_value(&comic).unwrap();
+        assert_eq!(
+            value,
+            serde_json::json!({
+                "comic_name": "Berserk",
+                "chapters": [{
+                    "chapter": "Cap 1",
+                    "file_name": "Cap 1.cbz",
+                    "checksum": "abc123",
+                    "size": 42
+                }],
+                "cover": { "file_name": "cover.jpg", "checksum": "cover-hash", "size": 1024 },
+                "comic_info": { "file_name": "ComicInfo.xml", "checksum": "info-hash", "size": 256 }
+            })
+        );
+
+        // Payload de um peer antigo, sem os campos novos — precisa desserializar como None,
+        // não falhar.
+        let old_peer_wire = serde_json::json!({
+            "comic_name": "Berserk",
+            "chapters": []
+        });
+        let decoded: FileComicInfo = serde_json::from_value(old_peer_wire).unwrap();
+        assert!(decoded.cover.is_none());
+        assert!(decoded.banner.is_none());
+        assert!(decoded.comic_info.is_none());
+    }
+
+    /// Trava o schema de wire de `FileWantList.wanted_extras` — mesmo padrão de par de
+    /// strings usado por `wanted`, só que `(comic_name, kind)` em vez de `(comic_name,
+    /// chapter)`.
+    #[test]
+    fn file_want_list_serializes_wanted_extras_as_tuple_array() {
+        let wanted = FileWantList {
+            wanted: vec![("Berserk".into(), "Cap 1".into())],
+            wanted_extras: vec![("Berserk".into(), EXTRA_KIND_COVER.into())],
+        };
+
+        let value = serde_json::to_value(&wanted).unwrap();
+        assert_eq!(
+            value,
+            serde_json::json!({
+                "wanted": [["Berserk", "Cap 1"]],
+                "wanted_extras": [["Berserk", "cover"]]
+            })
+        );
+
+        // Peer antigo sem `wanted_extras` no payload — desserializa como lista vazia.
+        let old_peer_wire = serde_json::json!({ "wanted": [] });
+        let decoded: FileWantList = serde_json::from_value(old_peer_wire).unwrap();
+        assert!(decoded.wanted_extras.is_empty());
+    }
+
+    /// Trava o schema de wire de `FileExtraHeader` contra o formato espelhado no Android
+    /// (`protocol/files/model.rs::FileExtraHeader`).
+    #[test]
+    fn file_extra_header_matches_android_wire_shape() {
+        let header = FileExtraHeader {
+            comic_name: "Berserk".into(),
+            kind: EXTRA_KIND_BANNER.into(),
+            file_name: "banner.png".into(),
+            size: 2048,
+            checksum: Some("banner-hash".into()),
+            blob_hash: Some("blake3-hex".into()),
+        };
+
+        let value = serde_json::to_value(&header).unwrap();
+        assert_eq!(
+            value,
+            serde_json::json!({
+                "comic_name": "Berserk",
+                "kind": "banner",
+                "file_name": "banner.png",
+                "size": 2048,
+                "checksum": "banner-hash",
+                "blob_hash": "blake3-hex"
+            })
+        );
     }
 }

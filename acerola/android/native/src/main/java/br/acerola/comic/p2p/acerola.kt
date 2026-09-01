@@ -689,6 +689,21 @@ internal interface UniffiCallbackInterfaceFileSyncProviderMethod7 : com.sun.jna.
 internal interface UniffiCallbackInterfaceFileSyncProviderMethod8 : com.sun.jna.Callback {
     fun callback(`uniffiHandle`: Long,`handle`: Long,`uniffiOutReturn`: Pointer,uniffiCallStatus: UniffiRustCallStatus,)
 }
+internal interface UniffiCallbackInterfaceFileSyncProviderMethod9 : com.sun.jna.Callback {
+    fun callback(`uniffiHandle`: Long,`uniffiOutReturn`: RustBuffer,uniffiCallStatus: UniffiRustCallStatus,)
+}
+internal interface UniffiCallbackInterfaceFileSyncProviderMethod10 : com.sun.jna.Callback {
+    fun callback(`uniffiHandle`: Long,`comicName`: RustBuffer.ByValue,`kind`: RustBuffer.ByValue,`uniffiOutReturn`: LongByReference,uniffiCallStatus: UniffiRustCallStatus,)
+}
+internal interface UniffiCallbackInterfaceFileSyncProviderMethod11 : com.sun.jna.Callback {
+    fun callback(`uniffiHandle`: Long,`comicName`: RustBuffer.ByValue,`kind`: RustBuffer.ByValue,`fileName`: RustBuffer.ByValue,`expectedChecksum`: RustBuffer.ByValue,`sizeBytes`: Long,`uniffiOutReturn`: LongByReference,uniffiCallStatus: UniffiRustCallStatus,)
+}
+internal interface UniffiCallbackInterfaceFileSyncProviderMethod12 : com.sun.jna.Callback {
+    fun callback(`uniffiHandle`: Long,`handle`: Long,`uniffiOutReturn`: ByteByReference,uniffiCallStatus: UniffiRustCallStatus,)
+}
+internal interface UniffiCallbackInterfaceFileSyncProviderMethod13 : com.sun.jna.Callback {
+    fun callback(`uniffiHandle`: Long,`handle`: Long,`uniffiOutReturn`: Pointer,uniffiCallStatus: UniffiRustCallStatus,)
+}
 internal interface UniffiCallbackInterfaceHistorySyncProviderMethod0 : com.sun.jna.Callback {
     fun callback(`uniffiHandle`: Long,`uniffiOutReturn`: RustBuffer,uniffiCallStatus: UniffiRustCallStatus,)
 }
@@ -729,7 +744,7 @@ internal open class UniffiVTableCallbackInterfaceCoverBrowseProvider(
     }
 
 }
-@Structure.FieldOrder("getFileManifest", "getLibrarySummary", "openChapterForRead", "readChapterChunk", "closeReadHandle", "beginChapterWrite", "writeChapterChunk", "finalizeChapterWrite", "abortChapterWrite", "uniffiFree")
+@Structure.FieldOrder("getFileManifest", "getLibrarySummary", "openChapterForRead", "readChapterChunk", "closeReadHandle", "beginChapterWrite", "writeChapterChunk", "finalizeChapterWrite", "abortChapterWrite", "getExtrasManifest", "openExtraForRead", "beginExtraWrite", "finalizeExtraWrite", "abortExtraWrite", "uniffiFree")
 internal open class UniffiVTableCallbackInterfaceFileSyncProvider(
     @JvmField internal var `getFileManifest`: UniffiCallbackInterfaceFileSyncProviderMethod0? = null,
     @JvmField internal var `getLibrarySummary`: UniffiCallbackInterfaceFileSyncProviderMethod1? = null,
@@ -740,6 +755,11 @@ internal open class UniffiVTableCallbackInterfaceFileSyncProvider(
     @JvmField internal var `writeChapterChunk`: UniffiCallbackInterfaceFileSyncProviderMethod6? = null,
     @JvmField internal var `finalizeChapterWrite`: UniffiCallbackInterfaceFileSyncProviderMethod7? = null,
     @JvmField internal var `abortChapterWrite`: UniffiCallbackInterfaceFileSyncProviderMethod8? = null,
+    @JvmField internal var `getExtrasManifest`: UniffiCallbackInterfaceFileSyncProviderMethod9? = null,
+    @JvmField internal var `openExtraForRead`: UniffiCallbackInterfaceFileSyncProviderMethod10? = null,
+    @JvmField internal var `beginExtraWrite`: UniffiCallbackInterfaceFileSyncProviderMethod11? = null,
+    @JvmField internal var `finalizeExtraWrite`: UniffiCallbackInterfaceFileSyncProviderMethod12? = null,
+    @JvmField internal var `abortExtraWrite`: UniffiCallbackInterfaceFileSyncProviderMethod13? = null,
     @JvmField internal var `uniffiFree`: UniffiCallbackInterfaceFree? = null,
 ) : Structure() {
     class UniffiByValue(
@@ -752,8 +772,13 @@ internal open class UniffiVTableCallbackInterfaceFileSyncProvider(
         `writeChapterChunk`: UniffiCallbackInterfaceFileSyncProviderMethod6? = null,
         `finalizeChapterWrite`: UniffiCallbackInterfaceFileSyncProviderMethod7? = null,
         `abortChapterWrite`: UniffiCallbackInterfaceFileSyncProviderMethod8? = null,
+        `getExtrasManifest`: UniffiCallbackInterfaceFileSyncProviderMethod9? = null,
+        `openExtraForRead`: UniffiCallbackInterfaceFileSyncProviderMethod10? = null,
+        `beginExtraWrite`: UniffiCallbackInterfaceFileSyncProviderMethod11? = null,
+        `finalizeExtraWrite`: UniffiCallbackInterfaceFileSyncProviderMethod12? = null,
+        `abortExtraWrite`: UniffiCallbackInterfaceFileSyncProviderMethod13? = null,
         `uniffiFree`: UniffiCallbackInterfaceFree? = null,
-    ): UniffiVTableCallbackInterfaceFileSyncProvider(`getFileManifest`,`getLibrarySummary`,`openChapterForRead`,`readChapterChunk`,`closeReadHandle`,`beginChapterWrite`,`writeChapterChunk`,`finalizeChapterWrite`,`abortChapterWrite`,`uniffiFree`,), Structure.ByValue
+    ): UniffiVTableCallbackInterfaceFileSyncProvider(`getFileManifest`,`getLibrarySummary`,`openChapterForRead`,`readChapterChunk`,`closeReadHandle`,`beginChapterWrite`,`writeChapterChunk`,`finalizeChapterWrite`,`abortChapterWrite`,`getExtrasManifest`,`openExtraForRead`,`beginExtraWrite`,`finalizeExtraWrite`,`abortExtraWrite`,`uniffiFree`,), Structure.ByValue
 
    internal fun uniffiSetValue(other: UniffiVTableCallbackInterfaceFileSyncProvider) {
         `getFileManifest` = other.`getFileManifest`
@@ -765,6 +790,11 @@ internal open class UniffiVTableCallbackInterfaceFileSyncProvider(
         `writeChapterChunk` = other.`writeChapterChunk`
         `finalizeChapterWrite` = other.`finalizeChapterWrite`
         `abortChapterWrite` = other.`abortChapterWrite`
+        `getExtrasManifest` = other.`getExtrasManifest`
+        `openExtraForRead` = other.`openExtraForRead`
+        `beginExtraWrite` = other.`beginExtraWrite`
+        `finalizeExtraWrite` = other.`finalizeExtraWrite`
+        `abortExtraWrite` = other.`abortExtraWrite`
         `uniffiFree` = other.`uniffiFree`
     }
 
@@ -974,6 +1004,16 @@ internal open class UniffiVTableCallbackInterfaceSecureBlobStore(
 
 
 
+
+
+
+
+
+
+
+
+
+
 // A JNA Library to expose the extern-C FFI definitions.
 // This is an implementation detail which will be called internally by the public API.
 
@@ -1031,6 +1071,16 @@ internal interface UniffiLib : Library {
     fun uniffi_acerola_fn_method_filesyncprovider_finalize_chapter_write(`ptr`: Pointer,`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Byte
     fun uniffi_acerola_fn_method_filesyncprovider_abort_chapter_write(`ptr`: Pointer,`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): Unit
+    fun uniffi_acerola_fn_method_filesyncprovider_get_extras_manifest(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    fun uniffi_acerola_fn_method_filesyncprovider_open_extra_for_read(`ptr`: Pointer,`comicName`: RustBuffer.ByValue,`kind`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): Long
+    fun uniffi_acerola_fn_method_filesyncprovider_begin_extra_write(`ptr`: Pointer,`comicName`: RustBuffer.ByValue,`kind`: RustBuffer.ByValue,`fileName`: RustBuffer.ByValue,`expectedChecksum`: RustBuffer.ByValue,`sizeBytes`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): Long
+    fun uniffi_acerola_fn_method_filesyncprovider_finalize_extra_write(`ptr`: Pointer,`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): Byte
+    fun uniffi_acerola_fn_method_filesyncprovider_abort_extra_write(`ptr`: Pointer,`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
     fun uniffi_acerola_fn_clone_historysyncprovider(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): Pointer
@@ -1236,6 +1286,16 @@ internal interface UniffiLib : Library {
     ): Short
     fun uniffi_acerola_checksum_method_filesyncprovider_abort_chapter_write(
     ): Short
+    fun uniffi_acerola_checksum_method_filesyncprovider_get_extras_manifest(
+    ): Short
+    fun uniffi_acerola_checksum_method_filesyncprovider_open_extra_for_read(
+    ): Short
+    fun uniffi_acerola_checksum_method_filesyncprovider_begin_extra_write(
+    ): Short
+    fun uniffi_acerola_checksum_method_filesyncprovider_finalize_extra_write(
+    ): Short
+    fun uniffi_acerola_checksum_method_filesyncprovider_abort_extra_write(
+    ): Short
     fun uniffi_acerola_checksum_method_historysyncprovider_get_reading_progress(
     ): Short
     fun uniffi_acerola_checksum_method_historysyncprovider_get_chapters_read(
@@ -1332,6 +1392,21 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_acerola_checksum_method_filesyncprovider_abort_chapter_write() != 38843.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_acerola_checksum_method_filesyncprovider_get_extras_manifest() != 59628.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_acerola_checksum_method_filesyncprovider_open_extra_for_read() != 2082.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_acerola_checksum_method_filesyncprovider_begin_extra_write() != 37993.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_acerola_checksum_method_filesyncprovider_finalize_extra_write() != 53978.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_acerola_checksum_method_filesyncprovider_abort_extra_write() != 65511.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_acerola_checksum_method_historysyncprovider_get_reading_progress() != 48845.toShort()) {
@@ -2232,6 +2307,40 @@ public interface FileSyncProvider {
      */
     fun `abortChapterWrite`(`handle`: kotlin.Long)
     
+    /**
+     * Itens extra (capa/banner/`ComicInfo.xml`) locais, um `FfiExtraManifestEntry` por item
+     * presente — comics sem nenhum dos três simplesmente não aparecem aqui. Espelha
+     * `FileSyncService::build_manifest`'s extras do Desktop
+     * (`infra/sync/messages.rs::FileExtraInfo`).
+     */
+    fun `getExtrasManifest`(): List<FfiExtraManifestEntry>
+    
+    /**
+     * Abre um item extra local pra leitura em chunks (lado que envia). `-1` se não encontrado.
+     * `kind` é um dos `EXTRA_KIND_*` (`protocol::files::model`). Reaproveita
+     * `read_chapter_chunk`/`close_read_handle` já existentes pra ler/fechar — o handle é
+     * opaco, agnóstico a chapter vs. extra.
+     */
+    fun `openExtraForRead`(`comicName`: kotlin.String, `kind`: kotlin.String): kotlin.Long
+    
+    /**
+     * Começa a receber um item extra (lado que recebe). Reaproveita `write_chapter_chunk` já
+     * existente pra gravar os chunks recebidos.
+     */
+    fun `beginExtraWrite`(`comicName`: kotlin.String, `kind`: kotlin.String, `fileName`: kotlin.String, `expectedChecksum`: kotlin.String, `sizeBytes`: kotlin.ULong): kotlin.Long
+    
+    /**
+     * Verifica o checksum do arquivo temporário e o persiste no destino final: coluna
+     * `cover`/`banner` de `comic_directory` pra esses dois `kind`s, ou `ComicInfo.xml` puro
+     * (mais reprocessamento de metadata) pro terceiro.
+     */
+    fun `finalizeExtraWrite`(`handle`: kotlin.Long): kotlin.Boolean
+    
+    /**
+     * Aborta uma escrita de extra em andamento.
+     */
+    fun `abortExtraWrite`(`handle`: kotlin.Long)
+    
     companion object
 }
 
@@ -2464,6 +2573,89 @@ open class FileSyncProviderImpl: Disposable, AutoCloseable, FileSyncProvider {
     
 
     
+    /**
+     * Itens extra (capa/banner/`ComicInfo.xml`) locais, um `FfiExtraManifestEntry` por item
+     * presente — comics sem nenhum dos três simplesmente não aparecem aqui. Espelha
+     * `FileSyncService::build_manifest`'s extras do Desktop
+     * (`infra/sync/messages.rs::FileExtraInfo`).
+     */override fun `getExtrasManifest`(): List<FfiExtraManifestEntry> {
+            return FfiConverterSequenceTypeFfiExtraManifestEntry.lift(
+    callWithPointer {
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_acerola_fn_method_filesyncprovider_get_extras_manifest(
+        it, _status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Abre um item extra local pra leitura em chunks (lado que envia). `-1` se não encontrado.
+     * `kind` é um dos `EXTRA_KIND_*` (`protocol::files::model`). Reaproveita
+     * `read_chapter_chunk`/`close_read_handle` já existentes pra ler/fechar — o handle é
+     * opaco, agnóstico a chapter vs. extra.
+     */override fun `openExtraForRead`(`comicName`: kotlin.String, `kind`: kotlin.String): kotlin.Long {
+            return FfiConverterLong.lift(
+    callWithPointer {
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_acerola_fn_method_filesyncprovider_open_extra_for_read(
+        it, FfiConverterString.lower(`comicName`),FfiConverterString.lower(`kind`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Começa a receber um item extra (lado que recebe). Reaproveita `write_chapter_chunk` já
+     * existente pra gravar os chunks recebidos.
+     */override fun `beginExtraWrite`(`comicName`: kotlin.String, `kind`: kotlin.String, `fileName`: kotlin.String, `expectedChecksum`: kotlin.String, `sizeBytes`: kotlin.ULong): kotlin.Long {
+            return FfiConverterLong.lift(
+    callWithPointer {
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_acerola_fn_method_filesyncprovider_begin_extra_write(
+        it, FfiConverterString.lower(`comicName`),FfiConverterString.lower(`kind`),FfiConverterString.lower(`fileName`),FfiConverterString.lower(`expectedChecksum`),FfiConverterULong.lower(`sizeBytes`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Verifica o checksum do arquivo temporário e o persiste no destino final: coluna
+     * `cover`/`banner` de `comic_directory` pra esses dois `kind`s, ou `ComicInfo.xml` puro
+     * (mais reprocessamento de metadata) pro terceiro.
+     */override fun `finalizeExtraWrite`(`handle`: kotlin.Long): kotlin.Boolean {
+            return FfiConverterBoolean.lift(
+    callWithPointer {
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_acerola_fn_method_filesyncprovider_finalize_extra_write(
+        it, FfiConverterLong.lower(`handle`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Aborta uma escrita de extra em andamento.
+     */override fun `abortExtraWrite`(`handle`: kotlin.Long)
+        = 
+    callWithPointer {
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_acerola_fn_method_filesyncprovider_abort_extra_write(
+        it, FfiConverterLong.lower(`handle`),_status)
+}
+    }
+    
+    
+
+    
 
     
     
@@ -2587,6 +2779,70 @@ internal object uniffiCallbackInterfaceFileSyncProvider {
             uniffiTraitInterfaceCall(uniffiCallStatus, makeCall, writeReturn)
         }
     }
+    internal object `getExtrasManifest`: UniffiCallbackInterfaceFileSyncProviderMethod9 {
+        override fun callback(`uniffiHandle`: Long,`uniffiOutReturn`: RustBuffer,uniffiCallStatus: UniffiRustCallStatus,) {
+            val uniffiObj = FfiConverterTypeFileSyncProvider.handleMap.get(uniffiHandle)
+            val makeCall = { ->
+                uniffiObj.`getExtrasManifest`(
+                )
+            }
+            val writeReturn = { value: List<FfiExtraManifestEntry> -> uniffiOutReturn.setValue(FfiConverterSequenceTypeFfiExtraManifestEntry.lower(value)) }
+            uniffiTraitInterfaceCall(uniffiCallStatus, makeCall, writeReturn)
+        }
+    }
+    internal object `openExtraForRead`: UniffiCallbackInterfaceFileSyncProviderMethod10 {
+        override fun callback(`uniffiHandle`: Long,`comicName`: RustBuffer.ByValue,`kind`: RustBuffer.ByValue,`uniffiOutReturn`: LongByReference,uniffiCallStatus: UniffiRustCallStatus,) {
+            val uniffiObj = FfiConverterTypeFileSyncProvider.handleMap.get(uniffiHandle)
+            val makeCall = { ->
+                uniffiObj.`openExtraForRead`(
+                    FfiConverterString.lift(`comicName`),
+                    FfiConverterString.lift(`kind`),
+                )
+            }
+            val writeReturn = { value: kotlin.Long -> uniffiOutReturn.setValue(FfiConverterLong.lower(value)) }
+            uniffiTraitInterfaceCall(uniffiCallStatus, makeCall, writeReturn)
+        }
+    }
+    internal object `beginExtraWrite`: UniffiCallbackInterfaceFileSyncProviderMethod11 {
+        override fun callback(`uniffiHandle`: Long,`comicName`: RustBuffer.ByValue,`kind`: RustBuffer.ByValue,`fileName`: RustBuffer.ByValue,`expectedChecksum`: RustBuffer.ByValue,`sizeBytes`: Long,`uniffiOutReturn`: LongByReference,uniffiCallStatus: UniffiRustCallStatus,) {
+            val uniffiObj = FfiConverterTypeFileSyncProvider.handleMap.get(uniffiHandle)
+            val makeCall = { ->
+                uniffiObj.`beginExtraWrite`(
+                    FfiConverterString.lift(`comicName`),
+                    FfiConverterString.lift(`kind`),
+                    FfiConverterString.lift(`fileName`),
+                    FfiConverterString.lift(`expectedChecksum`),
+                    FfiConverterULong.lift(`sizeBytes`),
+                )
+            }
+            val writeReturn = { value: kotlin.Long -> uniffiOutReturn.setValue(FfiConverterLong.lower(value)) }
+            uniffiTraitInterfaceCall(uniffiCallStatus, makeCall, writeReturn)
+        }
+    }
+    internal object `finalizeExtraWrite`: UniffiCallbackInterfaceFileSyncProviderMethod12 {
+        override fun callback(`uniffiHandle`: Long,`handle`: Long,`uniffiOutReturn`: ByteByReference,uniffiCallStatus: UniffiRustCallStatus,) {
+            val uniffiObj = FfiConverterTypeFileSyncProvider.handleMap.get(uniffiHandle)
+            val makeCall = { ->
+                uniffiObj.`finalizeExtraWrite`(
+                    FfiConverterLong.lift(`handle`),
+                )
+            }
+            val writeReturn = { value: kotlin.Boolean -> uniffiOutReturn.setValue(FfiConverterBoolean.lower(value)) }
+            uniffiTraitInterfaceCall(uniffiCallStatus, makeCall, writeReturn)
+        }
+    }
+    internal object `abortExtraWrite`: UniffiCallbackInterfaceFileSyncProviderMethod13 {
+        override fun callback(`uniffiHandle`: Long,`handle`: Long,`uniffiOutReturn`: Pointer,uniffiCallStatus: UniffiRustCallStatus,) {
+            val uniffiObj = FfiConverterTypeFileSyncProvider.handleMap.get(uniffiHandle)
+            val makeCall = { ->
+                uniffiObj.`abortExtraWrite`(
+                    FfiConverterLong.lift(`handle`),
+                )
+            }
+            val writeReturn = { _: Unit -> Unit }
+            uniffiTraitInterfaceCall(uniffiCallStatus, makeCall, writeReturn)
+        }
+    }
 
     internal object uniffiFree: UniffiCallbackInterfaceFree {
         override fun callback(handle: Long) {
@@ -2604,6 +2860,11 @@ internal object uniffiCallbackInterfaceFileSyncProvider {
         `writeChapterChunk`,
         `finalizeChapterWrite`,
         `abortChapterWrite`,
+        `getExtrasManifest`,
+        `openExtraForRead`,
+        `beginExtraWrite`,
+        `finalizeExtraWrite`,
+        `abortExtraWrite`,
         uniffiFree,
     )
 
@@ -4336,6 +4597,53 @@ public object FfiConverterTypeFfiCoverEntry: FfiConverterRustBuffer<FfiCoverEntr
 
 
 
+data class FfiExtraManifestEntry (
+    var `comicName`: kotlin.String, 
+    /**
+     * Um dos `EXTRA_KIND_*` (`protocol::files::model`).
+     */
+    var `kind`: kotlin.String, 
+    var `fileName`: kotlin.String, 
+    var `checksum`: kotlin.String, 
+    var `sizeBytes`: kotlin.ULong
+) {
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeFfiExtraManifestEntry: FfiConverterRustBuffer<FfiExtraManifestEntry> {
+    override fun read(buf: ByteBuffer): FfiExtraManifestEntry {
+        return FfiExtraManifestEntry(
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterULong.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: FfiExtraManifestEntry) = (
+            FfiConverterString.allocationSize(value.`comicName`) +
+            FfiConverterString.allocationSize(value.`kind`) +
+            FfiConverterString.allocationSize(value.`fileName`) +
+            FfiConverterString.allocationSize(value.`checksum`) +
+            FfiConverterULong.allocationSize(value.`sizeBytes`)
+    )
+
+    override fun write(value: FfiExtraManifestEntry, buf: ByteBuffer) {
+            FfiConverterString.write(value.`comicName`, buf)
+            FfiConverterString.write(value.`kind`, buf)
+            FfiConverterString.write(value.`fileName`, buf)
+            FfiConverterString.write(value.`checksum`, buf)
+            FfiConverterULong.write(value.`sizeBytes`, buf)
+    }
+}
+
+
+
 data class FfiFileManifestEntry (
     var `comicName`: kotlin.String, 
     var `chapter`: kotlin.String, 
@@ -4807,6 +5115,34 @@ public object FfiConverterSequenceTypeFfiConnectedPeer: FfiConverterRustBuffer<L
         buf.putInt(value.size)
         value.iterator().forEach {
             FfiConverterTypeFfiConnectedPeer.write(it, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterSequenceTypeFfiExtraManifestEntry: FfiConverterRustBuffer<List<FfiExtraManifestEntry>> {
+    override fun read(buf: ByteBuffer): List<FfiExtraManifestEntry> {
+        val len = buf.getInt()
+        return List<FfiExtraManifestEntry>(len) {
+            FfiConverterTypeFfiExtraManifestEntry.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<FfiExtraManifestEntry>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterTypeFfiExtraManifestEntry.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<FfiExtraManifestEntry>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterTypeFfiExtraManifestEntry.write(it, buf)
         }
     }
 }

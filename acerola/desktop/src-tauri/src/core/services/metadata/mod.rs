@@ -23,7 +23,10 @@ use crate::{
 
 pub mod comic_info;
 
-fn find_xml_file_on_disk(directory: &std::path::Path) -> Option<String> {
+/// Acha o `ComicInfo.xml` (case-insensitive) direto na raiz de um diretório de quadrinho, sem
+/// entrar em arquivos — usada tanto por `find_xml_file_on_disk` (leitura pra parse) quanto por
+/// `FileSyncService` (sync de arquivos: precisa do path, não do conteúdo, pra hashear/persistir).
+pub(crate) fn find_comic_info_path(directory: &std::path::Path) -> Option<std::path::PathBuf> {
     let metadata_guard = MetadataFileGuard;
     let entries = std::fs::read_dir(directory).ok()?;
 
@@ -32,7 +35,10 @@ fn find_xml_file_on_disk(directory: &std::path::Path) -> Option<String> {
         .map(|entry| entry.path())
         .filter(|path| path.is_file())
         .find(|path| metadata_guard.is_allowed(path).is_ok())
-        .and_then(|path| std::fs::read_to_string(path).ok())
+}
+
+fn find_xml_file_on_disk(directory: &std::path::Path) -> Option<String> {
+    find_comic_info_path(directory).and_then(|path| std::fs::read_to_string(path).ok())
 }
 
 fn find_xml_inside_archive(archive_path: &std::path::Path) -> Option<String> {
