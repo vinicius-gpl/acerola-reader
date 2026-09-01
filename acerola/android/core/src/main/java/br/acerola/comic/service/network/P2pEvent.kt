@@ -1,5 +1,7 @@
 package br.acerola.comic.service.network
 
+import br.acerola.comic.error.message.SyncProtocolError
+
 /**
  * Typed representation of the raw `(event, data)` events emitted by the Rust P2P node.
  * `data` arrives as a string (usually JSON) whose format depends on the event itself.
@@ -60,7 +62,18 @@ sealed interface P2pEvent {
         val peerId: String,
         val comicName: String,
         val chapter: String,
+        // Cru/em inglês sempre — é o texto técnico original (às vezes de baixo nível do
+        // QUIC/iroh, tipo "stream reset by peer"), usado só pro log de debug deste bus e como
+        // fallback em `error` quando a causa não é reconhecida. Nunca deve ser mostrado direto
+        // na UI sem passar por um template (ver `SyncScreen::describeEntry`, mesmo padrão já
+        // usado por `HistorySyncError.message`).
         val reason: String,
+        // Causa reconhecida (`SyncProtocolError.fromCode`, a partir do `code` que o Rust anexa —
+        // ver `classify_sync_error` em `protocol/files/mod.rs`), já como valor tipado — não um
+        // `code: String` cru pra quem consome ficar reclassificando com `when`. `null` quando a
+        // causa não é reconhecida (usa `reason` cru como fallback). `UserMessage`/`UiText` não
+        // precisa de `Context` pra ser construído, só na hora de renderizar (`SyncScreen`).
+        val error: SyncProtocolError? = null,
     ) : P2pEvent
 
     data class FileSyncComplete(

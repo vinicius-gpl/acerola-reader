@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import br.acerola.comic.config.preference.DeviceAliasPreference
 import br.acerola.comic.config.preference.RelayPreference
+import br.acerola.comic.error.message.SyncProtocolError
 import br.acerola.comic.logging.AcerolaLogger
 import br.acerola.comic.logging.LogSource
 import br.acerola.comic.module.main.sync.state.ConnectError
@@ -150,6 +151,7 @@ class SyncViewModel
             kind: String,
             status: String,
             message: String?,
+            errorType: SyncProtocolError? = null,
         ) {
             syncHistoryLogUseCase.record(peerId, kind, status, message)
             val now = System.currentTimeMillis()
@@ -165,6 +167,7 @@ class SyncViewModel
                                         state = if (status == "complete") LogState.SUCCESS else LogState.ERROR,
                                         message = message,
                                         timestamp = now,
+                                        errorType = errorType,
                                     )
                             ),
                 )
@@ -450,7 +453,12 @@ class SyncViewModel
                     // that case actually ends the session.
                     if (event.comicName.isEmpty() && event.chapter.isEmpty()) {
                         clearSyncing(event.peerId, SYNC_KIND_FILES)
-                        recordSyncResult(event.peerId, SYNC_KIND_FILES, "error", event.reason)
+                        // `event.error` já vem classificado como `SyncProtocolError` (ADT) por
+                        // `P2pEventBus` — o ViewModel só propaga o valor tipado, sem `when` em
+                        // cima de um `code` cru nem `Context` pra resolver texto nenhum.
+                        // `event.reason` continua cru/em inglês, só pro histórico persistido
+                        // (`syncHistoryLogUseCase.record`, dentro de `recordSyncResult`).
+                        recordSyncResult(event.peerId, SYNC_KIND_FILES, "error", event.reason, event.error)
                         refreshLocalInfo()
                     }
                     pushLog(

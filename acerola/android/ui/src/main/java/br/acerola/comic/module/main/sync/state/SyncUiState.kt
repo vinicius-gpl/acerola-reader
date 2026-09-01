@@ -1,5 +1,6 @@
 package br.acerola.comic.module.main.sync.state
 
+import br.acerola.comic.error.message.SyncProtocolError
 import br.acerola.comic.service.NetworkMode
 import br.acerola.comic.service.network.ComicSummary
 
@@ -57,8 +58,13 @@ data class SyncUiState(
 data class SyncResult(
     val kind: String,
     val state: LogState,
+    /** Cru/em inglês — nunca mostrado direto, só embutido num template pt-BR já traduzido
+     *  (ver `SyncScreen::PeerRow`). Preferir [errorType] quando presente: é a causa reconhecida
+     *  (`SyncProtocolError`), com uma mensagem própria e mais específica que o template
+     *  genérico de fallback. */
     val message: String?,
     val timestamp: Long,
+    val errorType: SyncProtocolError? = null,
 )
 
 data class PairedPeer(

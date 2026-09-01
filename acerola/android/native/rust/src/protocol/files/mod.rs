@@ -161,10 +161,21 @@ async fn run_and_report(
             Ok(())
         }
         Err(err) => {
+            let reason = err.to_string();
+            let code = classify_sync_error(&err);
+            // Log técnico sempre em inglês, independente do `code` — é o que vai pro log/
+            // suporte; a tradução (`code`) é só pra UI.
+            tracing::warn!(peer = %peer.id, ?code, error = %reason, "[FileSync] session failed");
             emit(
                 "sync:files:chapter_failed",
-                serde_json::json!({ "peerId": peer.id, "comicName": "", "chapter": "", "reason": err.to_string() })
-                    .to_string(),
+                serde_json::json!({
+                    "peerId": peer.id,
+                    "comicName": "",
+                    "chapter": "",
+                    "reason": reason,
+                    "code": code,
+                })
+                .to_string(),
             );
             Err(err)
         }
@@ -305,13 +316,55 @@ async fn run_and_report_scoped(
             Ok(())
         }
         Err(err) => {
+            let reason = err.to_string();
+            let code = classify_sync_error(&err);
+            // Log técnico sempre em inglês, independente do `code` — é o que vai pro log/
+            // suporte; a tradução (`code`) é só pra UI.
+            tracing::warn!(peer = %peer.id, ?code, error = %reason, "[FileSync] session failed");
             emit(
                 "sync:files:chapter_failed",
-                serde_json::json!({ "peerId": peer.id, "comicName": "", "chapter": "", "reason": err.to_string() })
-                    .to_string(),
+                serde_json::json!({
+                    "peerId": peer.id,
+                    "comicName": "",
+                    "chapter": "",
+                    "reason": reason,
+                    "code": code,
+                })
+                .to_string(),
             );
             Err(err)
         }
+    }
+}
+
+/// Identificador estável de causa de erro de sync, serializado em `snake_case` (`"busy"`,
+/// `"timeout"`, `"connection_lost"`) — o lado Kotlin (`SyncViewModel::translateSyncErrorCode`)
+/// mapeia isso pra um texto fixo em `strings.xml`, já que Android não tem troca de idioma (só
+/// pt-BR). Espelha `SyncErrorCode` do desktop (`transfer.rs`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+enum SyncErrorCode {
+    Busy,
+    Timeout,
+    ConnectionLost,
+}
+
+/// Classifica um `P2pError` (não seu texto) num `SyncErrorCode`. Só é confiável porque
+/// `transfer.rs::BlobChapterTransfer` parou de achatar `ConnectionError` em
+/// `StreamFailed(err.to_string())` — o erro que chega aqui já é a variante de verdade que
+/// `lib/p2p` classificou na origem (`classify_connection_error`/`classify_get_error`, crate
+/// `acerola-p2p`), não texto pra adivinhar via substring matching. `Busy` continua sendo a
+/// exceção: não é uma variante de `ConnectionError` (é um conceito deste protocolo de sync, não
+/// do transporte) — cada `run_and_report*` monta esse texto inline com o peer id interpolado
+/// (`format!("sync-files session already in progress for peer {}", peer.id)`), então o match
+/// aqui é por substring numa frase que ESTE MÓDULO controla, não uma heurística sobre texto de
+/// terceiros.
+fn classify_sync_error(error: &P2pError) -> Option<SyncErrorCode> {
+    match error {
+        P2pError::Timeout => Some(SyncErrorCode::Timeout),
+        P2pError::PeerDisconnected(_) => Some(SyncErrorCode::ConnectionLost),
+        P2pError::StreamFailed(msg) if msg.contains("already in progress") => Some(SyncErrorCode::Busy),
+        _ => None,
     }
 }
 
@@ -448,6 +501,8 @@ mod concurrency_tests {
         let (event_name, payload) = recorded.last().unwrap();
         assert_eq!(event_name, "sync:files:chapter_failed");
         assert!(payload.contains("already in progress"));
+        let parsed: serde_json::Value = serde_json::from_str(payload).unwrap();
+        assert_eq!(parsed["code"], "busy", "lado Kotlin usa esse code pra traduzir a mensagem na UI");
         drop(recorded);
 
         drop(lease); // libera a primeira sessão

@@ -1,5 +1,6 @@
 package br.acerola.comic.service.network
 
+import br.acerola.comic.error.message.SyncProtocolError
 import br.acerola.comic.logging.AcerolaLogger
 import br.acerola.comic.logging.LogSource
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -98,11 +99,13 @@ class P2pEventBus
 
                     "sync:files:chapter_failed" ->
                         JSONObject(data).let {
+                            val code = if (it.isNull("code")) null else it.getString("code")
                             P2pEvent.FileSyncChapterFailed(
                                 peerId = it.getString("peerId"),
                                 comicName = it.getString("comicName"),
                                 chapter = it.getString("chapter"),
                                 reason = it.getString("reason"),
+                                error = SyncProtocolError.fromCode(code),
                             )
                         }
 

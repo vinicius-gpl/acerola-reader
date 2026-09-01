@@ -523,9 +523,11 @@ private fun PeerRow(
                         Spacer(modifier = Modifier.width(SpacingTokens.ExtraSmall))
                         Text(
                             text =
-                                lastResult?.message?.let {
-                                    stringResource(id = R.string.error_sync_last_attempt_failed, it)
-                                } ?: stringResource(id = R.string.error_sync_connect_failed),
+                                lastResult?.errorType?.uiMessage?.asString()
+                                    ?: lastResult?.message?.let {
+                                        stringResource(id = R.string.error_sync_last_attempt_failed, it)
+                                    }
+                                    ?: stringResource(id = R.string.error_sync_connect_failed),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error,
                         )

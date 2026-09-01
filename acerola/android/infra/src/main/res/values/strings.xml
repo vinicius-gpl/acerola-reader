@@ -22,6 +22,9 @@
     <string name="description_dao_error">Ouve algum erro na operação do banco de dados, porem
         desconhecido.</string>
     <string name="error_timeout">A conexão expirou. Tente novamente.</string>
+    <string name="error_sync_session_busy">Já existe uma sincronização em andamento com esse dispositivo.</string>
+    <string name="error_sync_timeout">A sincronização demorou demais e foi cancelada — o dispositivo pode ter ficado offline.</string>
+    <string name="error_sync_connection_lost">A conexão com o dispositivo caiu durante a sincronização. Tente novamente.</string>
     <string name="error_server">Erro no servidor (Código: %1$d).</string>
     <string name="error_unauthorized">Acesso não autorizado.</string>
     <string name="error_http">Erro HTTP (Código: %1$d).</string>
