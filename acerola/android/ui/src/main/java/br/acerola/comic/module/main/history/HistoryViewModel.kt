@@ -77,7 +77,9 @@ class HistoryViewModel
                         is P2pEvent.HistorySyncError ->
                             if (event.peerId == pendingPeerId) {
                                 _syncingPeerId.value = null
-                                _uiEvents.send(UserMessage.Raw(event.message))
+                                _uiEvents.send(
+                                    UserMessage.Raw(event.error?.uiMessage ?: UiText.DynamicString(event.message)),
+                                )
                             }
 
                         else -> Unit

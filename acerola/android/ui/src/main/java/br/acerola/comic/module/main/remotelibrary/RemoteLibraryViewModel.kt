@@ -157,12 +157,12 @@ class RemoteLibraryViewModel
             when (event) {
                 is P2pEvent.LibraryBrowseResult ->
                     if (event.peerId == currentPeerId) {
-                        _uiState.update { it.copy(comics = event.comics, loaded = true, errorMessage = null) }
+                        _uiState.update { it.copy(comics = event.comics, loaded = true, errorMessage = null, errorType = null) }
                         fetchCoversFor(event.comics)
                     }
                 is P2pEvent.LibraryBrowseError ->
                     if (event.peerId == currentPeerId) {
-                        _uiState.update { it.copy(loaded = true, errorMessage = event.message) }
+                        _uiState.update { it.copy(loaded = true, errorMessage = event.message, errorType = event.error) }
                     }
 
                 is P2pEvent.CoverBrowseResult ->

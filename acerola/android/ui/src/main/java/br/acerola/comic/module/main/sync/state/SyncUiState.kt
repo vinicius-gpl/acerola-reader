@@ -47,7 +47,11 @@ data class SyncUiState(
     /** Distinguishes "still waiting for [P2pEvent.LibraryBrowseResult]" from "peer really has
      *  an empty library" — [remoteLibrary] alone can't tell those apart once it's empty. */
     val remoteLibraryLoaded: Boolean = false,
+    /** Cru — usado só como fallback/argumento de template quando [browseLibraryErrorType] é
+     *  `null` (ver `RemoteLibrarySheet`, mesmo padrão de `TransferLogEntry`/`SyncResult`). */
     val browseLibraryError: String? = null,
+    /** Causa reconhecida (`SyncProtocolError`), quando houver. */
+    val browseLibraryErrorType: SyncProtocolError? = null,
     /** `"$peerId:$comicName"` -> caminho local (`file://...`) da capa já baixada via
      *  `acerola/browse-cover/1`, pronto pro Coil carregar. Cache em memória — nunca rebaixa a
      *  mesma versão duas vezes dentro da mesma sessão do app (ver

@@ -16,7 +16,7 @@ use acerola_p2p::api::{
 use async_trait::async_trait;
 use tokio::io::{AsyncRead, AsyncWrite};
 
-use crate::callbacks::FileSyncProvider;
+use crate::{callbacks::FileSyncProvider, protocol::sync_error::classify_sync_error};
 use model::FileSyncStats;
 pub(crate) use session_guard::FileSyncSessionGuard;
 pub(crate) use transfer::{BlobChapterTransfer, ChapterTransfer};
@@ -334,37 +334,6 @@ async fn run_and_report_scoped(
             );
             Err(err)
         }
-    }
-}
-
-/// Identificador estável de causa de erro de sync, serializado em `snake_case` (`"busy"`,
-/// `"timeout"`, `"connection_lost"`) — o lado Kotlin (`SyncViewModel::translateSyncErrorCode`)
-/// mapeia isso pra um texto fixo em `strings.xml`, já que Android não tem troca de idioma (só
-/// pt-BR). Espelha `SyncErrorCode` do desktop (`transfer.rs`).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
-#[serde(rename_all = "snake_case")]
-enum SyncErrorCode {
-    Busy,
-    Timeout,
-    ConnectionLost,
-}
-
-/// Classifica um `P2pError` (não seu texto) num `SyncErrorCode`. Só é confiável porque
-/// `transfer.rs::BlobChapterTransfer` parou de achatar `ConnectionError` em
-/// `StreamFailed(err.to_string())` — o erro que chega aqui já é a variante de verdade que
-/// `lib/p2p` classificou na origem (`classify_connection_error`/`classify_get_error`, crate
-/// `acerola-p2p`), não texto pra adivinhar via substring matching. `Busy` continua sendo a
-/// exceção: não é uma variante de `ConnectionError` (é um conceito deste protocolo de sync, não
-/// do transporte) — cada `run_and_report*` monta esse texto inline com o peer id interpolado
-/// (`format!("sync-files session already in progress for peer {}", peer.id)`), então o match
-/// aqui é por substring numa frase que ESTE MÓDULO controla, não uma heurística sobre texto de
-/// terceiros.
-fn classify_sync_error(error: &P2pError) -> Option<SyncErrorCode> {
-    match error {
-        P2pError::Timeout => Some(SyncErrorCode::Timeout),
-        P2pError::PeerDisconnected(_) => Some(SyncErrorCode::ConnectionLost),
-        P2pError::StreamFailed(msg) if msg.contains("already in progress") => Some(SyncErrorCode::Busy),
-        _ => None,
     }
 }
 

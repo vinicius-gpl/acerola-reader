@@ -36,6 +36,7 @@ sealed interface P2pEvent {
     data class HistorySyncError(
         val peerId: String,
         val message: String,
+        val error: SyncProtocolError? = null,
     ) : P2pEvent
 
     data class FileSyncManifestExchanged(
@@ -91,6 +92,7 @@ sealed interface P2pEvent {
     data class LibraryBrowseError(
         val peerId: String,
         val message: String,
+        val error: SyncProtocolError? = null,
     ) : P2pEvent
 
     /** Resultado de `acerola/browse-cover/1` — `status` é `"not_modified"`, `"changed"` (com

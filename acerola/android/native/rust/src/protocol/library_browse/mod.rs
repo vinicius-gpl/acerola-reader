@@ -11,7 +11,7 @@ use acerola_p2p::api::{
 use async_trait::async_trait;
 use tokio::io::{AsyncRead, AsyncWrite};
 
-use crate::callbacks::FileSyncProvider;
+use crate::{callbacks::FileSyncProvider, protocol::sync_error::classify_sync_error};
 use model::LibrarySummary;
 
 /// Lista só os nomes dos quadrinhos de um peer (com contagem de capítulos) — sem transferir
@@ -73,9 +73,11 @@ impl Handler for LibraryBrowseOutbound {
                 Ok(())
             }
             Err(err) => {
+                let code = classify_sync_error(&err);
+                tracing::warn!(peer = %peer.id, ?code, error = %err, "[LibraryBrowse] query failed");
                 (self.emit)(
                     "browse:library:error",
-                    serde_json::json!({ "peerId": peer.id, "message": err.to_string() }).to_string(),
+                    serde_json::json!({ "peerId": peer.id, "message": err.to_string(), "code": code }).to_string(),
                 );
                 Err(err)
             }

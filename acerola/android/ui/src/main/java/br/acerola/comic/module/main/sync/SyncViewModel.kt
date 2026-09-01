@@ -199,6 +199,7 @@ class SyncViewModel
                             remoteLibrary = emptyList(),
                             remoteLibraryLoaded = false,
                             browseLibraryError = null,
+                            browseLibraryErrorType = null,
                         )
                     }
                 is SyncAction.SyncComic -> syncComic(action.peerId, action.comicName)
@@ -232,6 +233,7 @@ class SyncViewModel
                     remoteLibrary = emptyList(),
                     remoteLibraryLoaded = false,
                     browseLibraryError = null,
+                    browseLibraryErrorType = null,
                 )
             }
 
@@ -431,7 +433,7 @@ class SyncViewModel
                 }
                 is P2pEvent.HistorySyncError -> {
                     clearSyncing(event.peerId, SYNC_KIND_HISTORY)
-                    recordSyncResult(event.peerId, SYNC_KIND_HISTORY, "error", event.message)
+                    recordSyncResult(event.peerId, SYNC_KIND_HISTORY, "error", event.message, event.error)
                     pushLog(SYNC_KIND_HISTORY, "error", LogState.ERROR, message = event.message)
                     refreshLocalInfo()
                 }
@@ -483,7 +485,9 @@ class SyncViewModel
                     }
                 is P2pEvent.LibraryBrowseError ->
                     if (event.peerId == _uiState.value.browsingPeerId) {
-                        _uiState.update { it.copy(browseLibraryError = event.message) }
+                        _uiState.update {
+                            it.copy(browseLibraryError = event.message, browseLibraryErrorType = event.error)
+                        }
                     }
 
                 is P2pEvent.CoverBrowseResult -> {

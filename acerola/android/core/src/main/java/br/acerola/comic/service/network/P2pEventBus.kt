@@ -65,7 +65,11 @@ class P2pEventBus
 
                     "sync:history:error" ->
                         JSONObject(data).let {
-                            P2pEvent.HistorySyncError(peerId = it.getString("peerId"), message = it.getString("message"))
+                            P2pEvent.HistorySyncError(
+                                peerId = it.getString("peerId"),
+                                message = it.getString("message"),
+                                error = SyncProtocolError.fromCode(if (it.isNull("code")) null else it.getString("code")),
+                            )
                         }
 
                     "sync:files:manifest_exchanged" ->
@@ -136,7 +140,11 @@ class P2pEventBus
 
                     "browse:library:error" ->
                         JSONObject(data).let {
-                            P2pEvent.LibraryBrowseError(peerId = it.getString("peerId"), message = it.getString("message"))
+                            P2pEvent.LibraryBrowseError(
+                                peerId = it.getString("peerId"),
+                                message = it.getString("message"),
+                                error = SyncProtocolError.fromCode(if (it.isNull("code")) null else it.getString("code")),
+                            )
                         }
 
                     "browse:cover:result" ->

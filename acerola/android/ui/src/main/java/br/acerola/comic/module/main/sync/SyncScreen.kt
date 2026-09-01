@@ -286,6 +286,7 @@ private fun SyncLayout(
                 comics = uiState.remoteLibrary,
                 isLoading = !uiState.remoteLibraryLoaded && uiState.browseLibraryError == null,
                 errorMessage = uiState.browseLibraryError,
+                errorType = uiState.browseLibraryErrorType,
                 onSelectComic = { comicName -> onAction(SyncAction.SyncComic(peerId, comicName)) },
                 onDismiss = { onAction(SyncAction.DismissLibraryBrowse) },
                 coverPathFor = { comicName -> uiState.remoteCoverPaths[coverKey(peerId, comicName)] },

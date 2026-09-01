@@ -14,7 +14,7 @@ use exchange::CoverOutcome;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
 
-use crate::callbacks::CoverBrowseProvider;
+use crate::{callbacks::CoverBrowseProvider, protocol::sync_error::classify_sync_error};
 use super::files::ChapterTransfer;
 pub(crate) use registry::PendingCoverRequestRegistry;
 
@@ -138,10 +138,17 @@ impl Handler for CoverBrowseOutbound {
                 Ok(())
             },
             Err(err) => {
+                let code = classify_sync_error(&err);
+                tracing::warn!(peer = %peer.id, comic_name = %comic_name, ?code, error = %err, "[CoverBrowse] session failed");
                 (self.emit)(
                     "browse:cover:error",
-                    serde_json::json!({ "peerId": peer.id, "comicName": comic_name, "message": err.to_string() })
-                        .to_string(),
+                    serde_json::json!({
+                        "peerId": peer.id,
+                        "comicName": comic_name,
+                        "message": err.to_string(),
+                        "code": code,
+                    })
+                    .to_string(),
                 );
                 Err(err)
             },
