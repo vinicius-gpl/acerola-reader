@@ -15,6 +15,7 @@ use tauri::{Emitter, Manager};
 
 use crate::{
     bios::scopes::{read_device_alias_override, read_library_path, read_relay_url_override},
+    cmd::features::metadata::MetadataState,
     core::services::{
         network::{NetworkService, NetworkServiceApi},
         sync::{file_sync::FileSyncService, history_sync::HistorySyncService},
@@ -175,6 +176,12 @@ pub async fn setup_network(app_handle: &tauri::AppHandle) -> Result<(), ComicErr
     let file_sync_service = FileSyncService::new(database_pool, move || {
         read_library_path(&app_data_directory).unwrap_or_else(|| app_data_directory.join("library"))
     });
+    // Reaproveita a mesma instância já gerenciada por `bios::db::setup_database` (que roda via
+    // `block_on` ANTES deste `setup_network` ser sequer disparado — ver `bios/mod.rs`) em vez
+    // de construir uma segunda `MetadataService` própria só pra isso: evita duplicar o
+    // `reqwest::Client` interno e mantém uma única fonte de verdade pro reprocessamento de
+    // `ComicInfo.xml` recebido via sync, seja ele disparado pelo botão manual ou pelo P2P.
+    let metadata_service = Arc::clone(&app_handle.state::<MetadataState>().service);
     // Compartilhado entre inbound e outbound: garante que só uma sessão de sync-files por
     // peer rode por vez, nos dois sentidos (ver `file_session_guard.rs`). Também compartilhado
     // com `COMIC_SYNC_ALPN` (mesmo recurso — transferência de arquivos — então uma sessão de
@@ -228,6 +235,7 @@ pub async fn setup_network(app_handle: &tauri::AppHandle) -> Result<(), ComicErr
                 Arc::new(FileSyncInbound::new(
                     Arc::clone(&event_emitter),
                     file_sync_service.clone(),
+                    Arc::clone(&metadata_service),
                     sync_log_repo.clone(),
                     Arc::clone(&file_sync_session_guard),
                     Arc::clone(&chapter_transfer),
@@ -238,6 +246,7 @@ pub async fn setup_network(app_handle: &tauri::AppHandle) -> Result<(), ComicErr
                 Arc::new(FileSyncOutbound::new(
                     Arc::clone(&event_emitter),
                     file_sync_service.clone(),
+                    Arc::clone(&metadata_service),
                     sync_log_repo.clone(),
                     Arc::clone(&file_sync_session_guard),
                     Arc::clone(&chapter_transfer),
@@ -248,6 +257,7 @@ pub async fn setup_network(app_handle: &tauri::AppHandle) -> Result<(), ComicErr
                 Arc::new(ComicSyncInbound::new(
                     Arc::clone(&event_emitter),
                     file_sync_service.clone(),
+                    Arc::clone(&metadata_service),
                     sync_log_repo.clone(),
                     Arc::clone(&file_sync_session_guard),
                     Arc::clone(&chapter_transfer),
@@ -258,6 +268,7 @@ pub async fn setup_network(app_handle: &tauri::AppHandle) -> Result<(), ComicErr
                 Arc::new(ComicSyncOutbound::new(
                     Arc::clone(&event_emitter),
                     file_sync_service.clone(),
+                    Arc::clone(&metadata_service),
                     sync_log_repo.clone(),
                     Arc::clone(&file_sync_session_guard),
                     Arc::clone(&pending_comic_sync),

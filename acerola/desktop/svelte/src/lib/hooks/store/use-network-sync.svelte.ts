@@ -13,6 +13,12 @@ export type TransferLogEntry = {
 	status: 'started' | 'progress' | 'complete' | 'error';
 	message: string;
 	timestamp: number;
+	/** Só presente em `kind: 'comic'` — o quadrinho escopado desta sessão (ver
+	 *  `comic_handler.rs::COMPLETE_EVENT`/`ERROR_EVENT`, payload `{peerId, comicName}` desde a
+	 *  extensão de cover/banner/ComicInfo.xml). Usado pela página do quadrinho pra saber se uma
+	 *  sessão concluída afeta o quadrinho atualmente aberto, sem precisar assumir que qualquer
+	 *  sync individual é sobre ele. */
+	comicName?: string;
 };
 
 type SyncKind = TransferLogEntry['kind'];
@@ -127,9 +133,10 @@ export function useNetworkSync() {
 	}
 
 	/// Extrai o `peerId` do payload de um evento `sync:*:error` — esses eventos carregam
-	/// `{"peerId": ..., "message": ...}` (ver `history_handler.rs`/`file_handler.rs`), ao
-	/// contrário de `started`/`complete`, que carregam o `peerId` puro como string.
-	function parseErrorPayload(payload: string): { peerId?: string; message: string } {
+	/// `{"peerId": ..., "message": ..., "comicName"?: ...}` (ver
+	/// `history_handler.rs`/`file_handler.rs`/`comic_handler.rs`), ao contrário de `started`,
+	/// que carrega o `peerId` puro como string.
+	function parseErrorPayload(payload: string): { peerId?: string; message: string; comicName?: string } {
 		try {
 			const parsed = JSON.parse(payload);
 			// Stryker disable next-line ConditionalExpression,LogicalOperator: `typeof
@@ -143,12 +150,28 @@ export function useNetworkSync() {
 			// payload }` do fallback normal. A saída observável é idêntica, só o caminho muda.
 			// Verificado empiricamente: aplicando cada mutante isoladamente, nenhum teste falha.
 			if (parsed && typeof parsed === 'object' && typeof parsed.message === 'string') {
-				return { peerId: parsed.peerId, message: parsed.message };
+				return { peerId: parsed.peerId, message: parsed.message, comicName: parsed.comicName };
 			}
 		} catch {
 			// payload antigo/inesperado sem JSON — trata como mensagem crua.
 		}
 		return { message: payload };
+	}
+
+	/// Extrai `{peerId, comicName}` do payload de `sync:comic:complete` — só esse evento carrega
+	/// `comicName` (ver `comic_handler.rs::COMPLETE_EVENT`); `sync:history:complete`/
+	/// `sync:files:complete` continuam carregando só o `peerId` puro como string, então o
+	/// fallback cobre esses dois sem quebrar.
+	function parseCompletePayload(payload: string): { peerId: string; comicName?: string } {
+		try {
+			const parsed = JSON.parse(payload);
+			if (parsed && typeof parsed === 'object' && typeof parsed.peerId === 'string') {
+				return { peerId: parsed.peerId, comicName: parsed.comicName };
+			}
+		} catch {
+			// `sync:history:complete`/`sync:files:complete`: payload é o peerId cru, não JSON.
+		}
+		return { peerId: payload };
 	}
 
 	/// Uma sessão de sync tem UMA linha no log, que transiciona de estado (started -> progress
@@ -181,9 +204,16 @@ export function useNetworkSync() {
 		index: number,
 		key: string,
 		status: TransferLogEntry['status'],
-		message: string
+		message: string,
+		comicName?: string
 	) {
-		log[index] = { ...log[index], status, message, timestamp: Date.now() };
+		log[index] = {
+			...log[index],
+			status,
+			message,
+			timestamp: Date.now(),
+			comicName: comicName ?? log[index].comicName
+		};
 		if (isTerminalStatus(status)) inFlightEntryId.delete(key);
 	}
 
@@ -192,7 +222,8 @@ export function useNetworkSync() {
 		kind: SyncKind,
 		key: string,
 		status: TransferLogEntry['status'],
-		message: string
+		message: string,
+		comicName?: string
 	) {
 		const entry: TransferLogEntry = {
 			id: nextId++,
@@ -200,7 +231,8 @@ export function useNetworkSync() {
 			kind,
 			status,
 			message,
-			timestamp: Date.now()
+			timestamp: Date.now(),
+			comicName
 		};
 		log = [entry, ...log].slice(0, MAX_LOG_ENTRIES);
 		if (peerId && isOpenStatus(status)) inFlightEntryId.set(key, entry.id);
@@ -210,7 +242,8 @@ export function useNetworkSync() {
 		peerId: string,
 		kind: SyncKind,
 		status: TransferLogEntry['status'],
-		message: string
+		message: string,
+		comicName?: string
 	) {
 		const key = syncKey(peerId, kind);
 		const existingId = peerId ? inFlightEntryId.get(key) : undefined;
@@ -224,9 +257,9 @@ export function useNetworkSync() {
 			existingId !== undefined ? log.findIndex((entry) => entry.id === existingId) : -1;
 
 		if (existingIndex !== -1) {
-			updateInFlightEntry(existingIndex, key, status, message);
+			updateInFlightEntry(existingIndex, key, status, message, comicName);
 		} else {
-			appendNewEntry(peerId, kind, key, status, message);
+			appendNewEntry(peerId, kind, key, status, message, comicName);
 		}
 	}
 
@@ -282,14 +315,15 @@ export function useNetworkSync() {
 				push('', 'comic', 'progress', event.payload)
 			),
 			await listen<string>(NETWORK_EVENTS.comicComplete, (event) => {
-				clearSyncing(event.payload, 'comic');
-				push(event.payload, 'comic', 'complete', event.payload);
-				settlePending(syncKey(event.payload, 'comic'), true, event.payload);
+				const { peerId, comicName } = parseCompletePayload(event.payload);
+				clearSyncing(peerId, 'comic');
+				push(peerId, 'comic', 'complete', peerId, comicName);
+				settlePending(syncKey(peerId, 'comic'), true, peerId);
 			}),
 			await listen<string>(NETWORK_EVENTS.comicError, (event) => {
-				const { peerId, message } = parseErrorPayload(event.payload);
+				const { peerId, message, comicName } = parseErrorPayload(event.payload);
 				if (peerId) clearSyncing(peerId, 'comic');
-				push(peerId ?? '', 'comic', 'error', message);
+				push(peerId ?? '', 'comic', 'error', message, comicName);
 				if (peerId) settlePending(syncKey(peerId, 'comic'), false, message);
 			})
 		);
