@@ -77,6 +77,9 @@
 	// os bytes antigos. Bumped localmente logo após um regenerate bem-sucedido nesta página.
 	let coverCacheBust = $state(0);
 	let volumeCoverCacheBust = $state(0);
+	// Bumped pelo efeito de sync P2P abaixo — lido (não escrito) pelo efeito de busca de
+	// capítulos, só pra forçar um re-fetch quando um sync relevante a este quadrinho termina.
+	let syncRefreshTrigger = $state(0);
 
 	function bustCache(url: string | null, bust: number): string | null {
 		if (!url || !bust) return url;
@@ -438,13 +441,44 @@
 		const volumeId = expandedVolumeId;
 		const query = searchQuery;
 		const currentSortBy = sortBy;
+		const trigger = syncRefreshTrigger;
 
 		const comic = activeComic.item ?? data.comic;
 		if (!comic) return;
 
 		untrack(() => {
+			void trigger;
 			chapterStore.clear(true);
 			chapterStore.fetch(comic.relations.directoryId, currentSortBy, volumeId, query || null);
+		});
+	});
+
+	// Nem `sync:files:complete` (sync em massa, sem escopo de quadrinho) nem
+	// `sync:comic:complete` (escopado, `comicName` no payload — ver
+	// `comic_handler.rs::COMPLETE_EVENT`) atualizavam esta página antes: capítulos recém-
+	// chegados, capa/banner e metadata (ex.: `ComicInfo.xml` reprocessado) ficavam
+	// desatualizados até o usuário navegar pra fora e voltar. `sync:files:complete` não carrega
+	// quais quadrinhos foram tocados, então trata qualquer sync em massa como potencialmente
+	// relevante; `sync:comic:complete` só dispara o refresh se for sobre o quadrinho aberto.
+	//
+	// A checagem do nome do quadrinho atual (e o disparo em si) precisam ficar dentro do
+	// `untrack` — este efeito só pode depender de `p2pSync.log`. Se lesse `activeComic.item`/
+	// `manga` fora do untrack, o próprio `invalidateAll()`/re-fetch de capítulos disparado aqui
+	// mudaria esses valores e re-executaria o efeito de novo, entrando em loop.
+	$effect(() => {
+		const entry = p2pSync.log[0];
+		if (!entry || entry.status !== 'complete') return;
+		if (entry.kind !== 'files' && entry.kind !== 'comic') return;
+
+		untrack(() => {
+			// `manga.title` é o mesmo valor que `handleSyncToDevice` manda como `comicName` pro
+			// backend (`p2pSync.syncComic(peerId, addrs, manga.title)`) — comparação simétrica
+			// com o que `comic_handler.rs` ecoa de volta no payload de conclusão.
+			if (entry.kind === 'comic' && entry.comicName && entry.comicName !== manga?.title) return;
+
+			syncRefreshTrigger++;
+			coverCacheBust = Date.now();
+			invalidateAll();
 		});
 	});
 

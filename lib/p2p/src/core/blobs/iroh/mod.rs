@@ -8,6 +8,8 @@
 mod config;
 mod gc;
 
+use std::time::Duration;
+
 use async_trait::async_trait;
 use iroh::{Endpoint, EndpointAddr};
 use iroh_blobs::{api::Store, Hash, HashAndFormat};
@@ -16,6 +18,20 @@ use tokio::io::AsyncRead;
 pub use self::config::IrohBlobsConfig;
 use super::{hash::BlobHash, store::P2pBlobStore};
 use crate::infra::{error::ConnectionError, peer::PeerAddr};
+
+/// Teto pra quanto tempo `fetch()` espera por uma conexão/path silenciosamente morto — a
+/// mesma classe de bug já documentada e corrigida para conexões via pool em
+/// `core/transport/iroh/transport.rs::invalidate_forces_fresh_dial_on_next_open_bi`. A
+/// diferença é que `fetch()` aqui disca sua própria conexão direto no `Endpoint` (ALPN
+/// `iroh_blobs::ALPN`), fora do pool de `IrohTransport` — não há uma entrada de cache pra
+/// `NetworkManager::invalidate` limpar, e sem timeout nenhum aqui o `.complete()` do
+/// iroh-blobs pode ficar esperando indefinidamente por um path que nunca vai responder de
+/// novo, sem nunca resolver a `Err` — o que impede até o mecanismo genérico de retry do
+/// `NetworkManager` (que só reage a um handler retornando `Err`) de sequer entrar em ação.
+/// Timeout aqui garante que uma conexão/path morto sempre termina em erro, deixando quem
+/// chama (`ChapterTransfer::fetch_reader` e o resto do protocolo de sync) livre pra tratar
+/// como qualquer outra falha de rede — pular o item, tentar de novo mais tarde, etc.
+const BLOB_FETCH_TIMEOUT: Duration = Duration::from_secs(15);
 
 fn to_iroh_hash(hash: &BlobHash) -> Hash {
     Hash::from_bytes(*hash.as_bytes())
@@ -33,6 +49,13 @@ fn parse_endpoint_addr(peer: &PeerAddr) -> Result<EndpointAddr, ConnectionError>
 pub struct IrohBlobStore {
     store: Store,
     endpoint: Endpoint,
+    /// Sempre `BLOB_FETCH_TIMEOUT` em produção — campo existe (em vez do `const` direto em
+    /// `fetch()`) só pra um teste específico poder injetar um valor curto e simular "peer
+    /// inalcançável" sem afetar o timeout de verdade usado pelos outros testes deste módulo
+    /// (transferência de blob grande, fetch concorrente sob GC), que precisam do valor de
+    /// produção pra não estourar por serem legitimamente mais lentos que um timeout de teste
+    /// artificialmente curto.
+    fetch_timeout: Duration,
 }
 
 impl IrohBlobStore {
@@ -42,7 +65,7 @@ impl IrohBlobStore {
         config: &IrohBlobsConfig, endpoint: Endpoint,
     ) -> Result<Self, ConnectionError> {
         let store = config.build_store().await?;
-        Ok(Self { store, endpoint })
+        Ok(Self { store, endpoint, fetch_timeout: BLOB_FETCH_TIMEOUT })
     }
 
     /// O `Store` interno, usado por `IrohTransport` para montar o `BlobsProtocol` no lado
@@ -80,6 +103,31 @@ impl P2pBlobStore for IrohBlobStore {
     async fn fetch(&self, hash: &BlobHash, from: &PeerAddr) -> Result<(), ConnectionError> {
         let addr = parse_endpoint_addr(from)?;
         let iroh_hash = to_iroh_hash(hash);
+
+        match tokio::time::timeout(self.fetch_timeout, self.dial_and_fetch(addr, iroh_hash)).await {
+            Ok(result) => result,
+            Err(_elapsed) => {
+                // Mesma limpeza do branch de erro abaixo — `untag` é seguro mesmo se o timeout
+                // bateu antes da tag chegar a ser criada (nada casa em `tags_for_hash`, vira
+                // no-op). Sem isso, um timeout durante a fase de tag-já-criada-mas-fetch-preso
+                // deixaria uma tag permanente órfã pra sempre.
+                let _ = gc::untag(&self.store, iroh_hash).await;
+                Err(ConnectionError::StreamFailed(format!(
+                    "blob fetch timed out after {}s — peer connection or path is likely stale \
+                     (see BLOB_FETCH_TIMEOUT doc)",
+                    self.fetch_timeout.as_secs(),
+                )))
+            },
+        }
+    }
+}
+
+impl IrohBlobStore {
+    /// Disca + publica a tag de proteção + baixa o blob — corpo de `fetch()` isolado numa
+    /// função própria só pra poder envolver a chamada inteira (não só o `.complete()`) num
+    /// único `tokio::time::timeout` em `fetch()`, sem duplicar a lógica de limpeza de tag em
+    /// dois lugares (timeout vs. erro normal).
+    async fn dial_and_fetch(&self, addr: EndpointAddr, iroh_hash: Hash) -> Result<(), ConnectionError> {
         let conn = self.endpoint.connect(addr, iroh_blobs::ALPN).await?;
 
         // `remote().fetch()` não usa nenhuma proteção interna — confirmado lendo o código-fonte
@@ -128,6 +176,7 @@ mod tests {
     use tokio::io::AsyncReadExt;
 
     use super::*;
+    use crate::infra::peer::PeerId;
 
     /// Endpoint mínimo só para satisfazer o construtor — estes testes exercitam apenas
     /// operações locais do store (`put`/`get`/`has`/`remove`), que nunca tocam a rede.
@@ -246,5 +295,46 @@ mod tests {
         let hash_b = store.put(b"same content".to_vec()).await.unwrap();
 
         assert_eq!(hash_a, hash_b);
+    }
+
+    /// Regressão do bug relatado em produção (Android): `sync-comic` puxando capa/banner via
+    /// `fetch()` ficava preso pra sempre quando o path pro peer estava silenciosamente morto —
+    /// a mesma classe de conexão-reaproveitada-mas-morta já documentada e corrigida para
+    /// conexões via pool em `transport.rs::invalidate_forces_fresh_dial_on_next_open_bi`, só
+    /// que sem equivalente aqui porque `fetch()` disca sua própria conexão fora daquele pool.
+    /// Sem timeout, nada nunca resolve a `Err`, então nem o retry genérico do `NetworkManager`
+    /// (que só reage a um handler retornando `Err`) entra em ação — o usuário via o botão de
+    /// sync preso até fechar e reabrir o app.
+    ///
+    /// Simula "path morto" com um endpoint alvo que foi fechado antes da tentativa de conexão
+    /// — `fetch()` precisa retornar `Err` num tempo limitado, não travar esperando o handshake
+    /// que nunca vai completar. Usa um `fetch_timeout` curto só nesta instância (em vez do
+    /// `BLOB_FETCH_TIMEOUT` de produção, 15s) só pra o teste não demorar — os outros testes
+    /// deste módulo (`mem_store()`/`mem_store_with_gc_interval()`) continuam no timeout real,
+    /// já que precisam de tempo de verdade pra transferências/GC concorrentes legítimas.
+    #[tokio::test]
+    async fn fetch_times_out_instead_of_hanging_when_peer_is_unreachable() {
+        let mut store = mem_store().await;
+        store.fetch_timeout = Duration::from_millis(300);
+
+        let dead_endpoint = unbound_endpoint().await;
+        let dead_addr = dead_endpoint.addr();
+        let dead_peer = PeerAddr {
+            id: PeerId { id: dead_endpoint.id().to_string(), device_id: None },
+            addrs: serde_json::to_vec(&dead_addr).unwrap(),
+        };
+        dead_endpoint.close().await;
+
+        let unknown_hash = BlobHash::from_bytes([0x42; 32]);
+
+        let started = std::time::Instant::now();
+        let result = store.fetch(&unknown_hash, &dead_peer).await;
+        let elapsed = started.elapsed();
+
+        assert!(result.is_err(), "fetch pra um peer inalcançável deveria retornar Err, não travar");
+        assert!(
+            elapsed < Duration::from_secs(5),
+            "fetch deveria ter estourado o BLOB_FETCH_TIMEOUT de teste rapidamente, levou {elapsed:?}"
+        );
     }
 }

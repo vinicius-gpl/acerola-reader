@@ -66,7 +66,7 @@ class BannerSaver
                                 val savedFile = comicDir.findFile(fileName)
                                 val savedUriString = savedFile?.uri?.toString() ?: bannerUrl
 
-                                directoryDao.update(directory.copy(banner = savedUriString))
+                                directoryDao.update(directory.copy(banner = savedUriString, lastModified = System.currentTimeMillis()))
                                 folderId.right()
                             }
                     } else {
@@ -77,7 +77,7 @@ class BannerSaver
                                 val bannerFile = java.io.File(internalDir, "$folderId.jpg")
                                 bannerFile.writeBytes(bytes)
                                 val savedUriString = Uri.fromFile(bannerFile).toString()
-                                directoryDao.update(directory.copy(banner = savedUriString))
+                                directoryDao.update(directory.copy(banner = savedUriString, lastModified = System.currentTimeMillis()))
                                 folderId.right()
                             }
 

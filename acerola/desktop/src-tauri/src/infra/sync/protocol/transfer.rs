@@ -6,13 +6,13 @@ use serde::de::DeserializeOwned;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite};
 
 use crate::{
-    core::services::sync::file_sync::FileSyncService,
+    core::services::{metadata::MetadataService, sync::file_sync::FileSyncService},
     infra::{
         error::RpcError,
         sync::{
             blob_context::BlobContext,
             framing::{framed_writer, read_json, write_json, FramedReader, FramedWriter},
-            messages::{FileHeader, SessionBusy},
+            messages::{FileExtraHeader, FileHeader, SessionBusy, EXTRA_KIND_COMIC_INFO},
         },
     },
 };
@@ -314,6 +314,206 @@ pub async fn receive_files(
             .await?;
 
         (emit)(progress_event, format!("{} - {}", header.comic_name, header.chapter));
+    }
+
+    Ok(skipped)
+}
+
+/// Envia, em sequência, os itens extra (capa/banner/`ComicInfo.xml`) de `wanted_extras` — mesma
+/// lógica de `send_files`, só que via `FileSyncService::resolve_local_extra`/`FileExtraHeader`
+/// em vez de capítulo.
+pub async fn send_extras(
+    writer: &mut FramedWriter, wanted_extras: &[(String, String)], service: &FileSyncService,
+    emit: &EventEmitter, progress_event: &str, transfer: &Arc<dyn ChapterTransfer>,
+) -> Result<usize, P2pError> {
+    let mut skipped = 0usize;
+
+    for (comic_name, kind) in wanted_extras {
+        let resolved = service.resolve_local_extra(comic_name, kind).await?;
+
+        let Some((path, size, checksum, file_name)) = resolved else {
+            tracing::warn!(
+                comic_name = %comic_name,
+                kind = %kind,
+                "[FileSync] requested extra no longer exists locally — sending unavailable header"
+            );
+            skipped += 1;
+            write_json(
+                writer,
+                &FileExtraHeader {
+                    comic_name: comic_name.clone(),
+                    kind: kind.clone(),
+                    file_name: String::new(),
+                    size: 0,
+                    checksum: None,
+                    blob_hash: None,
+                },
+            )
+            .await?;
+            continue;
+        };
+
+        let bytes = tokio::fs::read(&path).await.map_err(RpcError::from)?;
+        let blob_hash = transfer.publish(bytes).await?;
+
+        write_json(
+            writer,
+            &FileExtraHeader {
+                comic_name: comic_name.clone(),
+                kind: kind.clone(),
+                file_name,
+                size,
+                checksum,
+                blob_hash: Some(blob_hash),
+            },
+        )
+        .await?;
+
+        (emit)(progress_event, format!("{} - {}", comic_name, kind));
+    }
+
+    Ok(skipped)
+}
+
+/// Recebe, em sequência, `expected_count` itens extra: mesma mecânica de `receive_files`
+/// (busca via blob store, grava em arquivo temporário, verifica checksum), mas persistindo via
+/// `FileSyncService::persist_received_extra` em vez de `persist_received_chapter` — não vai pra
+/// `chapter_archive`, vai pra `comic_directory` (capa/banner) ou vira `ComicInfo.xml` na raiz.
+///
+/// Ao terminar de persistir um `ComicInfo.xml`, dispara `MetadataService::sync_comic_comic_info`
+/// (mesmo método usado pelo botão manual "sincronizar via ComicInfo") pra já deixar o
+/// título/sinopse/autor atualizados no banco sem ação do usuário — melhor esforço: uma falha
+/// aqui loga um aviso e conta como item não sincronizado nas estatísticas, mas não derruba a
+/// sessão (o arquivo em si já foi transferido com sucesso).
+#[allow(clippy::too_many_arguments)]
+pub async fn receive_extras(
+    reader: &mut FramedReader, expected_count: usize, service: &FileSyncService,
+    metadata_service: &Arc<MetadataService>, emit: &EventEmitter, progress_event: &str, error_event: &str,
+    peer: &PeerIdentity, transfer: &Arc<dyn ChapterTransfer>,
+) -> Result<usize, P2pError> {
+    let mut skipped = 0usize;
+
+    for _ in 0..expected_count {
+        let header: FileExtraHeader = read_json(reader).await?;
+
+        if header.size == 0 {
+            tracing::warn!(
+                comic_name = %header.comic_name,
+                kind = %header.kind,
+                "[FileSync] peer reported extra as unavailable (size=0) — skipping"
+            );
+            skipped += 1;
+            continue;
+        }
+
+        let Some(blob_hash) = header.blob_hash.as_deref() else {
+            tracing::warn!(
+                comic_name = %header.comic_name,
+                kind = %header.kind,
+                "[FileSync] extra header missing blob_hash — skipping"
+            );
+            skipped += 1;
+            (emit)(error_event, format!("missing blob hash: {} - {}", header.comic_name, header.kind));
+            continue;
+        };
+
+        let mut blob_reader = match transfer.fetch_reader(blob_hash, peer).await {
+            Ok(reader) => reader,
+            Err(err) => {
+                tracing::warn!(
+                    comic_name = %header.comic_name,
+                    kind = %header.kind,
+                    error = %err,
+                    "[FileSync] failed to fetch extra blob — skipping"
+                );
+                skipped += 1;
+                (emit)(
+                    error_event,
+                    format!("blob fetch failed: {} - {}: {err}", header.comic_name, header.kind),
+                );
+                continue;
+            },
+        };
+
+        let mut bytes = Vec::new();
+        blob_reader.read_to_end(&mut bytes).await.map_err(|err| P2pError::StreamFailed(err.to_string()))?;
+
+        let computed_checksum = {
+            use sha2::{Digest, Sha256};
+            format!("{:x}", Sha256::digest(&bytes))
+        };
+
+        if let Some(expected) = &header.checksum {
+            if expected != &computed_checksum {
+                tracing::warn!(
+                    comic_name = %header.comic_name,
+                    kind = %header.kind,
+                    expected = %expected,
+                    computed = %computed_checksum,
+                    "[FileSync] extra checksum mismatch — skipping"
+                );
+                skipped += 1;
+                (emit)(
+                    error_event,
+                    format!("checksum mismatch: {} - {}", header.comic_name, header.kind),
+                );
+                continue;
+            }
+        }
+
+        let comic_dir = match service.resolve_comic_dir(&header.comic_name).await {
+            Ok(comic) => std::path::PathBuf::from(comic.path),
+            Err(err) => {
+                tracing::warn!(
+                    comic_name = %header.comic_name,
+                    kind = %header.kind,
+                    error = %err,
+                    "[FileSync] failed to resolve comic directory for extra — skipping"
+                );
+                skipped += 1;
+                (emit)(
+                    error_event,
+                    format!("failed to resolve comic directory: {} - {}", header.comic_name, header.kind),
+                );
+                continue;
+            },
+        };
+        let temp_path = comic_dir.join(format!(".incoming-{}.tmp", rand::random::<u64>()));
+        tokio::fs::write(&temp_path, &bytes).await.map_err(RpcError::from)?;
+
+        let persisted = service
+            .persist_received_extra(&header.comic_name, &header.kind, &header.file_name, &temp_path)
+            .await;
+
+        let comic = match persisted {
+            Ok(comic) => comic,
+            Err(err) => {
+                tracing::warn!(
+                    comic_name = %header.comic_name,
+                    kind = %header.kind,
+                    error = %err,
+                    "[FileSync] failed to persist received extra — skipping"
+                );
+                skipped += 1;
+                (emit)(
+                    error_event,
+                    format!("failed to persist extra: {} - {}", header.comic_name, header.kind),
+                );
+                continue;
+            },
+        };
+
+        if header.kind == EXTRA_KIND_COMIC_INFO {
+            if let Err(err) = metadata_service.sync_comic_comic_info(comic.id).await {
+                tracing::warn!(
+                    comic_name = %header.comic_name,
+                    error = %err,
+                    "[FileSync] ComicInfo.xml recebido, mas reprocessamento de metadata falhou"
+                );
+            }
+        }
+
+        (emit)(progress_event, format!("{} - {}", header.comic_name, header.kind));
     }
 
     Ok(skipped)

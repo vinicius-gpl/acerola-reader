@@ -9,8 +9,8 @@ use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
 
 use super::{
     model::{
-        build_manifest, ComicSyncScope, FileComicInfo, FileHeader, FileManifest, FileSyncStats, FileWantList,
-        SessionBusy,
+        build_manifest, merge_extras, ComicSyncScope, FileComicInfo, FileExtraHeader, FileHeader, FileManifest,
+        FileSyncStats, FileWantList, SessionBusy, EXTRA_KIND_BANNER, EXTRA_KIND_COMIC_INFO, EXTRA_KIND_COVER,
     },
     transfer::ChapterTransfer,
 };
@@ -146,9 +146,50 @@ async fn abort_chapter_write(provider: &Arc<dyn FileSyncProvider>, handle: i64) 
 }
 
 async fn build_local_manifest(provider: &Arc<dyn FileSyncProvider>) -> Result<FileManifest, P2pError> {
+    let entries = run_blocking({
+        let provider = Arc::clone(provider);
+        move || provider.get_file_manifest()
+    })
+    .await?;
+    let mut manifest = build_manifest(entries);
+
+    let extras = run_blocking({
+        let provider = Arc::clone(provider);
+        move || provider.get_extras_manifest()
+    })
+    .await?;
+    merge_extras(&mut manifest, extras);
+
+    Ok(manifest)
+}
+
+async fn open_extra_for_read(
+    provider: &Arc<dyn FileSyncProvider>, comic_name: String, kind: String,
+) -> Result<i64, P2pError> {
     let provider = Arc::clone(provider);
-    let entries = run_blocking(move || provider.get_file_manifest()).await?;
-    Ok(build_manifest(entries))
+    run_blocking(move || provider.open_extra_for_read(comic_name, kind)).await
+}
+
+async fn begin_extra_write(provider: &Arc<dyn FileSyncProvider>, header: &FileExtraHeader) -> Result<i64, P2pError> {
+    let provider = Arc::clone(provider);
+    let (comic_name, kind, file_name, checksum, size) = (
+        header.comic_name.clone(),
+        header.kind.clone(),
+        header.file_name.clone(),
+        header.checksum.clone().unwrap_or_default(),
+        header.size,
+    );
+    run_blocking(move || provider.begin_extra_write(comic_name, kind, file_name, checksum, size)).await
+}
+
+async fn finalize_extra_write(provider: &Arc<dyn FileSyncProvider>, handle: i64) -> Result<bool, P2pError> {
+    let provider = Arc::clone(provider);
+    run_blocking(move || provider.finalize_extra_write(handle)).await
+}
+
+async fn abort_extra_write(provider: &Arc<dyn FileSyncProvider>, handle: i64) -> Result<(), P2pError> {
+    let provider = Arc::clone(provider);
+    run_blocking(move || provider.abort_extra_write(handle)).await
 }
 
 /// Retorna `(comic_name, chapter)` que `peer` oferece e que `local` não tem (ausente, ou
@@ -191,6 +232,52 @@ fn manifest_index(manifest: &FileManifest) -> HashMap<(&str, &str), &super::mode
         .collect()
 }
 
+/// Retorna `(comic_name, kind)` de itens extra (capa/banner/`ComicInfo.xml`) que `peer` oferece
+/// e que `local` não tem (ausente, ou com checksum diferente) — mesma lógica de `missing_from`,
+/// aplicada aos três campos opcionais de `FileComicInfo` em vez da lista de capítulos.
+fn missing_extras_from(local: &FileManifest, peer: &FileManifest) -> Vec<(String, String)> {
+    let local_by_key = extras_index(local);
+
+    peer.comics
+        .iter()
+        .flat_map(|comic| {
+            let local_by_key = &local_by_key;
+            EXTRA_KINDS.iter().filter_map(move |kind| {
+                let peer_extra = extra_for_kind(comic, kind)?;
+                let key = (comic.comic_name.as_str(), *kind);
+                let missing = match local_by_key.get(&key) {
+                    Some(local_extra) => local_extra.checksum != peer_extra.checksum,
+                    None => true,
+                };
+                missing.then(|| (comic.comic_name.clone(), kind.to_string()))
+            })
+        })
+        .collect()
+}
+
+const EXTRA_KINDS: [&str; 3] = [EXTRA_KIND_COVER, EXTRA_KIND_BANNER, EXTRA_KIND_COMIC_INFO];
+
+fn extra_for_kind<'a>(comic: &'a FileComicInfo, kind: &str) -> Option<&'a super::model::FileExtraInfo> {
+    match kind {
+        EXTRA_KIND_COVER => comic.cover.as_ref(),
+        EXTRA_KIND_BANNER => comic.banner.as_ref(),
+        EXTRA_KIND_COMIC_INFO => comic.comic_info.as_ref(),
+        _ => None,
+    }
+}
+
+fn extras_index(manifest: &FileManifest) -> HashMap<(&str, &str), &super::model::FileExtraInfo> {
+    manifest
+        .comics
+        .iter()
+        .flat_map(|comic| {
+            EXTRA_KINDS.iter().filter_map(move |kind| {
+                extra_for_kind(comic, kind).map(|extra| ((comic.comic_name.as_str(), *kind), extra))
+            })
+        })
+        .collect()
+}
+
 async fn write_missing_header(writer: &mut Writer, comic_name: &str, chapter: &str) -> Result<(), P2pError> {
     write_json(
         writer,
@@ -204,6 +291,190 @@ async fn write_missing_header(writer: &mut Writer, comic_name: &str, chapter: &s
         },
     )
     .await
+}
+
+async fn write_missing_extra_header(writer: &mut Writer, comic_name: &str, kind: &str) -> Result<(), P2pError> {
+    write_json(
+        writer,
+        &FileExtraHeader {
+            comic_name: comic_name.to_string(),
+            kind: kind.to_string(),
+            file_name: String::new(),
+            size: 0,
+            checksum: None,
+            blob_hash: None,
+        },
+    )
+    .await
+}
+
+/// Envia um único item extra pedido — mesma mecânica de `send_one_chapter`
+/// (abre via `open_extra_for_read`, publica no blob store via `publish_chapter_to_blob`, que já
+/// é agnóstico a chapter vs. extra, fecha via `close_read_handle` reaproveitado), com
+/// `FileExtraHeader` no lugar de `FileHeader`.
+async fn send_one_extra(
+    writer: &mut Writer, provider: &Arc<dyn FileSyncProvider>, comic_name: &str, kind: &str,
+    entry: &super::model::FileExtraInfo, emit: &EventEmitter, peer: &PeerIdentity, transfer: &Arc<dyn ChapterTransfer>,
+) -> Result<bool, P2pError> {
+    let handle = open_extra_for_read(provider, comic_name.to_string(), kind.to_string()).await?;
+    if handle < 0 {
+        write_missing_extra_header(writer, comic_name, kind).await?;
+        return Ok(false);
+    }
+
+    let publish_result = publish_chapter_to_blob(provider, handle, entry.size, emit, peer, comic_name, kind, transfer).await;
+    close_read_handle(provider, handle).await?;
+    let blob_hash = publish_result?;
+
+    write_json(
+        writer,
+        &FileExtraHeader {
+            comic_name: comic_name.to_string(),
+            kind: kind.to_string(),
+            file_name: entry.file_name.clone(),
+            size: entry.size,
+            checksum: Some(entry.checksum.clone()),
+            blob_hash: Some(blob_hash),
+        },
+    )
+    .await?;
+
+    Ok(true)
+}
+
+/// Envia os itens extra pedidos — mesma lógica de `send_files`, olhando `cover`/`banner`/
+/// `comic_info` de `local_manifest` em vez da lista de capítulos.
+async fn send_extras(
+    writer: &mut Writer, provider: &Arc<dyn FileSyncProvider>, local_manifest: &FileManifest,
+    requested: &[(String, String)], emit: &EventEmitter, peer: &PeerIdentity, stats: &mut FileSyncStats,
+    transfer: &Arc<dyn ChapterTransfer>,
+) -> Result<(), P2pError> {
+    let by_comic: HashMap<&str, &FileComicInfo> =
+        local_manifest.comics.iter().map(|comic| (comic.comic_name.as_str(), comic)).collect();
+
+    for (comic_name, kind) in requested {
+        let entry = by_comic.get(comic_name.as_str()).and_then(|comic| extra_for_kind(comic, kind));
+        let Some(entry) = entry else {
+            write_missing_extra_header(writer, comic_name, kind).await?;
+            continue;
+        };
+
+        if send_one_extra(writer, provider, comic_name, kind, entry, emit, peer, transfer).await? {
+            stats.sent_count += 1;
+        }
+    }
+
+    Ok(())
+}
+
+/// Busca o blob de um item extra e grava chunk a chunk — mesma mecânica de
+/// `receive_chapter_from_blob`, com `FileExtraHeader` no lugar de `FileHeader`.
+async fn receive_extra_from_blob(
+    provider: &Arc<dyn FileSyncProvider>, handle: i64, header: &FileExtraHeader, emit: &EventEmitter,
+    peer: &PeerIdentity, transfer: &Arc<dyn ChapterTransfer>,
+) -> Result<bool, P2pError> {
+    let Some(blob_hash) = header.blob_hash.as_deref() else {
+        return Ok(true);
+    };
+
+    let mut blob_reader = match transfer.fetch_reader(blob_hash, peer).await {
+        Ok(reader) => reader,
+        Err(err) => {
+            tracing::warn!(
+                comic = %header.comic_name,
+                kind = %header.kind,
+                blob_hash,
+                error = %err,
+                "sync-files: falha ao buscar blob de extra do peer",
+            );
+            return Ok(true);
+        }
+    };
+
+    let mut received_bytes: u64 = 0;
+    let mut bytes_since_progress: u64 = 0;
+    let mut write_failed = handle < 0;
+    let mut buf = vec![0u8; CHUNK_SIZE];
+
+    loop {
+        let n = blob_reader
+            .read(&mut buf)
+            .await
+            .map_err(|err| P2pError::StreamFailed(format!("failed to read fetched extra blob: {err}")))?;
+        if n == 0 {
+            break;
+        }
+
+        received_bytes += n as u64;
+        bytes_since_progress += n as u64;
+
+        if !write_failed && !write_chapter_chunk(provider, handle, buf[..n].to_vec()).await? {
+            write_failed = true;
+        }
+
+        if bytes_since_progress >= PROGRESS_EVERY_BYTES {
+            bytes_since_progress = 0;
+            emit_progress(emit, peer, &header.comic_name, &header.kind, received_bytes, header.size);
+        }
+    }
+
+    Ok(write_failed)
+}
+
+fn extra_complete_payload(peer: &PeerIdentity, header: &FileExtraHeader) -> String {
+    serde_json::json!({ "peerId": peer.id, "comicName": header.comic_name, "kind": header.kind }).to_string()
+}
+
+fn extra_failed_payload(peer: &PeerIdentity, header: &FileExtraHeader) -> String {
+    serde_json::json!({
+        "peerId": peer.id,
+        "comicName": header.comic_name,
+        "kind": header.kind,
+        "reason": "checksum or I/O failure",
+    })
+    .to_string()
+}
+
+async fn receive_one_extra(
+    provider: &Arc<dyn FileSyncProvider>, emit: &EventEmitter, peer: &PeerIdentity, header: &FileExtraHeader,
+    stats: &mut FileSyncStats, transfer: &Arc<dyn ChapterTransfer>,
+) -> Result<(), P2pError> {
+    let handle = begin_extra_write(provider, header).await?;
+    let write_failed = receive_extra_from_blob(provider, handle, header, emit, peer, transfer).await?;
+
+    let succeeded = if !write_failed && handle >= 0 { finalize_extra_write(provider, handle).await? } else { false };
+
+    if succeeded {
+        stats.received_count += 1;
+        emit("sync:files:extra_complete", extra_complete_payload(peer, header));
+    } else {
+        if handle >= 0 {
+            abort_extra_write(provider, handle).await?;
+        }
+        stats.failed_count += 1;
+        emit("sync:files:extra_failed", extra_failed_payload(peer, header));
+    }
+
+    Ok(())
+}
+
+/// Recebe exatamente `expected_count` itens extra — mesma lógica de `receive_files`, com
+/// `FileExtraHeader` no lugar de `FileHeader`.
+async fn receive_extras(
+    reader: &mut Recv, expected_count: usize, provider: &Arc<dyn FileSyncProvider>, emit: &EventEmitter,
+    peer: &PeerIdentity, stats: &mut FileSyncStats, transfer: &Arc<dyn ChapterTransfer>,
+) -> Result<(), P2pError> {
+    for _ in 0..expected_count {
+        let header: FileExtraHeader = read_json(reader).await?;
+
+        if header.size == 0 {
+            continue;
+        }
+
+        receive_one_extra(provider, emit, peer, &header, stats, transfer).await?;
+    }
+
+    Ok(())
 }
 
 /// Lê o capítulo já aberto (`handle` válido) um chunk de cada vez e publica os bytes
@@ -481,37 +752,48 @@ async fn exchange_manifests(
     }
 }
 
-/// Fase 2: troca de want-list, mesma ordem espelhada da fase 1.
+/// Fase 2: troca de want-list, mesma ordem espelhada da fase 1. Retorna
+/// `(wanted, wanted_extras)` do peer.
 async fn exchange_want_lists(
     outbound_role: bool, writer: &mut Writer, reader: &mut Recv, wanted_locally: &[(String, String)],
-) -> Result<Vec<(String, String)>, P2pError> {
-    let mine = FileWantList { wanted: wanted_locally.to_vec() };
+    wanted_extras_locally: &[(String, String)],
+) -> Result<(Vec<(String, String)>, Vec<(String, String)>), P2pError> {
+    let mine =
+        FileWantList { wanted: wanted_locally.to_vec(), wanted_extras: wanted_extras_locally.to_vec() };
 
     if outbound_role {
         write_json(writer, &mine).await?;
         let theirs: FileWantList = read_json(reader).await?;
-        Ok(theirs.wanted)
+        Ok((theirs.wanted, theirs.wanted_extras))
     } else {
         let theirs: FileWantList = read_json(reader).await?;
         write_json(writer, &mine).await?;
-        Ok(theirs.wanted)
+        Ok((theirs.wanted, theirs.wanted_extras))
     }
 }
 
 /// Fase 3: cada lado envia o que o outro pediu e recebe o que pediu, na ordem espelhada —
-/// outbound sempre escreve primeiro em cada etapa, inbound sempre lê primeiro.
+/// outbound sempre escreve primeiro em cada etapa, inbound sempre lê primeiro. Capítulos
+/// primeiro, depois extras, nos dois sentidos — mesma ordem usada pelo Desktop
+/// (`infra/sync/protocol/file_handler.rs`), já que os dois lados leem/escrevem o wire na mesma
+/// sequência sem tag de enum que distinga qual mensagem é qual.
 #[allow(clippy::too_many_arguments)]
 async fn transfer_files(
     outbound_role: bool, writer: &mut Writer, reader: &mut Recv, provider: &Arc<dyn FileSyncProvider>,
-    local_manifest: &FileManifest, wanted_locally: &[(String, String)], their_wanted: &[(String, String)],
-    emit: &EventEmitter, peer: &PeerIdentity, stats: &mut FileSyncStats, transfer: &Arc<dyn ChapterTransfer>,
+    local_manifest: &FileManifest, wanted_locally: &[(String, String)], wanted_extras_locally: &[(String, String)],
+    their_wanted: &[(String, String)], their_wanted_extras: &[(String, String)], emit: &EventEmitter,
+    peer: &PeerIdentity, stats: &mut FileSyncStats, transfer: &Arc<dyn ChapterTransfer>,
 ) -> Result<(), P2pError> {
     if outbound_role {
         receive_files(reader, wanted_locally.len(), provider, emit, peer, stats, transfer).await?;
+        receive_extras(reader, wanted_extras_locally.len(), provider, emit, peer, stats, transfer).await?;
         send_files(writer, provider, local_manifest, their_wanted, emit, peer, stats, transfer).await?;
+        send_extras(writer, provider, local_manifest, their_wanted_extras, emit, peer, stats, transfer).await?;
     } else {
         send_files(writer, provider, local_manifest, their_wanted, emit, peer, stats, transfer).await?;
+        send_extras(writer, provider, local_manifest, their_wanted_extras, emit, peer, stats, transfer).await?;
         receive_files(reader, wanted_locally.len(), provider, emit, peer, stats, transfer).await?;
+        receive_extras(reader, wanted_extras_locally.len(), provider, emit, peer, stats, transfer).await?;
     }
 
     Ok(())
@@ -530,13 +812,15 @@ async fn run_exchange_with_manifest(
     let peer_manifest = exchange_manifests(outbound_role, writer, reader, &local_manifest).await?;
 
     let wanted_locally = missing_from(&local_manifest, &peer_manifest);
+    let wanted_extras_locally = missing_extras_from(&local_manifest, &peer_manifest);
     let wanted_by_peer = missing_from(&peer_manifest, &local_manifest);
     emit(
         "sync:files:manifest_exchanged",
         manifest_exchanged_payload(peer, wanted_locally.len(), wanted_by_peer.len()),
     );
 
-    let their_wanted = exchange_want_lists(outbound_role, writer, reader, &wanted_locally).await?;
+    let (their_wanted, their_wanted_extras) =
+        exchange_want_lists(outbound_role, writer, reader, &wanted_locally, &wanted_extras_locally).await?;
 
     transfer_files(
         outbound_role,
@@ -545,7 +829,9 @@ async fn run_exchange_with_manifest(
         provider,
         &local_manifest,
         &wanted_locally,
+        &wanted_extras_locally,
         &their_wanted,
+        &their_wanted_extras,
         emit,
         peer,
         &mut stats,
@@ -687,6 +973,22 @@ mod tests {
             false
         }
         fn abort_chapter_write(&self, _handle: i64) {}
+        fn get_extras_manifest(&self) -> Vec<crate::callbacks::FfiExtraManifestEntry> {
+            vec![]
+        }
+        fn open_extra_for_read(&self, _comic_name: String, _kind: String) -> i64 {
+            -1
+        }
+        fn begin_extra_write(
+            &self, _comic_name: String, _kind: String, _file_name: String, _expected_checksum: String,
+            _size_bytes: u64,
+        ) -> i64 {
+            -1
+        }
+        fn finalize_extra_write(&self, _handle: i64) -> bool {
+            false
+        }
+        fn abort_extra_write(&self, _handle: i64) {}
     }
 
     fn make_peer(id: &str) -> PeerIdentity {
@@ -784,9 +1086,19 @@ mod tests {
     // exercitando o protocolo `sync-files` inteiro (manifesto -> want-list -> transferência)
     // em vez do transporte cru.
 
+    /// `read_chapter_chunk`/`write_chapter_chunk`/`close_read_handle` são reaproveitados sem
+    /// mudança tanto pra capítulo quanto pra extra (ver doc da trait em `callbacks.rs`) — então
+    /// os dois tipos de handle têm que viver no MESMO espaço de handles/mapas aqui, exatamente
+    /// como a implementação Kotlin real (`FileSyncProviderImpl`) vai precisar fazer. Só o que
+    /// muda entre os dois é o que `WriteTarget` guarda e pra qual lista (`finalized` vs.
+    /// `finalized_extras`) o resultado vai.
+    enum WriteTarget {
+        Chapter { comic_name: String, chapter: String },
+        Extra { comic_name: String, kind: String },
+    }
+
     struct WriteState {
-        comic_name: String,
-        chapter: String,
+        target: WriteTarget,
         expected_checksum: String,
         buffer: Vec<u8>,
     }
@@ -803,25 +1115,50 @@ mod tests {
         bytes: Vec<u8>,
     }
 
+    /// Mesmo par (checksum declarado x recalculado) de `FinalizedChapter`, pra um item extra
+    /// (capa/banner/`ComicInfo.xml`) em vez de capítulo.
+    struct FinalizedExtra {
+        comic_name: String,
+        kind: String,
+        expected_checksum: String,
+        actual_checksum: String,
+        bytes: Vec<u8>,
+    }
+
     struct InMemoryFileSyncProvider {
         readable: HashMap<(String, String), (String, Vec<u8>)>,
         read_handles: Mutex<HashMap<i64, (Vec<u8>, usize)>>,
         write_handles: Mutex<HashMap<i64, WriteState>>,
         finalized: Mutex<Vec<FinalizedChapter>>,
+        readable_extras: HashMap<(String, String), (String, Vec<u8>)>,
+        finalized_extras: Mutex<Vec<FinalizedExtra>>,
         next_handle: AtomicI64,
     }
 
     impl InMemoryFileSyncProvider {
         fn with_readable(entries: Vec<(String, String, String, Vec<u8>)>) -> Self {
+            Self::with_readable_and_extras(entries, vec![])
+        }
+
+        /// `extras`: `(comic_name, kind, file_name, bytes)`.
+        fn with_readable_and_extras(
+            entries: Vec<(String, String, String, Vec<u8>)>, extras: Vec<(String, String, String, Vec<u8>)>,
+        ) -> Self {
             let readable = entries
                 .into_iter()
                 .map(|(comic_name, chapter, file_name, bytes)| ((comic_name, chapter), (file_name, bytes)))
+                .collect();
+            let readable_extras = extras
+                .into_iter()
+                .map(|(comic_name, kind, file_name, bytes)| ((comic_name, kind), (file_name, bytes)))
                 .collect();
             Self {
                 readable,
                 read_handles: Mutex::new(HashMap::new()),
                 write_handles: Mutex::new(HashMap::new()),
                 finalized: Mutex::new(Vec::new()),
+                readable_extras,
+                finalized_extras: Mutex::new(Vec::new()),
                 next_handle: AtomicI64::new(1),
             }
         }
@@ -877,10 +1214,14 @@ mod tests {
             _size_bytes: u64,
         ) -> i64 {
             let handle = self.next_handle.fetch_add(1, Ordering::SeqCst);
-            self.write_handles
-                .lock()
-                .unwrap()
-                .insert(handle, WriteState { comic_name, chapter, expected_checksum, buffer: Vec::new() });
+            self.write_handles.lock().unwrap().insert(
+                handle,
+                WriteState {
+                    target: WriteTarget::Chapter { comic_name, chapter },
+                    expected_checksum,
+                    buffer: Vec::new(),
+                },
+            );
             handle
         }
 
@@ -897,11 +1238,14 @@ mod tests {
             let Some(state) = self.write_handles.lock().unwrap().remove(&handle) else {
                 return false;
             };
+            let WriteTarget::Chapter { comic_name, chapter } = state.target else {
+                return false;
+            };
             let actual_checksum = blake3::hash(&state.buffer).to_hex().to_string();
             let succeeded = actual_checksum == state.expected_checksum;
             self.finalized.lock().unwrap().push(FinalizedChapter {
-                comic_name: state.comic_name,
-                chapter: state.chapter,
+                comic_name,
+                chapter,
                 expected_checksum: state.expected_checksum,
                 actual_checksum,
                 bytes: state.buffer,
@@ -910,6 +1254,68 @@ mod tests {
         }
 
         fn abort_chapter_write(&self, handle: i64) {
+            self.write_handles.lock().unwrap().remove(&handle);
+        }
+
+        fn get_extras_manifest(&self) -> Vec<crate::callbacks::FfiExtraManifestEntry> {
+            self.readable_extras
+                .iter()
+                .map(|((comic_name, kind), (file_name, bytes))| crate::callbacks::FfiExtraManifestEntry {
+                    comic_name: comic_name.clone(),
+                    kind: kind.clone(),
+                    file_name: file_name.clone(),
+                    checksum: blake3::hash(bytes).to_hex().to_string(),
+                    size_bytes: bytes.len() as u64,
+                })
+                .collect()
+        }
+
+        // Reaproveita `read_handles` (o MESMO mapa usado por `open_chapter_for_read`) — não
+        // existe `open_extra_for_read` separado no mapa, só na trait: o handle devolvido aqui
+        // é consumido depois pela mesma `read_chapter_chunk`/`close_read_handle` de sempre.
+        fn open_extra_for_read(&self, comic_name: String, kind: String) -> i64 {
+            let Some((_, bytes)) = self.readable_extras.get(&(comic_name, kind)) else {
+                return -1;
+            };
+            let handle = self.next_handle.fetch_add(1, Ordering::SeqCst);
+            self.read_handles.lock().unwrap().insert(handle, (bytes.clone(), 0));
+            handle
+        }
+
+        // Mesma ideia de `open_extra_for_read`: insere em `write_handles`, o mapa compartilhado
+        // com capítulo — `write_chapter_chunk` (reaproveitado) grava aqui sem saber a diferença.
+        fn begin_extra_write(
+            &self, comic_name: String, kind: String, _file_name: String, expected_checksum: String,
+            _size_bytes: u64,
+        ) -> i64 {
+            let handle = self.next_handle.fetch_add(1, Ordering::SeqCst);
+            self.write_handles.lock().unwrap().insert(
+                handle,
+                WriteState { target: WriteTarget::Extra { comic_name, kind }, expected_checksum, buffer: Vec::new() },
+            );
+            handle
+        }
+
+        fn finalize_extra_write(&self, handle: i64) -> bool {
+            let Some(state) = self.write_handles.lock().unwrap().remove(&handle) else {
+                return false;
+            };
+            let WriteTarget::Extra { comic_name, kind } = state.target else {
+                return false;
+            };
+            let actual_checksum = blake3::hash(&state.buffer).to_hex().to_string();
+            let succeeded = actual_checksum == state.expected_checksum;
+            self.finalized_extras.lock().unwrap().push(FinalizedExtra {
+                comic_name,
+                kind,
+                expected_checksum: state.expected_checksum,
+                actual_checksum,
+                bytes: state.buffer,
+            });
+            succeeded
+        }
+
+        fn abort_extra_write(&self, handle: i64) {
             self.write_handles.lock().unwrap().remove(&handle);
         }
     }
@@ -998,6 +1404,79 @@ mod tests {
             "checksum declarado por A não bate com o recalculado por B após receber"
         );
         assert_eq!(received_from_a.bytes, outbound_payload, "bytes recebidos por B não batem byte-a-byte com o que A enviou");
+    }
+
+    /// Mesmo espírito do round-trip de capítulo acima, só que pros itens extra (capa/banner/
+    /// `ComicInfo.xml`) — prova que `send_extras`/`receive_extras` (que reaproveitam os mesmos
+    /// handles de leitura/escrita usados por capítulo) entregam os bytes certos pro comic certo,
+    /// com o `kind` certo, sem se misturar com a transferência de capítulos que roda na mesma
+    /// sessão.
+    #[tokio::test]
+    async fn run_exchange_transfers_extras_round_trip() {
+        let cover_bytes = make_payload(2048, 11);
+        let comic_info_bytes = b"<ComicInfo><Title>Berserk</Title></ComicInfo>".to_vec();
+
+        let outbound_provider = Arc::new(InMemoryFileSyncProvider::with_readable_and_extras(
+            vec![],
+            vec![("Comic A".to_string(), EXTRA_KIND_COVER.to_string(), "cover.jpg".to_string(), cover_bytes.clone())],
+        ));
+        let inbound_provider = Arc::new(InMemoryFileSyncProvider::with_readable_and_extras(
+            vec![],
+            vec![(
+                "Comic A".to_string(),
+                EXTRA_KIND_COMIC_INFO.to_string(),
+                "ComicInfo.xml".to_string(),
+                comic_info_bytes.clone(),
+            )],
+        ));
+
+        let (client_io, server_io) = tokio::io::duplex(256 * 1024);
+        let (client_recv, client_send) = tokio::io::split(client_io);
+        let (server_recv, server_send) = tokio::io::split(server_io);
+
+        let peer = make_peer("peer-extras");
+        let emit = no_op_emitter();
+        let (outbound_transfer, inbound_transfer) = test_transfer_pair();
+
+        let outbound_dyn: Arc<dyn FileSyncProvider> = Arc::clone(&outbound_provider) as Arc<dyn FileSyncProvider>;
+        let inbound_dyn: Arc<dyn FileSyncProvider> = Arc::clone(&inbound_provider) as Arc<dyn FileSyncProvider>;
+
+        let outbound_fut = run_exchange(
+            true,
+            &peer,
+            &emit,
+            &outbound_dyn,
+            &outbound_transfer,
+            Box::new(client_send) as Box<dyn AsyncWrite + Send + Unpin>,
+            Box::new(client_recv) as Box<dyn AsyncRead + Send + Unpin>,
+        );
+        let inbound_fut = run_exchange(
+            false,
+            &peer,
+            &emit,
+            &inbound_dyn,
+            &inbound_transfer,
+            Box::new(server_send) as Box<dyn AsyncWrite + Send + Unpin>,
+            Box::new(server_recv) as Box<dyn AsyncRead + Send + Unpin>,
+        );
+
+        let (outbound_result, inbound_result) = tokio::join!(outbound_fut, inbound_fut);
+        outbound_result.expect("outbound deveria completar sem erro");
+        inbound_result.expect("inbound deveria completar sem erro");
+
+        let outbound_received = outbound_provider.finalized_extras.lock().unwrap();
+        assert_eq!(outbound_received.len(), 1, "outbound deveria ter recebido o ComicInfo.xml de B");
+        assert_eq!(outbound_received[0].comic_name, "Comic A");
+        assert_eq!(outbound_received[0].kind, EXTRA_KIND_COMIC_INFO);
+        assert_eq!(outbound_received[0].bytes, comic_info_bytes);
+        assert_eq!(outbound_received[0].expected_checksum, outbound_received[0].actual_checksum);
+
+        let inbound_received = inbound_provider.finalized_extras.lock().unwrap();
+        assert_eq!(inbound_received.len(), 1, "inbound deveria ter recebido a capa de A");
+        assert_eq!(inbound_received[0].comic_name, "Comic A");
+        assert_eq!(inbound_received[0].kind, EXTRA_KIND_COVER);
+        assert_eq!(inbound_received[0].bytes, cover_bytes);
+        assert_eq!(inbound_received[0].expected_checksum, inbound_received[0].actual_checksum);
     }
 
     /// Stress: muitos capítulos de tamanhos variados transferidos SEQUENCIALMENTE numa única

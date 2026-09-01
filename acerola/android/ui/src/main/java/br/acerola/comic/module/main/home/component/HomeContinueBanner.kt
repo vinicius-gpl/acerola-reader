@@ -144,6 +144,8 @@ fun Main.Home.Component.HomeContinueBanner(
                         ImageRequest
                             .Builder(context)
                             .data(bannerUri)
+                            .memoryCacheKey("${bannerUri}_${comic.directory.lastModified}")
+                            .diskCacheKey("${bannerUri}_${comic.directory.lastModified}")
                             .crossfade(true)
                             .build(),
                     contentDescription = null,
@@ -182,6 +184,8 @@ fun Main.Home.Component.HomeContinueBanner(
                                 ImageRequest
                                     .Builder(context)
                                     .data(coverUri)
+                                    .memoryCacheKey("${coverUri}_${comic.directory.lastModified}")
+                                    .diskCacheKey("${coverUri}_${comic.directory.lastModified}")
                                     .crossfade(true)
                                     .build(),
                             contentDescription = null,
