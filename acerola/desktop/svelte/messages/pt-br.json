@@ -176,7 +176,7 @@
 				},
 				"delete_confirm": {
 					"title": "Excluir Quadrinhos",
-					"desc": "Tem certeza de que deseja excluir o(s) quadrinho(s) selecionado(s)? Isso removerá apenas do banco de dados, os arquivos físicos não serão alterados.",
+					"desc": "Tem certeza de que deseja excluir o(s) quadrinho(s) selecionado(s)? Isso apagará permanentemente a pasta e os arquivos físicos do disco — essa ação não pode ser desfeita.",
 					"action": "Excluir"
 				},
 				"clear_metadata_confirm": {

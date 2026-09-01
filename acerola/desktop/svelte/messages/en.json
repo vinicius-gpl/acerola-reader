@@ -176,7 +176,7 @@
 				},
 				"delete_confirm": {
 					"title": "Delete Comics",
-					"desc": "Are you sure you want to delete the selected comic(s)? This will only remove them from the database, physical files will not be changed.",
+					"desc": "Are you sure you want to delete the selected comic(s)? This will permanently delete the folder and physical files from disk — this action cannot be undone.",
 					"action": "Delete"
 				},
 				"clear_metadata_confirm": {

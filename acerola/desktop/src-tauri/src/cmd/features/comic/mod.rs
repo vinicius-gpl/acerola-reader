@@ -50,11 +50,28 @@ pub async fn get_comic_summary_sorted<R: Runtime>(
 }
 
 
+/// Converte IDs recebidos como string em `i64` — os IDs de `comic_directory` são hashes de
+/// path (`path_hash`) que ocupam quase toda a faixa de `i64`, bem acima de
+/// `Number.MAX_SAFE_INTEGER` (2^53) do JavaScript. Recebê-los como `Vec<i64>` direto faz o
+/// frontend precisar converter uma string pra `Number` antes de mandar, arredondando o valor
+/// e batendo num `id` que não existe (era exatamente o bug: "0 quadrinho(s) excluído(s))" e
+/// nenhuma linha correspondente no banco). Mesma correção já aplicada em
+/// `clear_comics_metadata_batch`.
+fn parse_ids(ids: Vec<String>) -> Result<Vec<i64>, ErrorPayload> {
+    ids.into_iter()
+        .map(|id| {
+            id.parse::<i64>()
+                .map_err(|err| ErrorPayload::from(&ComicError::SystemFailure(format!("Invalid ID: {err}"))))
+        })
+        .collect()
+}
+
 /// Comando Tauri para atualizar visibilidade de múltiplos quadrinhos.
 #[tauri::command]
 pub async fn update_comics_visibility(
-    ids: Vec<i64>, hidden: bool, pool: State<'_, SqlitePool>,
+    ids: Vec<String>, hidden: bool, pool: State<'_, SqlitePool>,
 ) -> Result<usize, ErrorPayload> {
+    let ids = parse_ids(ids)?;
     let service = ComicService::new(pool.inner().clone());
     service
         .update_hidden_status_batch(&ids, hidden)
@@ -65,8 +82,9 @@ pub async fn update_comics_visibility(
 /// Comando Tauri para deletar múltiplos quadrinhos.
 #[tauri::command]
 pub async fn delete_comics(
-    ids: Vec<i64>, pool: State<'_, SqlitePool>,
+    ids: Vec<String>, pool: State<'_, SqlitePool>,
 ) -> Result<usize, ErrorPayload> {
+    let ids = parse_ids(ids)?;
     let service = ComicService::new(pool.inner().clone());
     service.delete_batch(&ids).await.map_err(|error| ErrorPayload::from(&error))
 }

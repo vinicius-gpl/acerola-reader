@@ -94,8 +94,10 @@ export function useComicSummary() {
 
 	async function updateVisibility(ids: (string | number)[], hidden: boolean): Promise<number> {
 		try {
+			// IDs são hashes i64 que podem passar de Number.MAX_SAFE_INTEGER — mandar como
+			// string preserva precisão (Number(id) arredondaria e atualizaria o quadrinho errado).
 			const count = await invoke<number>(HOME_COMMANDS.updateComicsVisibility, {
-				ids: ids.map((id) => Number(id)),
+				ids: ids.map(String),
 				hidden
 			});
 			if (hidden && !showHidden && comics) {
@@ -117,8 +119,11 @@ export function useComicSummary() {
 
 	async function deleteComics(ids: (string | number)[]): Promise<number> {
 		try {
+			// IDs são hashes i64 que podem passar de Number.MAX_SAFE_INTEGER — mandar como
+			// string preserva precisão (Number(id) arredondaria e não bateria com nenhum
+			// registro real, era exatamente o bug: "0 quadrinho(s) excluído(s)").
 			const count = await invoke<number>(HOME_COMMANDS.deleteComics, {
-				ids: ids.map((id) => Number(id))
+				ids: ids.map(String)
 			});
 			// Remove deleted comics from the local state
 			if (comics) {
