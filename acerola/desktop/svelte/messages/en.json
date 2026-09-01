@@ -109,6 +109,9 @@
 			},
 			"timed_out": {
 				"label": "The sync took too long and was cancelled — the device may have gone offline."
+			},
+			"connection_lost": {
+				"label": "The connection to the device dropped during sync. Please try again."
 			}
 		}
 	},

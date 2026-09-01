@@ -21,8 +21,8 @@ use crate::{
             comic_sync_registry::PendingComicSyncRegistry,
             file_session_guard::FileSyncSessionGuard,
             transfer::{
-                emit_busy, read_or_busy, receive_extras, receive_files, send_extras, send_files,
-                write_session_busy, ChapterTransfer, SESSION_BUSY_REASON, SESSION_BUSY_TAG,
+                classify_sync_error, emit_busy, read_or_busy, receive_extras, receive_files, send_extras,
+                send_files, write_session_busy, ChapterTransfer,
             },
         },
     },
@@ -173,9 +173,7 @@ impl Handler for ComicSyncOutbound {
             },
             Err(error) => {
                 let message = error.to_string();
-                // Ver comentário equivalente em `file_handler.rs` — `code` deixa o frontend
-                // traduzir o mesmo texto de "sessão ocupada" que `emit_busy` já expõe.
-                let code = message.contains(SESSION_BUSY_REASON).then_some(SESSION_BUSY_TAG);
+                let code = classify_sync_error(&message);
                 (self.emit)(
                     ERROR_EVENT,
                     serde_json::json!({ "peerId": peer.id, "message": &message, "code": code }).to_string(),
@@ -307,9 +305,7 @@ impl Handler for ComicSyncInbound {
             },
             Err(error) => {
                 let message = error.to_string();
-                // Ver comentário equivalente em `file_handler.rs` — `code` deixa o frontend
-                // traduzir o mesmo texto de "sessão ocupada" que `emit_busy` já expõe.
-                let code = message.contains(SESSION_BUSY_REASON).then_some(SESSION_BUSY_TAG);
+                let code = classify_sync_error(&message);
                 (self.emit)(
                     ERROR_EVENT,
                     serde_json::json!({ "peerId": peer.id, "message": &message, "code": code }).to_string(),

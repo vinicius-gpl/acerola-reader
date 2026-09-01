@@ -109,6 +109,9 @@
 			},
 			"timed_out": {
 				"label": "A sincronização demorou demais e foi cancelada — o dispositivo pode ter ficado offline."
+			},
+			"connection_lost": {
+				"label": "A conexão com o dispositivo caiu durante a sincronização. Tente novamente."
 			}
 		}
 	},

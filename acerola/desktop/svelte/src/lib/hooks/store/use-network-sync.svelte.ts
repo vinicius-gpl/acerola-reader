@@ -7,11 +7,15 @@ import { NETWORK_EVENTS } from '$lib/contracts/network/network.events';
 import { m } from '$lib/paraglide/messages';
 
 // Contrato com o `code` opcional que o backend anexa ao payload de `sync:*:error` quando a
-// mensagem tem uma tradução estável (ver `emit_busy`/`SESSION_BUSY_TAG` em `transfer.rs`) — o
-// `message` cru continua em inglês (texto técnico de log/wire), então sem isso o erro de
-// "sessão já em andamento" apareceria sem tradução na UI mesmo com o app todo em pt-BR.
+// mensagem tem uma tradução estável (ver `classify_sync_error` em `transfer.rs`) — o `message`
+// cru continua em inglês/técnico (log/wire, às vezes texto de baixo nível do QUIC tipo "stream
+// reset by peer"), então sem isso esses erros apareceriam sem tradução na UI mesmo com o app
+// todo em pt-BR. Código não reconhecido (`classify_sync_error` retornou `None`) cai no fallback
+// natural de `translateSyncMessage` — mostra o `message` cru, mesmo padrão de `errors.i18n.ts`.
 const SYNC_ERROR_MESSAGES: Record<string, () => string> = {
-	busy: m['tauri_errors.sync.session_busy.label']
+	busy: m['tauri_errors.sync.session_busy.label'],
+	timeout: m['tauri_errors.sync.timed_out.label'],
+	connection_lost: m['tauri_errors.sync.connection_lost.label']
 };
 
 function translateSyncMessage(code: string | undefined, message: string): string {

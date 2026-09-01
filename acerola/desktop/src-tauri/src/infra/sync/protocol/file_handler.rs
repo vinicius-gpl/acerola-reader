@@ -20,8 +20,8 @@ use crate::{
         protocol::{
             file_session_guard::FileSyncSessionGuard,
             transfer::{
-                emit_busy, read_or_busy, receive_extras, receive_files, send_extras, send_files,
-                write_session_busy, ChapterTransfer, SESSION_BUSY_REASON, SESSION_BUSY_TAG,
+                classify_sync_error, emit_busy, read_or_busy, receive_extras, receive_files, send_extras,
+                send_files, write_session_busy, ChapterTransfer,
             },
         },
     },
@@ -145,11 +145,7 @@ impl Handler for FileSyncOutbound {
             },
             Err(error) => {
                 let message = error.to_string();
-                // `read_or_busy` embute `SESSION_BUSY_REASON` na mensagem quando o peer
-                // rejeitou por já ter uma sessão ativa — expor o mesmo `code` aqui deixa esse
-                // lado (quem tentou abrir a sessão) traduzir a mensagem igual ao lado que
-                // rejeitou (`emit_busy`), em vez de mostrar o texto técnico em inglês na UI.
-                let code = message.contains(SESSION_BUSY_REASON).then_some(SESSION_BUSY_TAG);
+                let code = classify_sync_error(&message);
                 (self.emit)(
                     ERROR_EVENT,
                     serde_json::json!({ "peerId": peer.id, "message": &message, "code": code }).to_string(),
@@ -272,11 +268,7 @@ impl Handler for FileSyncInbound {
             },
             Err(error) => {
                 let message = error.to_string();
-                // `read_or_busy` embute `SESSION_BUSY_REASON` na mensagem quando o peer
-                // rejeitou por já ter uma sessão ativa — expor o mesmo `code` aqui deixa esse
-                // lado (quem tentou abrir a sessão) traduzir a mensagem igual ao lado que
-                // rejeitou (`emit_busy`), em vez de mostrar o texto técnico em inglês na UI.
-                let code = message.contains(SESSION_BUSY_REASON).then_some(SESSION_BUSY_TAG);
+                let code = classify_sync_error(&message);
                 (self.emit)(
                     ERROR_EVENT,
                     serde_json::json!({ "peerId": peer.id, "message": &message, "code": code }).to_string(),

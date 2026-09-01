@@ -74,6 +74,28 @@ pub const SESSION_BUSY_REASON: &str = "file sync session already in progress for
 /// essa mensagem específica em vez de um `FileManifest` normal.
 pub(super) const SESSION_BUSY_TAG: &str = "busy";
 
+/// Classifica a mensagem técnica de um `P2pError` num `code` estável que o frontend traduz via
+/// Paraglide (`SYNC_ERROR_MESSAGES` em `use-network-sync.svelte.ts`) — sem isso, texto de baixo
+/// nível da stack de transporte (QUIC/iroh: "stream reset by peer", "connection lost" etc.,
+/// visto em produção sem tradução: "blob fetch failed: ...: stream failed: stream failed: io:
+/// stream reset by peer: error 3") vaza cru pro usuário final mesmo com o app todo em pt-BR.
+/// Cobre só as causas observadas; texto não reconhecido cai no fallback (mensagem técnica crua)
+/// já usado por `errors.i18n.ts` pros demais erros do app — não é uma tentativa de mapear toda
+/// variante de `ConnectionError`/io error possível, só as recorrentes o bastante pra valer a
+/// tradução.
+pub(super) fn classify_sync_error(message: &str) -> Option<&'static str> {
+    if message.contains(SESSION_BUSY_REASON) {
+        return Some(SESSION_BUSY_TAG);
+    }
+    if message.contains("timed out") {
+        return Some("timeout");
+    }
+    if message.contains("stream failed") || message.contains("stream error") {
+        return Some("connection_lost");
+    }
+    None
+}
+
 /// Emitido quando `FileSyncSessionGuard` recusa uma sessão porque já existe uma ativa pro
 /// mesmo peer — reaproveita o evento `sync:files:error` já tratado pelo frontend em vez de
 /// introduzir um evento novo (ver `use-network-sync.svelte.ts::parseErrorPayload`). O chamador
