@@ -4,23 +4,8 @@ import { error } from '@tauri-apps/plugin-log';
 import { SvelteSet } from 'svelte/reactivity';
 import { NETWORK_COMMANDS } from '$lib/contracts/network/network.commands';
 import { NETWORK_EVENTS } from '$lib/contracts/network/network.events';
+import { translateSyncMessage } from '$lib/contracts/errors/sync-error.i18n';
 import { m } from '$lib/paraglide/messages';
-
-// Contrato com o `code` opcional que o backend anexa ao payload de `sync:*:error` quando a
-// mensagem tem uma tradução estável (ver `classify_sync_error` em `transfer.rs`) — o `message`
-// cru continua em inglês/técnico (log/wire, às vezes texto de baixo nível do QUIC tipo "stream
-// reset by peer"), então sem isso esses erros apareceriam sem tradução na UI mesmo com o app
-// todo em pt-BR. Código não reconhecido (`classify_sync_error` retornou `None`) cai no fallback
-// natural de `translateSyncMessage` — mostra o `message` cru, mesmo padrão de `errors.i18n.ts`.
-const SYNC_ERROR_MESSAGES: Record<string, () => string> = {
-	busy: m['tauri_errors.sync.session_busy.label'],
-	timeout: m['tauri_errors.sync.timed_out.label'],
-	connection_lost: m['tauri_errors.sync.connection_lost.label']
-};
-
-function translateSyncMessage(code: string | undefined, message: string): string {
-	return (code && SYNC_ERROR_MESSAGES[code]?.()) ?? message;
-}
 
 export type TransferLogEntry = {
 	id: number;
