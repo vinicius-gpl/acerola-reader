@@ -21,7 +21,7 @@ use crate::{
             file_session_guard::FileSyncSessionGuard,
             transfer::{
                 emit_busy, read_or_busy, receive_extras, receive_files, send_extras, send_files,
-                write_session_busy, ChapterTransfer,
+                write_session_busy, ChapterTransfer, SESSION_BUSY_REASON, SESSION_BUSY_TAG,
             },
         },
     },
@@ -145,9 +145,14 @@ impl Handler for FileSyncOutbound {
             },
             Err(error) => {
                 let message = error.to_string();
+                // `read_or_busy` embute `SESSION_BUSY_REASON` na mensagem quando o peer
+                // rejeitou por já ter uma sessão ativa — expor o mesmo `code` aqui deixa esse
+                // lado (quem tentou abrir a sessão) traduzir a mensagem igual ao lado que
+                // rejeitou (`emit_busy`), em vez de mostrar o texto técnico em inglês na UI.
+                let code = message.contains(SESSION_BUSY_REASON).then_some(SESSION_BUSY_TAG);
                 (self.emit)(
                     ERROR_EVENT,
-                    serde_json::json!({ "peerId": peer.id, "message": &message }).to_string(),
+                    serde_json::json!({ "peerId": peer.id, "message": &message, "code": code }).to_string(),
                 );
                 self.log_repo
                     .base
@@ -267,9 +272,14 @@ impl Handler for FileSyncInbound {
             },
             Err(error) => {
                 let message = error.to_string();
+                // `read_or_busy` embute `SESSION_BUSY_REASON` na mensagem quando o peer
+                // rejeitou por já ter uma sessão ativa — expor o mesmo `code` aqui deixa esse
+                // lado (quem tentou abrir a sessão) traduzir a mensagem igual ao lado que
+                // rejeitou (`emit_busy`), em vez de mostrar o texto técnico em inglês na UI.
+                let code = message.contains(SESSION_BUSY_REASON).then_some(SESSION_BUSY_TAG);
                 (self.emit)(
                     ERROR_EVENT,
-                    serde_json::json!({ "peerId": peer.id, "message": &message }).to_string(),
+                    serde_json::json!({ "peerId": peer.id, "message": &message, "code": code }).to_string(),
                 );
                 self.log_repo
                     .base
@@ -340,6 +350,8 @@ mod tests {
         assert_eq!(recorded.len(), 1, "esperava só o evento de busy, recebeu: {recorded:?}");
         assert_eq!(recorded[0].0, "sync:files:error");
         assert!(recorded[0].1.contains("already in progress"));
+        let payload: serde_json::Value = serde_json::from_str(&recorded[0].1).unwrap();
+        assert_eq!(payload["code"], "busy", "frontend usa esse code pra traduzir a mensagem na UI");
     }
 
     /// Mesma corrida do teste acima, mas cruzando papéis: a lease foi reservada por uma

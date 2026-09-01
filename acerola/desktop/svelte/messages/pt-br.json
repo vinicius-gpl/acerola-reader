@@ -102,6 +102,11 @@
 			"io_error": {
 				"label": "Erro ao acessar o sistema de arquivos."
 			}
+		},
+		"sync": {
+			"session_busy": {
+				"label": "Já existe uma sincronização em andamento com este dispositivo."
+			}
 		}
 	},
 	"layout": {

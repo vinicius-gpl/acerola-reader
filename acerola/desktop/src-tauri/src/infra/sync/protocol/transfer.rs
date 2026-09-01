@@ -72,19 +72,22 @@ pub const SESSION_BUSY_REASON: &str = "file sync session already in progress for
 /// Valor do campo `error` em `SessionBusy` — mesmo literal usado pelo Android
 /// (`protocol/files/exchange.rs::SESSION_BUSY_TAG`), é o que os dois lados usam pra reconhecer
 /// essa mensagem específica em vez de um `FileManifest` normal.
-const SESSION_BUSY_TAG: &str = "busy";
+pub(super) const SESSION_BUSY_TAG: &str = "busy";
 
 /// Emitido quando `FileSyncSessionGuard` recusa uma sessão porque já existe uma ativa pro
 /// mesmo peer — reaproveita o evento `sync:files:error` já tratado pelo frontend em vez de
 /// introduzir um evento novo (ver `use-network-sync.svelte.ts::parseErrorPayload`). O chamador
 /// passa o nome do evento (`sync:files:error` ou `sync:comic:error`) porque cada protocolo tem
-/// o seu próprio canal.
+/// o seu próprio canal. `message` continua em inglês (é texto técnico de log/wire, não deve ser
+/// mostrado como está) — `code` é o identificador estável que o frontend usa pra traduzir via
+/// Paraglide (`tauri_errors.sync.session_busy.label`), no mesmo padrão de `errors.i18n.ts`.
 pub fn emit_busy(emit: &EventEmitter, event_name: &str, peer_id: &str) {
     (emit)(
         event_name,
         serde_json::json!({
             "peerId": peer_id,
             "message": SESSION_BUSY_REASON,
+            "code": SESSION_BUSY_TAG,
         })
         .to_string(),
     );

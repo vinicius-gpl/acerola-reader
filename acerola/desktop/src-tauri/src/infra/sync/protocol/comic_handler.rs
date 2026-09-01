@@ -22,7 +22,7 @@ use crate::{
             file_session_guard::FileSyncSessionGuard,
             transfer::{
                 emit_busy, read_or_busy, receive_extras, receive_files, send_extras, send_files,
-                write_session_busy, ChapterTransfer,
+                write_session_busy, ChapterTransfer, SESSION_BUSY_REASON, SESSION_BUSY_TAG,
             },
         },
     },
@@ -173,9 +173,12 @@ impl Handler for ComicSyncOutbound {
             },
             Err(error) => {
                 let message = error.to_string();
+                // Ver comentário equivalente em `file_handler.rs` — `code` deixa o frontend
+                // traduzir o mesmo texto de "sessão ocupada" que `emit_busy` já expõe.
+                let code = message.contains(SESSION_BUSY_REASON).then_some(SESSION_BUSY_TAG);
                 (self.emit)(
                     ERROR_EVENT,
-                    serde_json::json!({ "peerId": peer.id, "message": &message }).to_string(),
+                    serde_json::json!({ "peerId": peer.id, "message": &message, "code": code }).to_string(),
                 );
                 self.log_repo
                     .base
@@ -304,9 +307,12 @@ impl Handler for ComicSyncInbound {
             },
             Err(error) => {
                 let message = error.to_string();
+                // Ver comentário equivalente em `file_handler.rs` — `code` deixa o frontend
+                // traduzir o mesmo texto de "sessão ocupada" que `emit_busy` já expõe.
+                let code = message.contains(SESSION_BUSY_REASON).then_some(SESSION_BUSY_TAG);
                 (self.emit)(
                     ERROR_EVENT,
-                    serde_json::json!({ "peerId": peer.id, "message": &message }).to_string(),
+                    serde_json::json!({ "peerId": peer.id, "message": &message, "code": code }).to_string(),
                 );
                 self.log_repo
                     .base
@@ -398,6 +404,8 @@ mod tests {
         assert_eq!(recorded.len(), 1, "esperava só o evento de busy, recebeu: {recorded:?}");
         assert_eq!(recorded[0].0, "sync:comic:error");
         assert!(recorded[0].1.contains("already in progress"));
+        let payload: serde_json::Value = serde_json::from_str(&recorded[0].1).unwrap();
+        assert_eq!(payload["code"], "busy", "frontend usa esse code pra traduzir a mensagem na UI");
     }
 
     /// Trava o payload novo de `sync:comic:complete` — antes carregava só a string crua do

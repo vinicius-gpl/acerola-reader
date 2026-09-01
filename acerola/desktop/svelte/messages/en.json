@@ -102,6 +102,11 @@
 			"io_error": {
 				"label": "Error accessing file system."
 			}
+		},
+		"sync": {
+			"session_busy": {
+				"label": "A sync session is already in progress with this device."
+			}
 		}
 	},
 	"layout": {

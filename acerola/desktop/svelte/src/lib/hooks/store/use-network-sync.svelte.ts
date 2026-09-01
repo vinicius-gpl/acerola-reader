@@ -4,6 +4,19 @@ import { error } from '@tauri-apps/plugin-log';
 import { SvelteSet } from 'svelte/reactivity';
 import { NETWORK_COMMANDS } from '$lib/contracts/network/network.commands';
 import { NETWORK_EVENTS } from '$lib/contracts/network/network.events';
+import { m } from '$lib/paraglide/messages';
+
+// Contrato com o `code` opcional que o backend anexa ao payload de `sync:*:error` quando a
+// mensagem tem uma tradução estável (ver `emit_busy`/`SESSION_BUSY_TAG` em `transfer.rs`) — o
+// `message` cru continua em inglês (texto técnico de log/wire), então sem isso o erro de
+// "sessão já em andamento" apareceria sem tradução na UI mesmo com o app todo em pt-BR.
+const SYNC_ERROR_MESSAGES: Record<string, () => string> = {
+	busy: m['tauri_errors.sync.session_busy.label']
+};
+
+function translateSyncMessage(code: string | undefined, message: string): string {
+	return (code && SYNC_ERROR_MESSAGES[code]?.()) ?? message;
+}
 
 export type TransferLogEntry = {
 	id: number;
@@ -136,7 +149,9 @@ export function useNetworkSync() {
 	/// `{"peerId": ..., "message": ..., "comicName"?: ...}` (ver
 	/// `history_handler.rs`/`file_handler.rs`/`comic_handler.rs`), ao contrário de `started`,
 	/// que carrega o `peerId` puro como string.
-	function parseErrorPayload(payload: string): { peerId?: string; message: string; comicName?: string } {
+	function parseErrorPayload(
+		payload: string
+	): { peerId?: string; message: string; comicName?: string; code?: string } {
 		try {
 			const parsed = JSON.parse(payload);
 			// Stryker disable next-line ConditionalExpression,LogicalOperator: `typeof
@@ -150,7 +165,12 @@ export function useNetworkSync() {
 			// payload }` do fallback normal. A saída observável é idêntica, só o caminho muda.
 			// Verificado empiricamente: aplicando cada mutante isoladamente, nenhum teste falha.
 			if (parsed && typeof parsed === 'object' && typeof parsed.message === 'string') {
-				return { peerId: parsed.peerId, message: parsed.message, comicName: parsed.comicName };
+				return {
+					peerId: parsed.peerId,
+					message: parsed.message,
+					comicName: parsed.comicName,
+					code: typeof parsed.code === 'string' ? parsed.code : undefined
+				};
 			}
 		} catch {
 			// payload antigo/inesperado sem JSON — trata como mensagem crua.
@@ -289,9 +309,9 @@ export function useNetworkSync() {
 				push(event.payload, 'history', 'complete', event.payload);
 			}),
 			await listen<string>(NETWORK_EVENTS.historyError, (event) => {
-				const { peerId, message } = parseErrorPayload(event.payload);
+				const { peerId, message, code } = parseErrorPayload(event.payload);
 				if (peerId) clearSyncing(peerId, 'history');
-				push(peerId ?? '', 'history', 'error', message);
+				push(peerId ?? '', 'history', 'error', translateSyncMessage(code, message));
 			}),
 			await listen<string>(NETWORK_EVENTS.filesStarted, (event) =>
 				push(event.payload, 'files', 'started', event.payload)
@@ -304,9 +324,9 @@ export function useNetworkSync() {
 				push(event.payload, 'files', 'complete', event.payload);
 			}),
 			await listen<string>(NETWORK_EVENTS.filesError, (event) => {
-				const { peerId, message } = parseErrorPayload(event.payload);
+				const { peerId, message, code } = parseErrorPayload(event.payload);
 				if (peerId) clearSyncing(peerId, 'files');
-				push(peerId ?? '', 'files', 'error', message);
+				push(peerId ?? '', 'files', 'error', translateSyncMessage(code, message));
 			}),
 			await listen<string>(NETWORK_EVENTS.comicStarted, (event) =>
 				push(event.payload, 'comic', 'started', event.payload)
@@ -321,10 +341,11 @@ export function useNetworkSync() {
 				settlePending(syncKey(peerId, 'comic'), true, peerId);
 			}),
 			await listen<string>(NETWORK_EVENTS.comicError, (event) => {
-				const { peerId, message, comicName } = parseErrorPayload(event.payload);
+				const { peerId, message, comicName, code } = parseErrorPayload(event.payload);
+				const translated = translateSyncMessage(code, message);
 				if (peerId) clearSyncing(peerId, 'comic');
-				push(peerId ?? '', 'comic', 'error', message, comicName);
-				if (peerId) settlePending(syncKey(peerId, 'comic'), false, message);
+				push(peerId ?? '', 'comic', 'error', translated, comicName);
+				if (peerId) settlePending(syncKey(peerId, 'comic'), false, translated);
 			})
 		);
 	}
@@ -387,7 +408,10 @@ export function useNetworkSync() {
 	/// o toast de sucesso cedo demais e nunca mostra o de erro se a sessão falhar depois.
 	async function syncComic(peerId: string, addrs: number[], comicName: string): Promise<string> {
 		if (isSyncing(peerId, 'comic')) {
-			throw new Error('sync already in progress');
+			// Mesmo texto traduzido do `code: "busy"` que o backend manda — este guard é
+			// local (nem chega a abrir conexão), mas é o mesmo erro do ponto de vista do
+			// usuário, então usa a mesma mensagem em vez de um texto cru em inglês.
+			throw new Error(m['tauri_errors.sync.session_busy.label']());
 		}
 
 		const key = syncKey(peerId, 'comic');
