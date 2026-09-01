@@ -127,9 +127,16 @@ export function useNetworkSync() {
 			key,
 			setTimeout(() => {
 				clearSyncing(peerId, kind);
+				const message = m['tauri_errors.sync.timed_out.label']();
+				// `clearSyncing` só limpa `syncingKeys` (o que desbloqueia os botões) — sem
+				// transicionar a linha correspondente do log pra um status terminal, ela ficava
+				// presa em "started"/"progress" (spinner girando) pra sempre na tela de Rede
+				// mesmo com `isSyncing` já `false`, e `inFlightEntryId` nunca liberava a chave
+				// (só `updateInFlightEntry` faz isso, ao processar um status terminal).
+				push(peerId, kind, 'error', message);
 				// Peer sumiu no meio da sessão sem emitir `complete`/`error` — sem isso, um
 				// `syncComic` aguardando a conclusão real ficaria pendurado pra sempre.
-				settlePending(key, false, 'sync timed out');
+				settlePending(key, false, message);
 			}, IN_FLIGHT_TIMEOUT_MS)
 		);
 	}
@@ -254,7 +261,18 @@ export function useNetworkSync() {
 			timestamp: Date.now(),
 			comicName
 		};
-		log = [entry, ...log].slice(0, MAX_LOG_ENTRIES);
+		// `files:progress`/`comic:progress` não carregam peer id (comentário de
+		// `inFlightEntryId` acima) — cada evento vira uma linha NOVA aqui, nunca some via
+		// `updateInFlightEntry`. Numa sincronização com muitos capítulos, isso enchia o cap de
+		// `MAX_LOG_ENTRIES` só de progresso e empurrava a linha "started" (a única com o
+		// `peerId` real, rastreada em `inFlightEntryId`) pra fora do array ANTES do evento
+		// `complete`/`error` chegar — a linha ficava girando (spinner de "sincronizando...")
+		// pra sempre na tela de Rede, mesmo com a sessão já terminada no backend. Protegendo as
+		// linhas ainda com transição pendente do corte evita esse vazamento; o array pode
+		// passar de `MAX_LOG_ENTRIES` por no máximo o número de sessões concorrentes ainda
+		// abertas, que é sempre pequeno.
+		const pendingIds = new Set(inFlightEntryId.values());
+		log = [entry, ...log].filter((row, index) => index < MAX_LOG_ENTRIES || pendingIds.has(row.id));
 		if (peerId && isOpenStatus(status)) inFlightEntryId.set(key, entry.id);
 	}
 

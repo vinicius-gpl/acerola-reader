@@ -106,6 +106,9 @@
 		"sync": {
 			"session_busy": {
 				"label": "A sync session is already in progress with this device."
+			},
+			"timed_out": {
+				"label": "The sync took too long and was cancelled — the device may have gone offline."
 			}
 		}
 	},

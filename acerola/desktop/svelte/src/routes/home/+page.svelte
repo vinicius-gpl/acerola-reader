@@ -121,6 +121,14 @@
 			} else {
 				toast.error(m['pages.network.transfers.files_error']({ msg }));
 			}
+			// `sync:files:error`/`sync:comic:error` também cobre sessão que terminou com
+			// capítulos faltando (`Ok(skipped) => ... Err(...)` em file_handler.rs/
+			// comic_handler.rs) — os capítulos/quadrinhos que JÁ foram recebidos com sucesso
+			// antes do abort já estão persistidos no banco quando esse evento chega, então sem
+			// este fetch a Home continuava mostrando a biblioteca antiga até o usuário navegar
+			// pra fora e voltar (era exatamente o "sincroniza mas não aparece o quadrinho" numa
+			// sessão grande, onde a chance de pelo menos 1 item bater numa corrida é maior).
+			summary.fetch();
 			return;
 		}
 	});
