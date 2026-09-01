@@ -94,38 +94,48 @@ impl From<IrohConnectingError> for ConnectionError {
     }
 }
 
+/// Classifica um `iroh::endpoint::ConnectionError` (o mesmo tipo, "noq" por baixo — ver
+/// `Cargo.lock`) em `ConnectionError` — extraído do `From` logo abaixo pra também ser
+/// reaproveitado por `infra/error/iroh_blobs.rs::classify_get_error`, que precisa da MESMA
+/// classificação mas a partir de uma referência emprestada (downcast de um `io::Error`
+/// genérico, sem posse do valor original) — daí receber `&IrohConnectionError` em vez de
+/// consumir por valor.
+pub(super) fn classify_connection_error(err: &IrohConnectionError) -> ConnectionError {
+    match err {
+        IrohConnectionError::TimedOut => {
+            tracing::warn!(layer = "iroh_transport", "connection timed out");
+            ConnectionError::Timeout
+        },
+        IrohConnectionError::Reset => {
+            tracing::warn!(layer = "iroh_transport", "connection reset by peer");
+            ConnectionError::PeerDisconnected("connection reset by peer".into())
+        },
+        IrohConnectionError::ConnectionClosed(_) => {
+            tracing::debug!(layer = "iroh_transport", "connection closed by peer");
+            ConnectionError::PeerDisconnected("connection closed by peer".into())
+        },
+        IrohConnectionError::ApplicationClosed(_) => {
+            tracing::debug!(layer = "iroh_transport", "connection closed by application");
+            ConnectionError::PeerDisconnected("connection closed by application".into())
+        },
+        IrohConnectionError::VersionMismatch => {
+            tracing::warn!(layer = "iroh_transport", "incompatible protocol version");
+            ConnectionError::IncompatibleVersion
+        },
+        IrohConnectionError::LocallyClosed => {
+            tracing::debug!(layer = "iroh_transport", "connection closed locally");
+            ConnectionError::Shutdown
+        },
+        err => {
+            tracing::debug!(layer = "iroh_transport", error = ?err, "unmapped connection error");
+            ConnectionError::StreamFailed(err.to_string())
+        },
+    }
+}
+
 impl From<IrohConnectionError> for ConnectionError {
     fn from(err: IrohConnectionError) -> Self {
-        match err {
-            IrohConnectionError::TimedOut => {
-                tracing::warn!(layer = "iroh_transport", "connection timed out");
-                ConnectionError::Timeout
-            },
-            IrohConnectionError::Reset => {
-                tracing::warn!(layer = "iroh_transport", "connection reset by peer");
-                ConnectionError::PeerDisconnected("connection reset by peer".into())
-            },
-            IrohConnectionError::ConnectionClosed(_) => {
-                tracing::debug!(layer = "iroh_transport", "connection closed by peer");
-                ConnectionError::PeerDisconnected("connection closed by peer".into())
-            },
-            IrohConnectionError::ApplicationClosed(_) => {
-                tracing::debug!(layer = "iroh_transport", "connection closed by application");
-                ConnectionError::PeerDisconnected("connection closed by application".into())
-            },
-            IrohConnectionError::VersionMismatch => {
-                tracing::warn!(layer = "iroh_transport", "incompatible protocol version");
-                ConnectionError::IncompatibleVersion
-            },
-            IrohConnectionError::LocallyClosed => {
-                tracing::debug!(layer = "iroh_transport", "connection closed locally");
-                ConnectionError::Shutdown
-            },
-            err => {
-                tracing::debug!(layer = "iroh_transport", error = ?err, "unmapped connection error");
-                ConnectionError::StreamFailed(err.to_string())
-            },
-        }
+        classify_connection_error(&err)
     }
 }
 
