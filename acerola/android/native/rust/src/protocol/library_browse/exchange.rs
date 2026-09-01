@@ -119,6 +119,22 @@ mod tests {
             false
         }
         fn abort_chapter_write(&self, _handle: i64) {}
+        fn get_extras_manifest(&self) -> Vec<crate::callbacks::FfiExtraManifestEntry> {
+            vec![]
+        }
+        fn open_extra_for_read(&self, _comic_name: String, _kind: String) -> i64 {
+            -1
+        }
+        fn begin_extra_write(
+            &self, _comic_name: String, _kind: String, _file_name: String, _expected_checksum: String,
+            _size_bytes: u64,
+        ) -> i64 {
+            -1
+        }
+        fn finalize_extra_write(&self, _handle: i64) -> bool {
+            false
+        }
+        fn abort_extra_write(&self, _handle: i64) {}
     }
 
     fn summary_entry(comic_name: &str, chapter_count: u32) -> FfiComicSummaryEntry {

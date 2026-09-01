@@ -85,6 +85,47 @@ pub trait FileSyncProvider: Send + Sync {
 
     /// Aborta uma escrita em andamento (peer desconectou no meio, checksum não bateu, etc).
     fn abort_chapter_write(&self, handle: i64);
+
+    /// Itens extra (capa/banner/`ComicInfo.xml`) locais, um `FfiExtraManifestEntry` por item
+    /// presente — comics sem nenhum dos três simplesmente não aparecem aqui. Espelha
+    /// `FileSyncService::build_manifest`'s extras do Desktop
+    /// (`infra/sync/messages.rs::FileExtraInfo`).
+    fn get_extras_manifest(&self) -> Vec<FfiExtraManifestEntry>;
+
+    /// Abre um item extra local pra leitura em chunks (lado que envia). `-1` se não encontrado.
+    /// `kind` é um dos `EXTRA_KIND_*` (`protocol::files::model`). Reaproveita
+    /// `read_chapter_chunk`/`close_read_handle` já existentes pra ler/fechar — o handle é
+    /// opaco, agnóstico a chapter vs. extra.
+    fn open_extra_for_read(&self, comic_name: String, kind: String) -> i64;
+
+    /// Começa a receber um item extra (lado que recebe). Reaproveita `write_chapter_chunk` já
+    /// existente pra gravar os chunks recebidos.
+    fn begin_extra_write(
+        &self,
+        comic_name: String,
+        kind: String,
+        file_name: String,
+        expected_checksum: String,
+        size_bytes: u64,
+    ) -> i64;
+
+    /// Verifica o checksum do arquivo temporário e o persiste no destino final: coluna
+    /// `cover`/`banner` de `comic_directory` pra esses dois `kind`s, ou `ComicInfo.xml` puro
+    /// (mais reprocessamento de metadata) pro terceiro.
+    fn finalize_extra_write(&self, handle: i64) -> bool;
+
+    /// Aborta uma escrita de extra em andamento.
+    fn abort_extra_write(&self, handle: i64);
+}
+
+#[derive(uniffi::Record, Debug, Clone, Serialize, Deserialize)]
+pub struct FfiExtraManifestEntry {
+    pub comic_name: String,
+    /// Um dos `EXTRA_KIND_*` (`protocol::files::model`).
+    pub kind: String,
+    pub file_name: String,
+    pub checksum: String,
+    pub size_bytes: u64,
 }
 
 /// Armazenamento criptografado (Android Keystore, via `EncryptedSharedPreferences`) usado por
