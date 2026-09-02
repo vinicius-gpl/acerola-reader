@@ -34,7 +34,7 @@
 
 <div
 	class={cn(
-		'sticky z-30 -mx-4 border-b border-surface/30 bg-base/80 px-4 py-2 backdrop-blur-xl',
+		'sticky z-30 rounded-2xl border border-surface/30 bg-base/80 px-4 py-2 backdrop-blur-xl',
 		ui?.stickyTop ?? 'top-0'
 	)}
 >
@@ -55,7 +55,7 @@
 				{#each data.sections as section (section.id)}
 					<Tabs.Trigger
 						value={section.id}
-						class="cursor-pointer rounded-full px-4 py-1.5 text-xs font-bold tracking-wide text-muted-foreground uppercase transition-colors data-[state=active]:text-primary-foreground"
+						class="relative z-10 cursor-pointer rounded-full px-4 py-1.5 text-xs font-bold tracking-wide text-muted-foreground uppercase transition-colors data-[state=active]:text-primary-foreground"
 					>
 						{section.label}
 					</Tabs.Trigger>

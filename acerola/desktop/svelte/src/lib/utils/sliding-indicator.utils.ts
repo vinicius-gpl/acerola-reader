@@ -30,7 +30,7 @@ export const slidingIndicator: Action<HTMLElement, SlidingIndicatorOptions> = (n
 
 	const indicator = document.createElement('div');
 	indicator.className = cn(
-		'pointer-events-none absolute top-0 left-0 opacity-0',
+		'pointer-events-none absolute top-0 left-0 -z-10 opacity-0',
 		opts.indicatorClass
 	);
 	node.prepend(indicator);
@@ -71,6 +71,11 @@ export const slidingIndicator: Action<HTMLElement, SlidingIndicatorOptions> = (n
 	}
 
 	snap(false);
+	// Bibliotecas de aba/toggle (bits-ui) resolvem qual item começa "ativo" através da própria
+	// reatividade interna delas, não de uma prop direta — não dá pra garantir que o atributo já
+	// está no DOM no instante síncrono deste `use:`. Um re-snap no próximo frame cobre essa
+	// janela sem esperar por uma mutação que talvez nunca aconteça (o item já nasce ativo).
+	requestAnimationFrame(() => snap(false));
 	// Métricas de fonte só assentam depois do primeiro paint — sem isso, um item com texto
 	// pode medir a largura errada até o layout se estabilizar de vez.
 	document.fonts?.ready?.then(() => snap(false));

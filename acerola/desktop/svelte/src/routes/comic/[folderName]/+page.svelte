@@ -673,7 +673,7 @@
 									if (typeof value === 'string') activeTab = value;
 								}
 							}}
-							ui={{ class: 'flex gap-4' }}
+							ui={{ spacing: 4 }}
 						>
 							{#snippet children()}
 								<ToggleGroupItem

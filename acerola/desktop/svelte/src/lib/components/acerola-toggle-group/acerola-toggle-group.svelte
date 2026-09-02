@@ -17,6 +17,13 @@
 		ui?: Pick<ToggleGroupPrimitive.RootProps, 'class'> & {
 			variant?: 'default' | 'outline';
 			size?: 'default' | 'sm' | 'lg';
+			/// Espaço (na escala do Tailwind, ex.: `4` = 1rem) entre os itens — default `0`
+			/// (itens colados, cantos arredondados só nas pontas do grupo, como um segmented
+			/// control). Qualquer valor > 0 desliga esse visual "colado" e cada item volta a
+			/// ter cantos totalmente arredondados (ver `group-data-[spacing=0]` nas classes de
+			/// `toggle-group-item.svelte`) — necessário sempre que os itens têm um gap visual
+			/// real entre si, senão o item nasce com um lado sem arredondar.
+			spacing?: number;
 		};
 		children: Snippet;
 	};
@@ -34,6 +41,7 @@
 	const type = $derived(config?.type ?? 'single');
 	const variant = $derived(ui?.variant ?? 'default');
 	const size = $derived(ui?.size ?? 'default');
+	const spacing = $derived(ui?.spacing ?? 0);
 
 	$effect(() => {
 		if (control?.value === undefined) return;
@@ -60,6 +68,7 @@
 		type="multiple"
 		{variant}
 		{size}
+		{spacing}
 		class={ui?.class}
 	>
 		{@render children()}
@@ -70,6 +79,7 @@
 		type="single"
 		{variant}
 		{size}
+		{spacing}
 		class={ui?.class}
 	>
 		{@render children()}
