@@ -8,7 +8,7 @@ description = "Biblioteca central P2P para o Acerola — compartilhada entre des
 edition = "2021"
 license = "MPL-2.0"
 name = "acerola-p2p"
-version = "1.0.1"
+version = "1.0.2"
 
 [features]
 default = ["iroh"]
