@@ -6,6 +6,7 @@ import br.acerola.comic.error.UserMessage
 import br.acerola.comic.logging.AcerolaLogger
 import br.acerola.comic.logging.LogSource
 import br.acerola.comic.module.main.remotelibrary.state.RemoteLibraryUiState
+import br.acerola.comic.service.SyncDirection
 import br.acerola.comic.service.network.ComicSummary
 import br.acerola.comic.service.network.P2pEvent
 import br.acerola.comic.service.network.P2pEventBus
@@ -114,7 +115,9 @@ class RemoteLibraryViewModel
                 mapOf("peerId" to peerId, "comicName" to comicName),
             )
 
-            val fired = syncComicWithPeerUseCase(peerId, comicName)
+            // Vem da navegação da biblioteca remota — o usuário só pode escolher um quadrinho
+            // que ainda não tem, então é sempre pull.
+            val fired = syncComicWithPeerUseCase(peerId, comicName, SyncDirection.PULL)
             if (!fired) {
                 viewModelScope.launch {
                     _uiEvents.send(UserMessage.Raw(UiText.StringResource(R.string.error_sync_comic_peer_not_paired)))

@@ -318,7 +318,7 @@ fun ComicScreen(
             ComicSyncAction.SyncAnilistInfo -> comicMetadataViewModel.syncFromAnilist(uiState.comic.directory.id)
             ComicSyncAction.ExtractFirstPageAsCover -> comicDirectoryViewModel.extractCoverFromChapter(uiState.comic.directory.id)
             ComicSyncAction.ExtractVolumeCovers -> comicViewModel.extractAllVolumeCovers()
-            is ComicSyncAction.SyncWithPeer -> comicViewModel.syncWithPeer(action.peerId)
+            is ComicSyncAction.SyncWithPeer -> comicViewModel.syncWithPeer(action.peerId, action.direction)
         }
     }
 

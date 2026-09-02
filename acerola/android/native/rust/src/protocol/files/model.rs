@@ -57,6 +57,18 @@ pub(crate) struct FileWantList {
     pub wanted_extras: Vec<(String, String)>,
 }
 
+/// Direção explícita escolhida por quem inicia um `acerola/sync-comic/1` — substitui a direção
+/// implícita que antes só emergia do diff dos dois manifestos. Ponto de vista sempre do lado
+/// outbound: `Push` = outbound manda o quadrinho pro peer; `Pull` = outbound puxa o quadrinho do
+/// peer. Schema espelhado no Desktop (`infra/sync/messages.rs::SyncDirection`) — os dois lados
+/// não compartilham código, os nomes/valores (`"push"`/`"pull"`) precisam bater exatamente.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum SyncDirection {
+    Push,
+    Pull,
+}
+
 /// Fase 0 exclusiva do protocolo `acerola/sync-comic/1` (sincronização de um único
 /// quadrinho) — trocada antes de qualquer coisa do protocolo `sync-files` normal. Só o lado
 /// outbound sabe qual quadrinho o usuário escolheu (veio de uma chamada FFI Kotlin ->
@@ -66,6 +78,7 @@ pub(crate) struct FileWantList {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct ComicSyncScope {
     pub comic_name: String,
+    pub direction: SyncDirection,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -300,6 +313,21 @@ mod wire_contract_tests {
         let old_peer_wire = serde_json::json!({ "wanted": [] });
         let decoded: FileWantList = serde_json::from_value(old_peer_wire).unwrap();
         assert!(decoded.wanted_extras.is_empty());
+    }
+
+    /// Trava o schema de wire de `ComicSyncScope`/`SyncDirection` contra o Desktop
+    /// (`infra/sync/messages.rs::ComicSyncRequest`/`SyncDirection`) — valores `"push"`/`"pull"`
+    /// em `snake_case`, sem tag de enum extra.
+    #[test]
+    fn comic_sync_scope_serializes_direction_as_snake_case_string() {
+        let scope = ComicSyncScope { comic_name: "Berserk".into(), direction: SyncDirection::Push };
+
+        let value = serde_json::to_value(&scope).unwrap();
+        assert_eq!(value, serde_json::json!({ "comic_name": "Berserk", "direction": "push" }));
+
+        let desktop_wire = serde_json::json!({ "comic_name": "Berserk", "direction": "pull" });
+        let decoded: ComicSyncScope = serde_json::from_value(desktop_wire).unwrap();
+        assert_eq!(decoded.direction, SyncDirection::Pull);
     }
 
     /// Trava o schema de wire de `FileExtraHeader` contra o Desktop

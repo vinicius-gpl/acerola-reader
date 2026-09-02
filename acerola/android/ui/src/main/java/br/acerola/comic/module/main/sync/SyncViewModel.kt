@@ -18,6 +18,7 @@ import br.acerola.comic.module.main.sync.state.SyncResult
 import br.acerola.comic.module.main.sync.state.SyncUiState
 import br.acerola.comic.module.main.sync.state.TransferLogEntry
 import br.acerola.comic.service.PeerAddress
+import br.acerola.comic.service.SyncDirection
 import br.acerola.comic.service.network.ComicSummary
 import br.acerola.comic.service.network.P2pEvent
 import br.acerola.comic.service.network.P2pEventBus
@@ -278,7 +279,9 @@ class SyncViewModel
                     _uiState.update { it.copy(syncingKeys = it.syncingKeys - key) }
                     return@launch
                 }
-                p2pUseCase.syncComic(addr, comicName)
+                // Vem da navegação da biblioteca remota (`RemoteLibrarySheet`) — o usuário só
+                // pode escolher um quadrinho que ainda não tem, então é sempre pull.
+                p2pUseCase.syncComic(addr, comicName, SyncDirection.PULL)
             }
         }
 

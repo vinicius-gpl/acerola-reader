@@ -1140,7 +1140,7 @@ internal interface UniffiLib : Library {
     ): Unit
     fun uniffi_acerola_fn_method_p2pnode_switch_to_relay(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
-    fun uniffi_acerola_fn_method_p2pnode_sync_comic(`ptr`: Pointer,`peerAddr`: RustBuffer.ByValue,`comicName`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    fun uniffi_acerola_fn_method_p2pnode_sync_comic(`ptr`: Pointer,`peerAddr`: RustBuffer.ByValue,`comicName`: RustBuffer.ByValue,`direction`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
     fun uniffi_acerola_fn_clone_secureblobstore(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): Pointer
@@ -1469,7 +1469,7 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
     if (lib.uniffi_acerola_checksum_method_p2pnode_switch_to_relay() != 54345.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_acerola_checksum_method_p2pnode_sync_comic() != 49826.toShort()) {
+    if (lib.uniffi_acerola_checksum_method_p2pnode_sync_comic() != 39377.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_acerola_checksum_method_secureblobstore_save_blob() != 37330.toShort()) {
@@ -3734,15 +3734,14 @@ public interface P2pNodeInterface {
     fun `switchToRelay`()
     
     /**
-     * Sincroniza um único quadrinho (`comic_name`) com `peer_addr` — cobre tanto push (o
-     * usuário já tem esse quadrinho e quer mandar) quanto pull (o usuário descobriu o
-     * quadrinho navegando a biblioteca remota via `browse_library` e quer trazê-lo), já que a
-     * troca do protocolo `acerola/sync-comic/1` é sempre simétrica. Grava `comic_name` no
-     * registro pendente ANTES de conectar — é a única forma dessa escolha (que só existe aqui,
-     * do lado que chamou) chegar até `ComicSyncOutbound::handle`, já que `connect()` não carrega
+     * Sincroniza um único quadrinho (`comic_name`) com `peer_addr`, na `direction` explícita
+     * escolhida pelo usuário (`Push` = mandar pro peer; `Pull` = puxar dele) — ver
+     * `protocol::files::model::SyncDirection`. Grava `(comic_name, direction)` no registro
+     * pendente ANTES de conectar — é a única forma dessa escolha (que só existe aqui, do lado
+     * que chamou) chegar até `ComicSyncOutbound::handle`, já que `connect()` não carrega
      * payload (ver `protocol::files::COMIC_SYNC_ALPN`).
      */
-    fun `syncComic`(`peerAddr`: FfiPeerAddr, `comicName`: kotlin.String)
+    fun `syncComic`(`peerAddr`: FfiPeerAddr, `comicName`: kotlin.String, `direction`: FfiSyncDirection)
     
     companion object
 }
@@ -4051,19 +4050,18 @@ open class P2pNode: Disposable, AutoCloseable, P2pNodeInterface {
 
     
     /**
-     * Sincroniza um único quadrinho (`comic_name`) com `peer_addr` — cobre tanto push (o
-     * usuário já tem esse quadrinho e quer mandar) quanto pull (o usuário descobriu o
-     * quadrinho navegando a biblioteca remota via `browse_library` e quer trazê-lo), já que a
-     * troca do protocolo `acerola/sync-comic/1` é sempre simétrica. Grava `comic_name` no
-     * registro pendente ANTES de conectar — é a única forma dessa escolha (que só existe aqui,
-     * do lado que chamou) chegar até `ComicSyncOutbound::handle`, já que `connect()` não carrega
+     * Sincroniza um único quadrinho (`comic_name`) com `peer_addr`, na `direction` explícita
+     * escolhida pelo usuário (`Push` = mandar pro peer; `Pull` = puxar dele) — ver
+     * `protocol::files::model::SyncDirection`. Grava `(comic_name, direction)` no registro
+     * pendente ANTES de conectar — é a única forma dessa escolha (que só existe aqui, do lado
+     * que chamou) chegar até `ComicSyncOutbound::handle`, já que `connect()` não carrega
      * payload (ver `protocol::files::COMIC_SYNC_ALPN`).
-     */override fun `syncComic`(`peerAddr`: FfiPeerAddr, `comicName`: kotlin.String)
+     */override fun `syncComic`(`peerAddr`: FfiPeerAddr, `comicName`: kotlin.String, `direction`: FfiSyncDirection)
         = 
     callWithPointer {
     uniffiRustCall() { _status ->
     UniffiLib.INSTANCE.uniffi_acerola_fn_method_p2pnode_sync_comic(
-        it, FfiConverterTypeFfiPeerAddr.lower(`peerAddr`),FfiConverterString.lower(`comicName`),_status)
+        it, FfiConverterTypeFfiPeerAddr.lower(`peerAddr`),FfiConverterString.lower(`comicName`),FfiConverterTypeFfiSyncDirection.lower(`direction`),_status)
 }
     }
     
@@ -4846,6 +4844,42 @@ public object FfiConverterTypeFfiNetworkMode: FfiConverterRustBuffer<FfiNetworkM
     override fun allocationSize(value: FfiNetworkMode) = 4UL
 
     override fun write(value: FfiNetworkMode, buf: ByteBuffer) {
+        buf.putInt(value.ordinal + 1)
+    }
+}
+
+
+
+
+
+/**
+ * Direção explícita de um `P2PNode::sync_comic`, exposta pra fronteira FFI (Kotlin) — mesmo
+ * padrão de `FfiNetworkMode`/`NetworkMode` em `lib/mode.rs`. `SyncDirection` (o tipo interno do
+ * protocolo, em `protocol::files::model`) não é exportável via UniFFI diretamente porque vive
+ * num módulo `pub(crate)`, então esse enum espelhado é o que o Kotlin realmente vê.
+ */
+
+enum class FfiSyncDirection {
+    
+    PUSH,
+    PULL;
+    companion object
+}
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeFfiSyncDirection: FfiConverterRustBuffer<FfiSyncDirection> {
+    override fun read(buf: ByteBuffer) = try {
+        FfiSyncDirection.values()[buf.getInt() - 1]
+    } catch (e: IndexOutOfBoundsException) {
+        throw RuntimeException("invalid enum value, something is very wrong!!", e)
+    }
+
+    override fun allocationSize(value: FfiSyncDirection) = 4UL
+
+    override fun write(value: FfiSyncDirection, buf: ByteBuffer) {
         buf.putInt(value.ordinal + 1)
     }
 }

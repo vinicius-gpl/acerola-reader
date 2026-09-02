@@ -28,6 +28,7 @@ use crate::{
     },
     singleton::TOKIO_RUNTIME,
     storage::{SecureP2pStorage, SharedSecureP2pStorage},
+    sync_direction::FfiSyncDirection,
     trust_store::SecureTrustedStore,
 };
 
@@ -311,18 +312,17 @@ impl P2PNode {
         });
     }
 
-    /// Sincroniza um único quadrinho (`comic_name`) com `peer_addr` — cobre tanto push (o
-    /// usuário já tem esse quadrinho e quer mandar) quanto pull (o usuário descobriu o
-    /// quadrinho navegando a biblioteca remota via `browse_library` e quer trazê-lo), já que a
-    /// troca do protocolo `acerola/sync-comic/1` é sempre simétrica. Grava `comic_name` no
-    /// registro pendente ANTES de conectar — é a única forma dessa escolha (que só existe aqui,
-    /// do lado que chamou) chegar até `ComicSyncOutbound::handle`, já que `connect()` não carrega
+    /// Sincroniza um único quadrinho (`comic_name`) com `peer_addr`, na `direction` explícita
+    /// escolhida pelo usuário (`Push` = mandar pro peer; `Pull` = puxar dele) — ver
+    /// `protocol::files::model::SyncDirection`. Grava `(comic_name, direction)` no registro
+    /// pendente ANTES de conectar — é a única forma dessa escolha (que só existe aqui, do lado
+    /// que chamou) chegar até `ComicSyncOutbound::handle`, já que `connect()` não carrega
     /// payload (ver `protocol::files::COMIC_SYNC_ALPN`).
-    pub fn sync_comic(&self, peer_addr: FfiPeerAddr, comic_name: String) {
+    pub fn sync_comic(&self, peer_addr: FfiPeerAddr, comic_name: String, direction: FfiSyncDirection) {
         self.pending_comic_scope
             .lock()
             .expect("pending comic scope mutex poisoned")
-            .insert(peer_addr.id.clone(), comic_name);
+            .insert(peer_addr.id.clone(), (comic_name, direction.into()));
         self.connect(peer_addr, COMIC_SYNC_ALPN.to_vec());
     }
 
