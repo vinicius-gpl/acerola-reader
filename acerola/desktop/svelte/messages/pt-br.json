@@ -293,6 +293,19 @@
 			},
 			"preferences": {
 				"reading": "Leitura",
+				"categories": {
+					"reading": {
+						"desc": "Exibição de volume, marcador"
+					},
+					"sync": {
+						"title": "Sincronização",
+						"desc": "Metadados, arquivos e dispositivos"
+					},
+					"advanced": {
+						"title": "Avançado",
+						"desc": "Capa e zona de risco"
+					}
+				},
 				"volume_highlight": {
 					"title": "Destaque do Volume",
 					"desc": "Escolha como os volumes são destacados: como capas ou banners.",
@@ -510,6 +523,23 @@
 		"config": {
 			"title": "Configurações",
 			"desc": "Personalize sua experiência de leitura.",
+			"categories": {
+				"files": {
+					"desc": "Pasta da biblioteca e geração de ComicInfo.xml"
+				},
+				"library": {
+					"desc": "Sincronização e templates de nomenclatura"
+				},
+				"appearance": {
+					"desc": "Tema e paleta de cores do app"
+				},
+				"metadata": {
+					"desc": "Idioma, MangaDex e AniList"
+				},
+				"bookmarks": {
+					"desc": "Crie e organize marcadores"
+				}
+			},
 			"file_system": {
 				"title": "Configuração dos Arquivos",
 				"comic_path": {

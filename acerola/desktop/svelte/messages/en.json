@@ -293,6 +293,19 @@
 			},
 			"preferences": {
 				"reading": "Reading",
+				"categories": {
+					"reading": {
+						"desc": "Volume display, bookmark"
+					},
+					"sync": {
+						"title": "Sync",
+						"desc": "Metadata, files and devices"
+					},
+					"advanced": {
+						"title": "Advanced",
+						"desc": "Cover and danger zone"
+					}
+				},
 				"volume_highlight": {
 					"title": "Volume Highlight",
 					"desc": "Choose how volumes are highlighted: as covers or banners.",
@@ -510,6 +523,23 @@
 		"config": {
 			"title": "Settings",
 			"desc": "Customize your reading experience.",
+			"categories": {
+				"files": {
+					"desc": "Library folder and ComicInfo.xml generation"
+				},
+				"library": {
+					"desc": "Sync and naming templates"
+				},
+				"appearance": {
+					"desc": "Theme and color palette"
+				},
+				"metadata": {
+					"desc": "Language, MangaDex and AniList"
+				},
+				"bookmarks": {
+					"desc": "Create and organize bookmarks"
+				}
+			},
 			"file_system": {
 				"title": "File Configuration",
 				"comic_path": {

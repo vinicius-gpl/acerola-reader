@@ -1,12 +1,15 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
+	import { goto } from '$app/navigation';
+	import { fly, fade } from 'svelte/transition';
 
 	import AcerolaAlertDialog from '$lib/components/acerola-alert-dialog/acerola-alert-dialog.svelte';
 	import AcerolaButton from '$lib/components/acerola-button/acerola-button.svelte';
 	import AcerolaButtonIcon from '$lib/components/acerola-button/acerola-button-icon.svelte';
 	import AcerolaCard from '$lib/components/acerola-card/acerola-card.svelte';
 	import AcerolaInput from '$lib/components/acerola-input/acerola-input.svelte';
+	import AcerolaSettingsHeader from '$lib/components/acerola-settings-header/acerola-settings-header.svelte';
 	import AcerolaToggleGroup from '$lib/components/acerola-toggle-group/acerola-toggle-group.svelte';
 	import * as ToggleGroup from '$lib/components/ui/toggle-group/index.js';
 	import { extractErrorMessage } from '$lib/utils/error.utils';
@@ -99,13 +102,17 @@
 	}
 </script>
 
-<div class="mx-auto w-full max-w-5xl space-y-10 p-8">
-	<!-- Header -->
-	<div>
-		<h1 class="text-3xl font-bold tracking-tight text-foreground">
-			{m['pages.config.templates.title']()}
-		</h1>
-		<p class="mt-1 text-muted-foreground">
+<div
+	in:fly={{ x: 16, duration: 180 }}
+	out:fade={{ duration: 100 }}
+	class="mx-auto w-full max-w-5xl space-y-10 p-8"
+>
+	<div class="space-y-1">
+		<AcerolaSettingsHeader
+			data={{ title: m['pages.config.templates.title']() }}
+			events={{ onBack: () => goto('/config') }}
+		/>
+		<p class="text-muted-foreground">
 			{m['pages.config.templates.desc']()}
 		</p>
 	</div>

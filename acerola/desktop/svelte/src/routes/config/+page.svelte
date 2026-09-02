@@ -1,64 +1,55 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
+	import { fade } from 'svelte/transition';
+	import { SvelteSet } from 'svelte/reactivity';
+	import { invoke } from '@tauri-apps/api/core';
+	import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+	import AcerolaAccordionCard from '$lib/components/acerola-accordion-card/acerola-accordion-card.svelte';
 	import AcerolaButtonIcon from '$lib/components/acerola-button/acerola-button-icon.svelte';
 	import AcerolaCommand from '$lib/components/acerola-command/acerola-command.svelte';
 	import AcerolaHeroButton from '$lib/components/acerola-hero-button/acerola-hero-button.svelte';
 	import AcerolaPopover from '$lib/components/acerola-popover/acerola-popover.svelte';
 	import AcerolaSwitch from '$lib/components/acerola-switch/acerola-switch.svelte';
 	import { Button } from '$lib/components/ui/button';
-	import ThemePicker from './components/acerola-theme-picker.svelte';
-
 	import * as Command from '$lib/components/ui/command';
-	import { LANGUAGES, type LanguageCode } from '$lib/constants/languages';
-	import { m } from '$lib/paraglide/messages';
-
+	import ThemePicker from './components/acerola-theme-picker.svelte';
+	import AcerolaBookmarkManager from './components/acerola-bookmark-manager.svelte';
 	import { useComicInfoPreference } from '$lib/hooks/preferences/use-comic-info.svelte';
 	import { useMetadataLanguage } from '$lib/hooks/preferences/use-metadata-language.svelte';
 	import { useLibraryScanner } from '$lib/hooks/store/use-comic-scanner.svelte';
-	import { DIRECTORY_SCAN_COMMANDS } from '$lib/contracts/library/library.commands';
-	import { METADATA_COMMANDS } from '$lib/contracts/metadata/metadata.commands';
 	import { useSelectFolder } from '$lib/hooks/store/use-select-folder.svelte';
 	import { useTheme } from '$lib/hooks/theme/use-theme.svelte';
-	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
-	import { invoke } from '@tauri-apps/api/core';
-	import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+	import { DIRECTORY_SCAN_COMMANDS } from '$lib/contracts/library/library.commands';
+	import { METADATA_COMMANDS } from '$lib/contracts/metadata/metadata.commands';
 	import { notificationStore } from '$lib/components/acerola-notification/acerola-notification.svelte';
 	import { extractErrorMessage } from '$lib/utils/error.utils';
-	import { fade } from 'svelte/transition';
-	import AcerolaSectionNav from '$lib/components/acerola-section-nav/acerola-section-nav.svelte';
-
-	const { notify } = notificationStore;
+	import { LANGUAGES, type LanguageCode } from '$lib/constants/languages';
+	import { m } from '$lib/paraglide/messages';
 
 	import AniListIcon from '$lib/assets/icons/anilist.svg?component';
 	import MangaDexIcon from '$lib/assets/icons/mangadex.svg?component';
-	import CloudSync from '@lucide/svelte/icons/cloud-sync';
+	import BookmarkIcon from '@lucide/svelte/icons/bookmark';
 	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
+	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
+	import CloudSync from '@lucide/svelte/icons/cloud-sync';
+	import FileCode2 from '@lucide/svelte/icons/file-code-2';
 	import FileTextIcon from '@lucide/svelte/icons/file-text';
 	import FolderIcon from '@lucide/svelte/icons/folder';
 	import FolderSync from '@lucide/svelte/icons/folder-sync';
 	import LanguagesIcon from '@lucide/svelte/icons/languages';
+	import PaletteIcon from '@lucide/svelte/icons/palette';
 	import PlayIcon from '@lucide/svelte/icons/play';
 	import RefreshCw from '@lucide/svelte/icons/refresh-cw';
-	import FileCode2 from '@lucide/svelte/icons/file-code-2';
-	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
-	import AcerolaBookmarkManager from './components/acerola-bookmark-manager.svelte';
+
+	const { notify } = notificationStore;
 
 	const ctx = useTheme();
 	const folder = useSelectFolder();
 	const comicInfoPreference = useComicInfoPreference();
-
-	const SECTIONS = [
-		{ id: 'files', label: m['pages.config.file_system.title']() },
-		{ id: 'library', label: m['pages.config.library.title']() },
-		{ id: 'appearance', label: m['pages.config.components.theme_piker']() },
-		{ id: 'metadata', label: m['pages.config.metadata.title']() },
-		{ id: 'bookmarks', label: m['pages.config.bookmarks.title']() }
-	];
-
-	let activeSection = $state(SECTIONS[0].id);
+	const metadataLanguageStore = useMetadataLanguage();
 
 	let metadataLanguagePopoverOpen = $state(false);
-	const metadataLanguageStore = useMetadataLanguage();
 
 	const selectedMetadataLanguageLabel = $derived(
 		LANGUAGES.find((lang) => lang.code === metadataLanguageStore.metadataLanguage)?.label ??
@@ -112,8 +103,6 @@
 		let unlistenError: UnlistenFn | undefined;
 
 		(async () => {
-			await folder.loadSavedPath();
-
 			unlistenProgress = await listen<string>('metadata:sync_all:progress', (event) => {
 				notify.info(m['pages.config.toast.sync.progress']({ name: event.payload }), {
 					duration: 0
@@ -138,20 +127,37 @@
 	});
 
 	$effect(() => {
-		folder.loadSavedPath();
-	});
-
-	$effect(() => {
 		comicInfoPreference.loadSavedComicInfoPreference();
 	});
 
 	$effect(() => {
 		metadataLanguageStore.loadSavedMetadataLanguage();
 	});
+
+	// Categorias colapsam/expandem inline na própria lista — nenhuma navega pra outra tela.
+	// Mais de uma pode ficar aberta ao mesmo tempo (SvelteSet em vez de string única).
+	const expandedCategories = new SvelteSet<string>();
+
+	function toggleCategory(id: string) {
+		if (expandedCategories.has(id)) {
+			expandedCategories.delete(id);
+		} else {
+			expandedCategories.add(id);
+		}
+	}
+
+	// Cor de borda no hover de cada categoria — combina com a cor do ícone (mesma paleta
+	// chart-N), reforçando a identidade visual de cada card no hover.
+	const CATEGORY_HOVER_BORDER: Record<string, string> = {
+		files: 'hover:border-chart-5/60',
+		library: 'hover:border-chart-3/60',
+		appearance: 'hover:border-chart-1/60',
+		metadata: 'hover:border-chart-4/60',
+		bookmarks: 'hover:border-chart-2/60'
+	};
 </script>
 
-<div class="mx-auto w-full max-w-5xl space-y-8 p-8">
-	<!-- Header -->
+<div in:fade={{ duration: 150 }} class="mx-auto w-full max-w-5xl space-y-8 p-8">
 	<div>
 		<h1 class="text-3xl font-bold tracking-tight text-foreground">
 			{m['pages.config.title']()}
@@ -162,24 +168,22 @@
 		</p>
 	</div>
 
-	<AcerolaSectionNav
-		data={{ sections: SECTIONS }}
-		state={{ activeId: activeSection }}
-		events={{ onSelect: (id: string) => (activeSection = id) }}
-	/>
+	<div class="grid gap-4">
+		<!-- Arquivos -->
+		<AcerolaAccordionCard
+			data={{
+				title: m['pages.config.file_system.title'](),
+				description: m['pages.config.categories.files.desc']()
+			}}
+			state={{ expanded: expandedCategories.has('files') }}
+			events={{ onToggle: () => toggleCategory('files') }}
+			ui={{ class: CATEGORY_HOVER_BORDER.files }}
+		>
+			{#snippet icon()}
+				<FolderIcon class="text-chart-5" size={24} />
+			{/snippet}
 
-	{#if activeSection === 'files'}
-		<!-- Configuração dos Arquivos -->
-		<section in:fade={{ duration: 150 }} class="space-y-4">
-			<div
-				class="flex items-center gap-3 text-xs font-bold tracking-widest text-muted-foreground uppercase"
-			>
-				<FileTextIcon size={16} />
-				{m['pages.config.file_system.title']()}
-			</div>
-
-			<div class="grid gap-4">
-				<!-- Item: Pasta dos mangás -->
+			{#snippet children()}
 				<AcerolaHeroButton
 					data={{
 						title: m['pages.config.file_system.comic_path.title'](),
@@ -205,7 +209,6 @@
 					{/snippet}
 				</AcerolaHeroButton>
 
-				<!-- Item: Gerar ComicInfo.xml para os mangás -->
 				<AcerolaHeroButton
 					data={{
 						title: m['pages.config.file_system.comic_info.title'](),
@@ -227,22 +230,24 @@
 						/>
 					{/snippet}
 				</AcerolaHeroButton>
-			</div>
-		</section>
-	{/if}
+			{/snippet}
+		</AcerolaAccordionCard>
 
-	{#if activeSection === 'library'}
-		<!-- Configuração dos Arquivos -->
-		<section in:fade={{ duration: 150 }} class="space-y-4">
-			<div
-				class="flex items-center gap-3 text-xs font-bold tracking-widest text-muted-foreground uppercase"
-			>
-				<FolderIcon size={16} />
-				{m['pages.config.library.title']()}
-			</div>
+		<!-- Biblioteca -->
+		<AcerolaAccordionCard
+			data={{
+				title: m['pages.config.library.title'](),
+				description: m['pages.config.categories.library.desc']()
+			}}
+			state={{ expanded: expandedCategories.has('library') }}
+			events={{ onToggle: () => toggleCategory('library') }}
+			ui={{ class: CATEGORY_HOVER_BORDER.library }}
+		>
+			{#snippet icon()}
+				<FolderSync class="text-chart-3" size={24} />
+			{/snippet}
 
-			<div class="grid gap-4">
-				<!-- Item: Iniciar sincronização rápida, aqui sera usado o refresh_library rapido -->
+			{#snippet children()}
 				<AcerolaHeroButton
 					data={{
 						title: m['pages.config.file_system.sync.fast.title'](),
@@ -266,7 +271,6 @@
 					{/snippet}
 				</AcerolaHeroButton>
 
-				<!-- Item: Sincronização profunda, reescreve tudo do banco de dados, aqui sera usado o rebuild_library -->
 				<AcerolaHeroButton
 					data={{
 						title: m['pages.config.file_system.sync.deep.title'](),
@@ -290,7 +294,6 @@
 					{/snippet}
 				</AcerolaHeroButton>
 
-				<!-- Item: Navega para a tela de templates de nomenclatura -->
 				<AcerolaHeroButton
 					data={{
 						title: m['pages.config.templates.nav.title'](),
@@ -313,31 +316,47 @@
 						</AcerolaButtonIcon>
 					{/snippet}
 				</AcerolaHeroButton>
-			</div>
-		</section>
-	{/if}
+			{/snippet}
+		</AcerolaAccordionCard>
 
-	{#if activeSection === 'appearance'}
-		<div in:fade={{ duration: 150 }}>
-			<ThemePicker
-				data={{ theme: ctx.theme, mode: ctx.resolved }}
-				events={{ onSelect: ctx.setTheme }}
-			/>
-		</div>
-	{/if}
+		<!-- Aparência -->
+		<AcerolaAccordionCard
+			data={{
+				title: m['pages.config.components.theme_piker'](),
+				description: m['pages.config.categories.appearance.desc']()
+			}}
+			state={{ expanded: expandedCategories.has('appearance') }}
+			events={{ onToggle: () => toggleCategory('appearance') }}
+			ui={{ class: CATEGORY_HOVER_BORDER.appearance }}
+		>
+			{#snippet icon()}
+				<PaletteIcon class="text-chart-1" size={24} />
+			{/snippet}
 
-	{#if activeSection === 'metadata'}
+			{#snippet children()}
+				<ThemePicker
+					data={{ theme: ctx.theme, mode: ctx.resolved }}
+					events={{ onSelect: ctx.setTheme }}
+					ui={{ showHeader: false }}
+				/>
+			{/snippet}
+		</AcerolaAccordionCard>
+
 		<!-- Metadados -->
-		<section in:fade={{ duration: 150 }} class="space-y-4">
-			<div
-				class="flex items-center gap-3 text-xs font-bold tracking-widest text-muted-foreground uppercase"
-			>
-				<CloudSync size={16} />
-				{m['pages.config.metadata.title']()}
-			</div>
+		<AcerolaAccordionCard
+			data={{
+				title: m['pages.config.metadata.title'](),
+				description: m['pages.config.categories.metadata.desc']()
+			}}
+			state={{ expanded: expandedCategories.has('metadata') }}
+			events={{ onToggle: () => toggleCategory('metadata') }}
+			ui={{ class: CATEGORY_HOVER_BORDER.metadata }}
+		>
+			{#snippet icon()}
+				<CloudSync class="text-chart-4" size={24} />
+			{/snippet}
 
-			<div class="grid gap-4">
-				<!-- Item: Seleção do idioma dos metadados -->
+			{#snippet children()}
 				<AcerolaHeroButton
 					data={{
 						title: m['pages.config.metadata.lang.title'](),
@@ -421,7 +440,6 @@
 					{/snippet}
 				</AcerolaHeroButton>
 
-				<!-- Item: Sync com o mangadex -->
 				<AcerolaHeroButton
 					data={{
 						title: m['pages.config.metadata.mangadex.title'](),
@@ -447,7 +465,6 @@
 					{/snippet}
 				</AcerolaHeroButton>
 
-				<!-- Item: Sync com o anilist -->
 				<AcerolaHeroButton
 					data={{
 						title: m['pages.config.metadata.anilist.title'](),
@@ -472,13 +489,26 @@
 						</AcerolaButtonIcon>
 					{/snippet}
 				</AcerolaHeroButton>
-			</div>
-		</section>
-	{/if}
+			{/snippet}
+		</AcerolaAccordionCard>
 
-	{#if activeSection === 'bookmarks'}
-		<div in:fade={{ duration: 150 }}>
-			<AcerolaBookmarkManager />
-		</div>
-	{/if}
+		<!-- Marcadores -->
+		<AcerolaAccordionCard
+			data={{
+				title: m['pages.config.bookmarks.title'](),
+				description: m['pages.config.categories.bookmarks.desc']()
+			}}
+			state={{ expanded: expandedCategories.has('bookmarks') }}
+			events={{ onToggle: () => toggleCategory('bookmarks') }}
+			ui={{ class: CATEGORY_HOVER_BORDER.bookmarks }}
+		>
+			{#snippet icon()}
+				<BookmarkIcon class="text-chart-2" size={24} />
+			{/snippet}
+
+			{#snippet children()}
+				<AcerolaBookmarkManager />
+			{/snippet}
+		</AcerolaAccordionCard>
+	</div>
 </div>

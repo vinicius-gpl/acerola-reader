@@ -262,10 +262,9 @@ describe('comic/[folderName] +page', () => {
 
 		await user.click(screen.getByRole('radio', { name: /preferences|preferências/i }));
 
-		// ComicPreferences abre na sub-aba "Leitura" por padrão — checa que o painel de
-		// preferências realmente montou, sem depender de qual sub-aba está ativa. Título +
-		// descrição do card batem os dois no regex, daí o findAllByText.
-		expect((await screen.findAllByText(/marcador|bookmark/i)).length).toBeGreaterThan(0);
+		// ComicPreferences abre na lista de categorias (Leitura/Sincronização/Avançado) por
+		// padrão — checa que o painel de preferências realmente montou.
+		expect(await screen.findByText(/^leitura$/i)).toBeInTheDocument();
 	});
 
 	it('shows an error toast when syncing metadata from MangaDex fails', async () => {
@@ -279,9 +278,7 @@ describe('comic/[folderName] +page', () => {
 		await emitChapters(chapterPayload());
 
 		await user.click(screen.getByRole('radio', { name: /preferences|preferências/i }));
-		await user.click(
-			await screen.findByRole('tab', { name: /configuração de metadados|metadata/i })
-		);
+		await user.click(await screen.findByText(/^sincronização$/i));
 		// título do card ("MangaDex Sync" / "Sincronização com MangaDex") — a description do
 		// card também contém "mangadex", então precisa da frase completa pra não ambiguar.
 		await user.click(await screen.findByText(/mangadex sync|sincronização com mangadex/i));

@@ -6,7 +6,6 @@
 	import { m } from '$lib/paraglide/messages';
 	import { autoAnimateList } from '$lib/utils/auto-animate.utils';
 
-	import BookmarkIcon from '@lucide/svelte/icons/bookmark';
 	import Trash2Icon from '@lucide/svelte/icons/trash-2';
 	import PlusIcon from '@lucide/svelte/icons/plus';
 
@@ -26,14 +25,7 @@
 	});
 </script>
 
-<section class="space-y-4">
-	<div
-		class="flex items-center gap-3 text-xs font-bold tracking-widest text-muted-foreground uppercase"
-	>
-		<BookmarkIcon size={16} />
-		{m['pages.config.bookmarks.title']()}
-	</div>
-
+<div class="space-y-4">
 	<div class="grid gap-4">
 		<div class="rounded-2xl border border-border/40 bg-card/50 p-6 backdrop-blur-sm">
 			<p class="mb-4 text-sm text-muted-foreground">{m['pages.config.bookmarks.desc']()}</p>
@@ -125,4 +117,4 @@
 			</div>
 		</div>
 	</div>
-</section>
+</div>
