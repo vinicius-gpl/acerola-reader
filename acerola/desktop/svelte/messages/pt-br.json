@@ -383,6 +383,7 @@
 					"enabled": "Sincronização externa ativada",
 					"toggle_error": "Erro ao alterar sincronização externa: {msg}",
 					"success": "Metadados sincronizados!",
+					"rescan_success": "Capítulos sincronizados!",
 					"start_mangadex": "Sincronizando metadados com MangaDex...",
 					"start_anilist": "Sincronizando metadados com AniList...",
 					"start_comic_info": "Sincronizando metadados com ComicInfo.xml...",

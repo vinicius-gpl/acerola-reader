@@ -383,6 +383,7 @@
 					"enabled": "External sync enabled",
 					"toggle_error": "Error toggling external sync: {msg}",
 					"success": "Metadata synced!",
+					"rescan_success": "Chapters synced!",
 					"start_mangadex": "Syncing metadata with MangaDex...",
 					"start_anilist": "Syncing metadata with AniList...",
 					"start_comic_info": "Syncing metadata with ComicInfo.xml...",

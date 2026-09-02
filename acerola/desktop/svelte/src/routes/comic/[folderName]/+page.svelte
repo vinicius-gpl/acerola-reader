@@ -240,13 +240,23 @@
 	async function handleRescanComic() {
 		const id = activeComic.item?.relations.directoryId ?? data.comic?.relations.directoryId;
 		if (!id) return;
+
+		// `toast.promise` mostra um único toast que muda de texto/ícone conforme a promise
+		// anda (loading -> success/error), em vez de um toast.info que só aparece no começo
+		// e nunca é atualizado — o usuário não tinha nenhum retorno visual de quando a
+		// sincronização de fato terminava.
+		const request = invoke(HOME_COMMANDS.rescanComic, { id: id.toString() });
+		toast.promise(request, {
+			loading: m['pages.comic.toast.sync.start_rescan'](),
+			success: m['pages.comic.toast.sync.rescan_success'](),
+			error: (error: unknown) => m['pages.comic.toast.rescan_error']({ msg: extractErrorMessage(error) })
+		});
+
 		try {
-			toast.info(m['pages.comic.toast.sync.start_rescan']());
-			await invoke(HOME_COMMANDS.rescanComic, { id: id.toString() });
+			await request;
 			await invalidateAll();
-		} catch (error: unknown) {
-			const msg = extractErrorMessage(error);
-			toast.error(m['pages.comic.toast.rescan_error']({ msg }));
+		} catch {
+			// Erro já foi mostrado pelo toast.promise acima.
 		}
 	}
 
