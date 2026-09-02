@@ -243,7 +243,6 @@
 		try {
 			toast.info(m['pages.comic.toast.sync.start_rescan']());
 			await invoke(HOME_COMMANDS.rescanComic, { id: id.toString() });
-			toast.success(m['pages.comic.toast.sync.success']());
 			await invalidateAll();
 		} catch (error: unknown) {
 			const msg = extractErrorMessage(error);
