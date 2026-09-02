@@ -286,6 +286,7 @@ private fun SyncLayout(
                 comics = uiState.remoteLibrary,
                 isLoading = !uiState.remoteLibraryLoaded && uiState.browseLibraryError == null,
                 errorMessage = uiState.browseLibraryError,
+                errorType = uiState.browseLibraryErrorType,
                 onSelectComic = { comicName -> onAction(SyncAction.SyncComic(peerId, comicName)) },
                 onDismiss = { onAction(SyncAction.DismissLibraryBrowse) },
                 coverPathFor = { comicName -> uiState.remoteCoverPaths[coverKey(peerId, comicName)] },
@@ -523,9 +524,11 @@ private fun PeerRow(
                         Spacer(modifier = Modifier.width(SpacingTokens.ExtraSmall))
                         Text(
                             text =
-                                lastResult?.message?.let {
-                                    stringResource(id = R.string.error_sync_last_attempt_failed, it)
-                                } ?: stringResource(id = R.string.error_sync_connect_failed),
+                                lastResult?.errorType?.uiMessage?.asString()
+                                    ?: lastResult?.message?.let {
+                                        stringResource(id = R.string.error_sync_last_attempt_failed, it)
+                                    }
+                                    ?: stringResource(id = R.string.error_sync_connect_failed),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error,
                         )

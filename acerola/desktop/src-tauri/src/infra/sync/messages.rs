@@ -127,6 +127,18 @@ pub struct FileExtraHeader {
     pub blob_hash: Option<String>,
 }
 
+/// Direção explícita escolhida por quem inicia um `acerola/sync-comic/1` — substitui a direção
+/// implícita que antes só emergia do diff dos dois manifestos. Ponto de vista sempre do lado
+/// outbound: `Push` = outbound manda o quadrinho pro peer; `Pull` = outbound puxa o quadrinho do
+/// peer. Schema espelhado no Android (`protocol/files/model.rs::SyncDirection`) — os dois lados
+/// não compartilham código, os nomes/valores (`"push"`/`"pull"`) precisam bater exatamente.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SyncDirection {
+    Push,
+    Pull,
+}
+
 /// Primeira mensagem do protocolo `acerola/sync-comic/1`, escrita pelo lado que inicia — diz
 /// ao peer qual quadrinho escopar antes da troca de manifestos (ver
 /// `FileSyncService::build_manifest_for_comic`). Sem isso o lado que responde não teria como
@@ -135,6 +147,7 @@ pub struct FileExtraHeader {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ComicSyncRequest {
     pub comic_name: String,
+    pub direction: SyncDirection,
 }
 
 /// Marcador mínimo escrito pelo lado outbound de `acerola/browse-library/1` antes de ler a
@@ -360,6 +373,21 @@ mod wire_contract_tests {
         let old_peer_wire = serde_json::json!({ "wanted": [] });
         let decoded: FileWantList = serde_json::from_value(old_peer_wire).unwrap();
         assert!(decoded.wanted_extras.is_empty());
+    }
+
+    /// Trava o schema de wire de `ComicSyncRequest`/`SyncDirection` contra o formato espelhado
+    /// no Android (`protocol/files/model.rs::ComicSyncScope`/`SyncDirection`) — valores
+    /// `"push"`/`"pull"` em `snake_case`, sem tag de enum extra.
+    #[test]
+    fn comic_sync_request_serializes_direction_as_snake_case_string() {
+        let request = ComicSyncRequest { comic_name: "Berserk".into(), direction: SyncDirection::Push };
+
+        let value = serde_json::to_value(&request).unwrap();
+        assert_eq!(value, serde_json::json!({ "comic_name": "Berserk", "direction": "push" }));
+
+        let android_wire = serde_json::json!({ "comic_name": "Berserk", "direction": "pull" });
+        let decoded: ComicSyncRequest = serde_json::from_value(android_wire).unwrap();
+        assert_eq!(decoded.direction, SyncDirection::Pull);
     }
 
     /// Trava o schema de wire de `FileExtraHeader` contra o formato espelhado no Android

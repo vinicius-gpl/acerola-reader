@@ -89,6 +89,8 @@
     <string name="title_config_sync_devices">Sincronização entre Dispositivos</string>
     <string name="action_sync_comic_with_peer">Sincronizar com dispositivo</string>
     <string name="description_sync_comic_with_peer">Envia ou recebe capítulos deste quadrinho com um dispositivo pareado.</string>
+    <string name="action_sync_comic_push">Enviar para dispositivo</string>
+    <string name="action_sync_comic_pull">Puxar de dispositivo</string>
     <string name="title_sync_peer_picker">Escolher dispositivo</string>
     <string name="error_sync_comic_peer_not_paired">Esse dispositivo não está mais pareado.</string>
     <string name="error_sync_comic_peer_failed">Falha ao sincronizar com o dispositivo.</string>

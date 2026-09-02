@@ -23,6 +23,7 @@ import br.acerola.comic.error.UserMessage
 import br.acerola.comic.logging.AcerolaLogger
 import br.acerola.comic.logging.LogSource
 import br.acerola.comic.module.main.sync.state.PairedPeer
+import br.acerola.comic.service.SyncDirection
 import br.acerola.comic.service.cache.ChapterCacheHandler
 import br.acerola.comic.service.network.P2pEvent
 import br.acerola.comic.service.network.P2pEventBus
@@ -573,17 +574,20 @@ class ComicViewModel
             }
         }
 
-        fun syncWithPeer(peerId: String) {
+        fun syncWithPeer(
+            peerId: String,
+            direction: SyncDirection,
+        ) {
             val comicName = comic.value?.directory?.name ?: return
 
             AcerolaLogger.audit(
                 TAG,
                 "Syncing comic with peer",
                 LogSource.VIEWMODEL,
-                mapOf("peerId" to peerId, "comicName" to comicName),
+                mapOf("peerId" to peerId, "comicName" to comicName, "direction" to direction.name),
             )
 
-            val fired = syncComicWithPeerUseCase(peerId, comicName)
+            val fired = syncComicWithPeerUseCase(peerId, comicName, direction)
             if (!fired) {
                 viewModelScope.launch {
                     _uiEvents.send(UserMessage.Raw(UiText.StringResource(R.string.error_sync_comic_peer_not_paired)))

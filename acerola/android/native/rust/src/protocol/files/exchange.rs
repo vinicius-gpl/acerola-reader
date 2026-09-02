@@ -10,7 +10,8 @@ use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
 use super::{
     model::{
         build_manifest, merge_extras, ComicSyncScope, FileComicInfo, FileExtraHeader, FileHeader, FileManifest,
-        FileSyncStats, FileWantList, SessionBusy, EXTRA_KIND_BANNER, EXTRA_KIND_COMIC_INFO, EXTRA_KIND_COVER,
+        FileSyncStats, FileWantList, SessionBusy, SyncDirection, EXTRA_KIND_BANNER, EXTRA_KIND_COMIC_INFO,
+        EXTRA_KIND_COVER,
     },
     transfer::ChapterTransfer,
 };
@@ -801,18 +802,26 @@ async fn transfer_files(
 
 /// Cauda comum às fases 1-3 (troca de manifesto -> want-list -> transferência), compartilhada
 /// entre `run_exchange` (biblioteca inteira) e `run_exchange_scoped` (um único quadrinho,
-/// protocolo `acerola/sync-comic/1`) — a única diferença entre os dois é como `local_manifest`
-/// foi montado/filtrado antes de chegar aqui.
+/// protocolo `acerola/sync-comic/1`) — a diferença entre os dois é como `local_manifest` foi
+/// montado/filtrado antes de chegar aqui, mais `force_empty_wanted`: `run_exchange` sempre passa
+/// `false` (sync de biblioteca é sempre bidirecional); `run_exchange_scoped` passa `true` quando
+/// este lado é o "sender" da direção explícita escolhida (ver `SyncDirection` e
+/// `run_exchange_scoped`) — nesse caso a want-list local é zerada mesmo que o diff mostre algo
+/// faltando, porque este lado só deve entregar, nunca pedir de volta.
 async fn run_exchange_with_manifest(
     outbound_role: bool, peer: &PeerIdentity, emit: &EventEmitter, provider: &Arc<dyn FileSyncProvider>,
     local_manifest: FileManifest, writer: &mut Writer, reader: &mut Recv, transfer: &Arc<dyn ChapterTransfer>,
+    force_empty_wanted: bool,
 ) -> Result<FileSyncStats, P2pError> {
     let mut stats = FileSyncStats::default();
 
     let peer_manifest = exchange_manifests(outbound_role, writer, reader, &local_manifest).await?;
 
-    let wanted_locally = missing_from(&local_manifest, &peer_manifest);
-    let wanted_extras_locally = missing_extras_from(&local_manifest, &peer_manifest);
+    let (wanted_locally, wanted_extras_locally) = if force_empty_wanted {
+        (Vec::new(), Vec::new())
+    } else {
+        (missing_from(&local_manifest, &peer_manifest), missing_extras_from(&local_manifest, &peer_manifest))
+    };
     let wanted_by_peer = missing_from(&peer_manifest, &local_manifest);
     emit(
         "sync:files:manifest_exchanged",
@@ -854,28 +863,31 @@ pub(super) async fn run_exchange(
     let mut reader: Recv = FramedRead::new(recv, LengthDelimitedCodec::new());
 
     let local_manifest = build_local_manifest(provider).await?;
-    run_exchange_with_manifest(outbound_role, peer, emit, provider, local_manifest, &mut writer, &mut reader, transfer)
-        .await
+    run_exchange_with_manifest(
+        outbound_role, peer, emit, provider, local_manifest, &mut writer, &mut reader, transfer, false,
+    )
+    .await
 }
 
-/// Fase 0 exclusiva do `acerola/sync-comic/1`: outbound manda `ComicSyncScope` (o quadrinho
-/// escolhido pelo usuário, vindo de `P2PNode::sync_comic`), inbound só lê — nenhum dos dois
-/// lados decide o alvo localmente, só quem discou sabe. Retorna o `comic_name` acordado, que os
-/// dois lados usam pra filtrar seus próprios manifestos antes de reentrar na cauda comum.
+/// Fase 0 exclusiva do `acerola/sync-comic/1`: outbound manda `ComicSyncScope` (o quadrinho e a
+/// direção escolhidos pelo usuário, vindo de `P2PNode::sync_comic`), inbound só lê — nenhum dos
+/// dois lados decide o alvo localmente, só quem discou sabe. Retorna `(comic_name, direction)`
+/// acordados: `comic_name` filtra os manifestos, `direction` decide qual lado é o "sender" (ver
+/// `run_exchange_scoped`).
 async fn exchange_comic_scope(
-    outbound_role: bool, writer: &mut Writer, reader: &mut Recv, comic_name_outbound: Option<&str>,
-) -> Result<String, P2pError> {
+    outbound_role: bool, writer: &mut Writer, reader: &mut Recv,
+    comic_name_outbound: Option<(&str, SyncDirection)>,
+) -> Result<(String, SyncDirection), P2pError> {
     if outbound_role {
-        let comic_name = comic_name_outbound
-            .ok_or_else(|| {
-                P2pError::StreamFailed("sync-comic: missing target comic_name for outbound session".into())
-            })?
-            .to_string();
-        write_json(writer, &ComicSyncScope { comic_name: comic_name.clone() }).await?;
-        Ok(comic_name)
+        let (comic_name, direction) = comic_name_outbound.ok_or_else(|| {
+            P2pError::StreamFailed("sync-comic: missing target comic_name for outbound session".into())
+        })?;
+        let comic_name = comic_name.to_string();
+        write_json(writer, &ComicSyncScope { comic_name: comic_name.clone(), direction }).await?;
+        Ok((comic_name, direction))
     } else {
         let scope: ComicSyncScope = read_json(reader).await?;
-        Ok(scope.comic_name)
+        Ok((scope.comic_name, scope.direction))
     }
 }
 
@@ -889,26 +901,33 @@ fn filter_manifest_to_comic(manifest: FileManifest, comic_name: &str) -> FileMan
 /// Executa a sessão inteira do protocolo `acerola/sync-comic/1` (sincronização de um único
 /// quadrinho) pra um dos dois lados. Mesma sequência de wire do `sync-files` normal, só que
 /// precedida pela fase 0 (`ComicSyncScope`) e com `local_manifest` filtrado ao quadrinho
-/// acordado — cobre push (usuário manda um quadrinho que já tem) e pull (usuário pede um
-/// quadrinho que só existe no peer, manifesto local filtrado fica vazio) com o mesmo código,
-/// já que a troca é sempre simétrica dos dois lados.
+/// acordado. A direção explícita (`SyncDirection`, ponto de vista sempre do outbound) decide
+/// qual lado é o "sender" nesta sessão — o papel de cada lado é sempre o oposto do outro:
+/// `outbound_role=true` + `Push` ou `outbound_role=false` + `Pull` → este lado é sender (want
+/// list forçada vazia em `run_exchange_with_manifest`); os outros dois casos → receiver (pede
+/// normalmente). Isso cobre push e pull com o mesmo pipeline de diff/transferência, sem mudar a
+/// troca de manifestos em si.
 #[allow(clippy::too_many_arguments)]
 pub(super) async fn run_exchange_scoped(
     outbound_role: bool, peer: &PeerIdentity, emit: &EventEmitter, provider: &Arc<dyn FileSyncProvider>,
-    transfer: &Arc<dyn ChapterTransfer>, comic_name_outbound: Option<String>,
+    transfer: &Arc<dyn ChapterTransfer>, comic_name_outbound: Option<(String, SyncDirection)>,
     send: Box<dyn AsyncWrite + Send + Unpin>, recv: Box<dyn AsyncRead + Send + Unpin>,
 ) -> Result<FileSyncStats, P2pError> {
     let mut writer: Writer = FramedWrite::new(send, LengthDelimitedCodec::new());
     let mut reader: Recv = FramedRead::new(recv, LengthDelimitedCodec::new());
 
-    let comic_name =
-        exchange_comic_scope(outbound_role, &mut writer, &mut reader, comic_name_outbound.as_deref()).await?;
+    let comic_name_outbound_ref = comic_name_outbound.as_ref().map(|(name, direction)| (name.as_str(), *direction));
+    let (comic_name, direction) =
+        exchange_comic_scope(outbound_role, &mut writer, &mut reader, comic_name_outbound_ref).await?;
+    let is_sender = (direction == SyncDirection::Push) == outbound_role;
 
     let local_manifest = build_local_manifest(provider).await?;
     let local_manifest = filter_manifest_to_comic(local_manifest, &comic_name);
 
-    run_exchange_with_manifest(outbound_role, peer, emit, provider, local_manifest, &mut writer, &mut reader, transfer)
-        .await
+    run_exchange_with_manifest(
+        outbound_role, peer, emit, provider, local_manifest, &mut writer, &mut reader, transfer, is_sender,
+    )
+    .await
 }
 
 #[cfg(test)]
@@ -1600,7 +1619,7 @@ mod tests {
             &emit,
             &outbound_dyn,
             &outbound_transfer,
-            Some("Comic A".to_string()),
+            Some(("Comic A".to_string(), SyncDirection::Push)),
             Box::new(client_send) as Box<dyn AsyncWrite + Send + Unpin>,
             Box::new(client_recv) as Box<dyn AsyncRead + Send + Unpin>,
         );
@@ -1658,7 +1677,7 @@ mod tests {
             &emit,
             &outbound_dyn,
             &outbound_transfer,
-            Some("Comic Only On Peer".to_string()),
+            Some(("Comic Only On Peer".to_string(), SyncDirection::Pull)),
             Box::new(client_send) as Box<dyn AsyncWrite + Send + Unpin>,
             Box::new(client_recv) as Box<dyn AsyncRead + Send + Unpin>,
         );
@@ -1681,6 +1700,144 @@ mod tests {
         assert_eq!(received.len(), 1, "quem pediu deveria ter recebido o capítulo que só existia no peer");
         assert_eq!(received[0].comic_name, "Comic Only On Peer");
         assert_eq!(received[0].bytes, payload);
+    }
+
+    /// Prova que `SyncDirection::Push` é respeitada mesmo quando o diff normal mostraria o
+    /// outbound como "faltando" o capítulo do peer: outbound entrega "Cap A" (que só ele tem)
+    /// mas NUNCA pede "Cap B" de volta, mesmo estando genuinamente sem esse capítulo. Ao
+    /// contrário dos dois testes acima (onde um dos lados não tem NADA do quadrinho, então a
+    /// direção nunca chega a ser testada de verdade — o diff já dava zero), aqui os dois lados
+    /// têm conteúdo real e diferente do MESMO quadrinho.
+    #[tokio::test]
+    async fn run_exchange_scoped_push_never_requests_what_it_is_missing() {
+        let payload_a = make_payload(40_000, 3);
+        let payload_b = make_payload(60_000, 11);
+
+        let outbound_provider = Arc::new(InMemoryFileSyncProvider::with_readable(vec![(
+            "Shared Comic".to_string(),
+            "Cap A".to_string(),
+            "capA.cbz".to_string(),
+            payload_a.clone(),
+        )]));
+        let inbound_provider = Arc::new(InMemoryFileSyncProvider::with_readable(vec![(
+            "Shared Comic".to_string(),
+            "Cap B".to_string(),
+            "capB.cbz".to_string(),
+            payload_b.clone(),
+        )]));
+
+        let (client_io, server_io) = tokio::io::duplex(256 * 1024);
+        let (client_recv, client_send) = tokio::io::split(client_io);
+        let (server_recv, server_send) = tokio::io::split(server_io);
+
+        let peer = make_peer("peer-push");
+        let emit = no_op_emitter();
+        let (outbound_transfer, inbound_transfer) = test_transfer_pair();
+
+        let outbound_dyn: Arc<dyn FileSyncProvider> = Arc::clone(&outbound_provider) as Arc<dyn FileSyncProvider>;
+        let inbound_dyn: Arc<dyn FileSyncProvider> = Arc::clone(&inbound_provider) as Arc<dyn FileSyncProvider>;
+
+        let outbound_fut = run_exchange_scoped(
+            true,
+            &peer,
+            &emit,
+            &outbound_dyn,
+            &outbound_transfer,
+            Some(("Shared Comic".to_string(), SyncDirection::Push)),
+            Box::new(client_send) as Box<dyn AsyncWrite + Send + Unpin>,
+            Box::new(client_recv) as Box<dyn AsyncRead + Send + Unpin>,
+        );
+        let inbound_fut = run_exchange_scoped(
+            false,
+            &peer,
+            &emit,
+            &inbound_dyn,
+            &inbound_transfer,
+            None,
+            Box::new(server_send) as Box<dyn AsyncWrite + Send + Unpin>,
+            Box::new(server_recv) as Box<dyn AsyncRead + Send + Unpin>,
+        );
+
+        let (outbound_result, inbound_result) = tokio::join!(outbound_fut, inbound_fut);
+        outbound_result.expect("push não deveria falhar");
+        inbound_result.expect("push não deveria falhar");
+
+        assert!(
+            outbound_provider.finalized.lock().unwrap().is_empty(),
+            "outbound (sender) nunca deveria ter pedido 'Cap B' de volta"
+        );
+        let received = inbound_provider.finalized.lock().unwrap();
+        assert_eq!(received.len(), 1, "inbound (receiver) deveria ter recebido 'Cap A'");
+        assert_eq!(received[0].comic_name, "Shared Comic");
+        assert_eq!(received[0].chapter, "Cap A");
+        assert_eq!(received[0].bytes, payload_a);
+    }
+
+    /// Espelho do teste acima pra `SyncDirection::Pull` — outbound puxa "Cap B" do peer sem
+    /// nunca mandar "Cap A", mesmo o inbound estando genuinamente sem esse capítulo.
+    #[tokio::test]
+    async fn run_exchange_scoped_pull_never_sends_what_the_peer_is_missing() {
+        let payload_a = make_payload(40_000, 3);
+        let payload_b = make_payload(60_000, 11);
+
+        let outbound_provider = Arc::new(InMemoryFileSyncProvider::with_readable(vec![(
+            "Shared Comic".to_string(),
+            "Cap A".to_string(),
+            "capA.cbz".to_string(),
+            payload_a.clone(),
+        )]));
+        let inbound_provider = Arc::new(InMemoryFileSyncProvider::with_readable(vec![(
+            "Shared Comic".to_string(),
+            "Cap B".to_string(),
+            "capB.cbz".to_string(),
+            payload_b.clone(),
+        )]));
+
+        let (client_io, server_io) = tokio::io::duplex(256 * 1024);
+        let (client_recv, client_send) = tokio::io::split(client_io);
+        let (server_recv, server_send) = tokio::io::split(server_io);
+
+        let peer = make_peer("peer-pull");
+        let emit = no_op_emitter();
+        let (outbound_transfer, inbound_transfer) = test_transfer_pair();
+
+        let outbound_dyn: Arc<dyn FileSyncProvider> = Arc::clone(&outbound_provider) as Arc<dyn FileSyncProvider>;
+        let inbound_dyn: Arc<dyn FileSyncProvider> = Arc::clone(&inbound_provider) as Arc<dyn FileSyncProvider>;
+
+        let outbound_fut = run_exchange_scoped(
+            true,
+            &peer,
+            &emit,
+            &outbound_dyn,
+            &outbound_transfer,
+            Some(("Shared Comic".to_string(), SyncDirection::Pull)),
+            Box::new(client_send) as Box<dyn AsyncWrite + Send + Unpin>,
+            Box::new(client_recv) as Box<dyn AsyncRead + Send + Unpin>,
+        );
+        let inbound_fut = run_exchange_scoped(
+            false,
+            &peer,
+            &emit,
+            &inbound_dyn,
+            &inbound_transfer,
+            None,
+            Box::new(server_send) as Box<dyn AsyncWrite + Send + Unpin>,
+            Box::new(server_recv) as Box<dyn AsyncRead + Send + Unpin>,
+        );
+
+        let (outbound_result, inbound_result) = tokio::join!(outbound_fut, inbound_fut);
+        outbound_result.expect("pull não deveria falhar");
+        inbound_result.expect("pull não deveria falhar");
+
+        assert!(
+            inbound_provider.finalized.lock().unwrap().is_empty(),
+            "inbound (sender) nunca deveria ter pedido 'Cap A' de volta"
+        );
+        let received = outbound_provider.finalized.lock().unwrap();
+        assert_eq!(received.len(), 1, "outbound (receiver) deveria ter puxado 'Cap B'");
+        assert_eq!(received[0].comic_name, "Shared Comic");
+        assert_eq!(received[0].chapter, "Cap B");
+        assert_eq!(received[0].bytes, payload_b);
     }
 
     /// Sem `comic_name` do lado outbound (bug de wiring — `P2PNode::sync_comic` sempre grava o

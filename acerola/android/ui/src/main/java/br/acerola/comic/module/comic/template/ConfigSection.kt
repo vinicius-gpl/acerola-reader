@@ -39,6 +39,7 @@ import br.acerola.comic.module.comic.state.ComicUiState
 import br.acerola.comic.module.main.Main
 import br.acerola.comic.module.main.common.component.PeerPickerSheet
 import br.acerola.comic.module.main.sync.state.PairedPeer
+import br.acerola.comic.service.SyncDirection
 import br.acerola.comic.ui.R
 
 private val itemModifier = Modifier.padding(horizontal = 16.dp)
@@ -245,11 +246,18 @@ fun Comic.Template.configSection(
 
     scope.item {
         var showPeerPicker by remember { mutableStateOf(false) }
+        var pendingDirection by remember { mutableStateOf(SyncDirection.PUSH) }
 
         Comic.Component.SyncWithPeerAction(
             state = syncWithPeerState,
-            onClick = {
+            onPush = {
                 onLoadPairedPeers()
+                pendingDirection = SyncDirection.PUSH
+                showPeerPicker = true
+            },
+            onPull = {
+                onLoadPairedPeers()
+                pendingDirection = SyncDirection.PULL
                 showPeerPicker = true
             },
             modifier = itemModifier,
@@ -260,7 +268,7 @@ fun Comic.Template.configSection(
                 peers = pairedPeers,
                 onSelect = { peerId ->
                     showPeerPicker = false
-                    onSyncAction(ComicSyncAction.SyncWithPeer(peerId))
+                    onSyncAction(ComicSyncAction.SyncWithPeer(peerId, pendingDirection))
                 },
                 onDismiss = { showPeerPicker = false },
             )

@@ -6,6 +6,7 @@ import br.acerola.comic.service.ConnectedPeerInfo
 import br.acerola.comic.service.NetworkMode
 import br.acerola.comic.service.P2pService
 import br.acerola.comic.service.PeerAddress
+import br.acerola.comic.service.SyncDirection
 import java.io.Closeable
 import javax.inject.Inject
 
@@ -42,9 +43,14 @@ class P2pUseCase
         fun syncComic(
             peerAddress: PeerAddress,
             comicName: String,
+            direction: SyncDirection,
         ) {
-            AcerolaLogger.i("P2pUseCase", "Syncing comic '$comicName' with peer: ${peerAddress.id}", LogSource.NETWORK)
-            p2pService.syncComic(peerAddress, comicName)
+            AcerolaLogger.i(
+                "P2pUseCase",
+                "Syncing comic '$comicName' with peer: ${peerAddress.id} ($direction)",
+                LogSource.NETWORK,
+            )
+            p2pService.syncComic(peerAddress, comicName, direction)
         }
 
         fun browseLibrary(peerAddress: PeerAddress) {

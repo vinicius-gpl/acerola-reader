@@ -11,7 +11,7 @@ use acerola_p2p::api::{
 use async_trait::async_trait;
 use tokio::io::{AsyncRead, AsyncWrite};
 
-use crate::callbacks::HistorySyncProvider;
+use crate::{callbacks::HistorySyncProvider, protocol::sync_error::classify_sync_error};
 
 pub(crate) const HISTORY_SYNC_ALPN: &[u8] = b"acerola/sync-history/1";
 
@@ -66,5 +66,7 @@ impl Handler for HistorySyncInbound {
 }
 
 fn error_payload(peer: &PeerIdentity, err: &P2pError) -> String {
-    serde_json::json!({ "peerId": peer.id, "message": err.to_string() }).to_string()
+    let code = classify_sync_error(err);
+    tracing::warn!(peer = %peer.id, ?code, error = %err, "[HistorySync] session failed");
+    serde_json::json!({ "peerId": peer.id, "message": err.to_string(), "code": code }).to_string()
 }

@@ -20,8 +20,8 @@ use crate::{
         protocol::{
             file_session_guard::FileSyncSessionGuard,
             transfer::{
-                emit_busy, read_or_busy, receive_extras, receive_files, send_extras, send_files,
-                write_session_busy, ChapterTransfer,
+                classify_sync_error, emit_busy, read_or_busy, receive_extras, receive_files, send_extras,
+                send_files, sync_error_payload, write_session_busy, ChapterTransfer,
             },
         },
     },
@@ -145,10 +145,11 @@ impl Handler for FileSyncOutbound {
             },
             Err(error) => {
                 let message = error.to_string();
-                (self.emit)(
-                    ERROR_EVENT,
-                    serde_json::json!({ "peerId": peer.id, "message": &message }).to_string(),
-                );
+                let code = classify_sync_error(&error);
+                // Log técnico sempre em inglês, independente do `code` — é o que vai pro
+                // arquivo de log/suporte; a tradução (`code`) é só pra UI.
+                tracing::warn!(peer = %peer.id, ?code, error = %message, "[FileSync] session failed");
+                (self.emit)(ERROR_EVENT, sync_error_payload(&peer.id, &message, code, None));
                 self.log_repo
                     .base
                     .insert(&SyncHistoryLogEntry::new(&peer.id, LOG_KIND, "error", Some(&message)))
@@ -267,10 +268,11 @@ impl Handler for FileSyncInbound {
             },
             Err(error) => {
                 let message = error.to_string();
-                (self.emit)(
-                    ERROR_EVENT,
-                    serde_json::json!({ "peerId": peer.id, "message": &message }).to_string(),
-                );
+                let code = classify_sync_error(&error);
+                // Log técnico sempre em inglês, independente do `code` — é o que vai pro
+                // arquivo de log/suporte; a tradução (`code`) é só pra UI.
+                tracing::warn!(peer = %peer.id, ?code, error = %message, "[FileSync] session failed");
+                (self.emit)(ERROR_EVENT, sync_error_payload(&peer.id, &message, code, None));
                 self.log_repo
                     .base
                     .insert(&SyncHistoryLogEntry::new(&peer.id, LOG_KIND, "error", Some(&message)))
@@ -340,6 +342,8 @@ mod tests {
         assert_eq!(recorded.len(), 1, "esperava só o evento de busy, recebeu: {recorded:?}");
         assert_eq!(recorded[0].0, "sync:files:error");
         assert!(recorded[0].1.contains("already in progress"));
+        let payload: serde_json::Value = serde_json::from_str(&recorded[0].1).unwrap();
+        assert_eq!(payload["code"], "busy", "frontend usa esse code pra traduzir a mensagem na UI");
     }
 
     /// Mesma corrida do teste acima, mas cruzando papéis: a lease foi reservada por uma

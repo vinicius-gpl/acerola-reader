@@ -16,8 +16,9 @@ use acerola_p2p::api::{
 use async_trait::async_trait;
 use tokio::io::{AsyncRead, AsyncWrite};
 
-use crate::callbacks::FileSyncProvider;
+use crate::{callbacks::FileSyncProvider, protocol::sync_error::classify_sync_error};
 use model::FileSyncStats;
+pub(crate) use model::SyncDirection;
 pub(crate) use session_guard::FileSyncSessionGuard;
 pub(crate) use transfer::{BlobChapterTransfer, ChapterTransfer};
 
@@ -31,11 +32,12 @@ pub(crate) const FILE_SYNC_ALPN: &[u8] = b"acerola/sync-files/1";
 /// transporte (`acerola-p2p`, que roteia por ALPN exato e não carrega payload em `connect()`).
 pub(crate) const COMIC_SYNC_ALPN: &[u8] = b"acerola/sync-comic/1";
 
-/// `peer_id -> comic_name` escolhido pelo usuário na chamada FFI `P2PNode::sync_comic`, lido e
-/// removido por `ComicSyncOutbound::handle` assim que a sessão outbound começa. Único jeito de
-/// levar essa escolha (que só existe do lado Kotlin) até o `Handler` que a lib de transporte
-/// invoca sem contexto por chamada — ver comentário em `COMIC_SYNC_ALPN`.
-pub(crate) type PendingComicScope = Arc<Mutex<HashMap<String, String>>>;
+/// `peer_id -> (comic_name, direction)` escolhidos pelo usuário na chamada FFI
+/// `P2PNode::sync_comic`, lidos e removidos por `ComicSyncOutbound::handle` assim que a sessão
+/// outbound começa. Único jeito de levar essa escolha (que só existe do lado Kotlin) até o
+/// `Handler` que a lib de transporte invoca sem contexto por chamada — ver comentário em
+/// `COMIC_SYNC_ALPN`.
+pub(crate) type PendingComicScope = Arc<Mutex<HashMap<String, (String, SyncDirection)>>>;
 
 /// Papel outbound do protocolo `acerola/sync-files/1` — este lado iniciou a conexão.
 pub(crate) struct FileSyncOutbound {
@@ -161,10 +163,21 @@ async fn run_and_report(
             Ok(())
         }
         Err(err) => {
+            let reason = err.to_string();
+            let code = classify_sync_error(&err);
+            // Log técnico sempre em inglês, independente do `code` — é o que vai pro log/
+            // suporte; a tradução (`code`) é só pra UI.
+            tracing::warn!(peer = %peer.id, ?code, error = %reason, "[FileSync] session failed");
             emit(
                 "sync:files:chapter_failed",
-                serde_json::json!({ "peerId": peer.id, "comicName": "", "chapter": "", "reason": err.to_string() })
-                    .to_string(),
+                serde_json::json!({
+                    "peerId": peer.id,
+                    "comicName": "",
+                    "chapter": "",
+                    "reason": reason,
+                    "code": code,
+                })
+                .to_string(),
             );
             Err(err)
         }
@@ -203,7 +216,7 @@ impl Handler for ComicSyncOutbound {
         send: Box<dyn AsyncWrite + Send + Unpin>,
         recv: Box<dyn AsyncRead + Send + Unpin>,
     ) -> Result<(), P2pError> {
-        let comic_name = self
+        let pending = self
             .pending_scope
             .lock()
             .expect("pending comic scope mutex poisoned")
@@ -215,7 +228,7 @@ impl Handler for ComicSyncOutbound {
             &self.provider,
             &self.session_guard,
             &self.transfer,
-            comic_name,
+            pending,
             send,
             recv,
         )
@@ -274,7 +287,7 @@ async fn run_and_report_scoped(
     provider: &Arc<dyn FileSyncProvider>,
     session_guard: &Arc<FileSyncSessionGuard>,
     transfer: &Arc<dyn ChapterTransfer>,
-    comic_name_outbound: Option<String>,
+    comic_scope_outbound: Option<(String, SyncDirection)>,
     send: Box<dyn AsyncWrite + Send + Unpin>,
     recv: Box<dyn AsyncRead + Send + Unpin>,
 ) -> Result<(), P2pError> {
@@ -286,7 +299,7 @@ async fn run_and_report_scoped(
                 emit,
                 provider,
                 transfer,
-                comic_name_outbound,
+                comic_scope_outbound,
                 send,
                 recv,
             )
@@ -305,10 +318,21 @@ async fn run_and_report_scoped(
             Ok(())
         }
         Err(err) => {
+            let reason = err.to_string();
+            let code = classify_sync_error(&err);
+            // Log técnico sempre em inglês, independente do `code` — é o que vai pro log/
+            // suporte; a tradução (`code`) é só pra UI.
+            tracing::warn!(peer = %peer.id, ?code, error = %reason, "[FileSync] session failed");
             emit(
                 "sync:files:chapter_failed",
-                serde_json::json!({ "peerId": peer.id, "comicName": "", "chapter": "", "reason": err.to_string() })
-                    .to_string(),
+                serde_json::json!({
+                    "peerId": peer.id,
+                    "comicName": "",
+                    "chapter": "",
+                    "reason": reason,
+                    "code": code,
+                })
+                .to_string(),
             );
             Err(err)
         }
@@ -448,6 +472,8 @@ mod concurrency_tests {
         let (event_name, payload) = recorded.last().unwrap();
         assert_eq!(event_name, "sync:files:chapter_failed");
         assert!(payload.contains("already in progress"));
+        let parsed: serde_json::Value = serde_json::from_str(payload).unwrap();
+        assert_eq!(parsed["code"], "busy", "lado Kotlin usa esse code pra traduzir a mensagem na UI");
         drop(recorded);
 
         drop(lease); // libera a primeira sessão
@@ -555,7 +581,7 @@ mod concurrency_tests {
             &provider,
             &session_guard,
             &test_transfer(),
-            Some("Comic A".to_string()),
+            Some(("Comic A".to_string(), SyncDirection::Push)),
             Box::new(send) as Box<dyn AsyncWrite + Send + Unpin>,
             Box::new(recv) as Box<dyn AsyncRead + Send + Unpin>,
         )

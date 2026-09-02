@@ -112,11 +112,18 @@ impl P2pBlobStore for IrohBlobStore {
                 // no-op). Sem isso, um timeout durante a fase de tag-já-criada-mas-fetch-preso
                 // deixaria uma tag permanente órfã pra sempre.
                 let _ = gc::untag(&self.store, iroh_hash).await;
-                Err(ConnectionError::StreamFailed(format!(
-                    "blob fetch timed out after {}s — peer connection or path is likely stale \
-                     (see BLOB_FETCH_TIMEOUT doc)",
-                    self.fetch_timeout.as_secs(),
-                )))
+                // `ConnectionError::Timeout` (não um `StreamFailed(String)` próprio) pra quem
+                // consome poder classificar por variante de enum, igual a qualquer outro
+                // timeout de conexão (`classify_connection_error`) — o texto detalhado (segundos
+                // configurados, doc de referência) só importa pro log técnico, não precisa
+                // sobreviver na variante retornada pra continuar sendo classificável depois de
+                // atravessar `From<GetError>`/`From<IrohConnectionError>` (ver `iroh_blobs.rs`).
+                tracing::warn!(
+                    layer = "iroh_blobs",
+                    timeout_secs = self.fetch_timeout.as_secs(),
+                    "blob fetch timed out — peer connection or path is likely stale"
+                );
+                Err(ConnectionError::Timeout)
             },
         }
     }

@@ -4,6 +4,8 @@ import { error } from '@tauri-apps/plugin-log';
 import { SvelteSet } from 'svelte/reactivity';
 import { NETWORK_COMMANDS } from '$lib/contracts/network/network.commands';
 import { NETWORK_EVENTS } from '$lib/contracts/network/network.events';
+import { translateSyncMessage } from '$lib/contracts/errors/sync-error.i18n';
+import { m } from '$lib/paraglide/messages';
 
 export type TransferLogEntry = {
 	id: number;
@@ -22,6 +24,11 @@ export type TransferLogEntry = {
 };
 
 type SyncKind = TransferLogEntry['kind'];
+
+/// Direção explícita de um `syncComic` — espelha `SyncDirection` no backend
+/// (`infra/sync/messages.rs`), serializada em `snake_case` (`"push"`/`"pull"`) no payload do
+/// comando Tauri `sync_comic`.
+export type SyncDirection = 'push' | 'pull';
 
 /// Espelha `SyncHistoryLogEntry` (`data/models/sync/sync_history_log.rs`, serializado
 /// `camelCase`) — uma linha do histórico persistido no SQLite, carregada uma vez ao montar
@@ -114,9 +121,16 @@ export function useNetworkSync() {
 			key,
 			setTimeout(() => {
 				clearSyncing(peerId, kind);
+				const message = m['tauri_errors.sync.timed_out.label']();
+				// `clearSyncing` só limpa `syncingKeys` (o que desbloqueia os botões) — sem
+				// transicionar a linha correspondente do log pra um status terminal, ela ficava
+				// presa em "started"/"progress" (spinner girando) pra sempre na tela de Rede
+				// mesmo com `isSyncing` já `false`, e `inFlightEntryId` nunca liberava a chave
+				// (só `updateInFlightEntry` faz isso, ao processar um status terminal).
+				push(peerId, kind, 'error', message);
 				// Peer sumiu no meio da sessão sem emitir `complete`/`error` — sem isso, um
 				// `syncComic` aguardando a conclusão real ficaria pendurado pra sempre.
-				settlePending(key, false, 'sync timed out');
+				settlePending(key, false, message);
 			}, IN_FLIGHT_TIMEOUT_MS)
 		);
 	}
@@ -136,7 +150,9 @@ export function useNetworkSync() {
 	/// `{"peerId": ..., "message": ..., "comicName"?: ...}` (ver
 	/// `history_handler.rs`/`file_handler.rs`/`comic_handler.rs`), ao contrário de `started`,
 	/// que carrega o `peerId` puro como string.
-	function parseErrorPayload(payload: string): { peerId?: string; message: string; comicName?: string } {
+	function parseErrorPayload(
+		payload: string
+	): { peerId?: string; message: string; comicName?: string; code?: string } {
 		try {
 			const parsed = JSON.parse(payload);
 			// Stryker disable next-line ConditionalExpression,LogicalOperator: `typeof
@@ -150,7 +166,12 @@ export function useNetworkSync() {
 			// payload }` do fallback normal. A saída observável é idêntica, só o caminho muda.
 			// Verificado empiricamente: aplicando cada mutante isoladamente, nenhum teste falha.
 			if (parsed && typeof parsed === 'object' && typeof parsed.message === 'string') {
-				return { peerId: parsed.peerId, message: parsed.message, comicName: parsed.comicName };
+				return {
+					peerId: parsed.peerId,
+					message: parsed.message,
+					comicName: parsed.comicName,
+					code: typeof parsed.code === 'string' ? parsed.code : undefined
+				};
 			}
 		} catch {
 			// payload antigo/inesperado sem JSON — trata como mensagem crua.
@@ -234,7 +255,18 @@ export function useNetworkSync() {
 			timestamp: Date.now(),
 			comicName
 		};
-		log = [entry, ...log].slice(0, MAX_LOG_ENTRIES);
+		// `files:progress`/`comic:progress` não carregam peer id (comentário de
+		// `inFlightEntryId` acima) — cada evento vira uma linha NOVA aqui, nunca some via
+		// `updateInFlightEntry`. Numa sincronização com muitos capítulos, isso enchia o cap de
+		// `MAX_LOG_ENTRIES` só de progresso e empurrava a linha "started" (a única com o
+		// `peerId` real, rastreada em `inFlightEntryId`) pra fora do array ANTES do evento
+		// `complete`/`error` chegar — a linha ficava girando (spinner de "sincronizando...")
+		// pra sempre na tela de Rede, mesmo com a sessão já terminada no backend. Protegendo as
+		// linhas ainda com transição pendente do corte evita esse vazamento; o array pode
+		// passar de `MAX_LOG_ENTRIES` por no máximo o número de sessões concorrentes ainda
+		// abertas, que é sempre pequeno.
+		const pendingIds = new Set(inFlightEntryId.values());
+		log = [entry, ...log].filter((row, index) => index < MAX_LOG_ENTRIES || pendingIds.has(row.id));
 		if (peerId && isOpenStatus(status)) inFlightEntryId.set(key, entry.id);
 	}
 
@@ -289,9 +321,9 @@ export function useNetworkSync() {
 				push(event.payload, 'history', 'complete', event.payload);
 			}),
 			await listen<string>(NETWORK_EVENTS.historyError, (event) => {
-				const { peerId, message } = parseErrorPayload(event.payload);
+				const { peerId, message, code } = parseErrorPayload(event.payload);
 				if (peerId) clearSyncing(peerId, 'history');
-				push(peerId ?? '', 'history', 'error', message);
+				push(peerId ?? '', 'history', 'error', translateSyncMessage(code, message));
 			}),
 			await listen<string>(NETWORK_EVENTS.filesStarted, (event) =>
 				push(event.payload, 'files', 'started', event.payload)
@@ -304,9 +336,9 @@ export function useNetworkSync() {
 				push(event.payload, 'files', 'complete', event.payload);
 			}),
 			await listen<string>(NETWORK_EVENTS.filesError, (event) => {
-				const { peerId, message } = parseErrorPayload(event.payload);
+				const { peerId, message, code } = parseErrorPayload(event.payload);
 				if (peerId) clearSyncing(peerId, 'files');
-				push(peerId ?? '', 'files', 'error', message);
+				push(peerId ?? '', 'files', 'error', translateSyncMessage(code, message));
 			}),
 			await listen<string>(NETWORK_EVENTS.comicStarted, (event) =>
 				push(event.payload, 'comic', 'started', event.payload)
@@ -321,10 +353,11 @@ export function useNetworkSync() {
 				settlePending(syncKey(peerId, 'comic'), true, peerId);
 			}),
 			await listen<string>(NETWORK_EVENTS.comicError, (event) => {
-				const { peerId, message, comicName } = parseErrorPayload(event.payload);
+				const { peerId, message, comicName, code } = parseErrorPayload(event.payload);
+				const translated = translateSyncMessage(code, message);
 				if (peerId) clearSyncing(peerId, 'comic');
-				push(peerId ?? '', 'comic', 'error', message, comicName);
-				if (peerId) settlePending(syncKey(peerId, 'comic'), false, message);
+				push(peerId ?? '', 'comic', 'error', translated, comicName);
+				if (peerId) settlePending(syncKey(peerId, 'comic'), false, translated);
 			})
 		);
 	}
@@ -385,9 +418,17 @@ export function useNetworkSync() {
 	/// só enfileirada, muito antes do handshake/transferência acontecer, então usar aquela
 	/// promise direto pra decidir sucesso/erro (como a tela do quadrinho fazia antes) dispara
 	/// o toast de sucesso cedo demais e nunca mostra o de erro se a sessão falhar depois.
-	async function syncComic(peerId: string, addrs: number[], comicName: string): Promise<string> {
+	async function syncComic(
+		peerId: string,
+		addrs: number[],
+		comicName: string,
+		direction: SyncDirection
+	): Promise<string> {
 		if (isSyncing(peerId, 'comic')) {
-			throw new Error('sync already in progress');
+			// Mesmo texto traduzido do `code: "busy"` que o backend manda — este guard é
+			// local (nem chega a abrir conexão), mas é o mesmo erro do ponto de vista do
+			// usuário, então usa a mesma mensagem em vez de um texto cru em inglês.
+			throw new Error(m['tauri_errors.sync.session_busy.label']());
 		}
 
 		const key = syncKey(peerId, 'comic');
@@ -399,7 +440,8 @@ export function useNetworkSync() {
 			await withSyncGuard(peerId, ['comic'], NETWORK_COMMANDS.syncComic, {
 				peerId,
 				addrs,
-				comicName
+				comicName,
+				direction
 			});
 		} catch (err) {
 			pendingSettlement.delete(key);

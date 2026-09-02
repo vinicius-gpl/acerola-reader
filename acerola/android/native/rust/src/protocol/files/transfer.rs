@@ -41,7 +41,13 @@ impl BlobChapterTransfer {
 impl ChapterTransfer for BlobChapterTransfer {
     async fn publish(&self, bytes: Vec<u8>) -> Result<String, P2pError> {
         let store = self.context.blob_store().await?;
-        let hash = store.put(bytes).await.map_err(|err| P2pError::StreamFailed(err.to_string()))?;
+        // `P2pBlobStore::put` já retorna `ConnectionError` (= `P2pError`, mesmo tipo — ver
+        // `acerola_p2p::api::error`), já classificado corretamente na origem
+        // (`classify_connection_error`/`classify_get_error` em `lib/p2p`). Propaga direto em vez
+        // de achatar em `StreamFailed(err.to_string())` — isso jogava fora a classificação e
+        // obrigava `classify_sync_error` (`mod.rs`) a adivinhar a causa via substring matching
+        // no texto, frágil e sem garantia de cobrir os casos reais.
+        let hash = store.put(bytes).await?;
         Ok(hash.to_string())
     }
 
@@ -49,13 +55,16 @@ impl ChapterTransfer for BlobChapterTransfer {
         &self, blob_hash: &str, peer: &PeerIdentity,
     ) -> Result<Box<dyn AsyncRead + Send + Unpin>, P2pError> {
         let store = self.context.blob_store().await?;
+        // Formato do hash é local/estático (não vem da rede) — sem paralelo em `ConnectionError`
+        // além do genérico `StreamFailed`, mantém `.map_err` só aqui.
         let hash = blob_hash
             .parse()
             .map_err(|_| P2pError::StreamFailed(format!("invalid blob hash: {blob_hash}")))?;
         let addr = self.context.resolve_addr(peer).await?;
 
-        store.fetch(&hash, &addr).await.map_err(|err| P2pError::StreamFailed(err.to_string()))?;
-        store.get(&hash).await.map_err(|err| P2pError::StreamFailed(err.to_string()))
+        // Ver comentário em `publish` — propaga o `ConnectionError` estruturado direto.
+        store.fetch(&hash, &addr).await?;
+        store.get(&hash).await
     }
 }
 

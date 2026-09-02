@@ -250,6 +250,34 @@ pub async fn insert_chapter_archive_with_checksum(
     .unwrap();
 }
 
+/// Insere o progresso de leitura de um quadrinho — chave única por `comic_directory_id`.
+pub async fn insert_reading_history(
+    pool: &sqlx::SqlitePool, comic_directory_id: i64, chapter_archive_id: i64, last_page: i64,
+) {
+    sqlx::query(
+        "INSERT INTO reading_history (comic_directory_id, chapter_archive_id, last_page, is_completed, updated_at)
+         VALUES (?, ?, ?, 0, 1000)",
+    )
+    .bind(comic_directory_id)
+    .bind(chapter_archive_id)
+    .bind(last_page)
+    .execute(pool)
+    .await
+    .unwrap();
+}
+
+/// Marca um capítulo como lido — chave composta `comic_directory_id` + `chapter_archive_id`.
+pub async fn insert_chapter_read(pool: &sqlx::SqlitePool, comic_directory_id: i64, chapter_archive_id: i64) {
+    sqlx::query(
+        "INSERT INTO chapter_read (comic_directory_id, chapter_archive_id, created_at) VALUES (?, ?, 1000)",
+    )
+    .bind(comic_directory_id)
+    .bind(chapter_archive_id)
+    .execute(pool)
+    .await
+    .unwrap();
+}
+
 /// Insere um quadrinho com N capítulos e metadados — usado pelos testes de ordenação/filtro da Home.
 pub async fn insert_comic_with_chapters(
     pool: &sqlx::SqlitePool, id: i64, name: &str, title: &str, chapter_count: i64,

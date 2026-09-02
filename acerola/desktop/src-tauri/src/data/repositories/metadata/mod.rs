@@ -97,6 +97,11 @@ impl MetadataRepository {
             .execute(&self.pool)
             .await?;
 
+        sqlx::query("DELETE FROM genre WHERE comic_metadata_fk = ?")
+            .bind(metadata.id)
+            .execute(&self.pool)
+            .await?;
+
         sqlx::query("DELETE FROM anilist_source WHERE comic_metadata_fk = ?")
             .bind(metadata.id)
             .execute(&self.pool)

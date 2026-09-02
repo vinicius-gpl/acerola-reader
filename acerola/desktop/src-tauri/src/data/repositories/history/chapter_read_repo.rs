@@ -121,6 +121,21 @@ impl ChapterReadRepository {
         Ok(rows)
     }
 
+    /// Remove todos os marcadores de "lido" de um quadrinho inteiro — usado ao excluir o
+    /// quadrinho (o cascade de FK não roda em runtime, ver comentário em
+    /// `VolumeRepository::delete_by_comic`). No-op se não houver nenhum capítulo marcado.
+    pub async fn delete_by_comic(&self, comic_directory_id: i64) -> Result<u64, DbError> {
+        let table = ChapterRead::table_name();
+
+        let rows_affected = sqlx::query(&format!("DELETE FROM {} WHERE comic_directory_id = ?", table))
+            .bind(comic_directory_id)
+            .execute(&self.pool)
+            .await?
+            .rows_affected();
+
+        Ok(rows_affected)
+    }
+
     /// Remove o registro de leitura de múltiplos capítulos em batch.
     pub async fn delete_batch(
         &self, comic_directory_id: i64, chapter_ids: &[i64],
@@ -152,7 +167,7 @@ mod tests {
     use super::ChapterReadRepository;
     use crate::{
         data::models::history::chapter_read::ChapterRead,
-        tests::utils::setup_test_db::setup_test_db_with_comic,
+        tests::utils::setup_test_db::{insert_comic_directory, setup_test_db_with_comic},
     };
 
     fn capitulo_lido(comic_directory_id: i64, chapter_archive_id: i64) -> ChapterRead {
@@ -284,5 +299,32 @@ mod tests {
         let (_, repo) = setup().await;
         let count = repo.delete_batch(1, &[]).await.unwrap();
         assert_eq!(count, 0);
+    }
+
+    #[tokio::test]
+    async fn test_delete_by_comic_removes_all_markers_for_that_comic_only() {
+        let (pool, repo) = setup().await;
+        insert_comic_directory(&pool, 2, "Outro", "/outro").await;
+        inserir_capitulos(&pool, &[1, 2]).await;
+        sqlx::query("INSERT INTO chapter_archive (id, chapter, path, chapter_sort, is_special, comic_directory_fk, last_modified) VALUES (3, '3', 'path3', '3', 0, 2, 0)")
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        repo.insert_batch(1, &[1, 2], 1000).await.unwrap();
+        repo.insert_batch(2, &[3], 1000).await.unwrap();
+
+        let removed = repo.delete_by_comic(1).await.unwrap();
+
+        assert_eq!(removed, 2);
+        assert!(repo.find_ids_by_comic(1).await.unwrap().is_empty());
+        assert_eq!(repo.find_ids_by_comic(2).await.unwrap(), vec![3]);
+    }
+
+    #[tokio::test]
+    async fn test_delete_by_comic_without_markers_does_not_fail() {
+        let (_, repo) = setup().await;
+        let removed = repo.delete_by_comic(999).await.unwrap();
+        assert_eq!(removed, 0);
     }
 }

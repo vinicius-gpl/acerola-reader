@@ -16,13 +16,13 @@ use crate::{
     },
     infra::sync::{
         framing::{framed_reader, framed_writer, read_json, write_json, FramedReader, FramedWriter},
-        messages::{ComicSyncRequest, FileManifest, FileWantList},
+        messages::{ComicSyncRequest, FileManifest, FileWantList, SyncDirection},
         protocol::{
             comic_sync_registry::PendingComicSyncRegistry,
             file_session_guard::FileSyncSessionGuard,
             transfer::{
-                emit_busy, read_or_busy, receive_extras, receive_files, send_extras, send_files,
-                write_session_busy, ChapterTransfer,
+                classify_sync_error, emit_busy, read_or_busy, receive_extras, receive_files, send_extras,
+                send_files, sync_error_payload, write_session_busy, ChapterTransfer,
             },
         },
     },
@@ -76,18 +76,27 @@ impl ComicSyncOutbound {
     async fn run(
         &self, peer: &PeerIdentity, writer: &mut FramedWriter, reader: &mut FramedReader,
     ) -> Result<(usize, String), P2pError> {
-        let comic_name = self.registry.take(&peer.id).ok_or_else(|| {
+        let (comic_name, direction) = self.registry.take(&peer.id).ok_or_else(|| {
             P2pError::StreamFailed("no pending comic sync scope registered for this peer".into())
         })?;
 
-        write_json(writer, &ComicSyncRequest { comic_name: comic_name.clone() }).await?;
+        write_json(writer, &ComicSyncRequest { comic_name: comic_name.clone(), direction }).await?;
 
         let local_manifest = self.service.build_manifest_for_comic(&comic_name).await?;
         write_json(writer, &local_manifest).await?;
 
         let peer_manifest: FileManifest = read_or_busy(reader).await?;
 
-        let (my_wanted, my_wanted_extras) = self.service.diff_wanted(&peer_manifest).await?;
+        // Outbound é o "sender" quando a direção escolhida foi Push — nesse caso não pede nada
+        // de volta, só serve o que o peer pedir (ver doc de `SyncDirection`). O diff continua
+        // sendo calculado normalmente do outro lado (inbound), que decide o que pedir de mim sem
+        // saber (nem precisar saber) da direção.
+        let is_sender = direction == SyncDirection::Push;
+        let (my_wanted, my_wanted_extras) = if is_sender {
+            (Vec::new(), Vec::new())
+        } else {
+            self.service.diff_wanted(&peer_manifest).await?
+        };
         write_json(
             writer,
             &FileWantList { wanted: my_wanted.clone(), wanted_extras: my_wanted_extras.clone() },
@@ -173,10 +182,9 @@ impl Handler for ComicSyncOutbound {
             },
             Err(error) => {
                 let message = error.to_string();
-                (self.emit)(
-                    ERROR_EVENT,
-                    serde_json::json!({ "peerId": peer.id, "message": &message }).to_string(),
-                );
+                let code = classify_sync_error(&error);
+                tracing::warn!(peer = %peer.id, ?code, error = %message, "[ComicSync] session failed");
+                (self.emit)(ERROR_EVENT, sync_error_payload(&peer.id, &message, code, None));
                 self.log_repo
                     .base
                     .insert(&SyncHistoryLogEntry::new(&peer.id, LOG_KIND, "error", Some(&message)))
@@ -223,7 +231,15 @@ impl ComicSyncInbound {
 
         let their_wanted: FileWantList = read_json(reader).await?;
 
-        let (my_wanted, my_wanted_extras) = self.service.diff_wanted(&peer_manifest).await?;
+        // Inbound é o "sender" quando a direção escolhida pelo outbound foi Pull (outbound
+        // puxa de mim) — papel sempre o oposto do outbound (ver doc de `SyncDirection` e
+        // `ComicSyncOutbound::run`), então não pede nada de volta, só serve o que foi pedido.
+        let is_sender = request.direction == SyncDirection::Pull;
+        let (my_wanted, my_wanted_extras) = if is_sender {
+            (Vec::new(), Vec::new())
+        } else {
+            self.service.diff_wanted(&peer_manifest).await?
+        };
         write_json(
             writer,
             &FileWantList { wanted: my_wanted.clone(), wanted_extras: my_wanted_extras.clone() },
@@ -304,10 +320,9 @@ impl Handler for ComicSyncInbound {
             },
             Err(error) => {
                 let message = error.to_string();
-                (self.emit)(
-                    ERROR_EVENT,
-                    serde_json::json!({ "peerId": peer.id, "message": &message }).to_string(),
-                );
+                let code = classify_sync_error(&error);
+                tracing::warn!(peer = %peer.id, ?code, error = %message, "[ComicSync] session failed");
+                (self.emit)(ERROR_EVENT, sync_error_payload(&peer.id, &message, code, None));
                 self.log_repo
                     .base
                     .insert(&SyncHistoryLogEntry::new(&peer.id, LOG_KIND, "error", Some(&message)))
@@ -398,6 +413,8 @@ mod tests {
         assert_eq!(recorded.len(), 1, "esperava só o evento de busy, recebeu: {recorded:?}");
         assert_eq!(recorded[0].0, "sync:comic:error");
         assert!(recorded[0].1.contains("already in progress"));
+        let payload: serde_json::Value = serde_json::from_str(&recorded[0].1).unwrap();
+        assert_eq!(payload["code"], "busy", "frontend usa esse code pra traduzir a mensagem na UI");
     }
 
     /// Trava o payload novo de `sync:comic:complete` — antes carregava só a string crua do
@@ -409,25 +426,43 @@ mod tests {
         let (outbound_log, outbound_service, outbound_metadata, _outbound_dir) = setup().await;
         let (inbound_log, inbound_service, inbound_metadata, _inbound_dir) = setup().await;
 
-        let guard = FileSyncSessionGuard::new();
+        // `FileSyncSessionGuard` é estado LOCAL de cada device (protege contra duas sessões
+        // concorrentes pro MESMO peer visto por aquele device) — outbound e inbound aqui
+        // simulam dois devices DIFERENTES na mesma sessão (via `tokio::io::duplex`), então cada
+        // um precisa da sua própria instância. Compartilhar uma só (como este teste fazia antes)
+        // cria uma corrida real: `tokio::join!` sondra `outbound_fut` primeiro, que adquire a
+        // lease sincronamente antes de `inbound_fut` sequer ser sondado uma vez — inbound sempre
+        // perde a corrida, cai no branch de "busy" e fecha o stream imediatamente, e a escrita
+        // seguinte do outbound (que ainda não tinha lido isso) quebra com "broken pipe". Nunca
+        // pego antes porque `cargo test` bruto travava com STATUS_ENTRYPOINT_NOT_FOUND neste
+        // crate no Windows (ambiente) — só via `cargo make test` (nextest, com o setup de
+        // manifest/DLL do Windows) esse teste chegou a rodar de verdade pela primeira vez.
+        let outbound_guard = FileSyncSessionGuard::new();
+        let inbound_guard = FileSyncSessionGuard::new();
         let registry = PendingComicSyncRegistry::new();
         let (outbound_emit, outbound_events) = mock_emitter();
         let (inbound_emit, inbound_events) = mock_emitter();
 
         let peer = PeerIdentity { id: "peer-complete".to_string(), device_id: None };
-        registry.set(peer.id.clone(), "Quadrinho Compartilhado".to_string());
+        registry.set(peer.id.clone(), "Quadrinho Compartilhado".to_string(), SyncDirection::Push);
 
         let outbound = ComicSyncOutbound::new(
             outbound_emit,
             outbound_service,
             outbound_metadata,
             outbound_log,
-            Arc::clone(&guard),
+            outbound_guard,
             registry,
             test_transfer(),
         );
-        let inbound =
-            ComicSyncInbound::new(inbound_emit, inbound_service, inbound_metadata, inbound_log, guard, test_transfer());
+        let inbound = ComicSyncInbound::new(
+            inbound_emit,
+            inbound_service,
+            inbound_metadata,
+            inbound_log,
+            inbound_guard,
+            test_transfer(),
+        );
 
         let (client_io, server_io) = tokio::io::duplex(64 * 1024);
         let (client_recv, client_send) = tokio::io::split(client_io);
@@ -456,5 +491,223 @@ mod tests {
             .expect("inbound também deveria ter emitido sync:comic:complete");
         let inbound_payload: serde_json::Value = serde_json::from_str(&inbound_complete.1).unwrap();
         assert_eq!(inbound_payload["comicName"], "Quadrinho Compartilhado");
+    }
+
+    fn sha256_hex(bytes: &[u8]) -> String {
+        use sha2::{Digest, Sha256};
+        format!("{:x}", Sha256::digest(bytes))
+    }
+
+    struct DirectedScenario {
+        outbound_pool: sqlx::SqlitePool,
+        inbound_pool: sqlx::SqlitePool,
+        outbound_service: FileSyncService,
+        inbound_service: FileSyncService,
+        outbound_metadata: Arc<MetadataService>,
+        inbound_metadata: Arc<MetadataService>,
+        _outbound_dir: tempfile::TempDir,
+        _inbound_dir: tempfile::TempDir,
+    }
+
+    /// Monta dois devices com o MESMO quadrinho ("Test"), cada um com um capítulo real (arquivo
+    /// em disco + checksum sha256 de verdade) que o outro não tem — o cenário mínimo pra provar
+    /// que é a `direction` escolhida, não o diff, que decide quem recebe o quê. Usa
+    /// `insert_comic_directory` (path dentro do próprio `tempfile::TempDir`) em vez de
+    /// `setup_test_db_with_comic` (que grava o path fixo `/test`) porque `resolve_comic_dir`
+    /// chama `create_dir_all` nesse path de verdade — um teste não deveria criar diretórios fora
+    /// do próprio sandbox.
+    async fn setup_directed_scenario() -> DirectedScenario {
+        let outbound_pool = crate::tests::utils::setup_test_db::setup_test_db().await;
+        let inbound_pool = crate::tests::utils::setup_test_db::setup_test_db().await;
+
+        let outbound_dir = tempfile::tempdir().unwrap();
+        let inbound_dir = tempfile::tempdir().unwrap();
+
+        crate::tests::utils::setup_test_db::insert_comic_directory(
+            &outbound_pool,
+            1,
+            "Test",
+            outbound_dir.path().join("Test").to_str().unwrap(),
+        )
+        .await;
+        crate::tests::utils::setup_test_db::insert_comic_directory(
+            &inbound_pool,
+            1,
+            "Test",
+            inbound_dir.path().join("Test").to_str().unwrap(),
+        )
+        .await;
+
+        let outbound_chapter_path = outbound_dir.path().join("Cap A.cbz");
+        let outbound_bytes = b"chapter A bytes";
+        tokio::fs::write(&outbound_chapter_path, outbound_bytes).await.unwrap();
+        sqlx::query(
+            "INSERT INTO chapter_archive (id, chapter, path, chapter_sort, is_special, checksum, comic_directory_fk, last_modified) VALUES (1, 'Cap A', ?, '1', 0, ?, 1, 0)",
+        )
+        .bind(outbound_chapter_path.to_str().unwrap())
+        .bind(sha256_hex(outbound_bytes))
+        .execute(&outbound_pool)
+        .await
+        .unwrap();
+
+        let inbound_chapter_path = inbound_dir.path().join("Cap B.cbz");
+        let inbound_bytes = b"chapter B bytes";
+        tokio::fs::write(&inbound_chapter_path, inbound_bytes).await.unwrap();
+        sqlx::query(
+            "INSERT INTO chapter_archive (id, chapter, path, chapter_sort, is_special, checksum, comic_directory_fk, last_modified) VALUES (1, 'Cap B', ?, '1', 0, ?, 1, 0)",
+        )
+        .bind(inbound_chapter_path.to_str().unwrap())
+        .bind(sha256_hex(inbound_bytes))
+        .execute(&inbound_pool)
+        .await
+        .unwrap();
+
+        let outbound_root = outbound_dir.path().to_path_buf();
+        let inbound_root = inbound_dir.path().to_path_buf();
+        let outbound_service = FileSyncService::new(outbound_pool.clone(), move || outbound_root.clone());
+        let inbound_service = FileSyncService::new(inbound_pool.clone(), move || inbound_root.clone());
+        let outbound_metadata = Arc::new(MetadataService::new(outbound_pool.clone()));
+        let inbound_metadata = Arc::new(MetadataService::new(inbound_pool.clone()));
+
+        DirectedScenario {
+            outbound_pool,
+            inbound_pool,
+            outbound_service,
+            inbound_service,
+            outbound_metadata,
+            inbound_metadata,
+            _outbound_dir: outbound_dir,
+            _inbound_dir: inbound_dir,
+        }
+    }
+
+    async fn chapters_of(pool: &sqlx::SqlitePool) -> Vec<String> {
+        let rows: Vec<(String,)> = sqlx::query_as(
+            "SELECT chapter FROM chapter_archive WHERE comic_directory_fk = (SELECT id FROM comic_directory WHERE name = 'Test') ORDER BY chapter",
+        )
+        .fetch_all(pool)
+        .await
+        .unwrap();
+        rows.into_iter().map(|(chapter,)| chapter).collect()
+    }
+
+    /// Prova que `direction: Push` é respeitada mesmo quando o diff normal mostraria o outbound
+    /// como "faltando" o capítulo do peer: outbound entrega "Cap A" (que só ele tem) mas NUNCA
+    /// pede "Cap B" de volta, mesmo estando genuinamente sem esse capítulo.
+    #[tokio::test]
+    async fn push_direction_sends_without_ever_requesting_what_it_is_missing() {
+        let scenario = setup_directed_scenario().await;
+        let outbound_guard = FileSyncSessionGuard::new();
+        let inbound_guard = FileSyncSessionGuard::new();
+        let registry = PendingComicSyncRegistry::new();
+        let (outbound_emit, _outbound_events) = mock_emitter();
+        let (inbound_emit, _inbound_events) = mock_emitter();
+
+        let peer = PeerIdentity { id: "peer-push".to_string(), device_id: None };
+        registry.set(peer.id.clone(), "Test".to_string(), SyncDirection::Push);
+
+        // Pega os dois handles do MESMO par (`shared_pair`), não `test_transfer()` duas vezes —
+        // cada chamada a `test_transfer()` cria um par NOVO e isolado, descartando a metade que
+        // sobra; sem o mesmo "store de rede" dos dois lados, um `publish` de um lado nunca é
+        // visível pro `fetch_reader` do outro (o bug que fez este teste falhar na primeira
+        // versão, com "1 capítulo não sincronizado").
+        let (outbound_transfer, inbound_transfer) = InMemoryChapterTransfer::shared_pair();
+
+        let outbound = ComicSyncOutbound::new(
+            outbound_emit,
+            scenario.outbound_service,
+            scenario.outbound_metadata,
+            SyncHistoryLogRepository::new(scenario.outbound_pool.clone()),
+            outbound_guard,
+            registry,
+            outbound_transfer,
+        );
+        let inbound = ComicSyncInbound::new(
+            inbound_emit,
+            scenario.inbound_service,
+            scenario.inbound_metadata,
+            SyncHistoryLogRepository::new(scenario.inbound_pool.clone()),
+            inbound_guard,
+            inbound_transfer,
+        );
+
+        let (client_io, server_io) = tokio::io::duplex(64 * 1024);
+        let (client_recv, client_send) = tokio::io::split(client_io);
+        let (server_recv, server_send) = tokio::io::split(server_io);
+
+        let (outbound_result, inbound_result) = tokio::join!(
+            outbound.handle(&peer, Box::new(client_send), Box::new(client_recv)),
+            inbound.handle(&peer, Box::new(server_send), Box::new(server_recv)),
+        );
+        outbound_result.expect("push não deveria falhar");
+        inbound_result.expect("push não deveria falhar");
+
+        assert_eq!(
+            chapters_of(&scenario.outbound_pool).await,
+            vec!["Cap A".to_string()],
+            "outbound (sender) nunca deveria ter pedido 'Cap B' de volta"
+        );
+        assert_eq!(
+            chapters_of(&scenario.inbound_pool).await,
+            vec!["Cap A".to_string(), "Cap B".to_string()],
+            "inbound (receiver) deveria ter recebido 'Cap A' normalmente, mantendo 'Cap B'"
+        );
+    }
+
+    /// Espelho do teste acima pra `direction: Pull` — outbound puxa "Cap B" do peer sem nunca
+    /// mandar "Cap A", mesmo o inbound estando genuinamente sem esse capítulo.
+    #[tokio::test]
+    async fn pull_direction_receives_without_ever_sending_what_the_peer_is_missing() {
+        let scenario = setup_directed_scenario().await;
+        let outbound_guard = FileSyncSessionGuard::new();
+        let inbound_guard = FileSyncSessionGuard::new();
+        let registry = PendingComicSyncRegistry::new();
+        let (outbound_emit, _outbound_events) = mock_emitter();
+        let (inbound_emit, _inbound_events) = mock_emitter();
+
+        let peer = PeerIdentity { id: "peer-pull".to_string(), device_id: None };
+        registry.set(peer.id.clone(), "Test".to_string(), SyncDirection::Pull);
+
+        let (outbound_transfer, inbound_transfer) = InMemoryChapterTransfer::shared_pair();
+
+        let outbound = ComicSyncOutbound::new(
+            outbound_emit,
+            scenario.outbound_service,
+            scenario.outbound_metadata,
+            SyncHistoryLogRepository::new(scenario.outbound_pool.clone()),
+            outbound_guard,
+            registry,
+            outbound_transfer,
+        );
+        let inbound = ComicSyncInbound::new(
+            inbound_emit,
+            scenario.inbound_service,
+            scenario.inbound_metadata,
+            SyncHistoryLogRepository::new(scenario.inbound_pool.clone()),
+            inbound_guard,
+            inbound_transfer,
+        );
+
+        let (client_io, server_io) = tokio::io::duplex(64 * 1024);
+        let (client_recv, client_send) = tokio::io::split(client_io);
+        let (server_recv, server_send) = tokio::io::split(server_io);
+
+        let (outbound_result, inbound_result) = tokio::join!(
+            outbound.handle(&peer, Box::new(client_send), Box::new(client_recv)),
+            inbound.handle(&peer, Box::new(server_send), Box::new(server_recv)),
+        );
+        outbound_result.expect("pull não deveria falhar");
+        inbound_result.expect("pull não deveria falhar");
+
+        assert_eq!(
+            chapters_of(&scenario.outbound_pool).await,
+            vec!["Cap A".to_string(), "Cap B".to_string()],
+            "outbound (receiver) deveria ter puxado 'Cap B', mantendo 'Cap A'"
+        );
+        assert_eq!(
+            chapters_of(&scenario.inbound_pool).await,
+            vec!["Cap B".to_string()],
+            "inbound (sender) nunca deveria ter pedido 'Cap A' de volta"
+        );
     }
 }

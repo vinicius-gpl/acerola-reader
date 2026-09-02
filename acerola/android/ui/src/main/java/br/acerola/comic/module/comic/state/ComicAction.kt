@@ -3,6 +3,7 @@ package br.acerola.comic.module.comic.state
 import br.acerola.comic.config.preference.types.ChapterPageSizeType
 import br.acerola.comic.config.preference.types.VolumeViewType
 import br.acerola.comic.dto.archive.ChapterFileDto
+import br.acerola.comic.service.SyncDirection
 
 sealed interface ComicAction {
     data object NavigateBack : ComicAction
@@ -67,5 +68,6 @@ sealed interface ComicSyncAction {
 
     data class SyncWithPeer(
         val peerId: String,
+        val direction: SyncDirection,
     ) : ComicSyncAction
 }

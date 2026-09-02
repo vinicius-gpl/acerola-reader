@@ -10,6 +10,7 @@ import android.util.Log
 import p2p.CoverBrowseProvider
 import p2p.FfiNetworkMode
 import p2p.FfiPeerAddr
+import p2p.FfiSyncDirection
 import p2p.FileSyncProvider
 import p2p.HistorySyncProvider
 import p2p.P2pCallback
@@ -21,6 +22,20 @@ enum class NetworkMode {
     LOCAL,
     RELAY,
 }
+
+/** Direção explícita de um [syncComic] — `PUSH` manda o quadrinho pro peer, `PULL` puxa dele.
+ *  Espelha `FfiSyncDirection` (gerado via UniFFI); mesmo padrão de [NetworkMode]/[FfiNetworkMode]
+ *  logo acima, pra `Ffi*` não vazar além desta fronteira `:native`. */
+enum class SyncDirection {
+    PUSH,
+    PULL,
+}
+
+private fun SyncDirection.toFfi(): FfiSyncDirection =
+    when (this) {
+        SyncDirection.PUSH -> FfiSyncDirection.PUSH
+        SyncDirection.PULL -> FfiSyncDirection.PULL
+    }
 
 data class PeerAddress(
     val id: String,
@@ -161,21 +176,21 @@ class P2pService(
         p2pNode.connect(ffiAddr, alpn)
     }
 
-    /** Sincroniza um único quadrinho com o peer — cobre tanto push (quadrinho que já tenho)
-     *  quanto pull (quadrinho descoberto navegando a biblioteca remota), já que a troca do
-     *  protocolo `acerola/sync-comic/1` é sempre simétrica. */
+    /** Sincroniza um único quadrinho com o peer, na [direction] explícita escolhida pelo
+     *  usuário — `PUSH` manda o quadrinho pro peer, `PULL` puxa dele. */
     fun syncComic(
         peerAddress: PeerAddress,
         comicName: String,
+        direction: SyncDirection,
     ) {
-        Log.d("P2pService", "Syncing comic '$comicName' with peer: ${peerAddress.id}")
+        Log.d("P2pService", "Syncing comic '$comicName' with peer: ${peerAddress.id} ($direction)")
         val ffiAddr =
             FfiPeerAddr(
                 id = peerAddress.id,
                 deviceId = peerAddress.deviceId,
                 addrs = peerAddress.addrs,
             )
-        p2pNode.syncComic(ffiAddr, comicName)
+        p2pNode.syncComic(ffiAddr, comicName, direction.toFfi())
     }
 
     /** Pede a lista de quadrinhos (nome + contagem de capítulos) da biblioteca do peer, sem

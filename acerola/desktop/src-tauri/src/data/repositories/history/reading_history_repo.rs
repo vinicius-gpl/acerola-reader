@@ -146,6 +146,18 @@ impl ReadingHistoryRepository {
         sqlx::query(&format!("DELETE FROM {}", table)).execute(&self.pool).await?;
         Ok(())
     }
+
+    /// Apaga o histórico de leitura de um único quadrinho — usado ao excluir o quadrinho
+    /// (o cascade de FK não roda em runtime, ver comentário em
+    /// `VolumeRepository::delete_by_comic`). No-op se não houver histórico.
+    pub async fn delete_by_comic_id(&self, comic_directory_id: i64) -> Result<(), DbError> {
+        let table = ReadingHistory::table_name();
+        sqlx::query(&format!("DELETE FROM {} WHERE comic_directory_id = ?", table))
+            .bind(comic_directory_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -153,7 +165,7 @@ mod tests {
     use super::ReadingHistoryRepository;
     use crate::{
         data::models::history::reading_history::ReadingHistory,
-        tests::utils::setup_test_db::setup_test_db_with_comic,
+        tests::utils::setup_test_db::{insert_chapter_archive, insert_comic_directory, setup_test_db_with_comic},
     };
 
     fn historico(
@@ -259,5 +271,28 @@ mod tests {
 
         let depois = repo.find_all_ordered().await.unwrap();
         assert_eq!(depois.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_delete_by_comic_id_removes_only_that_comic() {
+        let (pool, repo) = setup().await;
+
+        insert_comic_directory(&pool, 2, "Outro", "/outro").await;
+        insert_chapter_archive(&pool, 1, 1).await;
+        insert_chapter_archive(&pool, 2, 2).await;
+
+        repo.upsert(&historico(1, 1, 5)).await.unwrap();
+        repo.upsert(&historico(2, 2, 5)).await.unwrap();
+
+        repo.delete_by_comic_id(1).await.unwrap();
+
+        assert!(repo.find_by_comic_id(1).await.unwrap().is_none());
+        assert!(repo.find_by_comic_id(2).await.unwrap().is_some());
+    }
+
+    #[tokio::test]
+    async fn test_delete_by_comic_id_without_history_does_not_fail() {
+        let (_, repo) = setup().await;
+        repo.delete_by_comic_id(999).await.unwrap();
     }
 }

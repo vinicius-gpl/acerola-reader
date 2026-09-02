@@ -1,5 +1,6 @@
 package br.acerola.comic.module.main.sync.state
 
+import br.acerola.comic.error.message.SyncProtocolError
 import br.acerola.comic.service.NetworkMode
 import br.acerola.comic.service.network.ComicSummary
 
@@ -46,7 +47,11 @@ data class SyncUiState(
     /** Distinguishes "still waiting for [P2pEvent.LibraryBrowseResult]" from "peer really has
      *  an empty library" — [remoteLibrary] alone can't tell those apart once it's empty. */
     val remoteLibraryLoaded: Boolean = false,
+    /** Cru — usado só como fallback/argumento de template quando [browseLibraryErrorType] é
+     *  `null` (ver `RemoteLibrarySheet`, mesmo padrão de `TransferLogEntry`/`SyncResult`). */
     val browseLibraryError: String? = null,
+    /** Causa reconhecida (`SyncProtocolError`), quando houver. */
+    val browseLibraryErrorType: SyncProtocolError? = null,
     /** `"$peerId:$comicName"` -> caminho local (`file://...`) da capa já baixada via
      *  `acerola/browse-cover/1`, pronto pro Coil carregar. Cache em memória — nunca rebaixa a
      *  mesma versão duas vezes dentro da mesma sessão do app (ver
@@ -57,8 +62,13 @@ data class SyncUiState(
 data class SyncResult(
     val kind: String,
     val state: LogState,
+    /** Cru/em inglês — nunca mostrado direto, só embutido num template pt-BR já traduzido
+     *  (ver `SyncScreen::PeerRow`). Preferir [errorType] quando presente: é a causa reconhecida
+     *  (`SyncProtocolError`), com uma mensagem própria e mais específica que o template
+     *  genérico de fallback. */
     val message: String?,
     val timestamp: Long,
+    val errorType: SyncProtocolError? = null,
 )
 
 data class PairedPeer(
