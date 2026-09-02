@@ -61,6 +61,7 @@ vi.mock('@tauri-apps/plugin-log', () => ({
 vi.mock('svelte-sonner', () => ({
 	toast: {
 		info: vi.fn(),
+		loading: vi.fn(() => 'mock-toast-id'),
 		success: vi.fn(),
 		error: vi.fn()
 	}

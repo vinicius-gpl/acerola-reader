@@ -336,6 +336,7 @@
 						"pull": "Pull from this device"
 					},
 					"toast": {
+						"start": "Syncing comic with device...",
 						"success": "Comic synced with device!",
 						"error": "Failed to sync comic: {msg}"
 					}
@@ -391,6 +392,8 @@
 					"start_deep_rescan": "Rescanning comic...",
 					"start_regenerate_cover": "Generating cover from first page...",
 					"start_regenerate_volume_covers": "Generating volume covers...",
+					"start_clear_metadata": "Clearing metadata...",
+					"start_toggle": "Updating external sync...",
 					"regenerate_cover_success": "Cover updated!",
 					"regenerate_volume_covers_success": "Volume covers updated!",
 					"clear_metadata_success": "Metadata cleared!"

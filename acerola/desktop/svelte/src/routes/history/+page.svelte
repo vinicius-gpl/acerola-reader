@@ -82,7 +82,12 @@
 	// alimentado pelos mesmos eventos que a tela de Rede escuta.
 	$effect(() => {
 		const entry = sync.log[0];
-		if (!entry || entry.kind !== 'history' || entry.id === lastHandledSyncLogId) return;
+		// `id < 0` marca uma linha carregada do histórico persistido (ver `fromPersisted` em
+		// `use-network-sync.svelte.ts`), não um evento ao vivo desta sessão — sem esse guard, a
+		// linha "complete" mais recente do histórico disparava este toast assim que a tela de
+		// Histórico montava, mesmo sem nenhum sync ter de fato acontecido agora.
+		if (!entry || entry.id < 0 || entry.kind !== 'history' || entry.id === lastHandledSyncLogId)
+			return;
 
 		if (entry.status === 'complete') {
 			lastHandledSyncLogId = entry.id;

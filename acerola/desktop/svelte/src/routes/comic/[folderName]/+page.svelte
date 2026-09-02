@@ -33,8 +33,8 @@
 	import { onMount, untrack } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import { m } from '$lib/paraglide/messages';
-	import { toast } from 'svelte-sonner';
 	import { extractErrorMessage } from '$lib/utils/error.utils';
+	import { toastAsync } from '$lib/utils/toast-async.utils';
 
 	import ComicChapterList, { type Chapter } from './components/acerola-comic-chapter-list.svelte';
 	import ComicHeroBanner from './components/acerola-comic-hero-banner.svelte';
@@ -199,13 +199,14 @@
 		const id = activeComic.item?.relations.directoryId ?? data.comic?.relations.directoryId;
 		if (!id || !manga?.title) return;
 		try {
-			toast.info(m['pages.comic.toast.sync.start_mangadex']());
-			await metadataSync.syncMangadex(manga.title, id.toString());
-			toast.success(m['pages.comic.toast.sync.success']());
+			await toastAsync(() => metadataSync.syncMangadex(manga!.title, id.toString()), {
+				loading: m['pages.comic.toast.sync.start_mangadex'](),
+				success: m['pages.comic.toast.sync.success'](),
+				error: (err) => m['pages.comic.toast.mangadex_error']({ msg: extractErrorMessage(err) })
+			});
 			await invalidateAll();
-		} catch (error: unknown) {
-			const msg = extractErrorMessage(error);
-			toast.error(m['pages.comic.toast.mangadex_error']({ msg }));
+		} catch {
+			// Erro já foi mostrado pelo toastAsync acima.
 		}
 	}
 
@@ -213,13 +214,14 @@
 		const id = activeComic.item?.relations.directoryId ?? data.comic?.relations.directoryId;
 		if (!id || !manga?.title) return;
 		try {
-			toast.info(m['pages.comic.toast.sync.start_anilist']());
-			await metadataSync.syncAnilist(manga.title, id.toString());
-			toast.success(m['pages.comic.toast.sync.success']());
+			await toastAsync(() => metadataSync.syncAnilist(manga!.title, id.toString()), {
+				loading: m['pages.comic.toast.sync.start_anilist'](),
+				success: m['pages.comic.toast.sync.success'](),
+				error: (err) => m['pages.comic.toast.anilist_error']({ msg: extractErrorMessage(err) })
+			});
 			await invalidateAll();
-		} catch (error: unknown) {
-			const msg = extractErrorMessage(error);
-			toast.error(m['pages.comic.toast.anilist_error']({ msg }));
+		} catch {
+			// Erro já foi mostrado pelo toastAsync acima.
 		}
 	}
 
@@ -227,13 +229,14 @@
 		const id = activeComic.item?.relations.directoryId ?? data.comic?.relations.directoryId;
 		if (!id) return;
 		try {
-			toast.info(m['pages.comic.toast.sync.start_comic_info']());
-			await metadataSync.syncComicInfo(id.toString());
-			toast.success(m['pages.comic.toast.sync.success']());
+			await toastAsync(() => metadataSync.syncComicInfo(id.toString()), {
+				loading: m['pages.comic.toast.sync.start_comic_info'](),
+				success: m['pages.comic.toast.sync.success'](),
+				error: (err) => m['pages.comic.toast.comic_info.error']({ msg: extractErrorMessage(err) })
+			});
 			await invalidateAll();
-		} catch (error: unknown) {
-			const msg = extractErrorMessage(error);
-			toast.error(m['pages.comic.toast.comic_info.error']({ msg }));
+		} catch {
+			// Erro já foi mostrado pelo toastAsync acima.
 		}
 	}
 
@@ -241,22 +244,15 @@
 		const id = activeComic.item?.relations.directoryId ?? data.comic?.relations.directoryId;
 		if (!id) return;
 
-		// `toast.promise` mostra um único toast que muda de texto/ícone conforme a promise
-		// anda (loading -> success/error), em vez de um toast.info que só aparece no começo
-		// e nunca é atualizado — o usuário não tinha nenhum retorno visual de quando a
-		// sincronização de fato terminava.
-		const request = invoke(HOME_COMMANDS.rescanComic, { id: id.toString() });
-		toast.promise(request, {
-			loading: m['pages.comic.toast.sync.start_rescan'](),
-			success: m['pages.comic.toast.sync.rescan_success'](),
-			error: (error: unknown) => m['pages.comic.toast.rescan_error']({ msg: extractErrorMessage(error) })
-		});
-
 		try {
-			await request;
+			await toastAsync(() => invoke(HOME_COMMANDS.rescanComic, { id: id.toString() }), {
+				loading: m['pages.comic.toast.sync.start_rescan'](),
+				success: m['pages.comic.toast.sync.rescan_success'](),
+				error: (err) => m['pages.comic.toast.rescan_error']({ msg: extractErrorMessage(err) })
+			});
 			await invalidateAll();
 		} catch {
-			// Erro já foi mostrado pelo toast.promise acima.
+			// Erro já foi mostrado pelo toastAsync acima.
 		}
 	}
 
@@ -264,12 +260,15 @@
 		const id = activeComic.item?.relations.directoryId ?? data.comic?.relations.directoryId;
 		if (!id) return;
 		try {
-			await metadataSync.clearMetadata(id.toString());
-			toast.success(m['pages.comic.toast.sync.clear_metadata_success']());
+			await toastAsync(() => metadataSync.clearMetadata(id.toString()), {
+				loading: m['pages.comic.toast.sync.start_clear_metadata'](),
+				success: m['pages.comic.toast.sync.clear_metadata_success'](),
+				error: (err) =>
+					m['pages.comic.toast.clear_metadata_error']({ msg: extractErrorMessage(err) })
+			});
 			await invalidateAll();
-		} catch (error: unknown) {
-			const msg = extractErrorMessage(error);
-			toast.error(m['pages.comic.toast.clear_metadata_error']({ msg }));
+		} catch {
+			// Erro já foi mostrado pelo toastAsync acima.
 		}
 	}
 
@@ -277,14 +276,16 @@
 		const id = activeComic.item?.relations.directoryId ?? data.comic?.relations.directoryId;
 		if (!id) return;
 		try {
-			toast.info(m['pages.comic.toast.sync.start_regenerate_cover']());
-			await invoke(HOME_COMMANDS.regenerateComicCover, { id: id.toString() });
+			await toastAsync(() => invoke(HOME_COMMANDS.regenerateComicCover, { id: id.toString() }), {
+				loading: m['pages.comic.toast.sync.start_regenerate_cover'](),
+				success: m['pages.comic.toast.sync.regenerate_cover_success'](),
+				error: (err) =>
+					m['pages.comic.toast.regenerate_cover_error']({ msg: extractErrorMessage(err) })
+			});
 			coverCacheBust = Date.now();
-			toast.success(m['pages.comic.toast.sync.regenerate_cover_success']());
 			await invalidateAll();
-		} catch (error: unknown) {
-			const msg = extractErrorMessage(error);
-			toast.error(m['pages.comic.toast.regenerate_cover_error']({ msg }));
+		} catch {
+			// Erro já foi mostrado pelo toastAsync acima.
 		}
 	}
 
@@ -292,14 +293,16 @@
 		const id = activeComic.item?.relations.directoryId ?? data.comic?.relations.directoryId;
 		if (!id) return;
 		try {
-			toast.info(m['pages.comic.toast.sync.start_regenerate_volume_covers']());
-			await invoke(HOME_COMMANDS.regenerateVolumeCovers, { id: id.toString() });
+			await toastAsync(() => invoke(HOME_COMMANDS.regenerateVolumeCovers, { id: id.toString() }), {
+				loading: m['pages.comic.toast.sync.start_regenerate_volume_covers'](),
+				success: m['pages.comic.toast.sync.regenerate_volume_covers_success'](),
+				error: (err) =>
+					m['pages.comic.toast.regenerate_volume_covers_error']({ msg: extractErrorMessage(err) })
+			});
 			volumeCoverCacheBust = Date.now();
-			toast.success(m['pages.comic.toast.sync.regenerate_volume_covers_success']());
 			await invalidateAll();
-		} catch (error: unknown) {
-			const msg = extractErrorMessage(error);
-			toast.error(m['pages.comic.toast.regenerate_volume_covers_error']({ msg }));
+		} catch {
+			// Erro já foi mostrado pelo toastAsync acima.
 		}
 	}
 
@@ -307,13 +310,14 @@
 		const id = activeComic.item?.relations.directoryId ?? data.comic?.relations.directoryId;
 		if (!id) return;
 		try {
-			toast.info(m['pages.comic.toast.sync.start_deep_rescan']());
-			await invoke(HOME_COMMANDS.deepRescanComic, { id: id.toString() });
-			toast.success(m['pages.comic.toast.sync.success']());
+			await toastAsync(() => invoke(HOME_COMMANDS.deepRescanComic, { id: id.toString() }), {
+				loading: m['pages.comic.toast.sync.start_deep_rescan'](),
+				success: m['pages.comic.toast.sync.success'](),
+				error: (err) => m['pages.comic.toast.deep_rescan_error']({ msg: extractErrorMessage(err) })
+			});
 			await invalidateAll();
-		} catch (error: unknown) {
-			const msg = extractErrorMessage(error);
-			toast.error(m['pages.comic.toast.deep_rescan_error']({ msg }));
+		} catch {
+			// Erro já foi mostrado pelo toastAsync acima.
 		}
 	}
 
@@ -321,17 +325,23 @@
 		const id = activeComic.item?.relations.directoryId ?? data.comic?.relations.directoryId;
 		if (!id) return;
 		try {
-			await invoke(HOME_COMMANDS.toggleComicExternalSync, { id: id.toString(), enabled: value });
+			await toastAsync(
+				() => invoke(HOME_COMMANDS.toggleComicExternalSync, { id: id.toString(), enabled: value }),
+				{
+					loading: m['pages.comic.toast.sync.start_toggle'](),
+					success: value
+						? m['pages.comic.toast.sync.enabled']()
+						: m['pages.comic.toast.sync.disabled'](),
+					error: (err) =>
+						m['pages.comic.toast.sync.toggle_error']({ msg: extractErrorMessage(err) })
+				}
+			);
 			if (manga) {
 				manga.metadata.externalSync = value;
 			}
-			toast.success(
-				value ? m['pages.comic.toast.sync.enabled']() : m['pages.comic.toast.sync.disabled']()
-			);
 			await invalidateAll();
-		} catch (error: unknown) {
-			const msg = extractErrorMessage(error);
-			toast.error(m['pages.comic.toast.sync.toggle_error']({ msg }));
+		} catch {
+			// Erro já foi mostrado pelo toastAsync acima.
 		}
 	}
 
@@ -350,13 +360,14 @@
 
 	async function handleSyncToDevice(peerId: string, addrs: number[], direction: SyncDirection) {
 		if (!manga?.title) return;
-		try {
-			await p2pSync.syncComic(peerId, addrs, manga.title, direction);
-			toast.success(m['pages.comic.preferences.p2p_sync.toast.success']());
-		} catch (error: unknown) {
-			const msg = extractErrorMessage(error);
-			toast.error(m['pages.comic.preferences.p2p_sync.toast.error']({ msg }));
-		}
+		await toastAsync(() => p2pSync.syncComic(peerId, addrs, manga!.title, direction), {
+			loading: m['pages.comic.preferences.p2p_sync.toast.start'](),
+			success: m['pages.comic.preferences.p2p_sync.toast.success'](),
+			error: (err) =>
+				m['pages.comic.preferences.p2p_sync.toast.error']({ msg: extractErrorMessage(err) })
+		}).catch(() => {
+			// Erro já foi mostrado pelo toastAsync acima.
+		});
 	}
 
 	onMount(() => {

@@ -336,6 +336,7 @@
 						"pull": "Puxar deste dispositivo"
 					},
 					"toast": {
+						"start": "Sincronizando quadrinho com o dispositivo...",
 						"success": "Quadrinho sincronizado com o dispositivo!",
 						"error": "Erro ao sincronizar quadrinho: {msg}"
 					}
@@ -391,6 +392,8 @@
 					"start_deep_rescan": "Reescaneando quadrinho...",
 					"start_regenerate_cover": "Gerando capa a partir da primeira página...",
 					"start_regenerate_volume_covers": "Gerando capas dos volumes...",
+					"start_clear_metadata": "Limpando metadados...",
+					"start_toggle": "Atualizando sincronização externa...",
 					"regenerate_cover_success": "Capa atualizada!",
 					"regenerate_volume_covers_success": "Capas dos volumes atualizadas!",
 					"clear_metadata_success": "Metadados limpos!"
