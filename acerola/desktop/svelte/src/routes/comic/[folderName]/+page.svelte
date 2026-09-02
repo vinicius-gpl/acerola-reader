@@ -13,7 +13,7 @@
 	import { useChapterSelection } from '$lib/hooks/store/use-chapter-selection.svelte';
 	import { useHistory } from '$lib/hooks/store/use-history.svelte';
 	import { usePeerConnection } from '$lib/hooks/store/use-peer-connection.svelte';
-	import { useNetworkSync } from '$lib/hooks/store/use-network-sync.svelte';
+	import { useNetworkSync, type SyncDirection } from '$lib/hooks/store/use-network-sync.svelte';
 
 	import { useComicContext } from '$lib/state/comic-context.svelte';
 	import { useMetadataSync } from '$lib/hooks/store/use-metadata-sync.svelte';
@@ -338,10 +338,10 @@
 			.map((peer) => peer.peerId)
 	);
 
-	async function handleSyncToDevice(peerId: string, addrs: number[]) {
+	async function handleSyncToDevice(peerId: string, addrs: number[], direction: SyncDirection) {
 		if (!manga?.title) return;
 		try {
-			await p2pSync.syncComic(peerId, addrs, manga.title);
+			await p2pSync.syncComic(peerId, addrs, manga.title, direction);
 			toast.success(m['pages.comic.preferences.p2p_sync.toast.success']());
 		} catch (error: unknown) {
 			const msg = extractErrorMessage(error);

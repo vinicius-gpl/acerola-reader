@@ -25,6 +25,11 @@ export type TransferLogEntry = {
 
 type SyncKind = TransferLogEntry['kind'];
 
+/// Direção explícita de um `syncComic` — espelha `SyncDirection` no backend
+/// (`infra/sync/messages.rs`), serializada em `snake_case` (`"push"`/`"pull"`) no payload do
+/// comando Tauri `sync_comic`.
+export type SyncDirection = 'push' | 'pull';
+
 /// Espelha `SyncHistoryLogEntry` (`data/models/sync/sync_history_log.rs`, serializado
 /// `camelCase`) — uma linha do histórico persistido no SQLite, carregada uma vez ao montar
 /// a tela e combinada com os eventos ao vivo da sessão atual.
@@ -413,7 +418,12 @@ export function useNetworkSync() {
 	/// só enfileirada, muito antes do handshake/transferência acontecer, então usar aquela
 	/// promise direto pra decidir sucesso/erro (como a tela do quadrinho fazia antes) dispara
 	/// o toast de sucesso cedo demais e nunca mostra o de erro se a sessão falhar depois.
-	async function syncComic(peerId: string, addrs: number[], comicName: string): Promise<string> {
+	async function syncComic(
+		peerId: string,
+		addrs: number[],
+		comicName: string,
+		direction: SyncDirection
+	): Promise<string> {
 		if (isSyncing(peerId, 'comic')) {
 			// Mesmo texto traduzido do `code: "busy"` que o backend manda — este guard é
 			// local (nem chega a abrir conexão), mas é o mesmo erro do ponto de vista do
@@ -430,7 +440,8 @@ export function useNetworkSync() {
 			await withSyncGuard(peerId, ['comic'], NETWORK_COMMANDS.syncComic, {
 				peerId,
 				addrs,
-				comicName
+				comicName,
+				direction
 			});
 		} catch (err) {
 			pendingSettlement.delete(key);

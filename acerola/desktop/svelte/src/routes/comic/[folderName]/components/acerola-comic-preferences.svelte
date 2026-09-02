@@ -1,4 +1,6 @@
 <script lang="ts" module>
+	import type { SyncDirection } from '$lib/hooks/store/use-network-sync.svelte';
+
 	export type ComicPreferencesProps = {
 		data?: {
 			hasVolumeStructure?: boolean;
@@ -29,8 +31,13 @@
 			onRegenerateCover?: () => void;
 			onRegenerateVolumeCovers?: () => void;
 			onClearMetadata?: () => Promise<void> | void;
-			/** Dispara `syncComic` pro `peerId` escolhido — ver `use-network-sync.svelte.ts`. */
-			onSyncToDevice?: (peerId: string, addrs: number[]) => Promise<void> | void;
+			/** Dispara `syncComic` pro `peerId` escolhido, na direção explícita clicada — ver
+			 *  `use-network-sync.svelte.ts`. */
+			onSyncToDevice?: (
+				peerId: string,
+				addrs: number[],
+				direction: SyncDirection
+			) => Promise<void> | void;
 		};
 	};
 </script>
@@ -61,7 +68,8 @@
 	import Layers2 from '@lucide/svelte/icons/layers-2';
 	import Eraser from '@lucide/svelte/icons/eraser';
 	import Share2 from '@lucide/svelte/icons/share-2';
-	import Monitor from '@lucide/svelte/icons/monitor';
+	import Upload from '@lucide/svelte/icons/upload';
+	import Download from '@lucide/svelte/icons/download';
 	import Loader2 from '@lucide/svelte/icons/loader-2';
 	import AcerolaButtonIcon from '$lib/components/acerola-button/acerola-button-icon.svelte';
 	import AcerolaSwitch from '$lib/components/acerola-switch/acerola-switch.svelte';
@@ -369,27 +377,45 @@
 								<div class="flex flex-col gap-0.5">
 									{#each data.pairedPeers as peer (peer.peerId)}
 										{@const syncing = (preferences.syncingPeerIds ?? []).includes(peer.peerId)}
-										<AcerolaButton
-											ui={{
-												variant: 'ghost',
-												disabled: syncing,
-												class:
-													'h-9 w-full justify-start gap-2.5 rounded-xl px-2.5 text-sm font-medium'
-											}}
-											events={{
-												onClick: () => {
-													showPeerMenu = false;
-													events.onSyncToDevice?.(peer.peerId, peer.addrs);
-												}
-											}}
-										>
+										<div class="flex h-9 items-center gap-1.5 rounded-xl px-2.5">
+											<span class="flex-1 truncate text-sm font-medium">{peer.label}</span>
 											{#if syncing}
 												<Loader2 size={16} class="shrink-0 animate-spin" />
 											{:else}
-												<Monitor size={16} class="shrink-0" />
+												<AcerolaButton
+													ui={{
+														variant: 'ghost',
+														size: 'icon-sm',
+														class: 'shrink-0 rounded-full',
+														title: m['pages.comic.preferences.p2p_sync.send.push']()
+													}}
+													events={{
+														onClick: () => {
+															showPeerMenu = false;
+															events.onSyncToDevice?.(peer.peerId, peer.addrs, 'push');
+														}
+													}}
+												>
+													<Upload size={14} />
+												</AcerolaButton>
+												<AcerolaButton
+													ui={{
+														variant: 'ghost',
+														size: 'icon-sm',
+														class: 'shrink-0 rounded-full',
+														title: m['pages.comic.preferences.p2p_sync.send.pull']()
+													}}
+													events={{
+														onClick: () => {
+															showPeerMenu = false;
+															events.onSyncToDevice?.(peer.peerId, peer.addrs, 'pull');
+														}
+													}}
+												>
+													<Download size={14} />
+												</AcerolaButton>
 											{/if}
-											{peer.label}
-										</AcerolaButton>
+										</div>
 									{/each}
 								</div>
 							{/snippet}

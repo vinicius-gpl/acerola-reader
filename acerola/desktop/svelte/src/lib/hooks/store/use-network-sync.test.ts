@@ -585,7 +585,7 @@ describe('useNetworkSync', () => {
 					resolveSync = () => resolve(undefined);
 				})
 		);
-		const pending = hook.syncComic('peer-12', [], 'Some Comic');
+		const pending = hook.syncComic('peer-12', [], 'Some Comic', 'push');
 		expect(hook.isSyncing('peer-12', 'comic')).toBe(true);
 
 		callbacks.get(NETWORK_EVENTS.comicComplete)?.({ payload: 'peer-12' });
@@ -841,7 +841,7 @@ describe('useNetworkSync', () => {
 		);
 		const hook = await renderHook();
 
-		const pending = hook.syncComic('peer-4', [9], 'One Piece');
+		const pending = hook.syncComic('peer-4', [9], 'One Piece', 'push');
 
 		// Guarda especificamente o kind 'comic' — não 'history'/'files', que syncComic nem
 		// toca.
@@ -858,7 +858,8 @@ describe('useNetworkSync', () => {
 		expect(invokeMock).toHaveBeenCalledWith(NETWORK_COMMANDS.syncComic, {
 			peerId: 'peer-4',
 			addrs: [9],
-			comicName: 'One Piece'
+			comicName: 'One Piece',
+			direction: 'push'
 		});
 		expect(hook.isSyncing('peer-4', 'comic')).toBe(true);
 
@@ -875,7 +876,7 @@ describe('useNetworkSync', () => {
 		const hook = await renderHook();
 		await hook.startListening();
 
-		const pending = hook.syncComic('peer-4', [9], 'One Piece');
+		const pending = hook.syncComic('peer-4', [9], 'One Piece', 'push');
 		expect(hook.isSyncing('peer-4', 'comic')).toBe(true);
 
 		callbacks.get(NETWORK_EVENTS.comicError)?.({

@@ -127,7 +127,9 @@
 	}
 
 	async function handleSyncRemoteComic(peerId: string, comicName: string) {
-		await withSync((id, addrs) => sync.syncComic(id, addrs, comicName), peerId);
+		// Vem da navegação da biblioteca remota — o usuário só pode escolher um quadrinho que
+		// ainda não tem, então é sempre pull.
+		await withSync((id, addrs) => sync.syncComic(id, addrs, comicName, 'pull'), peerId);
 	}
 </script>
 

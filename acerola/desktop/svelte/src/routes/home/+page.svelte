@@ -143,7 +143,9 @@
 		if (!browsingPeerId) return;
 		const addrs = peers.getKnownAddr(browsingPeerId);
 		if (!addrs) return;
-		sync.syncComic(browsingPeerId, addrs, comicName).catch((err) => toast.error(String(err)));
+		// Vem da navegação da biblioteca remota (`RemoteLibrarySheet`-like flow) — o usuário só
+		// pode escolher um quadrinho que ainda não tem, então é sempre pull.
+		sync.syncComic(browsingPeerId, addrs, comicName, 'pull').catch((err) => toast.error(String(err)));
 	}
 
 	async function handleHide(ids: (string | number)[]) {
