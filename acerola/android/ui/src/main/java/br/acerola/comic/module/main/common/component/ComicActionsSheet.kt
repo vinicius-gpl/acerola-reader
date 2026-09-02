@@ -15,9 +15,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Bookmark
 import androidx.compose.material.icons.rounded.BookmarkBorder
+import androidx.compose.material.icons.rounded.CloudDownload
+import androidx.compose.material.icons.rounded.CloudUpload
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.LayersClear
-import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.HorizontalDivider
@@ -53,6 +54,7 @@ import br.acerola.comic.dto.ComicDto
 import br.acerola.comic.dto.metadata.category.CategoryDto
 import br.acerola.comic.module.main.Main
 import br.acerola.comic.module.main.sync.state.PairedPeer
+import br.acerola.comic.service.SyncDirection
 import br.acerola.comic.ui.R
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
@@ -72,13 +74,14 @@ fun Main.Common.Component.ComicActionsSheet(
     onDismiss: () -> Unit,
     pairedPeers: List<PairedPeer> = emptyList(),
     onLoadPairedPeers: () -> Unit = {},
-    onSyncWithPeer: (peerId: String) -> Unit = {},
+    onSyncWithPeer: (peerId: String, direction: SyncDirection) -> Unit = { _, _ -> },
 ) {
     var showCategorySheet by remember { mutableStateOf(false) }
     var showHideDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showClearMetadataDialog by remember { mutableStateOf(false) }
     var showPeerPicker by remember { mutableStateOf(false) }
+    var pendingDirection by remember { mutableStateOf(SyncDirection.PUSH) }
 
     val title = comic.remoteInfo?.title ?: comic.directory.name
     val currentCategoryName = comic.category?.name
@@ -176,13 +179,28 @@ fun Main.Common.Component.ComicActionsSheet(
 
         ListItem(
             leadingContent = {
-                Icon(imageVector = Icons.Rounded.PhoneAndroid, contentDescription = null)
+                Icon(imageVector = Icons.Rounded.CloudUpload, contentDescription = null)
             },
-            headlineContent = { Text(text = stringResource(id = R.string.action_sync_comic_with_peer)) },
+            headlineContent = { Text(text = stringResource(id = R.string.action_sync_comic_push)) },
             supportingContent = { Text(text = stringResource(id = R.string.description_sync_comic_with_peer)) },
             modifier =
                 Modifier.clickable {
                     onLoadPairedPeers()
+                    pendingDirection = SyncDirection.PUSH
+                    showPeerPicker = true
+                },
+        )
+
+        ListItem(
+            leadingContent = {
+                Icon(imageVector = Icons.Rounded.CloudDownload, contentDescription = null)
+            },
+            headlineContent = { Text(text = stringResource(id = R.string.action_sync_comic_pull)) },
+            supportingContent = { Text(text = stringResource(id = R.string.description_sync_comic_with_peer)) },
+            modifier =
+                Modifier.clickable {
+                    onLoadPairedPeers()
+                    pendingDirection = SyncDirection.PULL
                     showPeerPicker = true
                 },
         )
@@ -340,7 +358,7 @@ fun Main.Common.Component.ComicActionsSheet(
             peers = pairedPeers,
             onSelect = { peerId ->
                 showPeerPicker = false
-                onSyncWithPeer(peerId)
+                onSyncWithPeer(peerId, pendingDirection)
                 onDismiss()
             },
             onDismiss = { showPeerPicker = false },

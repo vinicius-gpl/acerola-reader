@@ -13,7 +13,7 @@
 	import { useChapterSelection } from '$lib/hooks/store/use-chapter-selection.svelte';
 	import { useHistory } from '$lib/hooks/store/use-history.svelte';
 	import { usePeerConnection } from '$lib/hooks/store/use-peer-connection.svelte';
-	import { useNetworkSync } from '$lib/hooks/store/use-network-sync.svelte';
+	import { useNetworkSync, type SyncDirection } from '$lib/hooks/store/use-network-sync.svelte';
 
 	import { useComicContext } from '$lib/state/comic-context.svelte';
 	import { useMetadataSync } from '$lib/hooks/store/use-metadata-sync.svelte';
@@ -240,14 +240,23 @@
 	async function handleRescanComic() {
 		const id = activeComic.item?.relations.directoryId ?? data.comic?.relations.directoryId;
 		if (!id) return;
+
+		// `toast.promise` mostra um único toast que muda de texto/ícone conforme a promise
+		// anda (loading -> success/error), em vez de um toast.info que só aparece no começo
+		// e nunca é atualizado — o usuário não tinha nenhum retorno visual de quando a
+		// sincronização de fato terminava.
+		const request = invoke(HOME_COMMANDS.rescanComic, { id: id.toString() });
+		toast.promise(request, {
+			loading: m['pages.comic.toast.sync.start_rescan'](),
+			success: m['pages.comic.toast.sync.rescan_success'](),
+			error: (error: unknown) => m['pages.comic.toast.rescan_error']({ msg: extractErrorMessage(error) })
+		});
+
 		try {
-			toast.info(m['pages.comic.toast.sync.start_rescan']());
-			await invoke(HOME_COMMANDS.rescanComic, { id: id.toString() });
-			toast.success(m['pages.comic.toast.sync.success']());
+			await request;
 			await invalidateAll();
-		} catch (error: unknown) {
-			const msg = extractErrorMessage(error);
-			toast.error(m['pages.comic.toast.rescan_error']({ msg }));
+		} catch {
+			// Erro já foi mostrado pelo toast.promise acima.
 		}
 	}
 
@@ -339,10 +348,10 @@
 			.map((peer) => peer.peerId)
 	);
 
-	async function handleSyncToDevice(peerId: string, addrs: number[]) {
+	async function handleSyncToDevice(peerId: string, addrs: number[], direction: SyncDirection) {
 		if (!manga?.title) return;
 		try {
-			await p2pSync.syncComic(peerId, addrs, manga.title);
+			await p2pSync.syncComic(peerId, addrs, manga.title, direction);
 			toast.success(m['pages.comic.preferences.p2p_sync.toast.success']());
 		} catch (error: unknown) {
 			const msg = extractErrorMessage(error);

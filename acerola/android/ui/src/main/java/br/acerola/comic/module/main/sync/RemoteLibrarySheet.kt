@@ -30,6 +30,7 @@ import br.acerola.comic.common.ux.Acerola
 import br.acerola.comic.common.ux.component.AdaptiveSheet
 import br.acerola.comic.common.ux.theme.AcerolaTheme
 import br.acerola.comic.common.ux.tokens.SpacingTokens
+import br.acerola.comic.error.message.SyncProtocolError
 import br.acerola.comic.service.network.ComicSummary
 import br.acerola.comic.ui.R
 import coil.compose.AsyncImage
@@ -46,6 +47,7 @@ fun RemoteLibrarySheet(
     comics: List<ComicSummary>,
     isLoading: Boolean,
     errorMessage: String?,
+    errorType: SyncProtocolError? = null,
     onSelectComic: (comicName: String) -> Unit,
     onDismiss: () -> Unit,
     /** Caminho local (`file://...`) da capa já baixada via `acerola/browse-cover/1`, se
@@ -75,7 +77,9 @@ fun RemoteLibrarySheet(
                 ListItem(
                     headlineContent = {
                         Text(
-                            text = stringResource(id = R.string.error_sync_remote_library_failed, errorMessage),
+                            text =
+                                errorType?.uiMessage?.asString()
+                                    ?: stringResource(id = R.string.error_sync_remote_library_failed, errorMessage),
                             color = MaterialTheme.colorScheme.error,
                         )
                     },

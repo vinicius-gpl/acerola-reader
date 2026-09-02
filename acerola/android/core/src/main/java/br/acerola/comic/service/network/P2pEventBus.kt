@@ -1,5 +1,6 @@
 package br.acerola.comic.service.network
 
+import br.acerola.comic.error.message.SyncProtocolError
 import br.acerola.comic.logging.AcerolaLogger
 import br.acerola.comic.logging.LogSource
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -64,7 +65,11 @@ class P2pEventBus
 
                     "sync:history:error" ->
                         JSONObject(data).let {
-                            P2pEvent.HistorySyncError(peerId = it.getString("peerId"), message = it.getString("message"))
+                            P2pEvent.HistorySyncError(
+                                peerId = it.getString("peerId"),
+                                message = it.getString("message"),
+                                error = SyncProtocolError.fromCode(if (it.isNull("code")) null else it.getString("code")),
+                            )
                         }
 
                     "sync:files:manifest_exchanged" ->
@@ -98,11 +103,13 @@ class P2pEventBus
 
                     "sync:files:chapter_failed" ->
                         JSONObject(data).let {
+                            val code = if (it.isNull("code")) null else it.getString("code")
                             P2pEvent.FileSyncChapterFailed(
                                 peerId = it.getString("peerId"),
                                 comicName = it.getString("comicName"),
                                 chapter = it.getString("chapter"),
                                 reason = it.getString("reason"),
+                                error = SyncProtocolError.fromCode(code),
                             )
                         }
 
@@ -133,7 +140,11 @@ class P2pEventBus
 
                     "browse:library:error" ->
                         JSONObject(data).let {
-                            P2pEvent.LibraryBrowseError(peerId = it.getString("peerId"), message = it.getString("message"))
+                            P2pEvent.LibraryBrowseError(
+                                peerId = it.getString("peerId"),
+                                message = it.getString("message"),
+                                error = SyncProtocolError.fromCode(if (it.isNull("code")) null else it.getString("code")),
+                            )
                         }
 
                     "browse:cover:result" ->

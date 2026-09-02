@@ -102,6 +102,17 @@
 			"io_error": {
 				"label": "Error accessing file system."
 			}
+		},
+		"sync": {
+			"session_busy": {
+				"label": "A sync session is already in progress with this device."
+			},
+			"timed_out": {
+				"label": "The sync took too long and was cancelled — the device may have gone offline."
+			},
+			"connection_lost": {
+				"label": "The connection to the device dropped during sync. Please try again."
+			}
 		}
 	},
 	"layout": {
@@ -176,7 +187,7 @@
 				},
 				"delete_confirm": {
 					"title": "Delete Comics",
-					"desc": "Are you sure you want to delete the selected comic(s)? This will only remove them from the database, physical files will not be changed.",
+					"desc": "Are you sure you want to delete the selected comic(s)? This will permanently delete the folder and physical files from disk — this action cannot be undone.",
 					"action": "Delete"
 				},
 				"clear_metadata_confirm": {
@@ -320,7 +331,9 @@
 					"send": {
 						"title": "Send this comic",
 						"desc": "Syncs only this comic with the chosen device, without touching the rest of the library.",
-						"button": "Choose device"
+						"button": "Choose device",
+						"push": "Send to this device",
+						"pull": "Pull from this device"
 					},
 					"toast": {
 						"success": "Comic synced with device!",
@@ -370,6 +383,7 @@
 					"enabled": "External sync enabled",
 					"toggle_error": "Error toggling external sync: {msg}",
 					"success": "Metadata synced!",
+					"rescan_success": "Chapters synced!",
 					"start_mangadex": "Syncing metadata with MangaDex...",
 					"start_anilist": "Syncing metadata with AniList...",
 					"start_comic_info": "Syncing metadata with ComicInfo.xml...",

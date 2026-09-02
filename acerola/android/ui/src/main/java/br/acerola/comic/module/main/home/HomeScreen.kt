@@ -586,7 +586,9 @@ fun Main.Home.Template.Screen(
                 onDismiss = { selectedMangaForActions = null },
                 pairedPeers = pairedPeers,
                 onLoadPairedPeers = homeViewModel::loadPairedPeers,
-                onSyncWithPeer = { peerId -> homeViewModel.syncComicWithPeer(peerId, activeManga.directory.name) },
+                onSyncWithPeer = { peerId, direction ->
+                    homeViewModel.syncComicWithPeer(peerId, activeManga.directory.name, direction)
+                },
             )
         }
 

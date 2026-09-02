@@ -31,6 +31,7 @@ import br.acerola.comic.usecase.comic.ObserveLibraryUseCase
 import br.acerola.comic.usecase.history.ObserveHistoryUseCase
 import br.acerola.comic.usecase.metadata.ClearMetadataUseCase
 import br.acerola.comic.usecase.metadata.ManageCategoriesUseCase
+import br.acerola.comic.service.SyncDirection
 import br.acerola.comic.usecase.network.P2pUseCase
 import br.acerola.comic.usecase.network.SyncComicWithPeerUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -271,15 +272,16 @@ class HomeViewModel
         fun syncComicWithPeer(
             peerId: String,
             comicName: String,
+            direction: SyncDirection,
         ) {
             AcerolaLogger.audit(
                 TAG,
                 "Syncing comic with peer",
                 LogSource.VIEWMODEL,
-                mapOf("peerId" to peerId, "comicName" to comicName),
+                mapOf("peerId" to peerId, "comicName" to comicName, "direction" to direction.name),
             )
 
-            val fired = syncComicWithPeerUseCase(peerId, comicName)
+            val fired = syncComicWithPeerUseCase(peerId, comicName, direction)
             if (!fired) {
                 viewModelScope.launch {
                     _uiEvents.send(UserMessage.Raw(UiText.StringResource(R.string.error_sync_comic_peer_not_paired)))

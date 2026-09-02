@@ -4,6 +4,9 @@ pub(crate) mod mode;
 #[path = "lib/singleton.rs"]
 pub(crate) mod singleton;
 
+#[path = "lib/sync_direction.rs"]
+pub(crate) mod sync_direction;
+
 pub(crate) mod callbacks;
 pub(crate) mod fsutil;
 pub(crate) mod protocol;

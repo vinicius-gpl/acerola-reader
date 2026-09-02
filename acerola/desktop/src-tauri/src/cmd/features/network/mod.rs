@@ -12,10 +12,13 @@ use crate::{
     },
     infra::{
         security::MasterKeySource,
-        sync::protocol::{
-            comic_sync_registry::PendingComicSyncRegistry,
-            cover_request_registry::PendingCoverRequestRegistry,
-            COMIC_SYNC_ALPN, COVER_BROWSE_ALPN, FILE_SYNC_ALPN, HISTORY_SYNC_ALPN, LIBRARY_BROWSE_ALPN,
+        sync::{
+            messages::SyncDirection,
+            protocol::{
+                comic_sync_registry::PendingComicSyncRegistry,
+                cover_request_registry::PendingCoverRequestRegistry,
+                COMIC_SYNC_ALPN, COVER_BROWSE_ALPN, FILE_SYNC_ALPN, HISTORY_SYNC_ALPN, LIBRARY_BROWSE_ALPN,
+            },
         },
     },
 };
@@ -185,11 +188,11 @@ pub async fn sync_all(
 pub async fn sync_comic(
     service: State<'_, Arc<dyn NetworkServiceApi>>,
     registry: State<'_, Arc<PendingComicSyncRegistry>>, peer_id: String, addrs: Vec<u8>,
-    comic_name: String,
+    comic_name: String, direction: SyncDirection,
 ) -> Result<(), String> {
     use acerola_p2p::api::peer::{PeerAddr, PeerIdentity};
 
-    registry.set(peer_id.clone(), comic_name);
+    registry.set(peer_id.clone(), comic_name, direction);
 
     let peer_addr = PeerAddr { id: PeerIdentity { id: peer_id, device_id: None }, addrs };
     service.connect(peer_addr, COMIC_SYNC_ALPN.to_vec()).await?;

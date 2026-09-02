@@ -12,7 +12,10 @@ use crate::{
         models::sync::SyncHistoryLogEntry,
         repositories::sync::SyncHistoryLogRepository,
     },
-    infra::sync::framing::{framed_reader, framed_writer, read_json, write_json, FramedReader, FramedWriter},
+    infra::sync::{
+        framing::{framed_reader, framed_writer, read_json, write_json, FramedReader, FramedWriter},
+        protocol::transfer::{classify_sync_error, sync_error_payload},
+    },
 };
 
 const LOG_KIND: &str = "history";
@@ -66,10 +69,9 @@ impl Handler for HistorySyncOutbound {
             },
             Err(error) => {
                 let message = error.to_string();
-                (self.emit)(
-                    "sync:history:error",
-                    serde_json::json!({ "peerId": peer.id, "message": &message }).to_string(),
-                );
+                let code = classify_sync_error(&error);
+                tracing::warn!(peer = %peer.id, ?code, error = %message, "[HistorySync] session failed");
+                (self.emit)("sync:history:error", sync_error_payload(&peer.id, &message, code, None));
                 self.log_repo
                     .base
                     .insert(&SyncHistoryLogEntry::new(&peer.id, LOG_KIND, "error", Some(&message)))
@@ -129,10 +131,9 @@ impl Handler for HistorySyncInbound {
             },
             Err(error) => {
                 let message = error.to_string();
-                (self.emit)(
-                    "sync:history:error",
-                    serde_json::json!({ "peerId": peer.id, "message": &message }).to_string(),
-                );
+                let code = classify_sync_error(&error);
+                tracing::warn!(peer = %peer.id, ?code, error = %message, "[HistorySync] session failed");
+                (self.emit)("sync:history:error", sync_error_payload(&peer.id, &message, code, None));
                 self.log_repo
                     .base
                     .insert(&SyncHistoryLogEntry::new(&peer.id, LOG_KIND, "error", Some(&message)))

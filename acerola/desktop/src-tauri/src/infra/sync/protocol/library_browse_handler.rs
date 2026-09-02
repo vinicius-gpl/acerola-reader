@@ -11,6 +11,7 @@ use crate::{
     infra::sync::{
         framing::{framed_reader, framed_writer, read_json, write_json, FramedReader, FramedWriter},
         messages::{LibraryBrowseRequest, LibrarySummary},
+        protocol::transfer::{classify_sync_error, sync_error_payload},
     },
 };
 
@@ -90,10 +91,9 @@ impl Handler for LibraryBrowseOutbound {
             },
             Err(error) => {
                 let message = error.to_string();
-                (self.emit)(
-                    "library:query:error",
-                    serde_json::json!({ "peerId": peer.id, "message": &message }).to_string(),
-                );
+                let code = classify_sync_error(&error);
+                tracing::warn!(peer = %peer.id, ?code, error = %message, "[LibraryBrowse] query failed");
+                (self.emit)("library:query:error", sync_error_payload(&peer.id, &message, code, None));
                 Err(error)
             },
         }

@@ -142,7 +142,9 @@ private fun RemoteLibraryContent(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = stringResource(id = R.string.error_sync_remote_library_failed, uiState.errorMessage),
+                        text =
+                            uiState.errorType?.uiMessage?.asString()
+                                ?: stringResource(id = R.string.error_sync_remote_library_failed, uiState.errorMessage),
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodyMedium,
                     )

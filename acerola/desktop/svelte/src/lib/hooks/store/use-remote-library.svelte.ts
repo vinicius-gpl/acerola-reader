@@ -3,6 +3,7 @@ import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { NETWORK_COMMANDS } from '$lib/contracts/network/network.commands';
 import { NETWORK_EVENTS } from '$lib/contracts/network/network.events';
+import { translateSyncMessage } from '$lib/contracts/errors/sync-error.i18n';
 import { resolveArtworkPath } from '$lib/utils/artwork.utils';
 import type {
 	ComicSummary,
@@ -14,8 +15,8 @@ const coverKey = (peerId: string, comicName: string) => `${peerId}:${comicName}`
 
 /// Espelha o payload de erro dos outros eventos `sync:*:error` (ver
 /// `use-network-sync.svelte.ts::parseErrorPayload`) — `library:query:error` carrega
-/// `{ peerId, message }` no mesmo formato.
-function parseErrorPayload(payload: string): { peerId?: string; message: string } {
+/// `{ peerId, message, code? }` no mesmo formato.
+function parseErrorPayload(payload: string): { peerId?: string; message: string; code?: string } {
 	try {
 		const parsed = JSON.parse(payload);
 		// Stryker disable next-line ConditionalExpression,LogicalOperator: `typeof parsed.message
@@ -29,7 +30,11 @@ function parseErrorPayload(payload: string): { peerId?: string; message: string 
 		// observável é idêntica nos dois casos, só o caminho (exceção vs. curto-circuito) muda.
 		// Verificado empiricamente: aplicando cada mutante isoladamente, nenhum teste falha.
 		if (parsed && typeof parsed === 'object' && typeof parsed.message === 'string') {
-			return { peerId: parsed.peerId, message: parsed.message };
+			return {
+				peerId: parsed.peerId,
+				message: parsed.message,
+				code: typeof parsed.code === 'string' ? parsed.code : undefined
+			};
 		}
 	} catch {
 		// payload inesperado sem JSON — trata como mensagem crua.
@@ -70,10 +75,10 @@ export function useRemoteLibrary() {
 				void fetchCoversFor(payload.peerId, payload.comics);
 			}),
 			await listen<string>(NETWORK_EVENTS.libraryQueryError, (event) => {
-				const { peerId, message } = parseErrorPayload(event.payload);
+				const { peerId, message, code } = parseErrorPayload(event.payload);
 				if (!peerId) return;
 				loading.delete(peerId);
-				errors.set(peerId, message);
+				errors.set(peerId, translateSyncMessage(code, message));
 			}),
 			await listen<string>(NETWORK_EVENTS.coverQueryResult, (event) => {
 				const payload = JSON.parse(event.payload) as CoverQueryResultPayload;

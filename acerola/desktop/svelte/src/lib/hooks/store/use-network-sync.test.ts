@@ -316,21 +316,52 @@ describe('useNetworkSync', () => {
 		await pending;
 	});
 
-	it('caps the log at MAX_LOG_ENTRIES, dropping the oldest entries', async () => {
+	it('caps the log at MAX_LOG_ENTRIES, dropping the oldest resolved entries', async () => {
 		const { callbacks } = setupListeners();
 		invokeMock.mockResolvedValue([]);
 
 		const hook = await renderHook();
 		await hook.startListening();
 
+		// Cada sessão termina (started -> complete) antes da próxima começar, então nenhuma
+		// fica "pendente" — o corte deve valer normalmente pra elas, igual antes.
 		for (let i = 0; i < 201; i++) {
 			callbacks.get(NETWORK_EVENTS.comicStarted)?.({ payload: `peer-${i}` });
+			callbacks.get(NETWORK_EVENTS.comicComplete)?.({ payload: `peer-${i}` });
 		}
 
 		expect(hook.log).toHaveLength(200);
 		// A mais recente (peer-200) fica, a mais antiga (peer-0) foi descartada.
 		expect(hook.log[0]).toMatchObject({ peerId: 'peer-200' });
 		expect(hook.log.some((entry) => entry.peerId === 'peer-0')).toBe(false);
+	});
+
+	/// Reproduz o bug real: uma sincronização grande gera muitos eventos `sync:comic:progress`
+	/// (sem peer id — ver comentário de `appendNewEntry`), cada um virando uma linha nova no
+	/// log. Antes do fix, isso enchia o corte de `MAX_LOG_ENTRIES` e empurrava a linha "started"
+	/// (a única rastreada por peer, em `inFlightEntryId`) pra fora do array antes do evento
+	/// `complete` chegar — a linha ficava presa girando "sincronizando..." pra sempre na tela de
+	/// Rede, mesmo com a sessão já concluída no backend.
+	it('keeps an in-flight entry past MAX_LOG_ENTRIES until it resolves, instead of losing it silently', async () => {
+		const { callbacks } = setupListeners();
+		invokeMock.mockResolvedValue([]);
+
+		const hook = await renderHook();
+		await hook.startListening();
+
+		callbacks.get(NETWORK_EVENTS.comicStarted)?.({ payload: 'peer-stuck' });
+		for (let i = 0; i < 200; i++) {
+			callbacks.get(NETWORK_EVENTS.comicProgress)?.({ payload: `chapter-${i}` });
+		}
+
+		expect(
+			hook.log.find((entry) => entry.peerId === 'peer-stuck' && entry.status === 'started')
+		).toBeDefined();
+
+		callbacks.get(NETWORK_EVENTS.comicComplete)?.({ payload: 'peer-stuck' });
+
+		expect(hook.log.find((entry) => entry.peerId === 'peer-stuck')?.status).toBe('complete');
+		expect(hook.log.length).toBeLessThanOrEqual(201);
 	});
 
 	it('logs when loading the persisted log fails, without throwing', async () => {
@@ -554,7 +585,7 @@ describe('useNetworkSync', () => {
 					resolveSync = () => resolve(undefined);
 				})
 		);
-		const pending = hook.syncComic('peer-12', [], 'Some Comic');
+		const pending = hook.syncComic('peer-12', [], 'Some Comic', 'push');
 		expect(hook.isSyncing('peer-12', 'comic')).toBe(true);
 
 		callbacks.get(NETWORK_EVENTS.comicComplete)?.({ payload: 'peer-12' });
@@ -810,7 +841,7 @@ describe('useNetworkSync', () => {
 		);
 		const hook = await renderHook();
 
-		const pending = hook.syncComic('peer-4', [9], 'One Piece');
+		const pending = hook.syncComic('peer-4', [9], 'One Piece', 'push');
 
 		// Guarda especificamente o kind 'comic' — não 'history'/'files', que syncComic nem
 		// toca.
@@ -827,7 +858,8 @@ describe('useNetworkSync', () => {
 		expect(invokeMock).toHaveBeenCalledWith(NETWORK_COMMANDS.syncComic, {
 			peerId: 'peer-4',
 			addrs: [9],
-			comicName: 'One Piece'
+			comicName: 'One Piece',
+			direction: 'push'
 		});
 		expect(hook.isSyncing('peer-4', 'comic')).toBe(true);
 
@@ -844,7 +876,7 @@ describe('useNetworkSync', () => {
 		const hook = await renderHook();
 		await hook.startListening();
 
-		const pending = hook.syncComic('peer-4', [9], 'One Piece');
+		const pending = hook.syncComic('peer-4', [9], 'One Piece', 'push');
 		expect(hook.isSyncing('peer-4', 'comic')).toBe(true);
 
 		callbacks.get(NETWORK_EVENTS.comicError)?.({

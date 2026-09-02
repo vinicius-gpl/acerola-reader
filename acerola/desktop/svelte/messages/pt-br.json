@@ -102,6 +102,17 @@
 			"io_error": {
 				"label": "Erro ao acessar o sistema de arquivos."
 			}
+		},
+		"sync": {
+			"session_busy": {
+				"label": "Já existe uma sincronização em andamento com este dispositivo."
+			},
+			"timed_out": {
+				"label": "A sincronização demorou demais e foi cancelada — o dispositivo pode ter ficado offline."
+			},
+			"connection_lost": {
+				"label": "A conexão com o dispositivo caiu durante a sincronização. Tente novamente."
+			}
 		}
 	},
 	"layout": {
@@ -176,7 +187,7 @@
 				},
 				"delete_confirm": {
 					"title": "Excluir Quadrinhos",
-					"desc": "Tem certeza de que deseja excluir o(s) quadrinho(s) selecionado(s)? Isso removerá apenas do banco de dados, os arquivos físicos não serão alterados.",
+					"desc": "Tem certeza de que deseja excluir o(s) quadrinho(s) selecionado(s)? Isso apagará permanentemente a pasta e os arquivos físicos do disco — essa ação não pode ser desfeita.",
 					"action": "Excluir"
 				},
 				"clear_metadata_confirm": {
@@ -320,7 +331,9 @@
 					"send": {
 						"title": "Enviar este quadrinho",
 						"desc": "Sincroniza só este quadrinho com o dispositivo escolhido, sem mexer no resto da biblioteca.",
-						"button": "Escolher dispositivo"
+						"button": "Escolher dispositivo",
+						"push": "Enviar para este dispositivo",
+						"pull": "Puxar deste dispositivo"
 					},
 					"toast": {
 						"success": "Quadrinho sincronizado com o dispositivo!",
@@ -370,6 +383,7 @@
 					"enabled": "Sincronização externa ativada",
 					"toggle_error": "Erro ao alterar sincronização externa: {msg}",
 					"success": "Metadados sincronizados!",
+					"rescan_success": "Capítulos sincronizados!",
 					"start_mangadex": "Sincronizando metadados com MangaDex...",
 					"start_anilist": "Sincronizando metadados com AniList...",
 					"start_comic_info": "Sincronizando metadados com ComicInfo.xml...",

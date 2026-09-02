@@ -13,7 +13,10 @@ use crate::{
     infra::sync::{
         framing::{framed_reader, framed_writer, read_json, write_json, FramedReader, FramedWriter},
         messages::{CoverRequest, CoverResponse, COVER_STATUS_CHANGED, COVER_STATUS_NOT_MODIFIED, COVER_STATUS_UNAVAILABLE},
-        protocol::{cover_request_registry::PendingCoverRequestRegistry, transfer::ChapterTransfer},
+        protocol::{
+            cover_request_registry::PendingCoverRequestRegistry,
+            transfer::{classify_sync_error, sync_error_payload, ChapterTransfer},
+        },
     },
 };
 
@@ -188,10 +191,7 @@ impl Handler for CoverBrowseOutbound {
     ) -> Result<(), P2pError> {
         let Some((comic_name, known_version)) = self.registry.take(&peer.id) else {
             let message = "no pending cover request registered for this peer";
-            (self.emit)(
-                "browse:cover:error",
-                serde_json::json!({ "peerId": peer.id, "message": message }).to_string(),
-            );
+            (self.emit)("browse:cover:error", sync_error_payload(&peer.id, message, None, None));
             return Err(P2pError::StreamFailed(message.into()));
         };
 
@@ -199,10 +199,12 @@ impl Handler for CoverBrowseOutbound {
         let mut reader = framed_reader(recv);
 
         if let Err(err) = self.run(&comic_name, known_version, peer, &mut writer, &mut reader).await {
+            let message = err.to_string();
+            let code = classify_sync_error(&err);
+            tracing::warn!(peer = %peer.id, comic_name = %comic_name, ?code, error = %message, "[CoverBrowse] session failed");
             (self.emit)(
                 "browse:cover:error",
-                serde_json::json!({ "peerId": peer.id, "comicName": comic_name, "message": err.to_string() })
-                    .to_string(),
+                sync_error_payload(&peer.id, &message, code, Some(&comic_name)),
             );
             return Err(err);
         }
