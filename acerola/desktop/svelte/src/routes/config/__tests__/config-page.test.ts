@@ -82,7 +82,10 @@ describe('config +page', () => {
 			play: vi.fn(),
 			reverse: vi.fn(),
 			onfinish: null,
-			oncancel: null
+			oncancel: null,
+			addEventListener: vi.fn(),
+			removeEventListener: vi.fn(),
+			dispatchEvent: vi.fn()
 		})) as unknown as typeof Element.prototype.animate;
 	});
 
@@ -98,6 +101,7 @@ describe('config +page', () => {
 		const user = userEvent.setup();
 		render(ConfigPage);
 
+		await user.click(screen.getByRole('tab', { name: /biblioteca|library/i }));
 		await user.click(await screen.findByText(/nomenclatura|templates/i));
 
 		expect(mockGoto).toHaveBeenCalledWith('/config/templates');
@@ -109,6 +113,7 @@ describe('config +page', () => {
 		render(ConfigPage);
 
 		await screen.findByText(/\/home\/user\/comics/);
+		await user.click(screen.getByRole('tab', { name: /biblioteca|library/i }));
 		await user.click(await screen.findByText(/sincronização rápida|quick sync|fast sync/i));
 
 		await waitFor(() =>
@@ -123,6 +128,7 @@ describe('config +page', () => {
 		const user = userEvent.setup();
 		render(ConfigPage);
 
+		await user.click(screen.getByRole('tab', { name: /configuração de metadados|metadata/i }));
 		await user.click(await screen.findByText(/sincronização com mangadex|mangadex sync/i));
 
 		await waitFor(() =>
@@ -139,6 +145,7 @@ describe('config +page', () => {
 		const user = userEvent.setup();
 		render(ConfigPage);
 
+		await user.click(screen.getByRole('tab', { name: /configuração de metadados|metadata/i }));
 		await user.click(await screen.findByText(/sincronização com anilist|anilist sync/i));
 
 		await waitFor(() =>
@@ -157,6 +164,7 @@ describe('config +page', () => {
 		const user = userEvent.setup();
 		render(ConfigPage);
 
+		await user.click(screen.getByRole('tab', { name: /marcadores|bookmarks/i }));
 		const nameInput = await screen.findByLabelText(/nome|name/i);
 		await user.type(nameInput, 'Favoritos');
 		await user.click(screen.getByRole('button', { name: /criar|create/i }));

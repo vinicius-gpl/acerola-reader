@@ -1,5 +1,6 @@
 import gsap from 'gsap';
 import type { Action } from 'svelte/action';
+import { cn } from '$lib/utils/cn.utils';
 
 export type ToastIconVariant = 'loading' | 'success' | 'error' | 'warning' | 'info';
 
@@ -12,7 +13,7 @@ const BURST_COLOR: Partial<Record<ToastIconVariant, string>> = {
 // (sucesso/erro) sem depender só da troca de glifo. Remove o próprio elemento ao terminar.
 function spawnBurst(node: HTMLElement, colorClass: string) {
 	const ring = document.createElement('span');
-	ring.className = `pointer-events-none absolute inset-0 rounded-full ${colorClass}`;
+	ring.className = cn('pointer-events-none absolute inset-0 rounded-full', colorClass);
 	node.prepend(ring);
 	gsap.fromTo(
 		ring,

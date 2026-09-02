@@ -43,6 +43,7 @@
 		"rolldown": "1.2.5"
 	},
 	"dependencies": {
+		"@formkit/auto-animate": "^0.10.0",
 		"@tauri-apps/api": "^2.11.1",
 		"@tauri-apps/plugin-dialog": "^2.6.0",
 		"@tauri-apps/plugin-fs": "^2.5.0",

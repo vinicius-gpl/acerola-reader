@@ -43,12 +43,14 @@
 </script>
 
 <script lang="ts">
+	import { fade } from 'svelte/transition';
 	import AcerolaHeroButton from '$lib/components/acerola-hero-button/acerola-hero-button.svelte';
 	import AcerolaSelect from '$lib/components/acerola-select/acerola-select.svelte';
 	import AcerolaToggleGroup from '$lib/components/acerola-toggle-group/acerola-toggle-group.svelte';
 	import AcerolaAlertDialog from '$lib/components/acerola-alert-dialog/acerola-alert-dialog.svelte';
 	import AcerolaButton from '$lib/components/acerola-button/acerola-button.svelte';
 	import AcerolaPopover from '$lib/components/acerola-popover/acerola-popover.svelte';
+	import AcerolaSectionNav from '$lib/components/acerola-section-nav/acerola-section-nav.svelte';
 	import { buttonVariants } from '$lib/components/ui/button';
 	import { ToggleGroupItem } from '$lib/components/ui/toggle-group/index.js';
 	import { m } from '$lib/paraglide/messages';
@@ -79,132 +81,207 @@
 	let showClearMetadataDialog = $state(false);
 	let showDeepRescanDialog = $state(false);
 	let showPeerMenu = $state(false);
+
+	const SECTIONS = [
+		{ id: 'reading', label: m['pages.comic.preferences.reading']() },
+		{ id: 'metadata-sync', label: m['pages.config.metadata.title']() },
+		{ id: 'file-sync', label: m['pages.comic.preferences.file_sync.title']() },
+		{ id: 'p2p-sync', label: m['pages.comic.preferences.p2p_sync.title']() },
+		{ id: 'cover', label: m['pages.comic.preferences.cover.title']() },
+		{ id: 'danger-zone', label: m['pages.comic.preferences.danger_zone.title']() }
+	];
+
+	let activeSection = $state(SECTIONS[0].id);
 </script>
 
-<div class="space-y-12">
-	<!-- Reading Section -->
-	<section class="space-y-4">
-		<div
-			class="flex items-center gap-3 text-xs font-bold tracking-widest text-muted-foreground uppercase"
-		>
-			<Settings2 size={16} />
-			{m['pages.comic.preferences.reading']()}
-		</div>
+<div class="space-y-8">
+	<AcerolaSectionNav
+		data={{ sections: SECTIONS }}
+		state={{ activeId: activeSection }}
+		events={{ onSelect: (id: string) => (activeSection = id) }}
+		ui={{ stickyTop: 'top-16' }}
+	/>
 
-		<div class="grid gap-4">
-			<!-- Volume Highlight (Conditional) -->
-			{#if data?.hasVolumeStructure}
-				<AcerolaHeroButton
-					data={{
-						title: m['pages.comic.preferences.volume_highlight.title'](),
-						description: m['pages.comic.preferences.volume_highlight.desc']()
-					}}
-				>
-					{#snippet icon()}
-						<Layers class="text-chart-2" size={24} />
-					{/snippet}
-
-					{#snippet action()}
-						<AcerolaToggleGroup
-							config={{ type: 'single' }}
-							state={{ value: preferences.volumeViewMode }}
-							events={{
-								onValueChange: (value) => {
-									if (value === 'cover' || value === 'banner') {
-										events.onVolumeViewModeChange(value);
-									}
-								}
-							}}
-						>
-							{#snippet children()}
-								<ToggleGroupItem value="cover" class="px-4 py-1.5 text-[10px] font-black uppercase">
-									{m['pages.comic.preferences.volume_highlight.cover']()}
-								</ToggleGroupItem>
-
-								<ToggleGroupItem
-									value="banner"
-									class="px-4 py-1.5 text-[10px] font-black uppercase"
-								>
-									{m['pages.comic.preferences.volume_highlight.banner']()}
-								</ToggleGroupItem>
-							{/snippet}
-						</AcerolaToggleGroup>
-					{/snippet}
-				</AcerolaHeroButton>
-			{/if}
-
-			<!-- Bookmark Assignment -->
-			<AcerolaHeroButton
-				data={{
-					title: m['pages.comic.preferences.bookmark.title'](),
-					description: m['pages.comic.preferences.bookmark.desc']()
-				}}
+	{#if activeSection === 'reading'}
+		<!-- Reading Section -->
+		<section in:fade={{ duration: 150 }} class="space-y-4">
+			<div
+				class="flex items-center gap-3 text-xs font-bold tracking-widest text-muted-foreground uppercase"
 			>
-				{#snippet icon()}
-					<BookmarkIcon class="text-chart-4" size={24} />
-				{/snippet}
+				<Settings2 size={16} />
+				{m['pages.comic.preferences.reading']()}
+			</div>
 
-				{#snippet action()}
-					<AcerolaSelect
+			<div class="grid gap-4">
+				<!-- Volume Highlight (Conditional) -->
+				{#if data?.hasVolumeStructure}
+					<AcerolaHeroButton
 						data={{
-							options: [
-								{ value: 'none', label: m['pages.comic.preferences.bookmark.none']() },
-								...(data?.bookmarks ?? []).map((b) => ({
-									value: b.id.toString(),
-									label: b.name,
-									color: b.color
-								}))
-							]
+							title: m['pages.comic.preferences.volume_highlight.title'](),
+							description: m['pages.comic.preferences.volume_highlight.desc']()
 						}}
-						state={{ value: preferences.bookmarkId ? preferences.bookmarkId.toString() : 'none' }}
-						events={{
-							onValueChange: (v) => events.onBookmarkChange(v === 'none' ? null : parseInt(v))
-						}}
-					/>
-				{/snippet}
-			</AcerolaHeroButton>
-		</div>
-	</section>
+					>
+						{#snippet icon()}
+							<Layers class="text-chart-2" size={24} />
+						{/snippet}
 
-	<!-- Metadata Sync Section -->
-	<section class="space-y-4">
-		<div
-			class="flex items-center gap-3 text-xs font-bold tracking-widest text-muted-foreground uppercase"
-		>
-			<CloudSync size={16} />
-			{m['pages.config.metadata.title']()}
-		</div>
+						{#snippet action()}
+							<AcerolaToggleGroup
+								config={{ type: 'single' }}
+								state={{ value: preferences.volumeViewMode }}
+								events={{
+									onValueChange: (value) => {
+										if (value === 'cover' || value === 'banner') {
+											events.onVolumeViewModeChange(value);
+										}
+									}
+								}}
+							>
+								{#snippet children()}
+									<ToggleGroupItem
+										value="cover"
+										class="px-4 py-1.5 text-[10px] font-black uppercase"
+									>
+										{m['pages.comic.preferences.volume_highlight.cover']()}
+									</ToggleGroupItem>
 
-		<div class="grid gap-4">
-			<AcerolaHeroButton
-				data={{
-					title: m['pages.comic.preferences.external_sync.title'](),
-					description: m['pages.comic.preferences.external_sync.desc']()
-				}}
-			>
-				{#snippet icon()}
-					<Link class="text-chart-1" size={24} />
-				{/snippet}
+									<ToggleGroupItem
+										value="banner"
+										class="px-4 py-1.5 text-[10px] font-black uppercase"
+									>
+										{m['pages.comic.preferences.volume_highlight.banner']()}
+									</ToggleGroupItem>
+								{/snippet}
+							</AcerolaToggleGroup>
+						{/snippet}
+					</AcerolaHeroButton>
+				{/if}
 
-				{#snippet action()}
-					<AcerolaSwitch
-						state={{ checked: preferences.externalSyncEnabled }}
-						events={{ onCheckedChange: events.onExternalSyncChange }}
-					/>
-				{/snippet}
-			</AcerolaHeroButton>
-
-			{#if preferences.externalSyncEnabled}
+				<!-- Bookmark Assignment -->
 				<AcerolaHeroButton
 					data={{
-						title: m['pages.config.metadata.mangadex.title'](),
-						description: m['pages.config.metadata.mangadex.desc']()
+						title: m['pages.comic.preferences.bookmark.title'](),
+						description: m['pages.comic.preferences.bookmark.desc']()
 					}}
-					events={{ onClick: events.onSyncMangadex }}
+				>
+					{#snippet icon()}
+						<BookmarkIcon class="text-chart-4" size={24} />
+					{/snippet}
+
+					{#snippet action()}
+						<AcerolaSelect
+							data={{
+								options: [
+									{ value: 'none', label: m['pages.comic.preferences.bookmark.none']() },
+									...(data?.bookmarks ?? []).map((b) => ({
+										value: b.id.toString(),
+										label: b.name,
+										color: b.color
+									}))
+								]
+							}}
+							state={{ value: preferences.bookmarkId ? preferences.bookmarkId.toString() : 'none' }}
+							events={{
+								onValueChange: (v) => events.onBookmarkChange(v === 'none' ? null : parseInt(v))
+							}}
+						/>
+					{/snippet}
+				</AcerolaHeroButton>
+			</div>
+		</section>
+	{/if}
+
+	{#if activeSection === 'metadata-sync'}
+		<!-- Metadata Sync Section -->
+		<section in:fade={{ duration: 150 }} class="space-y-4">
+			<div
+				class="flex items-center gap-3 text-xs font-bold tracking-widest text-muted-foreground uppercase"
+			>
+				<CloudSync size={16} />
+				{m['pages.config.metadata.title']()}
+			</div>
+
+			<div class="grid gap-4">
+				<AcerolaHeroButton
+					data={{
+						title: m['pages.comic.preferences.external_sync.title'](),
+						description: m['pages.comic.preferences.external_sync.desc']()
+					}}
+				>
+					{#snippet icon()}
+						<Link class="text-chart-1" size={24} />
+					{/snippet}
+
+					{#snippet action()}
+						<AcerolaSwitch
+							state={{ checked: preferences.externalSyncEnabled }}
+							events={{ onCheckedChange: events.onExternalSyncChange }}
+						/>
+					{/snippet}
+				</AcerolaHeroButton>
+
+				{#if preferences.externalSyncEnabled}
+					<AcerolaHeroButton
+						data={{
+							title: m['pages.config.metadata.mangadex.title'](),
+							description: m['pages.config.metadata.mangadex.desc']()
+						}}
+						events={{ onClick: events.onSyncMangadex }}
+					>
+						{#snippet icon()}
+							<span style="all: unset; display: inline-flex;">
+								<MangaDexIcon class="h-6 w-6 rounded-lg" />
+							</span>
+						{/snippet}
+
+						{#snippet action()}
+							<AcerolaButtonIcon
+								ui={{
+									class:
+										'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground'
+								}}
+							>
+								<RefreshCw />
+							</AcerolaButtonIcon>
+						{/snippet}
+					</AcerolaHeroButton>
+
+					<AcerolaHeroButton
+						data={{
+							title: m['pages.config.metadata.anilist.title'](),
+							description: m['pages.config.metadata.anilist.desc']()
+						}}
+						events={{ onClick: events.onSyncAnilist }}
+					>
+						{#snippet icon()}
+							<span style="all: unset; display: inline-flex;">
+								<AniListIcon class="h-6 w-6 rounded-lg" />
+							</span>
+						{/snippet}
+
+						{#snippet action()}
+							<AcerolaButtonIcon
+								ui={{
+									class:
+										'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground'
+								}}
+							>
+								<RefreshCw />
+							</AcerolaButtonIcon>
+						{/snippet}
+					</AcerolaHeroButton>
+				{/if}
+
+				<AcerolaHeroButton
+					data={{
+						title: m['pages.comic.toast.comic_info.title'](),
+						description: m['pages.comic.toast.comic_info.desc']()
+					}}
+					events={{ onClick: events.onSyncComicInfo }}
 				>
 					{#snippet icon()}
 						<span style="all: unset; display: inline-flex;">
-							<MangaDexIcon class="h-6 w-6 rounded-lg" />
+							<FileText class="h-6 w-6 text-foreground" />
 						</span>
 					{/snippet}
 
@@ -219,18 +296,30 @@
 						</AcerolaButtonIcon>
 					{/snippet}
 				</AcerolaHeroButton>
+			</div>
+		</section>
+	{/if}
 
+	{#if activeSection === 'file-sync'}
+		<!-- File Sync Section -->
+		<section in:fade={{ duration: 150 }} class="space-y-4">
+			<div
+				class="flex items-center gap-3 text-xs font-bold tracking-widest text-muted-foreground uppercase"
+			>
+				<FolderSync size={16} />
+				{m['pages.comic.preferences.file_sync.title']()}
+			</div>
+
+			<div class="grid gap-4">
 				<AcerolaHeroButton
 					data={{
-						title: m['pages.config.metadata.anilist.title'](),
-						description: m['pages.config.metadata.anilist.desc']()
+						title: m['pages.comic.preferences.file_sync.rescan.title'](),
+						description: m['pages.comic.preferences.file_sync.rescan.desc']()
 					}}
-					events={{ onClick: events.onSyncAnilist }}
+					events={{ onClick: events.onRescanComic }}
 				>
 					{#snippet icon()}
-						<span style="all: unset; display: inline-flex;">
-							<AniListIcon class="h-6 w-6 rounded-lg" />
-						</span>
+						<FolderSync class="text-chart-1" size={24} />
 					{/snippet}
 
 					{#snippet action()}
@@ -244,231 +333,16 @@
 						</AcerolaButtonIcon>
 					{/snippet}
 				</AcerolaHeroButton>
-			{/if}
 
-			<AcerolaHeroButton
-				data={{
-					title: m['pages.comic.toast.comic_info.title'](),
-					description: m['pages.comic.toast.comic_info.desc']()
-				}}
-				events={{ onClick: events.onSyncComicInfo }}
-			>
-				{#snippet icon()}
-					<span style="all: unset; display: inline-flex;">
-						<FileText class="h-6 w-6 text-foreground" />
-					</span>
-				{/snippet}
-
-				{#snippet action()}
-					<AcerolaButtonIcon
-						ui={{
-							class:
-								'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground'
-						}}
-					>
-						<RefreshCw />
-					</AcerolaButtonIcon>
-				{/snippet}
-			</AcerolaHeroButton>
-		</div>
-	</section>
-
-	<!-- File Sync Section -->
-	<section class="space-y-4">
-		<div
-			class="flex items-center gap-3 text-xs font-bold tracking-widest text-muted-foreground uppercase"
-		>
-			<FolderSync size={16} />
-			{m['pages.comic.preferences.file_sync.title']()}
-		</div>
-
-		<div class="grid gap-4">
-			<AcerolaHeroButton
-				data={{
-					title: m['pages.comic.preferences.file_sync.rescan.title'](),
-					description: m['pages.comic.preferences.file_sync.rescan.desc']()
-				}}
-				events={{ onClick: events.onRescanComic }}
-			>
-				{#snippet icon()}
-					<FolderSync class="text-chart-1" size={24} />
-				{/snippet}
-
-				{#snippet action()}
-					<AcerolaButtonIcon
-						ui={{
-							class:
-								'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground'
-						}}
-					>
-						<RefreshCw />
-					</AcerolaButtonIcon>
-				{/snippet}
-			</AcerolaHeroButton>
-
-			<AcerolaHeroButton
-				data={{
-					title: m['pages.comic.preferences.file_sync.deep_rescan.title'](),
-					description: m['pages.comic.preferences.file_sync.deep_rescan.desc']()
-				}}
-				events={{ onClick: () => (showDeepRescanDialog = true) }}
-			>
-				{#snippet icon()}
-					<DatabaseZap class="text-destructive" size={24} />
-				{/snippet}
-
-				{#snippet action()}
-					<AcerolaButtonIcon
-						ui={{
-							class:
-								'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground'
-						}}
-					>
-						<RefreshCw />
-					</AcerolaButtonIcon>
-				{/snippet}
-			</AcerolaHeroButton>
-		</div>
-	</section>
-
-	<!-- P2P Sync Section -->
-	<section class="space-y-4">
-		<div
-			class="flex items-center gap-3 text-xs font-bold tracking-widest text-muted-foreground uppercase"
-		>
-			<Share2 size={16} />
-			{m['pages.comic.preferences.p2p_sync.title']()}
-		</div>
-
-		<div class="grid gap-4">
-			{#if !data?.pairedPeers || data.pairedPeers.length === 0}
-				<p class="px-2 text-xs text-muted-foreground">
-					{m['pages.comic.preferences.p2p_sync.empty']()}
-				</p>
-			{:else}
 				<AcerolaHeroButton
 					data={{
-						title: m['pages.comic.preferences.p2p_sync.send.title'](),
-						description: m['pages.comic.preferences.p2p_sync.send.desc']()
+						title: m['pages.comic.preferences.file_sync.deep_rescan.title'](),
+						description: m['pages.comic.preferences.file_sync.deep_rescan.desc']()
 					}}
+					events={{ onClick: () => (showDeepRescanDialog = true) }}
 				>
 					{#snippet icon()}
-						<Share2 class="text-chart-1" size={24} />
-					{/snippet}
-
-					{#snippet action()}
-						<AcerolaPopover
-							state={{ open: showPeerMenu }}
-							events={{ onOpenChange: (open) => (showPeerMenu = open) }}
-							ui={{
-								align: 'end',
-								contentClass:
-									'w-64 overflow-hidden rounded-2xl border-border/40 bg-card/95 p-1.5 shadow-2xl backdrop-blur-md'
-							}}
-						>
-							{#snippet trigger()}
-								<span class={buttonVariants({ variant: 'outline', size: 'sm', class: 'gap-2' })}>
-									<Share2 size={14} />
-									{m['pages.comic.preferences.p2p_sync.send.button']()}
-								</span>
-							{/snippet}
-
-							{#snippet content()}
-								<div class="flex flex-col gap-0.5">
-									{#each data.pairedPeers as peer (peer.peerId)}
-										{@const syncing = (preferences.syncingPeerIds ?? []).includes(peer.peerId)}
-										<div class="flex h-9 items-center gap-1.5 rounded-xl px-2.5">
-											<span class="flex-1 truncate text-sm font-medium">{peer.label}</span>
-											{#if syncing}
-												<Loader2 size={16} class="shrink-0 animate-spin" />
-											{:else}
-												<AcerolaButton
-													ui={{
-														variant: 'ghost',
-														size: 'icon-sm',
-														class: 'shrink-0 rounded-full',
-														title: m['pages.comic.preferences.p2p_sync.send.push']()
-													}}
-													events={{
-														onClick: () => {
-															showPeerMenu = false;
-															events.onSyncToDevice?.(peer.peerId, peer.addrs, 'push');
-														}
-													}}
-												>
-													<Upload size={14} />
-												</AcerolaButton>
-												<AcerolaButton
-													ui={{
-														variant: 'ghost',
-														size: 'icon-sm',
-														class: 'shrink-0 rounded-full',
-														title: m['pages.comic.preferences.p2p_sync.send.pull']()
-													}}
-													events={{
-														onClick: () => {
-															showPeerMenu = false;
-															events.onSyncToDevice?.(peer.peerId, peer.addrs, 'pull');
-														}
-													}}
-												>
-													<Download size={14} />
-												</AcerolaButton>
-											{/if}
-										</div>
-									{/each}
-								</div>
-							{/snippet}
-						</AcerolaPopover>
-					{/snippet}
-				</AcerolaHeroButton>
-			{/if}
-		</div>
-	</section>
-
-	<!-- Cover Section -->
-	<section class="space-y-4">
-		<div
-			class="flex items-center gap-3 text-xs font-bold tracking-widest text-muted-foreground uppercase"
-		>
-			<Image size={16} />
-			{m['pages.comic.preferences.cover.title']()}
-		</div>
-
-		<div class="grid gap-4">
-			<AcerolaHeroButton
-				data={{
-					title: m['pages.comic.preferences.cover.regenerate.title'](),
-					description: m['pages.comic.preferences.cover.regenerate.desc']()
-				}}
-				events={{ onClick: events.onRegenerateCover }}
-			>
-				{#snippet icon()}
-					<Image class="text-chart-2" size={24} />
-				{/snippet}
-
-				{#snippet action()}
-					<AcerolaButtonIcon
-						ui={{
-							class:
-								'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground'
-						}}
-					>
-						<RefreshCw />
-					</AcerolaButtonIcon>
-				{/snippet}
-			</AcerolaHeroButton>
-
-			{#if data?.hasVolumeStructure}
-				<AcerolaHeroButton
-					data={{
-						title: m['pages.comic.preferences.cover.regenerate_volumes.title'](),
-						description: m['pages.comic.preferences.cover.regenerate_volumes.desc']()
-					}}
-					events={{ onClick: events.onRegenerateVolumeCovers }}
-				>
-					{#snippet icon()}
-						<Layers2 class="text-chart-3" size={24} />
+						<DatabaseZap class="text-destructive" size={24} />
 					{/snippet}
 
 					{#snippet action()}
@@ -482,33 +356,194 @@
 						</AcerolaButtonIcon>
 					{/snippet}
 				</AcerolaHeroButton>
-			{/if}
-		</div>
-	</section>
+			</div>
+		</section>
+	{/if}
 
-	<!-- Danger Zone -->
-	<section class="space-y-4">
-		<div
-			class="flex items-center gap-3 text-xs font-bold tracking-widest text-muted-foreground uppercase"
-		>
-			<Eraser size={16} />
-			{m['pages.comic.preferences.danger_zone.title']()}
-		</div>
-
-		<div class="grid gap-4">
-			<AcerolaHeroButton
-				data={{
-					title: m['pages.comic.preferences.danger_zone.clear_metadata.title'](),
-					description: m['pages.comic.preferences.danger_zone.clear_metadata.desc']()
-				}}
-				events={{ onClick: () => (showClearMetadataDialog = true) }}
+	{#if activeSection === 'p2p-sync'}
+		<!-- P2P Sync Section -->
+		<section in:fade={{ duration: 150 }} class="space-y-4">
+			<div
+				class="flex items-center gap-3 text-xs font-bold tracking-widest text-muted-foreground uppercase"
 			>
-				{#snippet icon()}
-					<Eraser class="text-destructive" size={24} />
-				{/snippet}
-			</AcerolaHeroButton>
-		</div>
-	</section>
+				<Share2 size={16} />
+				{m['pages.comic.preferences.p2p_sync.title']()}
+			</div>
+
+			<div class="grid gap-4">
+				{#if !data?.pairedPeers || data.pairedPeers.length === 0}
+					<p class="px-2 text-xs text-muted-foreground">
+						{m['pages.comic.preferences.p2p_sync.empty']()}
+					</p>
+				{:else}
+					<AcerolaHeroButton
+						data={{
+							title: m['pages.comic.preferences.p2p_sync.send.title'](),
+							description: m['pages.comic.preferences.p2p_sync.send.desc']()
+						}}
+					>
+						{#snippet icon()}
+							<Share2 class="text-chart-1" size={24} />
+						{/snippet}
+
+						{#snippet action()}
+							<AcerolaPopover
+								state={{ open: showPeerMenu }}
+								events={{ onOpenChange: (open) => (showPeerMenu = open) }}
+								ui={{
+									align: 'end',
+									contentClass:
+										'w-64 overflow-hidden rounded-2xl border-border/40 bg-card/95 p-1.5 shadow-2xl backdrop-blur-md'
+								}}
+							>
+								{#snippet trigger()}
+									<span class={buttonVariants({ variant: 'outline', size: 'sm', class: 'gap-2' })}>
+										<Share2 size={14} />
+										{m['pages.comic.preferences.p2p_sync.send.button']()}
+									</span>
+								{/snippet}
+
+								{#snippet content()}
+									<div class="flex flex-col gap-0.5">
+										{#each data.pairedPeers as peer (peer.peerId)}
+											{@const syncing = (preferences.syncingPeerIds ?? []).includes(peer.peerId)}
+											<div class="flex h-9 items-center gap-1.5 rounded-xl px-2.5">
+												<span class="flex-1 truncate text-sm font-medium">{peer.label}</span>
+												{#if syncing}
+													<Loader2 size={16} class="shrink-0 animate-spin" />
+												{:else}
+													<AcerolaButton
+														ui={{
+															variant: 'ghost',
+															size: 'icon-sm',
+															class: 'shrink-0 rounded-full',
+															title: m['pages.comic.preferences.p2p_sync.send.push']()
+														}}
+														events={{
+															onClick: () => {
+																showPeerMenu = false;
+																events.onSyncToDevice?.(peer.peerId, peer.addrs, 'push');
+															}
+														}}
+													>
+														<Upload size={14} />
+													</AcerolaButton>
+													<AcerolaButton
+														ui={{
+															variant: 'ghost',
+															size: 'icon-sm',
+															class: 'shrink-0 rounded-full',
+															title: m['pages.comic.preferences.p2p_sync.send.pull']()
+														}}
+														events={{
+															onClick: () => {
+																showPeerMenu = false;
+																events.onSyncToDevice?.(peer.peerId, peer.addrs, 'pull');
+															}
+														}}
+													>
+														<Download size={14} />
+													</AcerolaButton>
+												{/if}
+											</div>
+										{/each}
+									</div>
+								{/snippet}
+							</AcerolaPopover>
+						{/snippet}
+					</AcerolaHeroButton>
+				{/if}
+			</div>
+		</section>
+	{/if}
+
+	{#if activeSection === 'cover'}
+		<!-- Cover Section -->
+		<section in:fade={{ duration: 150 }} class="space-y-4">
+			<div
+				class="flex items-center gap-3 text-xs font-bold tracking-widest text-muted-foreground uppercase"
+			>
+				<Image size={16} />
+				{m['pages.comic.preferences.cover.title']()}
+			</div>
+
+			<div class="grid gap-4">
+				<AcerolaHeroButton
+					data={{
+						title: m['pages.comic.preferences.cover.regenerate.title'](),
+						description: m['pages.comic.preferences.cover.regenerate.desc']()
+					}}
+					events={{ onClick: events.onRegenerateCover }}
+				>
+					{#snippet icon()}
+						<Image class="text-chart-2" size={24} />
+					{/snippet}
+
+					{#snippet action()}
+						<AcerolaButtonIcon
+							ui={{
+								class:
+									'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground'
+							}}
+						>
+							<RefreshCw />
+						</AcerolaButtonIcon>
+					{/snippet}
+				</AcerolaHeroButton>
+
+				{#if data?.hasVolumeStructure}
+					<AcerolaHeroButton
+						data={{
+							title: m['pages.comic.preferences.cover.regenerate_volumes.title'](),
+							description: m['pages.comic.preferences.cover.regenerate_volumes.desc']()
+						}}
+						events={{ onClick: events.onRegenerateVolumeCovers }}
+					>
+						{#snippet icon()}
+							<Layers2 class="text-chart-3" size={24} />
+						{/snippet}
+
+						{#snippet action()}
+							<AcerolaButtonIcon
+								ui={{
+									class:
+										'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground'
+								}}
+							>
+								<RefreshCw />
+							</AcerolaButtonIcon>
+						{/snippet}
+					</AcerolaHeroButton>
+				{/if}
+			</div>
+		</section>
+	{/if}
+
+	{#if activeSection === 'danger-zone'}
+		<!-- Danger Zone -->
+		<section in:fade={{ duration: 150 }} class="space-y-4">
+			<div
+				class="flex items-center gap-3 text-xs font-bold tracking-widest text-muted-foreground uppercase"
+			>
+				<Eraser size={16} />
+				{m['pages.comic.preferences.danger_zone.title']()}
+			</div>
+
+			<div class="grid gap-4">
+				<AcerolaHeroButton
+					data={{
+						title: m['pages.comic.preferences.danger_zone.clear_metadata.title'](),
+						description: m['pages.comic.preferences.danger_zone.clear_metadata.desc']()
+					}}
+					events={{ onClick: () => (showClearMetadataDialog = true) }}
+				>
+					{#snippet icon()}
+						<Eraser class="text-destructive" size={24} />
+					{/snippet}
+				</AcerolaHeroButton>
+			</div>
+		</section>
+	{/if}
 </div>
 
 <AcerolaAlertDialog

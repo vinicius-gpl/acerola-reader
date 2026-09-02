@@ -147,7 +147,10 @@ describe('reader +page', () => {
 			play: vi.fn(),
 			reverse: vi.fn(),
 			onfinish: null,
-			oncancel: null
+			oncancel: null,
+			addEventListener: vi.fn(),
+			removeEventListener: vi.fn(),
+			dispatchEvent: vi.fn()
 		})) as unknown as typeof Element.prototype.animate;
 	});
 

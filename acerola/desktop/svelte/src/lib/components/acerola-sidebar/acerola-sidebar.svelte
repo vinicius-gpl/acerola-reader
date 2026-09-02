@@ -21,6 +21,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
+	import { slidingIndicator } from '$lib/utils/sliding-indicator.utils';
 
 	let { data, brand }: AcerolaSidebarProps & AcerolaSidebarSnippets = $props();
 </script>
@@ -28,6 +29,10 @@
 <Tooltip.Provider delayDuration={200}>
 	<nav
 		aria-label="Navigation"
+		use:slidingIndicator={{
+			selector: '[aria-current="page"]',
+			indicatorClass: 'rounded-xl bg-primary shadow-lg'
+		}}
 		class="flex w-[4.6rem] shrink-0 flex-col items-center gap-1 border-r border-surface/30 bg-mantle/40 py-4 backdrop-blur-xl"
 	>
 		{#if brand}
@@ -47,9 +52,9 @@
 							{...props}
 							aria-label={item.label}
 							aria-current={page.url.pathname === item.href ? 'page' : undefined}
-							class="flex size-11 shrink-0 items-center justify-center rounded-xl transition-colors [&_svg]:size-6 {page
+							class="relative flex size-11 shrink-0 items-center justify-center rounded-xl transition-colors [&_svg]:size-6 {page
 								.url.pathname === item.href
-								? 'bg-primary text-primary-foreground shadow-lg'
+								? 'text-primary-foreground'
 								: 'text-foreground hover:bg-surface/80'}"
 						>
 							<item.icon />

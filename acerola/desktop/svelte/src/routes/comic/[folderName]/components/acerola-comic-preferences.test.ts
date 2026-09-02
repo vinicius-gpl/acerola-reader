@@ -22,7 +22,9 @@ describe('AcerolaComicPreferences', () => {
 	it('renders preference options', () => {
 		render(AcerolaComicPreferences, { props: defaultProps() });
 
-		expect(screen.getByText('Leitura')).toBeInTheDocument();
+		// "Leitura" aparece 2x quando a aba "Leitura" está ativa: o chip de navegação + o
+		// cabeçalho da própria seção (a aba "reading" é a ativa por padrão).
+		expect(screen.getAllByText('Leitura').length).toBeGreaterThan(0);
 	});
 
 	it('hides volume preference when there is no volume structure', () => {

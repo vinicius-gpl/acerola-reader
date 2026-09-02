@@ -10,6 +10,7 @@
 	import AcerolaToggleGroup from '$lib/components/acerola-toggle-group/acerola-toggle-group.svelte';
 	import * as ToggleGroup from '$lib/components/ui/toggle-group/index.js';
 	import { extractErrorMessage } from '$lib/utils/error.utils';
+	import { autoAnimateList } from '$lib/utils/auto-animate.utils';
 	import { m } from '$lib/paraglide/messages';
 
 	import { useArchiveTemplates } from '$lib/hooks/store/use-archive-templates.svelte';
@@ -306,7 +307,7 @@
 						{group.empty}
 					</div>
 				{:else}
-					<div class="space-y-2">
+					<div class="space-y-2" use:autoAnimateList>
 						{#each group.items as template (template.id)}
 							<div
 								class="flex items-center justify-between gap-3 rounded-xl border border-border/40 bg-background/50 p-3 transition-colors hover:bg-muted/50"

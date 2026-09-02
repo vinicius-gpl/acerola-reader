@@ -24,8 +24,12 @@ describe('AcerolaSidebar', () => {
 	it('highlights the active item based on the current route', () => {
 		render(AcerolaSidebar, { props: { data: { items } } });
 
-		expect(screen.getByRole('link', { name: 'Home' }).className).toContain('bg-primary');
-		expect(screen.getByRole('link', { name: 'History' }).className).not.toContain('bg-primary');
+		expect(screen.getByRole('link', { name: 'Home' }).className).toContain(
+			'text-primary-foreground'
+		);
+		expect(screen.getByRole('link', { name: 'History' }).className).not.toContain(
+			'text-primary-foreground'
+		);
 		expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page');
 		expect(screen.getByRole('link', { name: 'History' })).not.toHaveAttribute('aria-current');
 	});

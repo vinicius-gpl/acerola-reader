@@ -35,6 +35,7 @@
 	import { m } from '$lib/paraglide/messages';
 	import { extractErrorMessage } from '$lib/utils/error.utils';
 	import { toastAsync } from '$lib/utils/toast-async.utils';
+	import { slidingIndicator } from '$lib/utils/sliding-indicator.utils';
 
 	import ComicChapterList, { type Chapter } from './components/acerola-comic-chapter-list.svelte';
 	import ComicHeroBanner from './components/acerola-comic-hero-banner.svelte';
@@ -656,48 +657,43 @@
 				<div
 					class="sticky top-0 z-40 -mx-4 flex items-center justify-between border-b border-surface/30 bg-base/5 px-4 backdrop-blur-3xl"
 				>
-					<AcerolaToggleGroup
-						config={{ type: 'single' }}
-						state={{ value: activeTab }}
-						events={{
-							onValueChange: (value) => {
-								if (typeof value === 'string') activeTab = value;
-							}
+					<div
+						class="relative"
+						use:slidingIndicator={{
+							selector: '[data-state="on"]',
+							indicatorClass: 'bottom-0 h-1 rounded-full bg-primary',
+							track: ['x', 'width']
 						}}
-						ui={{ class: 'flex gap-4' }}
 					>
-						{#snippet children()}
-							<ToggleGroupItem
-								value="content"
-								class="relative border-none bg-transparent py-6 text-sm font-black tracking-[0.2em] uppercase data-[state=on]:bg-transparent data-[state=on]:text-primary"
-							>
-								{chapterStore.chapters?.hasVolumeStructure
-									? m['pages.comic.tabs.volumes']()
-									: m['pages.comic.tabs.chapters']()}
+						<AcerolaToggleGroup
+							config={{ type: 'single' }}
+							state={{ value: activeTab }}
+							events={{
+								onValueChange: (value) => {
+									if (typeof value === 'string') activeTab = value;
+								}
+							}}
+							ui={{ class: 'flex gap-4' }}
+						>
+							{#snippet children()}
+								<ToggleGroupItem
+									value="content"
+									class="border-none bg-transparent py-6 text-sm font-black tracking-[0.2em] uppercase data-[state=on]:bg-transparent data-[state=on]:text-primary"
+								>
+									{chapterStore.chapters?.hasVolumeStructure
+										? m['pages.comic.tabs.volumes']()
+										: m['pages.comic.tabs.chapters']()}
+								</ToggleGroupItem>
 
-								{#if activeTab === 'content'}
-									<div
-										class="absolute right-0 bottom-0 left-0 h-1 rounded-full bg-primary"
-										in:fade
-									></div>
-								{/if}
-							</ToggleGroupItem>
-
-							<ToggleGroupItem
-								value="preferences"
-								class="relative border-none bg-transparent py-6 text-sm font-black tracking-[0.2em] uppercase data-[state=on]:bg-transparent data-[state=on]:text-primary"
-							>
-								{m['pages.comic.tabs.preferences']()}
-
-								{#if activeTab === 'preferences'}
-									<div
-										class="absolute right-0 bottom-0 left-0 h-1 rounded-full bg-primary"
-										in:fade
-									></div>
-								{/if}
-							</ToggleGroupItem>
-						{/snippet}
-					</AcerolaToggleGroup>
+								<ToggleGroupItem
+									value="preferences"
+									class="border-none bg-transparent py-6 text-sm font-black tracking-[0.2em] uppercase data-[state=on]:bg-transparent data-[state=on]:text-primary"
+								>
+									{m['pages.comic.tabs.preferences']()}
+								</ToggleGroupItem>
+							{/snippet}
+						</AcerolaToggleGroup>
+					</div>
 
 					{#if activeTab === 'content'}
 						<div class="flex items-center gap-2 pr-4">
