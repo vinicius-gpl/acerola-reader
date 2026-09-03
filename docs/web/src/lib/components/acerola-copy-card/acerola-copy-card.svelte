@@ -1,8 +1,8 @@
 <script lang="ts">
 	import CheckIcon from '@lucide/svelte/icons/check';
 	import CopyIcon from '@lucide/svelte/icons/copy';
-	import { Button } from '$lib/components/ui/button/index.js';
-	import * as Card from '$lib/components/ui/card/index.js';
+	import { Button } from '$lib/components/ui/button/index';
+	import * as Card from '$lib/components/ui/card/index';
 
 	let {
 		label,

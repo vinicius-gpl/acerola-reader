@@ -14,7 +14,7 @@
 
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import * as Command from '$lib/components/ui/command/index.js';
+	import * as Command from '$lib/components/ui/command/index';
 
 	let { children, events, state: control }: AcerolaCommandProps = $props();
 

@@ -2,7 +2,7 @@
 	import CheckIcon from '@lucide/svelte/icons/check';
 	import ClipboardCopyIcon from '@lucide/svelte/icons/clipboard-copy';
 	import XIcon from '@lucide/svelte/icons/x';
-	import { Button } from '$lib/components/ui/button/index.js';
+	import { Button } from '$lib/components/ui/button/index';
 
 	let {
 		raw,
@@ -52,13 +52,12 @@
 
 <Button
 	variant="outline"
-	size="sm"
+	size="icon-lg"
 	class={view.class}
 	onclick={copy}
 	aria-label={view.text}
 	title={view.text}
 >
 	{@const Icon = view.icon}
-	<Icon data-icon="inline-start" />
-	<span>{view.text}</span>
+	<Icon class="size-5" />
 </Button>

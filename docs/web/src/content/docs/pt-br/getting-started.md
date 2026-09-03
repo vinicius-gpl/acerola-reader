@@ -8,7 +8,12 @@ order: 1
 <script>
 	import Callout from '$lib/components/acerola-callout/acerola-callout.svelte';
 	import Steps from '$lib/mdsvex/steps.svelte';
-	import CodeGroup from '$lib/mdsvex/code-group.svelte';
+	import CardGrid from '$lib/mdsvex/card-grid.svelte';
+	import PlatformCard from '$lib/mdsvex/platform-card.svelte';
+	import AcerolaMicrosoftStoreButton from '$lib/components/acerola-microsoft-store-button/acerola-microsoft-store-button.svelte';
+	import AcerolaApkDownloadButton from '$lib/components/acerola-apk-download-button/acerola-apk-download-button.svelte';
+	import MicrosoftStoreIcon from '$lib/assets/icons/microsoft-store.svg?component';
+	import AndroidIcon from '$lib/assets/icons/android.svg?component';
 </script>
 
 <Callout type="note" title="Página de exemplo">
@@ -23,7 +28,25 @@ O Acerola é um leitor de quadrinhos e mangás locais com sincronização **100%
 
 Escolha a plataforma que você usa:
 
-{#snippet desktopInstall()}
+<CardGrid>
+
+<PlatformCard title="Windows" description="Instale o Acerola direto pela Microsoft Store." icon={MicrosoftStoreIcon}>
+<AcerolaMicrosoftStoreButton label="Baixe na" />
+</PlatformCard>
+
+<PlatformCard title="Android" description="Sincronize sua biblioteca direto no celular." icon={AndroidIcon}>
+<AcerolaApkDownloadButton
+	label="Baixe o"
+	fallbackLabel="Indisponível — tente"
+	fallbackTitle="O download direto está indisponível no momento — abrindo a última versão no GitHub Releases."
+/>
+</PlatformCard>
+
+</CardGrid>
+
+### Compilando a partir do código-fonte
+
+Prefere compilar você mesmo, ou precisa de macOS/Linux? O Acerola é um app Tauri — clone o repositório e rode direto:
 
 ```bash
 git clone https://github.com/Vinicius-Gabriel-P-Leitao/acerola-reader
@@ -31,21 +54,6 @@ cd acerola-reader/acerola/desktop
 npm install
 npm run tauri dev
 ```
-
-{/snippet}
-
-{#snippet androidInstall()}
-
-Baixe o APK mais recente [aqui](https://binary.acerola-comic.com/android/latest.apk).
-
-{/snippet}
-
-<CodeGroup
-	items={[
-		{ value: 'desktop', label: 'Desktop', content: desktopInstall },
-		{ value: 'android', label: 'Android', content: androidInstall }
-	]}
-/>
 
 ## Sincronizando dois dispositivos
 

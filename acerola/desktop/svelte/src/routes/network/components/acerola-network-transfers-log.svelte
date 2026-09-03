@@ -14,6 +14,7 @@
 	import CheckIcon from '@lucide/svelte/icons/check';
 	import RefreshCwIcon from '@lucide/svelte/icons/refresh-cw';
 	import { m } from '$lib/paraglide/messages';
+	import { autoAnimateList } from '$lib/utils/auto-animate.utils';
 
 	let { data }: NetworkTransfersLogProps = $props();
 
@@ -67,7 +68,7 @@
 			{m['pages.network.transfers.empty']()}
 		</p>
 	{:else}
-		<ul class="max-h-80 space-y-1 overflow-y-auto">
+		<ul class="max-h-80 space-y-1 overflow-y-auto" use:autoAnimateList>
 			{#each entries as entry (entry.id)}
 				<li class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm hover:bg-muted/50">
 					{#if entry.status === 'error'}

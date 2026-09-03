@@ -1,10 +1,33 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
+	import gsap from 'gsap';
 	import type { Snippet } from 'svelte';
 
 	let { children }: { children: Snippet } = $props();
+
+	let container: HTMLDivElement | undefined = $state();
+
+	onMount(() => {
+		const ctx = gsap.context(() => {
+			const cards = container?.querySelectorAll('[data-slot="card"]');
+			if (!cards?.length) return;
+
+			// Sem deslocamento vertical (`y`): com stagger, um card só termina de subir
+			// depois do outro, então por uma fração de segundo eles ficam em alturas
+			// diferentes — só o fade evita essa impressão de desalinhamento.
+			gsap.from(cards, {
+				opacity: 0,
+				duration: 0.4,
+				stagger: 0.08,
+				ease: 'power2.out'
+			});
+		}, container);
+
+		return () => ctx.revert();
+	});
 </script>
 
-<div class="card-grid my-6 flex flex-wrap justify-center gap-4">
+<div bind:this={container} class="card-grid my-6 flex flex-wrap justify-center gap-4">
 	{@render children()}
 </div>
 

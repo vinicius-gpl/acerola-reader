@@ -1,5 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
+use async_trait::async_trait;
 use secrecy::ExposeSecret;
 use tokio::sync::RwLock;
 
@@ -7,7 +8,7 @@ use super::acerola_p2p::AcerolaP2p;
 use crate::{
     core::{
         guard::BoxedValidator,
-        network::manager::NetworkManager,
+        network::{manager::NetworkManager, state::NetworkState},
         storage::P2PStorage,
         transport::{P2pTransport, TransportP2pBuilder},
     },
@@ -18,8 +19,32 @@ use crate::{
             DeviceInfoStore, EventEmitter, ProtocolHandler,
         },
     },
-    infra::error::ConnectionError,
+    infra::{error::ConnectionError, peer::PeerId},
 };
+
+/// `DeviceInfoStore` que grava tanto no `NetworkState` em memória quanto no `P2PStorage`
+/// (quando configurado) — sem isso, o nome de um peer pareado só sobrevive enquanto o
+/// processo estiver de pé, some ao reiniciar o app até o próximo handshake com aquele peer
+/// (ver `restore_cached_device_info`, que resolve a metade "carregar de volta no boot" disso).
+/// Falha ao persistir é só logada, não propagada: um nome que não gravou no disco não deveria
+/// derrubar um handshake que já completou com sucesso em memória.
+struct PersistentDeviceInfoStore {
+    state: Arc<RwLock<NetworkState>>,
+    storage: Option<Arc<dyn P2PStorage>>,
+}
+
+#[async_trait]
+impl DeviceInfoStore for PersistentDeviceInfoStore {
+    async fn store_device_info(&self, peer: PeerId, info: DeviceInfo) {
+        self.state.write().await.store_device_info(peer.clone(), info.clone());
+
+        if let Some(storage) = &self.storage {
+            if let Err(err) = storage.save_device_info(&peer, &info).await {
+                tracing::warn!(peer = %peer.id, error = ?err, "failed to persist device info");
+            }
+        }
+    }
+}
 
 const RESERVED_ALPNS: &[&[u8]] = &[b"acerola/handshake/1"];
 
@@ -138,6 +163,24 @@ impl<TB: TransportP2pBuilder> AcerolaP2pBuilder<TB> {
         }
     }
 
+    /// Carrega e registra os nomes de dispositivo salvos no cache de storage no estado
+    /// inicial da rede — contraparte de `restore_cached_peers` para `DeviceInfo`. Sem isso,
+    /// mesmo persistindo em disco (`PersistentDeviceInfoStore`), o nome de um peer pareado
+    /// ficaria em branco até aquele peer específico reconectar nesta sessão.
+    async fn restore_cached_device_info(
+        storage: Option<&Arc<dyn P2PStorage>>,
+        state: &tokio::sync::RwLock<crate::core::network::state::NetworkState>,
+    ) {
+        if let Some(storage) = storage {
+            if let Ok(cached_device_info) = storage.load_device_info().await {
+                let mut state = state.write().await;
+                for (peer, info) in cached_device_info {
+                    state.store_device_info(peer, info);
+                }
+            }
+        }
+    }
+
     /// Compila as configurações submetidas e consolida a interface física no sistema operacional (abre as sockets).
     ///
     /// Além de popular a estrutura do `NetworkManager`, ativa de ofício o handler base `acerola/handshake/1`.
@@ -166,18 +209,24 @@ impl<TB: TransportP2pBuilder> AcerolaP2pBuilder<TB> {
         );
 
         Self::restore_cached_peers(self.storage.as_ref(), &state).await;
+        Self::restore_cached_device_info(self.storage.as_ref(), &state).await;
 
         // Compartilhado com `AcerolaP2p` (não clonado por valor) — é essa referência comum que
         // permite `set_local_device_name` valer no próximo handshake sem reconstruir os
         // handlers nem reiniciar o node.
         let device_info = Arc::new(RwLock::new(self.device_info));
 
+        let device_info_store: Arc<dyn DeviceInfoStore> = Arc::new(PersistentDeviceInfoStore {
+            state: Arc::clone(&state),
+            storage: self.storage.clone(),
+        });
+
         manager.register_inbound(
             b"acerola/handshake/1",
             Arc::new(RpcServerHandler::new(
                 Arc::clone(&self.emit),
                 Arc::clone(&device_info),
-                Arc::clone(&state) as Arc<dyn DeviceInfoStore>,
+                Arc::clone(&device_info_store),
             )),
         );
 
@@ -186,7 +235,7 @@ impl<TB: TransportP2pBuilder> AcerolaP2pBuilder<TB> {
             Arc::new(RpcClientHandler::new(
                 Arc::clone(&self.emit),
                 Arc::clone(&device_info),
-                Arc::clone(&state) as Arc<dyn DeviceInfoStore>,
+                Arc::clone(&device_info_store),
             )),
         );
 
@@ -391,6 +440,14 @@ mod tests {
         async fn load_peers(&self) -> Result<Vec<crate::infra::peer::PeerAddr>, ConnectionError> {
             Err(ConnectionError::StreamFailed("disk read error".to_string()))
         }
+        async fn save_device_info(
+            &self, _peer: &PeerId, _info: &DeviceInfo,
+        ) -> Result<(), ConnectionError> {
+            Ok(())
+        }
+        async fn load_device_info(&self) -> Result<Vec<(PeerId, DeviceInfo)>, ConnectionError> {
+            Ok(vec![])
+        }
     }
 
     #[tokio::test]
@@ -445,6 +502,58 @@ mod tests {
         assert!(state_guard.get_addr(&cached_peer_address.id).is_some());
     }
 
+    #[tokio::test]
+    async fn restore_cached_device_info_populates_network_state_with_cached_names() {
+        let memory_storage = InMemoryStorage::new();
+        let cached_peer = PeerId { id: "cached-peer-1".to_string(), device_id: None };
+        memory_storage
+            .save_device_info(
+                &cached_peer,
+                &DeviceInfo { name: "PC do Vinicius".to_string(), os: "windows".to_string(), version: "1.0.0".to_string() },
+            )
+            .await
+            .unwrap();
+
+        let network_state =
+            Arc::new(tokio::sync::RwLock::new(crate::core::network::state::NetworkState::new()));
+        let storage_arc: Arc<dyn crate::core::storage::P2PStorage> = Arc::new(memory_storage);
+
+        AcerolaP2pBuilder::<IrohTransportBuilder>::restore_cached_device_info(
+            Some(&storage_arc),
+            &network_state,
+        )
+        .await;
+
+        let state_guard = network_state.read().await;
+        assert_eq!(state_guard.get_device_info(&cached_peer).unwrap().name, "PC do Vinicius");
+    }
+
+    #[tokio::test]
+    async fn persistent_device_info_store_persists_to_storage_and_memory() {
+        let storage = InMemoryStorage::new();
+        let storage_arc: Arc<dyn crate::core::storage::P2PStorage> = Arc::new(storage);
+        let network_state =
+            Arc::new(tokio::sync::RwLock::new(crate::core::network::state::NetworkState::new()));
+
+        let store = PersistentDeviceInfoStore {
+            state: Arc::clone(&network_state),
+            storage: Some(Arc::clone(&storage_arc)),
+        };
+
+        let peer = PeerId { id: "peer-1".to_string(), device_id: None };
+        let info = DeviceInfo { name: "Notebook".to_string(), os: "linux".to_string(), version: "2.0.0".to_string() };
+        store.store_device_info(peer.clone(), info.clone()).await;
+
+        let state_guard = network_state.read().await;
+        assert_eq!(state_guard.get_device_info(&peer).unwrap().name, "Notebook");
+        drop(state_guard);
+
+        let persisted = storage_arc.load_device_info().await.unwrap();
+        assert_eq!(persisted.len(), 1);
+        assert_eq!(persisted[0].0, peer);
+        assert_eq!(persisted[0].1.name, "Notebook");
+    }
+
     struct InvalidSeedStorage {
         invalid_bytes: Vec<u8>,
         saved_seed: Arc<std::sync::Mutex<Option<Vec<u8>>>>,
@@ -469,6 +578,14 @@ mod tests {
         }
 
         async fn load_peers(&self) -> Result<Vec<crate::infra::peer::PeerAddr>, ConnectionError> {
+            Ok(vec![])
+        }
+        async fn save_device_info(
+            &self, _peer: &PeerId, _info: &DeviceInfo,
+        ) -> Result<(), ConnectionError> {
+            Ok(())
+        }
+        async fn load_device_info(&self) -> Result<Vec<(PeerId, DeviceInfo)>, ConnectionError> {
             Ok(vec![])
         }
     }
@@ -535,6 +652,14 @@ mod tests {
             Ok(())
         }
         async fn load_peers(&self) -> Result<Vec<crate::infra::peer::PeerAddr>, ConnectionError> {
+            Ok(vec![])
+        }
+        async fn save_device_info(
+            &self, _peer: &PeerId, _info: &DeviceInfo,
+        ) -> Result<(), ConnectionError> {
+            Ok(())
+        }
+        async fn load_device_info(&self) -> Result<Vec<(PeerId, DeviceInfo)>, ConnectionError> {
             Ok(vec![])
         }
     }

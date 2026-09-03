@@ -112,6 +112,45 @@
 			},
 			"connection_lost": {
 				"label": "A conexão com o dispositivo caiu durante a sincronização. Tente novamente."
+			},
+			"peer_not_found": {
+				"label": "Não foi possível encontrar este dispositivo na rede."
+			},
+			"auth_denied": {
+				"label": "A conexão com este dispositivo foi recusada."
+			},
+			"shutdown": {
+				"label": "A rede foi desligada durante a sincronização."
+			},
+			"incompatible_version": {
+				"label": "Este dispositivo está rodando uma versão incompatível do app."
+			},
+			"startup_failed": {
+				"label": "Falha ao iniciar a conexão com o dispositivo."
+			},
+			"blob_not_found": {
+				"label": "O arquivo solicitado não foi encontrado no dispositivo remoto."
+			},
+			"missing_blob_hash": {
+				"label": "O dispositivo remoto enviou um item sem os dados necessários para a transferência."
+			},
+			"blob_fetch_failed": {
+				"label": "Falha ao baixar um dos arquivos durante a sincronização."
+			},
+			"checksum_mismatch": {
+				"label": "Um dos arquivos recebidos falhou na verificação de integridade."
+			},
+			"comic_directory_unavailable": {
+				"label": "Não foi possível acessar a pasta deste quadrinho."
+			},
+			"persist_failed": {
+				"label": "Falha ao salvar um dos arquivos recebidos."
+			},
+			"no_pending_request": {
+				"label": "A solicitação expirou antes de ser processada. Tente novamente."
+			},
+			"partial_sync": {
+				"label": "Alguns capítulos não foram sincronizados — veja o histórico para mais detalhes."
 			}
 		}
 	},
@@ -293,6 +332,19 @@
 			},
 			"preferences": {
 				"reading": "Leitura",
+				"categories": {
+					"reading": {
+						"desc": "Exibição de volume, marcador"
+					},
+					"sync": {
+						"title": "Sincronização",
+						"desc": "Metadados, arquivos e dispositivos"
+					},
+					"advanced": {
+						"title": "Avançado",
+						"desc": "Capa e zona de risco"
+					}
+				},
 				"volume_highlight": {
 					"title": "Destaque do Volume",
 					"desc": "Escolha como os volumes são destacados: como capas ou banners.",
@@ -336,6 +388,7 @@
 						"pull": "Puxar deste dispositivo"
 					},
 					"toast": {
+						"start": "Sincronizando quadrinho com o dispositivo...",
 						"success": "Quadrinho sincronizado com o dispositivo!",
 						"error": "Erro ao sincronizar quadrinho: {msg}"
 					}
@@ -391,6 +444,8 @@
 					"start_deep_rescan": "Reescaneando quadrinho...",
 					"start_regenerate_cover": "Gerando capa a partir da primeira página...",
 					"start_regenerate_volume_covers": "Gerando capas dos volumes...",
+					"start_clear_metadata": "Limpando metadados...",
+					"start_toggle": "Atualizando sincronização externa...",
 					"regenerate_cover_success": "Capa atualizada!",
 					"regenerate_volume_covers_success": "Capas dos volumes atualizadas!",
 					"clear_metadata_success": "Metadados limpos!"
@@ -507,6 +562,23 @@
 		"config": {
 			"title": "Configurações",
 			"desc": "Personalize sua experiência de leitura.",
+			"categories": {
+				"files": {
+					"desc": "Pasta da biblioteca e geração de ComicInfo.xml"
+				},
+				"library": {
+					"desc": "Sincronização e templates de nomenclatura"
+				},
+				"appearance": {
+					"desc": "Tema e paleta de cores do app"
+				},
+				"metadata": {
+					"desc": "Idioma, MangaDex e AniList"
+				},
+				"bookmarks": {
+					"desc": "Crie e organize marcadores"
+				}
+			},
 			"file_system": {
 				"title": "Configuração dos Arquivos",
 				"comic_path": {

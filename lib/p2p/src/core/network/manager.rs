@@ -27,6 +27,18 @@ use crate::{
 /// Limite de comandos simultâneos não processados na fila do loop principal.
 const COMMAND_CHANNEL_CAPACITY: usize = 64;
 
+/// Teto por tentativa individual de discagem outbound em `handle_connect_command`.
+///
+/// Sem isso, cada uma das 5 tentativas de retry esperava o `endpoint.connect()` do iroh
+/// inteiro resolver sozinho — o que pode levar perto de 10s quando o endereço cacheado do
+/// peer está morto (peer trocou de rede/Wi-Fi) antes do relay assumir. 5 tentativas
+/// sequenciais nesse cenário significam até ~50s de espera percebida pelo usuário só pra
+/// descobrir que o endereço direto está morto, quando o relay (se disponível) normalmente
+/// resolve bem mais rápido que isso. Um teto curto por tentativa faz a malha de retry
+/// desistir do endereço morto e cair pro relay bem mais cedo, sem esperar o timeout interno
+/// completo do iroh em cada uma das 5 rodadas.
+const CONNECT_ATTEMPT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(3);
+
 /// Sinais de controle enviados ao Event Loop da rede.
 ///
 /// Como o manager é blindado e opera numa tarefa em background, toda interação
@@ -259,7 +271,15 @@ impl NetworkManager {
                 let mut backoff = std::time::Duration::from_millis(100);
 
                 for attempt in 1..=max_retries {
-                    match transport.open_bi(&alpn, &addr).await {
+                    let dial_result =
+                        match tokio::time::timeout(CONNECT_ATTEMPT_TIMEOUT, transport.open_bi(&alpn, &addr))
+                            .await
+                        {
+                            Ok(result) => result,
+                            Err(_elapsed) => Err(ConnectionError::Timeout),
+                        };
+
+                    match dial_result {
                         Ok((send, recv)) => {
                             if save_peer_if_present(storage.as_ref(), &addr).await.is_err() {
                                 tracing::error!(peer = %addr.id, "failed to save outbound peer to storage, terminating connection");
@@ -539,6 +559,16 @@ mod tests {
         async fn load_peers(&self) -> Result<Vec<PeerAddr>, ConnectionError> {
             Ok(vec![])
         }
+        async fn save_device_info(
+            &self, _peer: &PeerId, _info: &crate::data::identity::device_info::DeviceInfo,
+        ) -> Result<(), ConnectionError> {
+            Ok(())
+        }
+        async fn load_device_info(
+            &self,
+        ) -> Result<Vec<(PeerId, crate::data::identity::device_info::DeviceInfo)>, ConnectionError> {
+            Ok(vec![])
+        }
     }
 
     #[tokio::test]
@@ -723,6 +753,103 @@ mod tests {
 
         let _shutdown_result = command_sender.send(NetworkCommand::Shutdown).await;
         let _manager_join_result = manager_task_handle.await;
+    }
+
+    struct HangingDialTransport {
+        call_timestamps: Arc<tokio::sync::Mutex<Vec<tokio::time::Instant>>>,
+    }
+
+    #[async_trait::async_trait]
+    impl P2pTransport for HangingDialTransport {
+        fn local_id(&self) -> PeerId {
+            PeerId { id: "test-peer".to_string(), device_id: None }
+        }
+
+        fn local_addr(&self) -> Result<PeerAddr, ConnectionError> {
+            Ok(PeerAddr { id: self.local_id(), addrs: vec![] })
+        }
+
+        async fn accept(
+            &self,
+        ) -> Result<Box<dyn crate::core::transport::IncomingConnection>, ConnectionError> {
+            std::future::pending().await
+        }
+
+        async fn open_bi(
+            &self, _alpn: &[u8], _peer: &PeerAddr,
+        ) -> Result<
+            (
+                Box<dyn tokio::io::AsyncWrite + Send + Unpin>,
+                Box<dyn tokio::io::AsyncRead + Send + Unpin>,
+            ),
+            ConnectionError,
+        > {
+            self.call_timestamps.lock().await.push(tokio::time::Instant::now());
+            // Simula um path morto que nunca responde (nem sucesso, nem erro) — o cenário real
+            // de "peer trocou de rede", onde `endpoint.connect()` do iroh pode ficar preso por
+            // um bom tempo tentando um endereço direto que não existe mais.
+            std::future::pending().await
+        }
+
+        async fn latency(&self, _peer: &PeerId) -> Option<Duration> {
+            None
+        }
+
+        async fn shutdown(&self) -> Result<(), ConnectionError> {
+            Ok(())
+        }
+    }
+
+    /// Regressão-alvo do bug de reconexão lenta documentado no TODO do desktop: sem um timeout
+    /// próprio por tentativa, um `open_bi` que trava pra sempre (endereço cacheado morto, path
+    /// nunca valida) faria a MALHA INTEIRA de retry travar na primeira tentativa — nunca
+    /// chegaria a tentar as outras 4, porque o `match` externo nunca resolveria. Com
+    /// `CONNECT_ATTEMPT_TIMEOUT`, cada tentativa desiste sozinha e a malha de retry consegue
+    /// completar as 5 tentativas normalmente, ainda que o transporte nunca responda.
+    #[tokio::test(start_paused = true)]
+    async fn hanging_dial_attempt_times_out_and_all_five_retries_still_run() {
+        let call_timestamps = Arc::new(tokio::sync::Mutex::new(Vec::new()));
+        let hanging_transport =
+            Arc::new(HangingDialTransport { call_timestamps: Arc::clone(&call_timestamps) });
+
+        let (mut network_manager, command_sender, _network_state) =
+            NetworkManager::new(hanging_transport, open_validator(), no_op_emitter());
+
+        network_manager.register_outbound(b"acerola/test/1", Arc::new(NoopHandler));
+
+        let manager_task_handle = tokio::spawn(network_manager.run());
+
+        command_sender
+            .send(NetworkCommand::Connect {
+                addr: PeerAddr { id: make_peer("target-peer"), addrs: vec![] },
+                alpn: b"acerola/test/1".to_vec(),
+            })
+            .await
+            .unwrap();
+
+        // 5 tentativas de CONNECT_ATTEMPT_TIMEOUT (3s) cada, mais o backoff entre elas
+        // (100+200+400+800ms) — avança bem além disso pra garantir que todas completaram.
+        tokio::time::sleep(Duration::from_secs(20)).await;
+
+        let timestamps_guard = call_timestamps.lock().await;
+        assert_eq!(
+            timestamps_guard.len(),
+            5,
+            "mesmo com open_bi travando pra sempre, o timeout por tentativa deveria permitir as 5 tentativas"
+        );
+
+        // Cada tentativa espera no máximo CONNECT_ATTEMPT_TIMEOUT antes de desistir e passar
+        // pra próxima (mais o backoff, que é insignificante perto de 3s).
+        for window in timestamps_guard.windows(2) {
+            let elapsed = window[1] - window[0];
+            assert!(
+                elapsed < Duration::from_secs(4),
+                "intervalo entre tentativas ({elapsed:?}) deveria ser limitado por CONNECT_ATTEMPT_TIMEOUT, não travar indefinidamente"
+            );
+        }
+
+        let _ = command_sender.send(NetworkCommand::Shutdown).await;
+        let _ = manager_task_handle.await;
     }
 
     #[tokio::test(start_paused = true)]

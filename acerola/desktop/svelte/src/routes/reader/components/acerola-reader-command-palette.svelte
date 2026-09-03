@@ -25,6 +25,7 @@
 <script lang="ts">
 	import AcerolaCommand from '$lib/components/acerola-command/acerola-command.svelte';
 	import * as Command from '$lib/components/ui/command';
+	import { fade, scale } from 'svelte/transition';
 	import { m } from '$lib/paraglide/messages';
 	import Columns2 from '@lucide/svelte/icons/columns-2';
 	import Rows2 from '@lucide/svelte/icons/rows-2';
@@ -52,10 +53,12 @@
 			aria-label={m['pages.reader.actions.close_commands']()}
 			class="absolute inset-0 bg-base/20 backdrop-blur-[2px]"
 			onclick={closeCommand}
+			transition:fade={{ duration: 120 }}
 		></button>
 
 		<div
 			class="absolute top-1/2 left-1/2 w-[min(34rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl border border-surface/50 bg-base/95 shadow-2xl shadow-crust/60"
+			transition:scale={{ start: 0.97, duration: 120 }}
 		>
 			<AcerolaCommand
 				state={{ value: state.value }}

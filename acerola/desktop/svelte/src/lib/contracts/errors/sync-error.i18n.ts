@@ -13,7 +13,20 @@ import { m } from '$lib/paraglide/messages';
 const SYNC_ERROR_MESSAGES: Record<string, () => string> = {
 	busy: m['tauri_errors.sync.session_busy.label'],
 	timeout: m['tauri_errors.sync.timed_out.label'],
-	connection_lost: m['tauri_errors.sync.connection_lost.label']
+	connection_lost: m['tauri_errors.sync.connection_lost.label'],
+	peer_not_found: m['tauri_errors.sync.peer_not_found.label'],
+	auth_denied: m['tauri_errors.sync.auth_denied.label'],
+	shutdown: m['tauri_errors.sync.shutdown.label'],
+	incompatible_version: m['tauri_errors.sync.incompatible_version.label'],
+	startup_failed: m['tauri_errors.sync.startup_failed.label'],
+	blob_not_found: m['tauri_errors.sync.blob_not_found.label'],
+	missing_blob_hash: m['tauri_errors.sync.missing_blob_hash.label'],
+	blob_fetch_failed: m['tauri_errors.sync.blob_fetch_failed.label'],
+	checksum_mismatch: m['tauri_errors.sync.checksum_mismatch.label'],
+	comic_directory_unavailable: m['tauri_errors.sync.comic_directory_unavailable.label'],
+	persist_failed: m['tauri_errors.sync.persist_failed.label'],
+	no_pending_request: m['tauri_errors.sync.no_pending_request.label'],
+	partial_sync: m['tauri_errors.sync.partial_sync.label']
 };
 
 export function translateSyncMessage(code: string | undefined, message: string): string {

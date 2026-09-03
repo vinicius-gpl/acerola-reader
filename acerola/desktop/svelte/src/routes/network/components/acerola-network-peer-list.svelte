@@ -32,6 +32,7 @@
 	import AcerolaPopover from '$lib/components/acerola-popover/acerola-popover.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { shortId } from '$lib/utils/connection-code.utils';
+	import { autoAnimateList } from '$lib/utils/auto-animate.utils';
 
 	let { data, events }: NetworkPeerListProps = $props();
 
@@ -52,7 +53,7 @@
 		{m['pages.network.peers.title']()}
 	</div>
 
-	<div class="grid gap-4">
+	<div class="grid gap-4" use:autoAnimateList>
 		{#if peers.length === 0}
 			<div
 				class="rounded-xl border border-dashed border-border/40 p-8 text-center text-sm text-muted-foreground"

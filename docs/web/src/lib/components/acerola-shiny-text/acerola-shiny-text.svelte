@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { cn } from '$lib/cn.util';
+
 	let {
 		text,
 		speed = 6,
@@ -6,7 +8,7 @@
 	}: { text: string; speed?: number; class?: string } = $props();
 </script>
 
-<span class="shiny-text {className}" style="--shiny-text-duration: {speed}s">
+<span class={cn('shiny-text', className)} style="--shiny-text-duration: {speed}s">
 	{text}
 </span>
 

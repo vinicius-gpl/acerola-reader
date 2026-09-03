@@ -4,7 +4,7 @@
 	import RadioIcon from '@lucide/svelte/icons/radio';
 	import ServerIcon from '@lucide/svelte/icons/server';
 	import SmartphoneIcon from '@lucide/svelte/icons/smartphone';
-	import { Button } from '$lib/components/ui/button/index.js';
+	import { Button } from '$lib/components/ui/button/index';
 	import AcerolaFaultyTerminal from '$lib/components/acerola-faulty-terminal/acerola-faulty-terminal.svelte';
 	import AcerolaShinyText from '$lib/components/acerola-shiny-text/acerola-shiny-text.svelte';
 	import Card from '$lib/mdsvex/card.svelte';

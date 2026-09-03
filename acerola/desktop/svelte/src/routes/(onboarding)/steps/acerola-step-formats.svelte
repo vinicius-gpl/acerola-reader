@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { m } from '$lib/paraglide/messages';
 	import { Button } from '$lib/components/ui/button';
+	import { cn } from '$lib/utils/cn.utils';
 	import FileTextIcon from '@lucide/svelte/icons/file-text';
 	import FileArchiveIcon from '@lucide/svelte/icons/file-archive';
 	import LayersIcon from '@lucide/svelte/icons/layers';
@@ -65,18 +66,27 @@
 		<div class="grid grid-cols-1 gap-4 md:grid-cols-3">
 			{#each formats as item}
 				<div
-					class="group relative flex flex-col justify-between rounded-2xl border p-5 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl {item.cardClass}"
+					class={cn(
+						'group relative flex flex-col justify-between rounded-2xl border p-5 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl',
+						item.cardClass
+					)}
 				>
 					<div>
 						<!-- Top row: Icon & Badge -->
 						<div class="mb-4 flex items-center justify-between">
 							<div
-								class="flex size-11 items-center justify-center rounded-xl p-2.5 {item.iconColor}"
+								class={cn(
+									'flex size-11 items-center justify-center rounded-xl p-2.5',
+									item.iconColor
+								)}
 							>
 								<item.icon size={22} />
 							</div>
 							<span
-								class="rounded-full border px-2.5 py-0.5 text-[10px] font-bold tracking-wider uppercase {item.badgeClass}"
+								class={cn(
+									'rounded-full border px-2.5 py-0.5 text-[10px] font-bold tracking-wider uppercase',
+									item.badgeClass
+								)}
 							>
 								{item.badge}
 							</span>

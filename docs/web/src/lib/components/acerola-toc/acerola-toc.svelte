@@ -2,6 +2,7 @@
 	import { page } from '$app/state';
 	import { m } from '$lib/paraglide/messages';
 	import { cn } from '$lib/cn.util';
+	import { slidingIndicator } from '$lib/utils/sliding-indicator.utils';
 
 	type Heading = { id: string; text: string; depth: 2 | 3 };
 
@@ -50,16 +51,24 @@
 		<p class="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
 			{m['toc.title']()}
 		</p>
-		<ul class="flex flex-col gap-1.5 border-l border-border">
+		<ul
+			use:slidingIndicator={{
+				selector: '[aria-current="true"]',
+				indicatorClass: 'w-0.5 rounded-full bg-primary',
+				track: ['y', 'height']
+			}}
+			class="flex flex-col gap-1.5 border-l border-border"
+		>
 			{#each headings as heading (heading.id)}
 				<li style={heading.depth === 3 ? 'padding-left: 1rem' : ''}>
 					<a
 						href="#{heading.id}"
+						aria-current={activeId === heading.id ? 'true' : undefined}
 						class={cn(
-							'-ml-px block border-l-2 py-0.5 pl-3 transition-colors',
+							'-ml-px block border-l-2 border-transparent py-0.5 pl-3 transition-colors',
 							activeId === heading.id
-								? 'border-primary font-medium text-primary'
-								: 'border-transparent text-muted-foreground hover:text-foreground'
+								? 'font-medium text-primary'
+								: 'text-muted-foreground hover:text-foreground'
 						)}
 					>
 						{heading.text}

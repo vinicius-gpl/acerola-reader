@@ -112,6 +112,45 @@
 			},
 			"connection_lost": {
 				"label": "The connection to the device dropped during sync. Please try again."
+			},
+			"peer_not_found": {
+				"label": "Could not find this device on the network."
+			},
+			"auth_denied": {
+				"label": "The connection to this device was refused."
+			},
+			"shutdown": {
+				"label": "The network was shut down during sync."
+			},
+			"incompatible_version": {
+				"label": "This device is running an incompatible app version."
+			},
+			"startup_failed": {
+				"label": "Failed to start the connection to the device."
+			},
+			"blob_not_found": {
+				"label": "The requested file was not found on the remote device."
+			},
+			"missing_blob_hash": {
+				"label": "The remote device sent an item without the data needed to transfer it."
+			},
+			"blob_fetch_failed": {
+				"label": "Failed to download one of the files during sync."
+			},
+			"checksum_mismatch": {
+				"label": "One of the received files failed integrity verification."
+			},
+			"comic_directory_unavailable": {
+				"label": "Could not access this comic's folder."
+			},
+			"persist_failed": {
+				"label": "Failed to save one of the received files."
+			},
+			"no_pending_request": {
+				"label": "The request expired before it could be processed. Try again."
+			},
+			"partial_sync": {
+				"label": "Some chapters were not synced — check the history for details."
 			}
 		}
 	},
@@ -293,6 +332,19 @@
 			},
 			"preferences": {
 				"reading": "Reading",
+				"categories": {
+					"reading": {
+						"desc": "Volume display, bookmark"
+					},
+					"sync": {
+						"title": "Sync",
+						"desc": "Metadata, files and devices"
+					},
+					"advanced": {
+						"title": "Advanced",
+						"desc": "Cover and danger zone"
+					}
+				},
 				"volume_highlight": {
 					"title": "Volume Highlight",
 					"desc": "Choose how volumes are highlighted: as covers or banners.",
@@ -336,6 +388,7 @@
 						"pull": "Pull from this device"
 					},
 					"toast": {
+						"start": "Syncing comic with device...",
 						"success": "Comic synced with device!",
 						"error": "Failed to sync comic: {msg}"
 					}
@@ -391,6 +444,8 @@
 					"start_deep_rescan": "Rescanning comic...",
 					"start_regenerate_cover": "Generating cover from first page...",
 					"start_regenerate_volume_covers": "Generating volume covers...",
+					"start_clear_metadata": "Clearing metadata...",
+					"start_toggle": "Updating external sync...",
 					"regenerate_cover_success": "Cover updated!",
 					"regenerate_volume_covers_success": "Volume covers updated!",
 					"clear_metadata_success": "Metadata cleared!"
@@ -507,6 +562,23 @@
 		"config": {
 			"title": "Settings",
 			"desc": "Customize your reading experience.",
+			"categories": {
+				"files": {
+					"desc": "Library folder and ComicInfo.xml generation"
+				},
+				"library": {
+					"desc": "Sync and naming templates"
+				},
+				"appearance": {
+					"desc": "Theme and color palette"
+				},
+				"metadata": {
+					"desc": "Language, MangaDex and AniList"
+				},
+				"bookmarks": {
+					"desc": "Create and organize bookmarks"
+				}
+			},
 			"file_system": {
 				"title": "File Configuration",
 				"comic_path": {

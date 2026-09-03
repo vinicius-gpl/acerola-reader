@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Button } from '$lib/components/ui/button/index.js';
+	import { Button } from '$lib/components/ui/button/index';
 	import AcerolaColorPicker from '$lib/components/acerola-color-picker/acerola-color-picker.svelte';
 	import AcerolaThemePicker from '$lib/components/acerola-theme-picker/acerola-theme-picker.svelte';
 	import GithubIcon from '$lib/icons/github.svelte';

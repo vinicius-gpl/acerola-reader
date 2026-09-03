@@ -1,5 +1,5 @@
 <script lang="ts">
-	import * as Dialog from '$lib/components/ui/dialog/index.js';
+	import * as Dialog from '$lib/components/ui/dialog/index';
 	import { cn, type WithoutChildrenOrChild } from '$lib/cn.util';
 	import Command from './command.svelte';
 	import type { Command as CommandPrimitive, Dialog as DialogPrimitive } from 'bits-ui';

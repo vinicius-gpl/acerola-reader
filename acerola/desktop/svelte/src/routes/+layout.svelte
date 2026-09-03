@@ -1,10 +1,10 @@
 <script lang="ts" module>
 	import type { AcerolaSelectOption } from '$lib/components/acerola-select/acerola-select.svelte';
 	import type { SidebarItem } from '$lib/components/acerola-sidebar/acerola-sidebar.svelte';
-	import type { Locale } from '$lib/paraglide/runtime.js';
+	import type { Locale } from '$lib/paraglide/runtime';
 
 	import { m } from '$lib/paraglide/messages';
-	import { locales } from '$lib/paraglide/runtime.js';
+	import { locales } from '$lib/paraglide/runtime';
 
 	import HistoryIcon from '@lucide/svelte/icons/history';
 	import HouseIcon from '@lucide/svelte/icons/house';
@@ -56,7 +56,7 @@
 	import AcerolaSonner from '$lib/components/acerola-sonner/acerola-sonner.svelte';
 	import AcerolaDialog from '$lib/components/acerola-dialog/acerola-dialog.svelte';
 	import AcerolaCommand from '$lib/components/acerola-command/acerola-command.svelte';
-	import * as Command from '$lib/components/ui/command/index.js';
+	import * as Command from '$lib/components/ui/command/index';
 	import { Command as CommandPrimitive } from 'bits-ui';
 
 	import AcerolaNotification from '$lib/components/acerola-notification/acerola-notification.svelte';

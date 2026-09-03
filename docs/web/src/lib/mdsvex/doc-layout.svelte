@@ -181,7 +181,7 @@
 
 <article bind:this={container} class="doc-content max-w-none">
 	{#if title}
-		<div class="mb-2 flex items-center gap-2">
+		<div class="mb-2 flex items-center justify-between gap-2">
 			<h1 class="font-heading text-4xl font-semibold">{title}</h1>
 			{#if docRaw}
 				<AcerolaCopyMarkdownButton
