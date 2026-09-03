@@ -24,11 +24,27 @@
 	});
 </script>
 
+<script lang="ts">
+	// AcerolaFilterPanel e totalmente controlado (state.open + events.onClose) e nao tem
+	// trigger proprio — cada story precisa do seu proprio estado local e de um botao real pra
+	// abrir, senao a aba Docs mostra as variantes com o painel aberto ao mesmo tempo.
+	let openDefault = $state(false);
+	let openActiveFilters = $state(false);
+	let openNoBookmarks = $state(false);
+</script>
+
 <Story name="Default" asChild>
 	{#snippet children()}
-		<div class="min-h-[600px] bg-surface">
+		<div class="min-h-[600px] bg-surface p-8">
+			<button
+				type="button"
+				onclick={() => (openDefault = true)}
+				class="rounded-lg border border-border bg-surface-elevated px-4 py-2 text-sm font-medium text-foreground hover:opacity-80"
+			>
+				Open Panel
+			</button>
 			<AcerolaFilterPanel
-				state={{ open: true }}
+				state={{ open: openDefault }}
 				data={{
 					sortBy: 'title',
 					sortOrder: 'asc',
@@ -37,7 +53,7 @@
 					bookmarkFilter: 'all',
 					bookmarks: mockBookmarks
 				}}
-				events={{ onApply: () => {}, onClose: () => {} }}
+				events={{ onApply: () => {}, onClose: () => (openDefault = false) }}
 			/>
 		</div>
 	{/snippet}
@@ -45,9 +61,16 @@
 
 <Story name="Active Filters" asChild>
 	{#snippet children()}
-		<div class="min-h-[600px] bg-surface">
+		<div class="min-h-[600px] bg-surface p-8">
+			<button
+				type="button"
+				onclick={() => (openActiveFilters = true)}
+				class="rounded-lg border border-border bg-surface-elevated px-4 py-2 text-sm font-medium text-foreground hover:opacity-80"
+			>
+				Open Panel
+			</button>
 			<AcerolaFilterPanel
-				state={{ open: true }}
+				state={{ open: openActiveFilters }}
 				data={{
 					sortBy: 'lastUpdated',
 					sortOrder: 'desc',
@@ -56,7 +79,7 @@
 					bookmarkFilter: 1,
 					bookmarks: mockBookmarks
 				}}
-				events={{ onApply: () => {}, onClose: () => {} }}
+				events={{ onApply: () => {}, onClose: () => (openActiveFilters = false) }}
 			/>
 		</div>
 	{/snippet}
@@ -64,9 +87,16 @@
 
 <Story name="No Bookmarks" asChild>
 	{#snippet children()}
-		<div class="min-h-[600px] bg-surface">
+		<div class="min-h-[600px] bg-surface p-8">
+			<button
+				type="button"
+				onclick={() => (openNoBookmarks = true)}
+				class="rounded-lg border border-border bg-surface-elevated px-4 py-2 text-sm font-medium text-foreground hover:opacity-80"
+			>
+				Open Panel
+			</button>
 			<AcerolaFilterPanel
-				state={{ open: true }}
+				state={{ open: openNoBookmarks }}
 				data={{
 					sortBy: 'title',
 					sortOrder: 'asc',
@@ -75,7 +105,7 @@
 					bookmarkFilter: 'all',
 					bookmarks: []
 				}}
-				events={{ onApply: () => {}, onClose: () => {} }}
+				events={{ onApply: () => {}, onClose: () => (openNoBookmarks = false) }}
 			/>
 		</div>
 	{/snippet}

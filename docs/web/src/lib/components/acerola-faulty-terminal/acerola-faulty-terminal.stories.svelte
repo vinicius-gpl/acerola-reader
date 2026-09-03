@@ -61,7 +61,7 @@
 </script>
 
 {#snippet template(args: Record<string, unknown>)}
-	<div class="relative h-64 w-full overflow-hidden bg-crust">
+	<div class="relative h-[80vh] min-h-[560px] w-full overflow-hidden bg-crust">
 		<AcerolaFaultyTerminal {...args} />
 	</div>
 {/snippet}
