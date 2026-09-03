@@ -24,18 +24,36 @@
 	});
 </script>
 
+<script lang="ts">
+	// AcerolaComicActionDialog e totalmente controlado (state.open + events.onClose) e nao tem
+	// trigger proprio — cada story precisa do seu proprio estado local e de um botao real pra
+	// abrir, senao a aba Docs mostra as 5 variantes com o dialog aberto ao mesmo tempo.
+	let openDefault = $state(false);
+	let openSingleSelection = $state(false);
+	let openManySelected = $state(false);
+	let openEmpty = $state(false);
+	let openNoBookmarks = $state(false);
+</script>
+
 <Story name="Default" asChild>
 	{#snippet children()}
 		<div class="min-h-[400px] bg-surface p-8">
+			<button
+				type="button"
+				onclick={() => (openDefault = true)}
+				class="rounded-lg border border-border bg-surface-elevated px-4 py-2 text-sm font-medium text-foreground hover:opacity-80"
+			>
+				Open Dialog
+			</button>
 			<AcerolaComicActionDialog
-				state={{ open: true }}
+				state={{ open: openDefault }}
 				data={{ selectedIds: [1, 2, 3], bookmarks: mockBookmarks }}
 				events={{
 					onHide: async () => {},
 					onDelete: async () => {},
 					onClearMetadata: async () => {},
 					onBookmark: async () => {},
-					onClose: () => {}
+					onClose: () => (openDefault = false)
 				}}
 			/>
 		</div>
@@ -45,15 +63,22 @@
 <Story name="Single Selection" asChild>
 	{#snippet children()}
 		<div class="min-h-[400px] bg-surface p-8">
+			<button
+				type="button"
+				onclick={() => (openSingleSelection = true)}
+				class="rounded-lg border border-border bg-surface-elevated px-4 py-2 text-sm font-medium text-foreground hover:opacity-80"
+			>
+				Open Dialog
+			</button>
 			<AcerolaComicActionDialog
-				state={{ open: true }}
+				state={{ open: openSingleSelection }}
 				data={{ selectedIds: [1], bookmarks: mockBookmarks }}
 				events={{
 					onHide: async () => {},
 					onDelete: async () => {},
 					onClearMetadata: async () => {},
 					onBookmark: async () => {},
-					onClose: () => {}
+					onClose: () => (openSingleSelection = false)
 				}}
 			/>
 		</div>
@@ -63,15 +88,22 @@
 <Story name="Many Selected" asChild>
 	{#snippet children()}
 		<div class="min-h-[400px] bg-surface p-8">
+			<button
+				type="button"
+				onclick={() => (openManySelected = true)}
+				class="rounded-lg border border-border bg-surface-elevated px-4 py-2 text-sm font-medium text-foreground hover:opacity-80"
+			>
+				Open Dialog
+			</button>
 			<AcerolaComicActionDialog
-				state={{ open: true }}
+				state={{ open: openManySelected }}
 				data={{ selectedIds: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], bookmarks: mockBookmarks }}
 				events={{
 					onHide: async () => {},
 					onDelete: async () => {},
 					onClearMetadata: async () => {},
 					onBookmark: async () => {},
-					onClose: () => {}
+					onClose: () => (openManySelected = false)
 				}}
 			/>
 		</div>
@@ -81,15 +113,22 @@
 <Story name="Empty" asChild>
 	{#snippet children()}
 		<div class="min-h-[400px] bg-surface p-8">
+			<button
+				type="button"
+				onclick={() => (openEmpty = true)}
+				class="rounded-lg border border-border bg-surface-elevated px-4 py-2 text-sm font-medium text-foreground hover:opacity-80"
+			>
+				Open Dialog
+			</button>
 			<AcerolaComicActionDialog
-				state={{ open: true }}
+				state={{ open: openEmpty }}
 				data={{ selectedIds: [], bookmarks: mockBookmarks }}
 				events={{
 					onHide: async () => {},
 					onDelete: async () => {},
 					onClearMetadata: async () => {},
 					onBookmark: async () => {},
-					onClose: () => {}
+					onClose: () => (openEmpty = false)
 				}}
 			/>
 		</div>
@@ -99,15 +138,22 @@
 <Story name="No Bookmarks" asChild>
 	{#snippet children()}
 		<div class="min-h-[400px] bg-surface p-8">
+			<button
+				type="button"
+				onclick={() => (openNoBookmarks = true)}
+				class="rounded-lg border border-border bg-surface-elevated px-4 py-2 text-sm font-medium text-foreground hover:opacity-80"
+			>
+				Open Dialog
+			</button>
 			<AcerolaComicActionDialog
-				state={{ open: true }}
+				state={{ open: openNoBookmarks }}
 				data={{ selectedIds: [1, 2], bookmarks: [] }}
 				events={{
 					onHide: async () => {},
 					onDelete: async () => {},
 					onClearMetadata: async () => {},
 					onBookmark: async () => {},
-					onClose: () => {}
+					onClose: () => (openNoBookmarks = false)
 				}}
 			/>
 		</div>
