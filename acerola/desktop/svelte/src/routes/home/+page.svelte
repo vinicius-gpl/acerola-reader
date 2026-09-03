@@ -98,7 +98,16 @@
 	// navegar manualmente pra fora e voltar.
 	$effect(() => {
 		const entry = sync.log[0];
-		if (!entry || (entry.kind !== 'comic' && entry.kind !== 'files') || entry.id === lastHandledSyncLogId)
+		// `id < 0` marca uma linha carregada do histórico persistido (ver `fromPersisted` em
+		// `use-network-sync.svelte.ts`), não um evento ao vivo desta sessão — sem esse guard, a
+		// linha "complete" mais recente do histórico disparava este toast/refresh assim que a
+		// Home montava, mesmo sem nenhum sync ter de fato acontecido agora.
+		if (
+			!entry ||
+			entry.id < 0 ||
+			(entry.kind !== 'comic' && entry.kind !== 'files') ||
+			entry.id === lastHandledSyncLogId
+		)
 			return;
 
 		if (entry.status === 'complete') {
@@ -145,7 +154,9 @@
 		if (!addrs) return;
 		// Vem da navegação da biblioteca remota (`RemoteLibrarySheet`-like flow) — o usuário só
 		// pode escolher um quadrinho que ainda não tem, então é sempre pull.
-		sync.syncComic(browsingPeerId, addrs, comicName, 'pull').catch((err) => toast.error(String(err)));
+		sync
+			.syncComic(browsingPeerId, addrs, comicName, 'pull')
+			.catch((err) => toast.error(String(err)));
 	}
 
 	async function handleHide(ids: (string | number)[]) {

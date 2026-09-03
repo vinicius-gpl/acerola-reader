@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/svelte';
 import { createRawSnippet } from 'svelte';
 import { describe, expect, it } from 'vitest';
 import Card from './card.svelte';
+import GithubIcon from '$lib/icons/github.svelte';
 
 function bodySnippet(text: string) {
 	return createRawSnippet(() => ({
@@ -46,5 +47,32 @@ describe('Card (mdsvex)', () => {
 		const link = screen.getByRole('link');
 		expect(link).toHaveAttribute('target', '_blank');
 		expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+	});
+
+	it('renders no content block when no children are given', () => {
+		const { container } = render(Card, { props: { title: 'Getting Started' } });
+
+		expect(container.querySelector('[data-slot="card-content"]')).not.toBeInTheDocument();
+	});
+
+	it('renders the icon before the title when provided', () => {
+		const { container } = render(Card, { props: { title: 'Getting Started', icon: GithubIcon } });
+
+		const titleEl = screen.getByText('Getting Started').closest('[data-slot="card-title"]');
+		expect(titleEl?.querySelector('svg')).toBeInTheDocument();
+	});
+
+	it('omits the icon element entirely when none is provided', () => {
+		const { container } = render(Card, { props: { title: 'Getting Started' } });
+
+		expect(container.querySelector('svg')).not.toBeInTheDocument();
+	});
+
+	it('merges a custom class onto the card root alongside the base classes', () => {
+		const { container } = render(Card, {
+			props: { title: 'Getting Started', class: 'my-custom-card' }
+		});
+
+		expect(container.querySelector('[data-slot="card"]')).toHaveClass('my-custom-card');
 	});
 });

@@ -150,9 +150,12 @@ export function useNetworkSync() {
 	/// `{"peerId": ..., "message": ..., "comicName"?: ...}` (ver
 	/// `history_handler.rs`/`file_handler.rs`/`comic_handler.rs`), ao contrário de `started`,
 	/// que carrega o `peerId` puro como string.
-	function parseErrorPayload(
-		payload: string
-	): { peerId?: string; message: string; comicName?: string; code?: string } {
+	function parseErrorPayload(payload: string): {
+		peerId?: string;
+		message: string;
+		comicName?: string;
+		code?: string;
+	} {
 		try {
 			const parsed = JSON.parse(payload);
 			// Stryker disable next-line ConditionalExpression,LogicalOperator: `typeof

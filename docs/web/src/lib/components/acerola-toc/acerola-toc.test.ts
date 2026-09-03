@@ -11,8 +11,17 @@ class FakeIntersectionObserver {
 	disconnect() {}
 }
 
+// Same reasoning for ResizeObserver — the active-heading indicator (use:slidingIndicator)
+// observes the <ul> container for size changes.
+class FakeResizeObserver {
+	observe() {}
+	unobserve() {}
+	disconnect() {}
+}
+
 beforeEach(() => {
 	vi.stubGlobal('IntersectionObserver', FakeIntersectionObserver);
+	vi.stubGlobal('ResizeObserver', FakeResizeObserver);
 });
 
 afterEach(() => {

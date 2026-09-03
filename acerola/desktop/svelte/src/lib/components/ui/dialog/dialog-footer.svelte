@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { cn, type WithElementRef } from '$lib/utils/cn.utils.js';
+	import { cn, type WithElementRef } from '$lib/utils/cn.utils';
 	import type { HTMLAttributes } from 'svelte/elements';
 	import { Dialog as DialogPrimitive } from 'bits-ui';
-	import { Button } from '$lib/components/ui/button/index.js';
+	import { Button } from '$lib/components/ui/button/index';
 	import { m } from '$lib/paraglide/messages';
 
 	let {

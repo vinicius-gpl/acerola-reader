@@ -1,5 +1,5 @@
 <script lang="ts">
-	import * as Tabs from '$lib/components/ui/tabs/index.js';
+	import * as Tabs from '$lib/components/ui/tabs/index';
 	import { untrack, type Snippet } from 'svelte';
 
 	// Svelte 5 doesn't allow a dynamic `slot` name, so each tab carries its own

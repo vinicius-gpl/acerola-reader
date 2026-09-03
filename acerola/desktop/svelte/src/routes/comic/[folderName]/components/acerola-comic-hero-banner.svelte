@@ -12,7 +12,7 @@
 <script lang="ts">
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import Star from '@lucide/svelte/icons/star';
-	import { ScrollArea } from '$lib/components/ui/scroll-area/index.js';
+	import { ScrollArea } from '$lib/components/ui/scroll-area/index';
 	import { m } from '$lib/paraglide/messages';
 
 	let { data }: ComicHeroBannerProps = $props();

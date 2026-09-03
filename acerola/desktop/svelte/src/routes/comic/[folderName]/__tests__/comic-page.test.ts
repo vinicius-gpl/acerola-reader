@@ -61,6 +61,7 @@ vi.mock('@tauri-apps/plugin-log', () => ({
 vi.mock('svelte-sonner', () => ({
 	toast: {
 		info: vi.fn(),
+		loading: vi.fn(() => 'mock-toast-id'),
 		success: vi.fn(),
 		error: vi.fn()
 	}
@@ -205,7 +206,10 @@ describe('comic/[folderName] +page', () => {
 			play: vi.fn(),
 			reverse: vi.fn(),
 			onfinish: null,
-			oncancel: null
+			oncancel: null,
+			addEventListener: vi.fn(),
+			removeEventListener: vi.fn(),
+			dispatchEvent: vi.fn()
 		})) as unknown as typeof Element.prototype.animate;
 	});
 
@@ -258,7 +262,9 @@ describe('comic/[folderName] +page', () => {
 
 		await user.click(screen.getByRole('radio', { name: /preferences|preferências/i }));
 
-		expect(await screen.findByText(/mangadex/i)).toBeInTheDocument();
+		// ComicPreferences abre na lista de categorias (Leitura/Sincronização/Avançado) por
+		// padrão — checa que o painel de preferências realmente montou.
+		expect(await screen.findByText(/^leitura$/i)).toBeInTheDocument();
 	});
 
 	it('shows an error toast when syncing metadata from MangaDex fails', async () => {
@@ -272,6 +278,7 @@ describe('comic/[folderName] +page', () => {
 		await emitChapters(chapterPayload());
 
 		await user.click(screen.getByRole('radio', { name: /preferences|preferências/i }));
+		await user.click(await screen.findByText(/^sincronização$/i));
 		// título do card ("MangaDex Sync" / "Sincronização com MangaDex") — a description do
 		// card também contém "mangadex", então precisa da frase completa pra não ambiguar.
 		await user.click(await screen.findByText(/mangadex sync|sincronização com mangadex/i));

@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
 import { createRawSnippet } from 'svelte';
 import { describe, expect, it, vi } from 'vitest';
 import DocLayout from './doc-layout.svelte';
+import { DOC_RAW_CONTEXT_KEY } from '$lib/content/doc-raw-context';
 
 const { mockMermaidRun, mockMermaidInitialize } = vi.hoisted(() => ({
 	// O mermaid.run() real substitui o conteúdo de cada nó por um `<svg>`
@@ -95,6 +96,93 @@ describe('DocLayout (mdsvex)', () => {
 		await fireEvent.click(screen.getByRole('button', { name: 'Redefinir' }));
 		expect(screen.getByText('100%')).toBeInTheDocument();
 		expect(svg.style.transform).toBe('translate(0px, 0px) scale(1)');
+	});
+
+	it('clamps zoom-in at the 300% maximum instead of growing indefinitely', async () => {
+		render(DocLayout, {
+			props: {
+				children: bodySnippet('<pre class="mermaid" data-testid="diagram">graph TD; A-->B;</pre>')
+			}
+		});
+
+		await screen.findByText('100%');
+		const zoomIn = screen.getByRole('button', { name: 'Aumentar zoom' });
+
+		// (300 - 100) / 25 = 8 clicks to reach the ceiling, one more to try past it.
+		for (let i = 0; i < 9; i++) {
+			await fireEvent.click(zoomIn);
+		}
+
+		expect(screen.getByText('300%')).toBeInTheDocument();
+	});
+
+	it('clamps zoom-out at the 50% minimum instead of shrinking indefinitely', async () => {
+		render(DocLayout, {
+			props: {
+				children: bodySnippet('<pre class="mermaid" data-testid="diagram">graph TD; A-->B;</pre>')
+			}
+		});
+
+		await screen.findByText('100%');
+		const zoomOut = screen.getByRole('button', { name: 'Diminuir zoom' });
+
+		// (100 - 50) / 25 = 2 clicks to reach the floor, one more to try past it.
+		for (let i = 0; i < 3; i++) {
+			await fireEvent.click(zoomOut);
+		}
+
+		expect(screen.getByText('50%')).toBeInTheDocument();
+	});
+
+	it('omits the copy-markdown button when there is no title, even with a doc-raw context', () => {
+		render(DocLayout, {
+			props: { children: bodySnippet('<p>Body</p>') },
+			context: new Map([[DOC_RAW_CONTEXT_KEY, { value: '# Body' }]])
+		});
+
+		expect(screen.queryByRole('button', { name: /markdown/i })).not.toBeInTheDocument();
+	});
+
+	it('omits the copy-markdown button when there is a title but no doc-raw context', () => {
+		render(DocLayout, {
+			props: { title: 'Getting Started', children: bodySnippet('<p>Body</p>') }
+		});
+
+		expect(screen.queryByRole('button', { name: /markdown/i })).not.toBeInTheDocument();
+	});
+
+	it('renders the copy-markdown button when both a title and a doc-raw context are present', () => {
+		render(DocLayout, {
+			props: { title: 'Getting Started', children: bodySnippet('<p>Body</p>') },
+			context: new Map([[DOC_RAW_CONTEXT_KEY, { value: '# Getting Started\n\nBody' }]])
+		});
+
+		expect(screen.getByRole('button', { name: /markdown/i })).toBeInTheDocument();
+	});
+
+	it('renders independent zoom controls per diagram when multiple are present', async () => {
+		render(DocLayout, {
+			props: {
+				children: bodySnippet(
+					'<div>' +
+						'<pre class="mermaid" data-testid="diagram-1">graph TD; A-->B;</pre>' +
+						'<pre class="mermaid" data-testid="diagram-2">graph TD; C-->D;</pre>' +
+						'</div>'
+				)
+			}
+		});
+
+		const percentLabels = await screen.findAllByText('100%');
+		expect(percentLabels).toHaveLength(2);
+
+		const zoomInButtons = screen.getAllByRole('button', { name: 'Aumentar zoom' });
+		expect(zoomInButtons).toHaveLength(2);
+
+		await fireEvent.click(zoomInButtons[0]);
+
+		expect(screen.getByText('125%')).toBeInTheDocument();
+		// The second diagram's label is unaffected by zooming the first one.
+		expect(screen.getAllByText('100%')).toHaveLength(1);
 	});
 
 	it('pans the diagram with the direction buttons, and resets the position too', async () => {

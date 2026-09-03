@@ -21,9 +21,9 @@
 </script>
 
 <script lang="ts">
-	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
+	import * as AlertDialog from '$lib/components/ui/alert-dialog/index';
 	import type { Snippet } from 'svelte';
-	import { buttonVariants } from '$lib/components/ui/button/index.js';
+	import { buttonVariants } from '$lib/components/ui/button/index';
 	import { cn } from '$lib/utils/cn.utils';
 
 	let {

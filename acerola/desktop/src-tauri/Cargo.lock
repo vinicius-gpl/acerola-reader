@@ -49,7 +49,7 @@ dependencies = [
 
 [[package]]
 name = "acerola-p2p"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "async-trait",
  "blake3",

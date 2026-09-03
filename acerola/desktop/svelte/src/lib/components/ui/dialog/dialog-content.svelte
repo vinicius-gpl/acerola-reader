@@ -2,10 +2,10 @@
 	import { Dialog as DialogPrimitive } from 'bits-ui';
 	import DialogPortal from './dialog-portal.svelte';
 	import type { Snippet } from 'svelte';
-	import * as Dialog from './index.js';
-	import { cn, type WithoutChildrenOrChild } from '$lib/utils/cn.utils.js';
+	import * as Dialog from './index';
+	import { cn, type WithoutChildrenOrChild } from '$lib/utils/cn.utils';
 	import type { ComponentProps } from 'svelte';
-	import { Button } from '$lib/components/ui/button/index.js';
+	import { Button } from '$lib/components/ui/button/index';
 	import XIcon from '@lucide/svelte/icons/x';
 	import { m } from '$lib/paraglide/messages';
 
@@ -38,7 +38,12 @@
 		{#if showCloseButton}
 			<DialogPrimitive.Close data-slot="dialog-close">
 				{#snippet child({ props })}
-					<Button variant="ghost" class="absolute top-2 right-2" size="icon-sm" {...props}>
+					<Button
+						variant="ghost"
+						class="absolute top-2 right-2 rounded-full"
+						size="icon-sm"
+						{...props}
+					>
 						<XIcon />
 						<span class="sr-only">{m['components.dialog.close']()}</span>
 					</Button>

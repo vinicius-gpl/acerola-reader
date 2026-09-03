@@ -48,4 +48,22 @@ describe('LibraryTable (mdsvex)', () => {
 		expect(screen.getByRole('columnheader', { name: 'Biblioteca' })).toBeInTheDocument();
 		expect(screen.getByRole('columnheader', { name: 'Licença' })).toBeInTheDocument();
 	});
+
+	it('renders only the header, with no rows, when given an empty list', () => {
+		render(LibraryTable, { props: { libraries: [] } });
+
+		expect(screen.getByRole('columnheader', { name: 'Library' })).toBeInTheDocument();
+		expect(screen.queryAllByRole('row')).toHaveLength(1);
+		expect(screen.queryByRole('link')).not.toBeInTheDocument();
+	});
+
+	it('omits the superscript note when a library has none', () => {
+		render(LibraryTable, {
+			props: { libraries: [{ name: 'svelte', url: 'https://example.com', license: 'MIT' }] }
+		});
+
+		expect(
+			screen.getByText((_, node) => node?.textContent === 'MIT' && node.tagName === 'TD')
+		).toBeInTheDocument();
+	});
 });

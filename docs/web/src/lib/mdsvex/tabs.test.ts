@@ -43,4 +43,19 @@ describe('Tabs (mdsvex)', () => {
 
 		expect(await screen.findByText('yarn add acerola')).toBeVisible();
 	});
+
+	it('does not throw and renders no tabs when given an empty item list', () => {
+		expect(() => render(Tabs, { props: { items: [] } })).not.toThrow();
+
+		expect(screen.queryAllByRole('tab')).toHaveLength(0);
+	});
+
+	it('renders a single item as one tab, already showing its content', () => {
+		render(Tabs, {
+			props: { items: [{ value: 'npm', label: 'npm', content: snippet('npm install acerola') }] }
+		});
+
+		expect(screen.getAllByRole('tab')).toHaveLength(1);
+		expect(screen.getByText('npm install acerola')).toBeVisible();
+	});
 });

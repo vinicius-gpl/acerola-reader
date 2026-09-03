@@ -293,6 +293,19 @@
 			},
 			"preferences": {
 				"reading": "Reading",
+				"categories": {
+					"reading": {
+						"desc": "Volume display, bookmark"
+					},
+					"sync": {
+						"title": "Sync",
+						"desc": "Metadata, files and devices"
+					},
+					"advanced": {
+						"title": "Advanced",
+						"desc": "Cover and danger zone"
+					}
+				},
 				"volume_highlight": {
 					"title": "Volume Highlight",
 					"desc": "Choose how volumes are highlighted: as covers or banners.",
@@ -336,6 +349,7 @@
 						"pull": "Pull from this device"
 					},
 					"toast": {
+						"start": "Syncing comic with device...",
 						"success": "Comic synced with device!",
 						"error": "Failed to sync comic: {msg}"
 					}
@@ -391,6 +405,8 @@
 					"start_deep_rescan": "Rescanning comic...",
 					"start_regenerate_cover": "Generating cover from first page...",
 					"start_regenerate_volume_covers": "Generating volume covers...",
+					"start_clear_metadata": "Clearing metadata...",
+					"start_toggle": "Updating external sync...",
 					"regenerate_cover_success": "Cover updated!",
 					"regenerate_volume_covers_success": "Volume covers updated!",
 					"clear_metadata_success": "Metadata cleared!"
@@ -507,6 +523,23 @@
 		"config": {
 			"title": "Settings",
 			"desc": "Customize your reading experience.",
+			"categories": {
+				"files": {
+					"desc": "Library folder and ComicInfo.xml generation"
+				},
+				"library": {
+					"desc": "Sync and naming templates"
+				},
+				"appearance": {
+					"desc": "Theme and color palette"
+				},
+				"metadata": {
+					"desc": "Language, MangaDex and AniList"
+				},
+				"bookmarks": {
+					"desc": "Create and organize bookmarks"
+				}
+			},
 			"file_system": {
 				"title": "File Configuration",
 				"comic_path": {
