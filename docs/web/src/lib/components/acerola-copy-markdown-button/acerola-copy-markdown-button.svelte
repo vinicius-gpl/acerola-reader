@@ -2,7 +2,7 @@
 	import CheckIcon from '@lucide/svelte/icons/check';
 	import ClipboardCopyIcon from '@lucide/svelte/icons/clipboard-copy';
 	import XIcon from '@lucide/svelte/icons/x';
-	import { Button } from '$lib/components/ui/button/index.js';
+	import { Button } from '$lib/components/ui/button/index';
 
 	let {
 		raw,

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import * as Sheet from '$lib/components/ui/sheet/index.js';
+	import * as Sheet from '$lib/components/ui/sheet/index';
 	import AcerolaNavControls from '$lib/components/acerola-nav-controls/acerola-nav-controls.svelte';
 	import AcerolaSidebar from '$lib/components/acerola-sidebar/acerola-sidebar.svelte';
 	import type { SidebarGroup } from '$lib/content/docs';

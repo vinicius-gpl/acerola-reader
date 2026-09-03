@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Textarea } from '$lib/components/ui/textarea/index.js';
+	import { Textarea } from '$lib/components/ui/textarea/index';
 	import { cn } from '$lib/cn.util';
 	import type { ComponentProps } from 'svelte';
 

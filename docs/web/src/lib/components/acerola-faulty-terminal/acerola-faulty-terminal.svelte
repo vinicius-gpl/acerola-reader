@@ -222,6 +222,8 @@ gl_FragColor = vec4(col, max(max(col.r, col.g), col.b));
 </script>
 
 <script lang="ts">
+	import { cn } from '$lib/cn.util';
+
 	type Props = {
 		scale?: number;
 		gridMul?: Vec2;
@@ -399,4 +401,4 @@ gl_FragColor = vec4(col, max(max(col.r, col.g), col.b));
 	});
 </script>
 
-<div bind:this={container} class="relative h-full w-full overflow-hidden {className}"></div>
+<div bind:this={container} class={cn('relative h-full w-full overflow-hidden', className)}></div>

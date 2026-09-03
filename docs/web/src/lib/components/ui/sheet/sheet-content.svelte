@@ -5,7 +5,7 @@
 <script lang="ts">
 	import { Dialog as SheetPrimitive } from 'bits-ui';
 	import XIcon from '@lucide/svelte/icons/x';
-	import { Button } from '$lib/components/ui/button/index.js';
+	import { Button } from '$lib/components/ui/button/index';
 	import { cn, type WithoutChildrenOrChild } from '$lib/cn.util';
 	import SheetOverlay from './sheet-overlay.svelte';
 	import SheetPortal from './sheet-portal.svelte';

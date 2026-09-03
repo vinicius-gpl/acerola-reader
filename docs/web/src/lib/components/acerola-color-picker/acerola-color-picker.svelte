@@ -1,8 +1,8 @@
 <script lang="ts">
 	import CheckIcon from '@lucide/svelte/icons/check';
 	import PaletteIcon from '@lucide/svelte/icons/palette';
-	import { Button } from '$lib/components/ui/button/index.js';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
+	import { Button } from '$lib/components/ui/button/index';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index';
 	import { THEMES } from '$lib/constants/themes';
 	import { useTheme, type ThemeColor } from '$lib/hooks/theme/use-theme.svelte';
 	import { m } from '$lib/paraglide/messages';
