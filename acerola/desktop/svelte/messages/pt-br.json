@@ -112,6 +112,45 @@
 			},
 			"connection_lost": {
 				"label": "A conexão com o dispositivo caiu durante a sincronização. Tente novamente."
+			},
+			"peer_not_found": {
+				"label": "Não foi possível encontrar este dispositivo na rede."
+			},
+			"auth_denied": {
+				"label": "A conexão com este dispositivo foi recusada."
+			},
+			"shutdown": {
+				"label": "A rede foi desligada durante a sincronização."
+			},
+			"incompatible_version": {
+				"label": "Este dispositivo está rodando uma versão incompatível do app."
+			},
+			"startup_failed": {
+				"label": "Falha ao iniciar a conexão com o dispositivo."
+			},
+			"blob_not_found": {
+				"label": "O arquivo solicitado não foi encontrado no dispositivo remoto."
+			},
+			"missing_blob_hash": {
+				"label": "O dispositivo remoto enviou um item sem os dados necessários para a transferência."
+			},
+			"blob_fetch_failed": {
+				"label": "Falha ao baixar um dos arquivos durante a sincronização."
+			},
+			"checksum_mismatch": {
+				"label": "Um dos arquivos recebidos falhou na verificação de integridade."
+			},
+			"comic_directory_unavailable": {
+				"label": "Não foi possível acessar a pasta deste quadrinho."
+			},
+			"persist_failed": {
+				"label": "Falha ao salvar um dos arquivos recebidos."
+			},
+			"no_pending_request": {
+				"label": "A solicitação expirou antes de ser processada. Tente novamente."
+			},
+			"partial_sync": {
+				"label": "Alguns capítulos não foram sincronizados — veja o histórico para mais detalhes."
 			}
 		}
 	},

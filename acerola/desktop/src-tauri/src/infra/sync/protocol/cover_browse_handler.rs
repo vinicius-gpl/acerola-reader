@@ -15,7 +15,7 @@ use crate::{
         messages::{CoverRequest, CoverResponse, COVER_STATUS_CHANGED, COVER_STATUS_NOT_MODIFIED, COVER_STATUS_UNAVAILABLE},
         protocol::{
             cover_request_registry::PendingCoverRequestRegistry,
-            transfer::{classify_sync_error, sync_error_payload, ChapterTransfer},
+            transfer::{classify_sync_error, sync_error_payload, ChapterTransfer, NO_PENDING_SCOPE_REASON},
         },
     },
 };
@@ -190,9 +190,10 @@ impl Handler for CoverBrowseOutbound {
         &self, peer: &PeerIdentity, send: Box<dyn AsyncWrite + Send + Unpin>, recv: Box<dyn AsyncRead + Send + Unpin>,
     ) -> Result<(), P2pError> {
         let Some((comic_name, known_version)) = self.registry.take(&peer.id) else {
-            let message = "no pending cover request registered for this peer";
-            (self.emit)("browse:cover:error", sync_error_payload(&peer.id, message, None, None));
-            return Err(P2pError::StreamFailed(message.into()));
+            let error = P2pError::StreamFailed(NO_PENDING_SCOPE_REASON.into());
+            let code = classify_sync_error(&error);
+            (self.emit)("browse:cover:error", sync_error_payload(&peer.id, &error.to_string(), code, None));
+            return Err(error);
         };
 
         let mut writer = framed_writer(send);

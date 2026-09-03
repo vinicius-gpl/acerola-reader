@@ -21,7 +21,7 @@ use crate::{
             file_session_guard::FileSyncSessionGuard,
             transfer::{
                 classify_sync_error, emit_busy, read_or_busy, receive_extras, receive_files, send_extras,
-                send_files, sync_error_payload, write_session_busy, ChapterTransfer,
+                send_files, sync_error_payload, write_session_busy, ChapterTransfer, SyncErrorCode,
             },
         },
     },
@@ -128,13 +128,11 @@ impl Handler for FileSyncOutbound {
                 Ok(())
             },
             Ok(skipped) => {
-                let message = format!(
-                    "{skipped} capítulo(s) não sincronizado(s) — veja o log do backend pra detalhes"
-                );
+                let message = format!("{skipped} chapter(s) not synced — see backend log for details");
                 tracing::warn!(peer = %peer.id, skipped, "[FileSync] session finished with missing chapters");
                 (self.emit)(
                     ERROR_EVENT,
-                    serde_json::json!({ "peerId": peer.id, "message": &message }).to_string(),
+                    sync_error_payload(&peer.id, &message, Some(SyncErrorCode::PartialSync), None),
                 );
                 self.log_repo
                     .base
@@ -251,13 +249,11 @@ impl Handler for FileSyncInbound {
                 Ok(())
             },
             Ok(skipped) => {
-                let message = format!(
-                    "{skipped} capítulo(s) não sincronizado(s) — veja o log do backend pra detalhes"
-                );
+                let message = format!("{skipped} chapter(s) not synced — see backend log for details");
                 tracing::warn!(peer = %peer.id, skipped, "[FileSync] session finished with missing chapters");
                 (self.emit)(
                     ERROR_EVENT,
-                    serde_json::json!({ "peerId": peer.id, "message": &message }).to_string(),
+                    sync_error_payload(&peer.id, &message, Some(SyncErrorCode::PartialSync), None),
                 );
                 self.log_repo
                     .base

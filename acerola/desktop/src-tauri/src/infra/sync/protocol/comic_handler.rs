@@ -22,7 +22,8 @@ use crate::{
             file_session_guard::FileSyncSessionGuard,
             transfer::{
                 classify_sync_error, emit_busy, read_or_busy, receive_extras, receive_files, send_extras,
-                send_files, sync_error_payload, write_session_busy, ChapterTransfer,
+                send_files, sync_error_payload, write_session_busy, ChapterTransfer, SyncErrorCode,
+                NO_PENDING_SCOPE_REASON,
             },
         },
     },
@@ -76,9 +77,10 @@ impl ComicSyncOutbound {
     async fn run(
         &self, peer: &PeerIdentity, writer: &mut FramedWriter, reader: &mut FramedReader,
     ) -> Result<(usize, String), P2pError> {
-        let (comic_name, direction) = self.registry.take(&peer.id).ok_or_else(|| {
-            P2pError::StreamFailed("no pending comic sync scope registered for this peer".into())
-        })?;
+        let (comic_name, direction) = self
+            .registry
+            .take(&peer.id)
+            .ok_or_else(|| P2pError::StreamFailed(NO_PENDING_SCOPE_REASON.into()))?;
 
         write_json(writer, &ComicSyncRequest { comic_name: comic_name.clone(), direction }).await?;
 
@@ -164,14 +166,11 @@ impl Handler for ComicSyncOutbound {
             // reportar como "complete" aqui esconderia exatamente o tipo de perda de dado
             // silenciosa que motivou essa mudança (ver doc de `receive_files`).
             Ok((skipped, comic_name)) => {
-                let message = format!(
-                    "{skipped} capítulo(s) não sincronizado(s) — veja o log do backend pra detalhes"
-                );
+                let message = format!("{skipped} chapter(s) not synced — see backend log for details");
                 tracing::warn!(peer = %peer.id, skipped, "[ComicSync] session finished with missing chapters");
                 (self.emit)(
                     ERROR_EVENT,
-                    serde_json::json!({ "peerId": peer.id, "comicName": comic_name, "message": &message })
-                        .to_string(),
+                    sync_error_payload(&peer.id, &message, Some(SyncErrorCode::PartialSync), Some(&comic_name)),
                 );
                 self.log_repo
                     .base
@@ -302,14 +301,11 @@ impl Handler for ComicSyncInbound {
                 Ok(())
             },
             Ok((skipped, comic_name)) => {
-                let message = format!(
-                    "{skipped} capítulo(s) não sincronizado(s) — veja o log do backend pra detalhes"
-                );
+                let message = format!("{skipped} chapter(s) not synced — see backend log for details");
                 tracing::warn!(peer = %peer.id, skipped, "[ComicSync] session finished with missing chapters");
                 (self.emit)(
                     ERROR_EVENT,
-                    serde_json::json!({ "peerId": peer.id, "comicName": comic_name, "message": &message })
-                        .to_string(),
+                    sync_error_payload(&peer.id, &message, Some(SyncErrorCode::PartialSync), Some(&comic_name)),
                 );
                 self.log_repo
                     .base
