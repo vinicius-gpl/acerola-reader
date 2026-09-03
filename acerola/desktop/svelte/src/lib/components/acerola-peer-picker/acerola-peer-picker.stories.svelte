@@ -23,13 +23,28 @@
 	});
 </script>
 
+<script lang="ts">
+	// AcerolaPeerPicker e totalmente controlado (state.open + events.onOpenChange) e nao tem
+	// trigger proprio — cada story precisa do seu proprio estado local e de um botao real pra
+	// abrir, senao a aba Docs mostra as variantes com o dialog aberto ao mesmo tempo.
+	let openWithPeers = $state(false);
+	let openEmpty = $state(false);
+</script>
+
 <Story name="With Peers" asChild>
 	{#snippet children()}
 		<div class="min-h-[300px] bg-surface p-8">
+			<button
+				type="button"
+				onclick={() => (openWithPeers = true)}
+				class="rounded-lg border border-border bg-surface-elevated px-4 py-2 text-sm font-medium text-foreground hover:opacity-80"
+			>
+				Open Dialog
+			</button>
 			<AcerolaPeerPicker
-				state={{ open: true }}
+				state={{ open: openWithPeers }}
 				data={{ peers }}
-				events={{ onOpenChange: () => {}, onSelect: () => {} }}
+				events={{ onOpenChange: (isOpen) => (openWithPeers = isOpen), onSelect: () => {} }}
 			/>
 		</div>
 	{/snippet}
@@ -38,10 +53,17 @@
 <Story name="Empty" asChild>
 	{#snippet children()}
 		<div class="min-h-[300px] bg-surface p-8">
+			<button
+				type="button"
+				onclick={() => (openEmpty = true)}
+				class="rounded-lg border border-border bg-surface-elevated px-4 py-2 text-sm font-medium text-foreground hover:opacity-80"
+			>
+				Open Dialog
+			</button>
 			<AcerolaPeerPicker
-				state={{ open: true }}
+				state={{ open: openEmpty }}
 				data={{ peers: [] }}
-				events={{ onOpenChange: () => {}, onSelect: () => {} }}
+				events={{ onOpenChange: (isOpen) => (openEmpty = isOpen), onSelect: () => {} }}
 			/>
 		</div>
 	{/snippet}

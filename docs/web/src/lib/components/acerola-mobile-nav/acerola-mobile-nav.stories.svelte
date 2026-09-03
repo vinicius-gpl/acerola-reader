@@ -54,23 +54,33 @@
 	// `open: true` como arg inicial faz o Sheet "nascer" já aberto — a lógica de "presence"
 	// do bits-ui que revela o conteúdo só roda numa transição fechado→aberto de verdade, então
 	// o painel nunca aparece (só o overlay em tela cheia, borrando a aba de Docs inteira atrás
-	// dele). Abrir via efeito, um instante após montar, gera essa transição de verdade.
+	// dele). Fechado por padrão; um botão real na story dispara a transição de abertura.
 	let open = $state(false);
-
-	$effect(() => {
-		const raf = requestAnimationFrame(() => (open = true));
-		return () => cancelAnimationFrame(raf);
-	});
 </script>
 
 <Story
-	name="Open"
+	name="Default"
 	args={{ groups, activeSlug: 'architecture' }}
+	globals={{ viewport: 'mobile1' }}
 	parameters={{
-		docs: { description: { story: 'Menu aberto, exibindo a navegacao completa e os controles.' } }
+		docs: {
+			description: {
+				story:
+					'Fechado por padrão, numa viewport mobile fixa (o componente e `md:hidden` — sem isso a story so aparece dando zoom out no navegador). Clique no botao pra abrir e ver a navegacao completa e os controles.'
+			}
+		}
 	}}
 >
 	{#snippet template(args: { groups: SidebarGroup[]; activeSlug: string })}
+		<div class="flex min-h-[200px] w-full items-center justify-center">
+			<button
+				type="button"
+				onclick={() => (open = true)}
+				class="rounded-lg border border-border bg-surface px-4 py-2 text-sm font-medium text-foreground hover:bg-surface-elevated"
+			>
+				Abrir menu
+			</button>
+		</div>
 		<AcerolaMobileNav {...args} bind:open />
 	{/snippet}
 </Story>
