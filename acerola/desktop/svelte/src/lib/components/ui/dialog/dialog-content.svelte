@@ -2,10 +2,10 @@
 	import { Dialog as DialogPrimitive } from 'bits-ui';
 	import DialogPortal from './dialog-portal.svelte';
 	import type { Snippet } from 'svelte';
-	import * as Dialog from './index.js';
-	import { cn, type WithoutChildrenOrChild } from '$lib/utils/cn.utils.js';
+	import * as Dialog from './index';
+	import { cn, type WithoutChildrenOrChild } from '$lib/utils/cn.utils';
 	import type { ComponentProps } from 'svelte';
-	import { Button } from '$lib/components/ui/button/index.js';
+	import { Button } from '$lib/components/ui/button/index';
 	import XIcon from '@lucide/svelte/icons/x';
 	import { m } from '$lib/paraglide/messages';
 

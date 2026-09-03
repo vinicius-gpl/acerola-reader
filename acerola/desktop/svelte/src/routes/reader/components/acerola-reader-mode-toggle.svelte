@@ -17,7 +17,7 @@
 
 <script lang="ts">
 	import AcerolaToggleGroup from '$lib/components/acerola-toggle-group/acerola-toggle-group.svelte';
-	import { ToggleGroupItem } from '$lib/components/ui/toggle-group/index.js';
+	import { ToggleGroupItem } from '$lib/components/ui/toggle-group/index';
 	import { m } from '$lib/paraglide/messages';
 	import { cn } from '$lib/utils/cn.utils';
 	import Columns2 from '@lucide/svelte/icons/columns-2';

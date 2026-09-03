@@ -11,7 +11,7 @@
 	import AcerolaInput from '$lib/components/acerola-input/acerola-input.svelte';
 	import AcerolaSettingsHeader from '$lib/components/acerola-settings-header/acerola-settings-header.svelte';
 	import AcerolaToggleGroup from '$lib/components/acerola-toggle-group/acerola-toggle-group.svelte';
-	import * as ToggleGroup from '$lib/components/ui/toggle-group/index.js';
+	import * as ToggleGroup from '$lib/components/ui/toggle-group/index';
 	import { extractErrorMessage } from '$lib/utils/error.utils';
 	import { autoAnimateList } from '$lib/utils/auto-animate.utils';
 	import { m } from '$lib/paraglide/messages';

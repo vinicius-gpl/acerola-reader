@@ -204,7 +204,7 @@
 									</span>
 									<RefreshCwIcon
 										size={14}
-										class="shrink-0 text-muted-foreground {syncing ? 'animate-spin' : ''}"
+										class={cn('shrink-0 text-muted-foreground', syncing && 'animate-spin')}
 									/>
 								</button>
 							{/each}

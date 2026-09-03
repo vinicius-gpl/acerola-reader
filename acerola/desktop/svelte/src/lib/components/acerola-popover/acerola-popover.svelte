@@ -25,7 +25,7 @@
 
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import * as Popover from '$lib/components/ui/popover/index.js';
+	import * as Popover from '$lib/components/ui/popover/index';
 
 	let {
 		trigger,

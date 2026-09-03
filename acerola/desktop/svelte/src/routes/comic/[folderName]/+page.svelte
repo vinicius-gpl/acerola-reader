@@ -5,7 +5,7 @@
 	import AcerolaToggleGroup from '$lib/components/acerola-toggle-group/acerola-toggle-group.svelte';
 	import AcerolaPopover from '$lib/components/acerola-popover/acerola-popover.svelte';
 
-	import { ToggleGroupItem } from '$lib/components/ui/toggle-group/index.js';
+	import { ToggleGroupItem } from '$lib/components/ui/toggle-group/index';
 
 	import { useVolumeViewMode } from '$lib/hooks/preferences/use-volume-view-mode.svelte';
 	import { useComicChapters } from '$lib/hooks/store/use-comic-chapters.svelte';

@@ -53,7 +53,7 @@
 	import AcerolaPopover from '$lib/components/acerola-popover/acerola-popover.svelte';
 	import AcerolaSwitch from '$lib/components/acerola-switch/acerola-switch.svelte';
 	import { buttonVariants } from '$lib/components/ui/button';
-	import { ToggleGroupItem } from '$lib/components/ui/toggle-group/index.js';
+	import { ToggleGroupItem } from '$lib/components/ui/toggle-group/index';
 	import { m } from '$lib/paraglide/messages';
 
 	import Layers from '@lucide/svelte/icons/layers';

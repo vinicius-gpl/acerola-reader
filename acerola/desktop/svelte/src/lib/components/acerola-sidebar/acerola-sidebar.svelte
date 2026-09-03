@@ -20,7 +20,7 @@
 
 <script lang="ts">
 	import { page } from '$app/state';
-	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
+	import * as Tooltip from '$lib/components/ui/tooltip/index';
 	import { slidingIndicator } from '$lib/utils/sliding-indicator.utils';
 
 	let { data, brand }: AcerolaSidebarProps & AcerolaSidebarSnippets = $props();

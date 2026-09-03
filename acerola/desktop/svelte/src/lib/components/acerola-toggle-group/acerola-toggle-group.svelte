@@ -31,7 +31,7 @@
 
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import * as ToggleGroup from '$lib/components/ui/toggle-group/index.js';
+	import * as ToggleGroup from '$lib/components/ui/toggle-group/index';
 
 	let { children, config, events, state: control, ui }: AcerolaToggleGroupProps = $props();
 

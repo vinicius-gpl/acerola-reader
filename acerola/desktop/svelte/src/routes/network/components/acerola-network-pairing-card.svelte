@@ -17,6 +17,7 @@
 	import ShieldAlertIcon from '@lucide/svelte/icons/shield-alert';
 	import AcerolaButton from '$lib/components/acerola-button/acerola-button.svelte';
 	import { m } from '$lib/paraglide/messages';
+	import { cn } from '$lib/utils/cn.utils';
 
 	let { data }: NetworkPairingCardProps = $props();
 
@@ -105,7 +106,10 @@
 				{showRawCode
 					? m['pages.network.pairing.hide_code']()
 					: m['pages.network.pairing.show_code']()}
-				<ChevronDownIcon size={12} class="transition-transform {showRawCode ? 'rotate-180' : ''}" />
+				<ChevronDownIcon
+					size={12}
+					class={cn('transition-transform', showRawCode && 'rotate-180')}
+				/>
 			</button>
 
 			{#if showRawCode}
