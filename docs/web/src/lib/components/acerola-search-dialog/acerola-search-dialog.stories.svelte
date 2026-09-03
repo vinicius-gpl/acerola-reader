@@ -6,7 +6,7 @@
 	// Dialog.Content do bits-ui preso — a lógica de "presence" que revela o conteúdo só
 	// roda numa transição fechado→aberto de verdade, então "nascer" já aberto quebra o
 	// preview (e, na aba Docs, o overlay em tela cheia borra a página de documentação
-	// inteira atrás dele). Falso por padrão; use os Controls pra abrir interativamente.
+	// inteira atrás dele). Falso por padrão; use o botão da story (ou Ctrl/Cmd+K) pra abrir.
 	const { Story } = defineMeta({
 		title: 'Compositores/AcerolaSearchDialog',
 		component: AcerolaSearchDialog,
@@ -22,14 +22,34 @@
 	});
 </script>
 
+<script lang="ts">
+	// O Command.Dialog não renderiza nada visível enquanto `open` é falso (é só um portal) —
+	// sem um gatilho real na story, a aba Docs mostra um canvas vazio e não dá pra inspecionar
+	// o componente sem já saber o atalho de teclado.
+	let open = $state(false);
+</script>
+
+{#snippet template()}
+	<div class="flex min-h-[240px] w-full items-center justify-center">
+		<button
+			type="button"
+			onclick={() => (open = true)}
+			class="rounded-lg border border-border bg-surface px-4 py-2 text-sm font-medium text-foreground hover:bg-surface-elevated"
+		>
+			Abrir busca (Ctrl/Cmd+K)
+		</button>
+	</div>
+	<AcerolaSearchDialog bind:open />
+{/snippet}
+
 <Story
 	name="Default"
-	args={{ open: false }}
+	{template}
 	parameters={{
 		docs: {
 			description: {
 				story:
-					'Estado fechado por padrão — use o control `open` pra abrir e ver o estado de indisponibilidade da busca fora do build de producao.'
+					'Estado fechado por padrão — clique no botão (ou Ctrl/Cmd+K) pra abrir e ver o estado de indisponibilidade da busca fora do build de producao.'
 			}
 		}
 	}}
