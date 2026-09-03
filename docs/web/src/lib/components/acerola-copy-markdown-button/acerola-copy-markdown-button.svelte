@@ -52,13 +52,12 @@
 
 <Button
 	variant="outline"
-	size="sm"
+	size="icon-lg"
 	class={view.class}
 	onclick={copy}
 	aria-label={view.text}
 	title={view.text}
 >
 	{@const Icon = view.icon}
-	<Icon data-icon="inline-start" />
-	<span>{view.text}</span>
+	<Icon class="size-5" />
 </Button>
