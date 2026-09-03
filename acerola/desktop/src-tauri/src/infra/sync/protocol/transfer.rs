@@ -85,6 +85,16 @@ pub const SESSION_BUSY_REASON: &str = "file sync session already in progress for
 /// essa mensagem específica em vez de um `FileManifest` normal.
 pub(super) const SESSION_BUSY_TAG: &str = "busy";
 
+/// Motivo usado quando o lado outbound de um sync com escopo prévio (`sync-comic`,
+/// `browse-cover`) dispara a conexão sem ter registrado a intenção local antes — só acontece se
+/// o comando Tauri esqueceu de popular o registry (`PendingComicSyncRegistry`/
+/// `PendingCoverRequestRegistry`) antes de chamar `connect()`. Compartilhado entre os dois
+/// handlers pelo mesmo motivo de `SESSION_BUSY_REASON`: uma string nossa reconhecida por
+/// igualdade exata em `classify_sync_error`, não heurística de texto de terceiros — e
+/// compartilhada entre os dois sites pra não divergir (antes cada handler tinha sua própria
+/// frase, nenhuma delas classificada, então a UI sempre mostrava o texto cru em inglês).
+pub const NO_PENDING_SCOPE_REASON: &str = "no pending sync scope registered for this peer";
+
 /// Identificador estável de causa de erro de sync, serializado em `snake_case` (`"busy"`,
 /// `"timeout"`, `"connection_lost"`) — o mesmo valor que o frontend já esperava quando isso era
 /// uma `&'static str` solta, então trocar pra enum não muda o contrato de wire (`SYNC_ERROR_MESSAGES`
@@ -98,6 +108,28 @@ pub(super) enum SyncErrorCode {
     Busy,
     Timeout,
     ConnectionLost,
+    PeerNotFound,
+    AuthDenied,
+    Shutdown,
+    IncompatibleVersion,
+    StartupFailed,
+    BlobNotFound,
+    /// Header recebido sem `blob_hash` — não deveria acontecer (bug de protocolo, não falha de
+    /// rede), mas ainda precisa de um código traduzível em vez de cair no texto cru.
+    MissingBlobHash,
+    /// Fallback genérico pra falha de `ChapterTransfer::fetch_reader` quando o `P2pError`
+    /// subjacente não é nenhuma das causas específicas já cobertas acima.
+    BlobFetchFailed,
+    ChecksumMismatch,
+    ComicDirectoryUnavailable,
+    PersistFailed,
+    NoPendingRequest,
+    /// Sessão terminou sem erro de protocolo, mas nem todos os itens chegaram (ver doc de
+    /// `receive_files`/`receive_extras`) — antes essas duas ocorrências (`comic_handler.rs`,
+    /// `file_handler.rs`) montavam a mensagem já em pt-BR direto no backend, sem `code`
+    /// nenhum: violava a regra de erro tipado por dois lados ao mesmo tempo (texto fixo numa
+    /// língua Y decidido no backend, E sem tradução nenhuma pro frontend usar).
+    PartialSync,
 }
 
 /// Classifica um `P2pError` (não seu texto) num `SyncErrorCode` que o frontend traduz via
@@ -116,7 +148,17 @@ pub(super) fn classify_sync_error(error: &P2pError) -> Option<SyncErrorCode> {
         P2pError::Timeout => Some(SyncErrorCode::Timeout),
         P2pError::PeerDisconnected(_) => Some(SyncErrorCode::ConnectionLost),
         P2pError::StreamFailed(msg) if msg.contains(SESSION_BUSY_REASON) => Some(SyncErrorCode::Busy),
-        _ => None,
+        P2pError::StreamFailed(msg) if msg == NO_PENDING_SCOPE_REASON => Some(SyncErrorCode::NoPendingRequest),
+        // Resto de `StreamFailed` é texto de I/O genérico de baixo nível (framing, disco) sem
+        // uma causa específica pra nomear — cai no fallback de quem chamou (`message` cru no
+        // log do backend, que nunca é mostrado como está na UI).
+        P2pError::StreamFailed(_) => None,
+        P2pError::PeerNotFound(_) => Some(SyncErrorCode::PeerNotFound),
+        P2pError::AuthDenied(_) => Some(SyncErrorCode::AuthDenied),
+        P2pError::Shutdown => Some(SyncErrorCode::Shutdown),
+        P2pError::IncompatibleVersion => Some(SyncErrorCode::IncompatibleVersion),
+        P2pError::StartupFailed(_) => Some(SyncErrorCode::StartupFailed),
+        P2pError::BlobNotFound(_) => Some(SyncErrorCode::BlobNotFound),
     }
 }
 
@@ -291,7 +333,15 @@ pub async fn receive_files(
                 "[FileSync] header missing blob_hash — skipping"
             );
             skipped += 1;
-            (emit)(error_event, format!("missing blob hash: {} - {}", header.comic_name, header.chapter));
+            (emit)(
+                error_event,
+                sync_error_payload(
+                    &peer.id,
+                    &format!("missing blob hash: {} - {}", header.comic_name, header.chapter),
+                    Some(SyncErrorCode::MissingBlobHash),
+                    None,
+                ),
+            );
             continue;
         };
 
@@ -307,7 +357,12 @@ pub async fn receive_files(
                 skipped += 1;
                 (emit)(
                     error_event,
-                    format!("blob fetch failed: {} - {}: {err}", header.comic_name, header.chapter),
+                    sync_error_payload(
+                        &peer.id,
+                        &format!("blob fetch failed: {} - {}: {err}", header.comic_name, header.chapter),
+                        Some(classify_sync_error(&err).unwrap_or(SyncErrorCode::BlobFetchFailed)),
+                        None,
+                    ),
                 );
                 continue;
             },
@@ -333,7 +388,12 @@ pub async fn receive_files(
                 skipped += 1;
                 (emit)(
                     error_event,
-                    format!("checksum mismatch: {} - {}", header.comic_name, header.chapter),
+                    sync_error_payload(
+                        &peer.id,
+                        &format!("checksum mismatch: {} - {}", header.comic_name, header.chapter),
+                        Some(SyncErrorCode::ChecksumMismatch),
+                        None,
+                    ),
                 );
                 continue;
             }
@@ -354,7 +414,12 @@ pub async fn receive_files(
                 skipped += 1;
                 (emit)(
                     error_event,
-                    format!("failed to resolve comic directory: {} - {}", header.comic_name, header.chapter),
+                    sync_error_payload(
+                        &peer.id,
+                        &format!("failed to resolve comic directory: {} - {}", header.comic_name, header.chapter),
+                        Some(SyncErrorCode::ComicDirectoryUnavailable),
+                        None,
+                    ),
                 );
                 continue;
             },
@@ -472,7 +537,15 @@ pub async fn receive_extras(
                 "[FileSync] extra header missing blob_hash — skipping"
             );
             skipped += 1;
-            (emit)(error_event, format!("missing blob hash: {} - {}", header.comic_name, header.kind));
+            (emit)(
+                error_event,
+                sync_error_payload(
+                    &peer.id,
+                    &format!("missing blob hash: {} - {}", header.comic_name, header.kind),
+                    Some(SyncErrorCode::MissingBlobHash),
+                    None,
+                ),
+            );
             continue;
         };
 
@@ -488,7 +561,12 @@ pub async fn receive_extras(
                 skipped += 1;
                 (emit)(
                     error_event,
-                    format!("blob fetch failed: {} - {}: {err}", header.comic_name, header.kind),
+                    sync_error_payload(
+                        &peer.id,
+                        &format!("blob fetch failed: {} - {}: {err}", header.comic_name, header.kind),
+                        Some(classify_sync_error(&err).unwrap_or(SyncErrorCode::BlobFetchFailed)),
+                        None,
+                    ),
                 );
                 continue;
             },
@@ -514,7 +592,12 @@ pub async fn receive_extras(
                 skipped += 1;
                 (emit)(
                     error_event,
-                    format!("checksum mismatch: {} - {}", header.comic_name, header.kind),
+                    sync_error_payload(
+                        &peer.id,
+                        &format!("checksum mismatch: {} - {}", header.comic_name, header.kind),
+                        Some(SyncErrorCode::ChecksumMismatch),
+                        None,
+                    ),
                 );
                 continue;
             }
@@ -532,7 +615,12 @@ pub async fn receive_extras(
                 skipped += 1;
                 (emit)(
                     error_event,
-                    format!("failed to resolve comic directory: {} - {}", header.comic_name, header.kind),
+                    sync_error_payload(
+                        &peer.id,
+                        &format!("failed to resolve comic directory: {} - {}", header.comic_name, header.kind),
+                        Some(SyncErrorCode::ComicDirectoryUnavailable),
+                        None,
+                    ),
                 );
                 continue;
             },
@@ -556,7 +644,12 @@ pub async fn receive_extras(
                 skipped += 1;
                 (emit)(
                     error_event,
-                    format!("failed to persist extra: {} - {}", header.comic_name, header.kind),
+                    sync_error_payload(
+                        &peer.id,
+                        &format!("failed to persist extra: {} - {}", header.comic_name, header.kind),
+                        Some(SyncErrorCode::PersistFailed),
+                        None,
+                    ),
                 );
                 continue;
             },

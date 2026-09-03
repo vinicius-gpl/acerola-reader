@@ -3,7 +3,12 @@ use std::{
     sync::Arc,
 };
 
-use acerola_p2p::api::{error::P2pError, peer::PeerAddr, storage::P2PStorage};
+use acerola_p2p::api::{
+    error::P2pError,
+    identity::DeviceInfo,
+    peer::{PeerAddr, PeerIdentity},
+    storage::P2PStorage,
+};
 use async_trait::async_trait;
 use tokio::sync::RwLock;
 
@@ -35,6 +40,7 @@ pub struct SecureP2pStorage {
     base_dir: PathBuf,
     master_key: [u8; 32],
     peers_cache: RwLock<Vec<PeerAddr>>,
+    device_info_cache: RwLock<Vec<(PeerIdentity, DeviceInfo)>>,
 }
 
 impl SecureP2pStorage {
@@ -43,8 +49,14 @@ impl SecureP2pStorage {
         std::fs::create_dir_all(&base_dir)?;
 
         let peers_cache = Self::read_peers(&base_dir, &master_key)?;
+        let device_info_cache = Self::read_device_info(&base_dir, &master_key)?;
 
-        Ok(Self { base_dir, master_key, peers_cache: RwLock::new(peers_cache) })
+        Ok(Self {
+            base_dir,
+            master_key,
+            peers_cache: RwLock::new(peers_cache),
+            device_info_cache: RwLock::new(device_info_cache),
+        })
     }
 
     fn identity_path(base_dir: &Path) -> PathBuf {
@@ -53,6 +65,10 @@ impl SecureP2pStorage {
 
     fn peers_path(base_dir: &Path) -> PathBuf {
         base_dir.join("peers.enc")
+    }
+
+    fn device_info_path(base_dir: &Path) -> PathBuf {
+        base_dir.join("device_info.enc")
     }
 
     /// Lê e descriptografa `peers.enc`. Diferente da versão anterior, uma falha real de
@@ -81,6 +97,35 @@ impl SecureP2pStorage {
         };
 
         Ok(dedupe_by_id(peers))
+    }
+
+    /// Lê e descriptografa `device_info.enc` — mesma lógica de `read_peers`, mas pro nome do
+    /// dispositivo trocado no handshake. Antes desta persistência, esse dado só existia em
+    /// memória (`NetworkState`) e sumia da UI (caindo pro ID cru) até o peer reconectar e
+    /// refazer o handshake nesta sessão.
+    fn read_device_info(
+        base_dir: &Path, master_key: &[u8; 32],
+    ) -> std::io::Result<Vec<(PeerIdentity, DeviceInfo)>> {
+        match std::fs::read(Self::device_info_path(base_dir)) {
+            Ok(encrypted) => {
+                let json = decrypt(master_key, &encrypted).map_err(|err| {
+                    std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        format!(
+                            "failed to decrypt device_info.enc (wrong master key or corrupted file): {err}"
+                        ),
+                    )
+                })?;
+                serde_json::from_slice(&json).map_err(|err| {
+                    std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        format!("failed to parse device_info.enc contents: {err}"),
+                    )
+                })
+            },
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(Vec::new()),
+            Err(err) => Err(err),
+        }
     }
 }
 
@@ -128,6 +173,24 @@ impl P2PStorage for SecureP2pStorage {
     async fn load_peers(&self) -> Result<Vec<PeerAddr>, P2pError> {
         Ok(self.peers_cache.read().await.clone())
     }
+
+    async fn save_device_info(&self, peer: &PeerIdentity, info: &DeviceInfo) -> Result<(), P2pError> {
+        let mut device_info = self.device_info_cache.write().await;
+        match device_info.iter_mut().find(|(cached_id, _)| cached_id.id == peer.id) {
+            Some(entry) => entry.1 = info.clone(),
+            None => device_info.push((peer.clone(), info.clone())),
+        }
+
+        let json = serde_json::to_vec(&*device_info)
+            .map_err(|err| P2pError::StreamFailed(format!("failed to encode device info cache: {err}")))?;
+        let encrypted = encrypt(&self.master_key, &json);
+        std::fs::write(Self::device_info_path(&self.base_dir), encrypted)
+            .map_err(|err| P2pError::StreamFailed(format!("failed to save device info cache: {err}")))
+    }
+
+    async fn load_device_info(&self) -> Result<Vec<(PeerIdentity, DeviceInfo)>, P2pError> {
+        Ok(self.device_info_cache.read().await.clone())
+    }
 }
 
 impl SecureP2pStorage {
@@ -139,12 +202,23 @@ impl SecureP2pStorage {
         let mut peers = self.peers_cache.write().await;
         let before = peers.len();
         peers.retain(|peer| peer.id.id != id);
-        if peers.len() == before {
-            return Ok(());
+        if peers.len() != before {
+            let json = serde_json::to_vec(&*peers).expect("Vec<PeerAddr> serialization cannot fail");
+            std::fs::write(Self::peers_path(&self.base_dir), encrypt(&self.master_key, &json))?;
         }
 
-        let json = serde_json::to_vec(&*peers).expect("Vec<PeerAddr> serialization cannot fail");
-        std::fs::write(Self::peers_path(&self.base_dir), encrypt(&self.master_key, &json))
+        // Limpa também o nome persistido — sem isso, reparear o mesmo `id` de volta faria o
+        // nome antigo "ressuscitar" antes do próximo handshake atualizar de verdade.
+        let mut device_info = self.device_info_cache.write().await;
+        let before = device_info.len();
+        device_info.retain(|(cached_id, _)| cached_id.id != id);
+        if device_info.len() != before {
+            let json =
+                serde_json::to_vec(&*device_info).expect("Vec<(PeerIdentity, DeviceInfo)> serialization cannot fail");
+            std::fs::write(Self::device_info_path(&self.base_dir), encrypt(&self.master_key, &json))?;
+        }
+
+        Ok(())
     }
 }
 
@@ -170,6 +244,14 @@ impl P2PStorage for SharedP2pStorage {
 
     async fn load_peers(&self) -> Result<Vec<PeerAddr>, P2pError> {
         self.0.load_peers().await
+    }
+
+    async fn save_device_info(&self, peer: &PeerIdentity, info: &DeviceInfo) -> Result<(), P2pError> {
+        self.0.save_device_info(peer, info).await
+    }
+
+    async fn load_device_info(&self) -> Result<Vec<(PeerIdentity, DeviceInfo)>, P2pError> {
+        self.0.load_device_info().await
     }
 }
 
@@ -294,6 +376,58 @@ mod tests {
         let peers = reopened.load_peers().await.unwrap();
         assert_eq!(peers.len(), 1);
         assert_eq!(peers[0].id.id, "peer-b");
+    }
+
+    fn device_info(name: &str) -> DeviceInfo {
+        DeviceInfo { name: name.to_string(), os: "windows".to_string(), version: "1.0.0".to_string() }
+    }
+
+    #[tokio::test]
+    async fn device_info_persists_across_reopen() {
+        let dir = tempfile::tempdir().unwrap();
+        let key = [21u8; 32];
+
+        {
+            let storage = SecureP2pStorage::open(dir.path(), key).unwrap();
+            storage
+                .save_device_info(&peer("peer-a").id, &device_info("PC do Vinicius"))
+                .await
+                .unwrap();
+        }
+
+        // Reabre (simula restart do app) — o nome tem que vir do arquivo criptografado, não
+        // só existir enquanto o processo estava de pé.
+        let reopened = SecureP2pStorage::open(dir.path(), key).unwrap();
+        let loaded = reopened.load_device_info().await.unwrap();
+        assert_eq!(loaded.len(), 1);
+        assert_eq!(loaded[0].0.id, "peer-a");
+        assert_eq!(loaded[0].1.name, "PC do Vinicius");
+    }
+
+    #[tokio::test]
+    async fn save_device_info_upserts_by_id_instead_of_duplicating() {
+        let dir = tempfile::tempdir().unwrap();
+        let storage = SecureP2pStorage::open(dir.path(), [22u8; 32]).unwrap();
+
+        storage.save_device_info(&peer("peer-a").id, &device_info("old-name")).await.unwrap();
+        storage.save_device_info(&peer("peer-a").id, &device_info("new-name")).await.unwrap();
+
+        let loaded = storage.load_device_info().await.unwrap();
+        assert_eq!(loaded.len(), 1);
+        assert_eq!(loaded[0].1.name, "new-name");
+    }
+
+    #[tokio::test]
+    async fn remove_peer_also_forgets_its_persisted_device_name() {
+        let dir = tempfile::tempdir().unwrap();
+        let storage = SecureP2pStorage::open(dir.path(), [23u8; 32]).unwrap();
+
+        storage.save_peer(&peer("peer-a")).await.unwrap();
+        storage.save_device_info(&peer("peer-a").id, &device_info("PC do Vinicius")).await.unwrap();
+
+        storage.remove_peer("peer-a").await.unwrap();
+
+        assert!(storage.load_device_info().await.unwrap().is_empty());
     }
 
     #[tokio::test]

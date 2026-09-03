@@ -1,6 +1,11 @@
 use std::{path::Path, sync::Arc};
 
-use acerola_p2p::api::{error::P2pError, peer::PeerAddr, storage::P2PStorage};
+use acerola_p2p::api::{
+    error::P2pError,
+    identity::DeviceInfo,
+    peer::{PeerAddr, PeerIdentity},
+    storage::P2PStorage,
+};
 use async_trait::async_trait;
 use tokio::sync::RwLock;
 
@@ -8,6 +13,7 @@ use crate::callbacks::SecureBlobStore;
 
 const IDENTITY_KEY: &str = "identity";
 const PEERS_KEY: &str = "peers";
+const DEVICE_INFO_KEY: &str = "device_info";
 
 /// Implementação de `P2PStorage` que persiste via [`SecureBlobStore`] (Kotlin,
 /// `EncryptedSharedPreferences` protegida pelo Android Keystore) em vez de arquivos em texto
@@ -16,6 +22,7 @@ const PEERS_KEY: &str = "peers";
 pub(crate) struct SecureP2pStorage {
     store: Arc<dyn SecureBlobStore>,
     peers_cache: RwLock<Vec<PeerAddr>>,
+    device_info_cache: RwLock<Vec<(PeerIdentity, DeviceInfo)>>,
 }
 
 impl SecureP2pStorage {
@@ -40,7 +47,20 @@ impl SecureP2pStorage {
             },
         };
 
-        Self { store, peers_cache: RwLock::new(peers_cache) }
+        let device_info_cache = match store.load_blob(DEVICE_INFO_KEY.to_string()) {
+            Ok(Some(bytes)) => serde_json::from_slice(&bytes).unwrap_or_default(),
+            Ok(None) => Vec::new(),
+            Err(err) => {
+                tracing::error!(layer = "storage", error = %err, "failed to load cached device info, starting empty");
+                Vec::new()
+            },
+        };
+
+        Self {
+            store,
+            peers_cache: RwLock::new(peers_cache),
+            device_info_cache: RwLock::new(device_info_cache),
+        }
     }
 
     /// Remove um peer do cache de endereços conhecidos — usado quando o usuário desempareia
@@ -56,7 +76,19 @@ impl SecureP2pStorage {
 
         self.store
             .save_blob(PEERS_KEY.to_string(), bytes)
-            .map_err(|err| P2pError::StartupFailed(format!("failed to save peer cache: {err}")))
+            .map_err(|err| P2pError::StartupFailed(format!("failed to save peer cache: {err}")))?;
+
+        // Limpa também o nome persistido — sem isso, reparear o mesmo `id` de volta faria o
+        // nome antigo "ressuscitar" antes do próximo handshake atualizar de verdade.
+        let mut device_info = self.device_info_cache.write().await;
+        device_info.retain(|(cached_id, _)| cached_id.id != id);
+
+        let bytes = serde_json::to_vec(&*device_info)
+            .map_err(|err| P2pError::StartupFailed(format!("failed to encode device info cache: {err}")))?;
+
+        self.store
+            .save_blob(DEVICE_INFO_KEY.to_string(), bytes)
+            .map_err(|err| P2pError::StartupFailed(format!("failed to save device info cache: {err}")))
     }
 
     fn migrate_legacy_files(store: &Arc<dyn SecureBlobStore>, legacy_dir: &Path) {
@@ -121,6 +153,25 @@ impl P2PStorage for SecureP2pStorage {
     async fn load_peers(&self) -> Result<Vec<PeerAddr>, P2pError> {
         Ok(self.peers_cache.read().await.clone())
     }
+
+    async fn save_device_info(&self, peer: &PeerIdentity, info: &DeviceInfo) -> Result<(), P2pError> {
+        let mut device_info = self.device_info_cache.write().await;
+        match device_info.iter_mut().find(|(cached_id, _)| cached_id.id == peer.id) {
+            Some(entry) => entry.1 = info.clone(),
+            None => device_info.push((peer.clone(), info.clone())),
+        }
+
+        let bytes = serde_json::to_vec(&*device_info)
+            .map_err(|err| P2pError::StartupFailed(format!("failed to encode device info cache: {err}")))?;
+
+        self.store
+            .save_blob(DEVICE_INFO_KEY.to_string(), bytes)
+            .map_err(|err| P2pError::StartupFailed(format!("failed to save device info cache: {err}")))
+    }
+
+    async fn load_device_info(&self) -> Result<Vec<(PeerIdentity, DeviceInfo)>, P2pError> {
+        Ok(self.device_info_cache.read().await.clone())
+    }
 }
 
 /// Newtype local em volta de `Arc<SecureP2pStorage>` — as regras de coerência do Rust não
@@ -148,6 +199,14 @@ impl P2PStorage for SharedSecureP2pStorage {
 
     async fn load_peers(&self) -> Result<Vec<PeerAddr>, P2pError> {
         self.0.load_peers().await
+    }
+
+    async fn save_device_info(&self, peer: &PeerIdentity, info: &DeviceInfo) -> Result<(), P2pError> {
+        self.0.save_device_info(peer, info).await
+    }
+
+    async fn load_device_info(&self) -> Result<Vec<(PeerIdentity, DeviceInfo)>, P2pError> {
+        self.0.load_device_info().await
     }
 }
 
@@ -233,5 +292,46 @@ mod tests {
 
         let remaining = storage.load_peers().await.unwrap();
         assert_eq!(remaining.len(), 1);
+    }
+
+    fn make_device_info(name: &str) -> DeviceInfo {
+        DeviceInfo { name: name.to_string(), os: "android".to_string(), version: "1.0.0".to_string() }
+    }
+
+    #[tokio::test]
+    async fn device_info_persists_across_reopen() {
+        let blob_store: Arc<dyn SecureBlobStore> = Arc::new(FakeBlobStore::new());
+
+        let storage = SecureP2pStorage::open(Arc::clone(&blob_store), None);
+        storage.save_device_info(&make_peer("peer-a").id, &make_device_info("Pixel do Vinicius")).await.unwrap();
+
+        let reopened = SecureP2pStorage::open(blob_store, None);
+        let loaded = reopened.load_device_info().await.unwrap();
+        assert_eq!(loaded.len(), 1);
+        assert_eq!(loaded[0].0.id, "peer-a");
+        assert_eq!(loaded[0].1.name, "Pixel do Vinicius");
+    }
+
+    #[tokio::test]
+    async fn save_device_info_upserts_by_id_instead_of_duplicating() {
+        let storage = SecureP2pStorage::open(Arc::new(FakeBlobStore::new()), None);
+
+        storage.save_device_info(&make_peer("peer-a").id, &make_device_info("old-name")).await.unwrap();
+        storage.save_device_info(&make_peer("peer-a").id, &make_device_info("new-name")).await.unwrap();
+
+        let loaded = storage.load_device_info().await.unwrap();
+        assert_eq!(loaded.len(), 1);
+        assert_eq!(loaded[0].1.name, "new-name");
+    }
+
+    #[tokio::test]
+    async fn remove_peer_also_forgets_its_persisted_device_name() {
+        let storage = SecureP2pStorage::open(Arc::new(FakeBlobStore::new()), None);
+        storage.save_peer(&make_peer("peer-a")).await.unwrap();
+        storage.save_device_info(&make_peer("peer-a").id, &make_device_info("Pixel do Vinicius")).await.unwrap();
+
+        storage.remove_peer("peer-a").await.unwrap();
+
+        assert!(storage.load_device_info().await.unwrap().is_empty());
     }
 }

@@ -112,6 +112,45 @@
 			},
 			"connection_lost": {
 				"label": "The connection to the device dropped during sync. Please try again."
+			},
+			"peer_not_found": {
+				"label": "Could not find this device on the network."
+			},
+			"auth_denied": {
+				"label": "The connection to this device was refused."
+			},
+			"shutdown": {
+				"label": "The network was shut down during sync."
+			},
+			"incompatible_version": {
+				"label": "This device is running an incompatible app version."
+			},
+			"startup_failed": {
+				"label": "Failed to start the connection to the device."
+			},
+			"blob_not_found": {
+				"label": "The requested file was not found on the remote device."
+			},
+			"missing_blob_hash": {
+				"label": "The remote device sent an item without the data needed to transfer it."
+			},
+			"blob_fetch_failed": {
+				"label": "Failed to download one of the files during sync."
+			},
+			"checksum_mismatch": {
+				"label": "One of the received files failed integrity verification."
+			},
+			"comic_directory_unavailable": {
+				"label": "Could not access this comic's folder."
+			},
+			"persist_failed": {
+				"label": "Failed to save one of the received files."
+			},
+			"no_pending_request": {
+				"label": "The request expired before it could be processed. Try again."
+			},
+			"partial_sync": {
+				"label": "Some chapters were not synced — check the history for details."
 			}
 		}
 	},
