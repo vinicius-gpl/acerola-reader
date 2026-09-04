@@ -50,6 +50,10 @@
 	const metadataLanguageStore = useMetadataLanguage();
 
 	let metadataLanguagePopoverOpen = $state(false);
+	// `metadata:sync_all:complete`/`:error` não dizem qual fonte terminou (ver
+	// sync_all_metadata_mangadex/anilist no backend, que emitem o mesmo evento pras duas) —
+	// por isso só uma sincronização "all" roda por vez, nunca mangadex e anilist juntas.
+	let syncingSource = $state<'mangadex' | 'anilist' | null>(null);
 
 	const selectedMetadataLanguageLabel = $derived(
 		LANGUAGES.find((lang) => lang.code === metadataLanguageStore.metadataLanguage)?.label ??
@@ -72,6 +76,8 @@
 	}
 
 	async function handleSyncAllMangadex() {
+		if (syncingSource) return;
+		syncingSource = 'mangadex';
 		try {
 			notify.info(m['pages.config.toast.sync.mangadex.start'](), { duration: 0 });
 			await invoke(METADATA_COMMANDS.syncAllMangadex, {
@@ -79,12 +85,15 @@
 				generateComicInfo: comicInfoPreference.comicInfoPreference ?? false
 			});
 		} catch (error: unknown) {
+			syncingSource = null;
 			const msg = extractErrorMessage(error);
 			notify.error(m['pages.config.toast.sync.mangadex.error']({ msg }), { duration: 0 });
 		}
 	}
 
 	async function handleSyncAllAnilist() {
+		if (syncingSource) return;
+		syncingSource = 'anilist';
 		try {
 			notify.info(m['pages.config.toast.sync.anilist.start'](), { duration: 0 });
 			await invoke(METADATA_COMMANDS.syncAllAnilist, {
@@ -92,6 +101,7 @@
 				generateComicInfo: comicInfoPreference.comicInfoPreference ?? false
 			});
 		} catch (error: unknown) {
+			syncingSource = null;
 			const msg = extractErrorMessage(error);
 			notify.error(m['pages.config.toast.sync.anilist.error']({ msg }), { duration: 0 });
 		}
@@ -110,10 +120,12 @@
 			});
 
 			unlistenComplete = await listen('metadata:sync_all:complete', () => {
+				syncingSource = null;
 				notify.success(m['pages.config.toast.sync.complete'](), { duration: 0 });
 			});
 
 			unlistenError = await listen<any>('metadata:sync_all:error', (event) => {
+				syncingSource = null;
 				const msg = event.payload?.message || event.payload;
 				notify.error(m['pages.config.toast.sync.error']({ msg }), { duration: 0 });
 			});
@@ -213,6 +225,12 @@
 					data={{
 						title: m['pages.config.file_system.comic_info.title'](),
 						description: m['pages.config.file_system.comic_info.desc']()
+					}}
+					events={{
+						onClick: () =>
+							comicInfoPreference.selectComicInfoPreference(
+								!(comicInfoPreference.comicInfoPreference ?? false)
+							)
 					}}
 				>
 					{#snippet icon()}
@@ -445,7 +463,7 @@
 						title: m['pages.config.metadata.mangadex.title'](),
 						description: m['pages.config.metadata.mangadex.desc']()
 					}}
-					events={{ onClick: handleSyncAllMangadex }}
+					events={{ onClick: syncingSource ? undefined : handleSyncAllMangadex }}
 				>
 					{#snippet icon()}
 						<span style="all: unset; display: inline-flex;">
@@ -457,10 +475,11 @@
 						<AcerolaButtonIcon
 							ui={{
 								class:
-									'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground'
+									'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground',
+								disabled: syncingSource !== null
 							}}
 						>
-							<RefreshCw />
+							<RefreshCw class={syncingSource === 'mangadex' ? 'animate-spin' : ''} />
 						</AcerolaButtonIcon>
 					{/snippet}
 				</AcerolaHeroButton>
@@ -470,7 +489,7 @@
 						title: m['pages.config.metadata.anilist.title'](),
 						description: m['pages.config.metadata.anilist.desc']()
 					}}
-					events={{ onClick: handleSyncAllAnilist }}
+					events={{ onClick: syncingSource ? undefined : handleSyncAllAnilist }}
 				>
 					{#snippet icon()}
 						<span style="all: unset; display: inline-flex;">
@@ -482,10 +501,11 @@
 						<AcerolaButtonIcon
 							ui={{
 								class:
-									'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground'
+									'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground',
+								disabled: syncingSource !== null
 							}}
 						>
-							<RefreshCw />
+							<RefreshCw class={syncingSource === 'anilist' ? 'animate-spin' : ''} />
 						</AcerolaButtonIcon>
 					{/snippet}
 				</AcerolaHeroButton>

@@ -1,18 +1,13 @@
 package br.acerola.comic.module.comic
-import androidx.compose.ui.tooling.preview.Preview
-import android.content.res.Configuration
-import br.acerola.comic.common.ux.theme.AcerolaTheme
-import androidx.compose.foundation.layout.Column
-import br.acerola.comic.dto.archive.ComicDirectoryDto
-
 import android.content.Intent
+import android.content.res.Configuration
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
@@ -44,6 +39,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -58,11 +54,13 @@ import br.acerola.comic.common.ux.component.SelectionTopBar
 import br.acerola.comic.common.ux.component.SnackbarVariant
 import br.acerola.comic.common.ux.component.TopBar
 import br.acerola.comic.common.ux.component.showSnackbar
+import br.acerola.comic.common.ux.theme.AcerolaTheme
 import br.acerola.comic.common.ux.tokens.SpacingTokens
 import br.acerola.comic.common.viewmodel.library.archive.ChapterArchiveViewModel
 import br.acerola.comic.common.viewmodel.library.archive.ComicDirectoryViewModel
 import br.acerola.comic.common.viewmodel.library.metadata.ComicMetadataViewModel
 import br.acerola.comic.dto.ComicDto
+import br.acerola.comic.dto.archive.ComicDirectoryDto
 import br.acerola.comic.module.comic.component.ChapterSortSheet
 import br.acerola.comic.module.comic.state.ComicAction
 import br.acerola.comic.module.comic.state.ComicChapterAction
@@ -123,6 +121,11 @@ fun ComicScreen(
     }
 
     var selectedTab by remember { mutableStateOf(value = MainTab.CHAPTERS) }
+
+    // Categorias da aba de preferências colapsam/expandem inline, mesmo padrão do
+    // Acerola.Component.AccordionCard usado na config principal — hoisted aqui porque
+    // `configSection` não é `@Composable` (só monta `scope.item {}`).
+    var expandedConfigCategories by remember { mutableStateOf(setOf<String>()) }
 
     val comicState by comicViewModel.comic.collectAsStateWithLifecycle()
     val chapterDto by comicViewModel.chapters.collectAsStateWithLifecycle()
@@ -410,6 +413,15 @@ fun ComicScreen(
                         Comic.Template.configSection(
                             scope = this,
                             uiState = uiState,
+                            expandedCategories = expandedConfigCategories,
+                            onToggleCategory = { id ->
+                                expandedConfigCategories =
+                                    if (id in expandedConfigCategories) {
+                                        expandedConfigCategories - id
+                                    } else {
+                                        expandedConfigCategories + id
+                                    }
+                            },
                             getSyncActionVisualState = ::getSyncActionVisualState,
                             pairedPeers = pairedPeers,
                             syncWithPeerState = syncWithPeerState,
@@ -533,11 +545,21 @@ private fun ComicScreenPreview() {
     AcerolaTheme {
         Column(modifier = Modifier.fillMaxSize()) {
             Comic.Template.Header(
-                comic = ComicDto(
-                    directory = ComicDirectoryDto(id = 1L, name = "Sample Comic", path = "/path", coverUri = null, bannerUri = null, lastModified = 0L, archiveTemplateFk = null),
-                    category = null,
-                    remoteInfo = null,
-                ),
+                comic =
+                    ComicDto(
+                        directory =
+                            ComicDirectoryDto(
+                                id = 1L,
+                                name = "Sample Comic",
+                                path = "/path",
+                                coverUri = null,
+                                bannerUri = null,
+                                lastModified = 0L,
+                                archiveTemplateFk = null,
+                            ),
+                        category = null,
+                        remoteInfo = null,
+                    ),
                 history = null,
                 onContinueClick = { _, _ -> },
             )

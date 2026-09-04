@@ -1,12 +1,7 @@
 package br.acerola.comic.module.main.config
-import androidx.compose.ui.tooling.preview.Preview
 import android.content.res.Configuration
-import br.acerola.comic.common.ux.theme.AcerolaTheme
-import br.acerola.comic.config.preference.types.AppTheme
-
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,11 +10,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.rounded.Bookmark
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -32,19 +31,20 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import br.acerola.comic.common.state.LocalSnackbarHostState
 import br.acerola.comic.common.state.SyncActionVisualState
 import br.acerola.comic.common.ux.Acerola
+import br.acerola.comic.common.ux.component.AccordionCard
 import br.acerola.comic.common.ux.component.HeroButton
 import br.acerola.comic.common.ux.component.SnackbarVariant
 import br.acerola.comic.common.ux.component.showSnackbar
+import br.acerola.comic.common.ux.theme.AcerolaTheme
 import br.acerola.comic.common.ux.tokens.ShapeTokens
 import br.acerola.comic.common.ux.tokens.SizeTokens
 import br.acerola.comic.common.ux.tokens.SpacingTokens
@@ -53,6 +53,7 @@ import br.acerola.comic.common.viewmodel.library.archive.ComicDirectoryViewModel
 import br.acerola.comic.common.viewmodel.library.metadata.ComicMetadataViewModel
 import br.acerola.comic.common.viewmodel.metadata.MetadataSettingsViewModel
 import br.acerola.comic.common.viewmodel.theme.ThemeViewModel
+import br.acerola.comic.config.preference.types.AppTheme
 import br.acerola.comic.module.main.Main
 import br.acerola.comic.module.main.config.component.GlobalCategoryManager
 import br.acerola.comic.module.main.config.component.LanguageSettings
@@ -130,6 +131,15 @@ fun Main.Config.Template.Screen(
     var isCurrentlyIndexing by remember { mutableStateOf(false) }
     val isAnyIndexing = isLibraryIndexing || isMetadataIndexing
 
+    // Categorias colapsam/expandem inline na própria lista, mesmo padrão da tela de config
+    // do desktop (ver acerola-accordion-card.svelte) — mais de uma pode ficar aberta ao
+    // mesmo tempo, por isso é um Set em vez de uma categoria única selecionada.
+    var expandedCategories by remember { mutableStateOf(setOf<String>()) }
+
+    fun toggleCategory(id: String) {
+        expandedCategories = if (id in expandedCategories) expandedCategories - id else expandedCategories + id
+    }
+
     LaunchedEffect(isAnyIndexing) {
         if (isAnyIndexing) {
             isCurrentlyIndexing = true
@@ -158,7 +168,8 @@ fun Main.Config.Template.Screen(
             activeSyncAction == action -> SyncActionVisualState.LOADING
             action == ConfigAction.QuickSyncLibrary && activeLibrarySyncType == LibrarySyncWorker.SYNC_TYPE_INCREMENTAL -> SyncActionVisualState.LOADING
             action == ConfigAction.DeepScanLibrary && activeLibrarySyncType == LibrarySyncWorker.SYNC_TYPE_REBUILD -> SyncActionVisualState.LOADING
-            action == ConfigAction.SyncMangadexMetadata && activeMetadataSource == MetadataSyncWorker.SOURCE_MANGADEX -> SyncActionVisualState.LOADING
+            action == ConfigAction.SyncMangadexMetadata &&
+                activeMetadataSource == MetadataSyncWorker.SOURCE_MANGADEX -> SyncActionVisualState.LOADING
             action == ConfigAction.SyncAnilistMetadata && activeMetadataSource == MetadataSyncWorker.SOURCE_ANILIST -> SyncActionVisualState.LOADING
             successSyncAction == action -> SyncActionVisualState.SUCCESS
             else -> SyncActionVisualState.IDLE
@@ -219,131 +230,123 @@ fun Main.Config.Template.Screen(
                     OnboardingGuideCard()
                 }
 
+                val categoryModifier = Modifier.padding(horizontal = SpacingTokens.Large, vertical = SpacingTokens.Small)
+
                 // NOTE: Arquivos Locais
-                SectionHeader(stringResource(id = R.string.title_text_archive_configs_in_app))
+                Acerola.Component.AccordionCard(
+                    title = stringResource(id = R.string.title_text_archive_configs_in_app),
+                    icon = Icons.Default.Folder,
+                    accentColor = MaterialTheme.colorScheme.primary,
+                    expanded = "files" in expandedCategories,
+                    onToggleExpanded = { toggleCategory("files") },
+                    modifier = categoryModifier,
+                ) {
+                    Main.Config.Component.SelectComicDirectory(
+                        folderName = uiState.folderName,
+                        onFolderSelected = { onAction(ConfigAction.SelectFolder(it)) },
+                    )
 
-                Main.Config.Component.SelectComicDirectory(
-                    folderName = uiState.folderName,
-                    onFolderSelected = { onAction(ConfigAction.SelectFolder(it)) },
-                    modifier = Modifier.padding(horizontal = SpacingTokens.Large),
-                )
+                    Main.Config.Component.MetadataExportSettings(
+                        enabled = uiState.generateComicInfo,
+                        onCheckedChange = { onAction(ConfigAction.UpdateGenerateComicInfo(it)) },
+                    )
 
-                Spacer(modifier = Modifier.height(SpacingTokens.Small))
-
-                Main.Config.Component.MetadataExportSettings(
-                    enabled = uiState.generateComicInfo,
-                    onCheckedChange = { onAction(ConfigAction.UpdateGenerateComicInfo(it)) },
-                    modifier = Modifier.padding(horizontal = SpacingTokens.Large),
-                )
-
-                Spacer(modifier = Modifier.height(SpacingTokens.Small))
-
-                Main.Config.Component.TemplateManager(
-                    onManageTemplates = { onAction(ConfigAction.NavigateToTemplateConfig) },
-                    modifier = Modifier.padding(horizontal = SpacingTokens.Large),
-                )
-
-                HorizontalDivider(
-                    modifier =
-                        Modifier
-                            .padding(horizontal = SpacingTokens.Huge, vertical = SpacingTokens.Small)
-                            .alpha(0.3f),
-                )
+                    Main.Config.Component.TemplateManager(
+                        onManageTemplates = { onAction(ConfigAction.NavigateToTemplateConfig) },
+                    )
+                }
 
                 // NOTE: Biblioteca
-                SectionHeader(stringResource(id = R.string.label_library_context))
-
-                Main.Config.Component.SyncLibraryArchive(
-                    onDeepScan = { onAction(ConfigAction.DeepScanLibrary) },
-                    onQuickSync = { onAction(ConfigAction.QuickSyncLibrary) },
-                    deepScanState = getSyncActionVisualState(ConfigAction.DeepScanLibrary),
-                    quickSyncState = getSyncActionVisualState(ConfigAction.QuickSyncLibrary),
-                    modifier = Modifier.padding(horizontal = SpacingTokens.Large),
-                )
-
-                HorizontalDivider(
-                    modifier =
-                        Modifier
-                            .padding(horizontal = SpacingTokens.Huge, vertical = SpacingTokens.Small)
-                            .alpha(0.3f),
-                )
+                Acerola.Component.AccordionCard(
+                    title = stringResource(id = R.string.label_library_context),
+                    icon = Icons.Default.Refresh,
+                    accentColor = MaterialTheme.colorScheme.secondary,
+                    expanded = "library" in expandedCategories,
+                    onToggleExpanded = { toggleCategory("library") },
+                    modifier = categoryModifier,
+                ) {
+                    Main.Config.Component.SyncLibraryArchive(
+                        onDeepScan = { onAction(ConfigAction.DeepScanLibrary) },
+                        onQuickSync = { onAction(ConfigAction.QuickSyncLibrary) },
+                        deepScanState = getSyncActionVisualState(ConfigAction.DeepScanLibrary),
+                        quickSyncState = getSyncActionVisualState(ConfigAction.QuickSyncLibrary),
+                    )
+                }
 
                 // NOTE: Aparência
-                SectionHeader(stringResource(id = R.string.title_settings_appearance))
-
-                Main.Config.Component.ThemeSettings(
-                    currentTheme = uiState.selectedTheme,
-                    onThemeChange = { onAction(ConfigAction.UpdateTheme(it)) },
-                )
-
-                HorizontalDivider(
-                    modifier =
-                        Modifier
-                            .padding(horizontal = 24.dp, vertical = 8.dp)
-                            .alpha(0.3f),
-                )
+                Acerola.Component.AccordionCard(
+                    title = stringResource(id = R.string.title_settings_appearance),
+                    icon = Icons.Default.Palette,
+                    accentColor = MaterialTheme.colorScheme.tertiary,
+                    expanded = "appearance" in expandedCategories,
+                    onToggleExpanded = { toggleCategory("appearance") },
+                    modifier = categoryModifier,
+                ) {
+                    Main.Config.Component.ThemeSettings(
+                        currentTheme = uiState.selectedTheme,
+                        onThemeChange = { onAction(ConfigAction.UpdateTheme(it)) },
+                    )
+                }
 
                 // NOTE: Categorias
-                SectionHeader(stringResource(id = R.string.title_config_categories))
-
-                Main.Config.Component.GlobalCategoryManager(
-                    categories = allCategories,
-                    onCreateCategory = { name, color -> onAction(ConfigAction.CreateCategory(name, color)) },
-                    onDeleteCategory = { id -> onAction(ConfigAction.DeleteCategory(id)) },
-                    modifier = Modifier.padding(horizontal = SpacingTokens.Large),
-                )
-
-                HorizontalDivider(
-                    modifier =
-                        Modifier
-                            .padding(horizontal = SpacingTokens.Huge, vertical = SpacingTokens.Small)
-                            .alpha(0.3f),
-                )
+                Acerola.Component.AccordionCard(
+                    title = stringResource(id = R.string.title_config_categories),
+                    icon = Icons.Rounded.Bookmark,
+                    accentColor = MaterialTheme.colorScheme.primary,
+                    expanded = "categories" in expandedCategories,
+                    onToggleExpanded = { toggleCategory("categories") },
+                    modifier = categoryModifier,
+                ) {
+                    Main.Config.Component.GlobalCategoryManager(
+                        categories = allCategories,
+                        onCreateCategory = { name, color -> onAction(ConfigAction.CreateCategory(name, color)) },
+                        onDeleteCategory = { id -> onAction(ConfigAction.DeleteCategory(id)) },
+                    )
+                }
 
                 // NOTE: Metadados
-                SectionHeader(stringResource(id = R.string.label_sync_group))
+                Acerola.Component.AccordionCard(
+                    title = stringResource(id = R.string.label_sync_group),
+                    icon = Icons.Default.Public,
+                    accentColor = MaterialTheme.colorScheme.secondary,
+                    expanded = "metadata" in expandedCategories,
+                    onToggleExpanded = { toggleCategory("metadata") },
+                    modifier = categoryModifier,
+                ) {
+                    Main.Config.Component.LanguageSettings(
+                        selectedLanguage = uiState.metadataLanguage,
+                        onLanguageSelected = { onAction(ConfigAction.UpdateMetadataLanguage(it)) },
+                    )
 
-                Main.Config.Component.LanguageSettings(
-                    selectedLanguage = uiState.metadataLanguage,
-                    onLanguageSelected = { onAction(ConfigAction.UpdateMetadataLanguage(it)) },
-                    modifier = Modifier.padding(horizontal = SpacingTokens.Large),
-                )
+                    Main.Config.Component.SyncMangadexData(
+                        onRescan = { onAction(ConfigAction.SyncMangadexMetadata) },
+                        state = getSyncActionVisualState(ConfigAction.SyncMangadexMetadata),
+                    )
 
-                Spacer(modifier = Modifier.height(SpacingTokens.Small))
-
-                Main.Config.Component.SyncMangadexData(
-                    onRescan = { onAction(ConfigAction.SyncMangadexMetadata) },
-                    state = getSyncActionVisualState(ConfigAction.SyncMangadexMetadata),
-                    modifier = Modifier.padding(horizontal = SpacingTokens.Large),
-                )
-
-                Spacer(modifier = Modifier.height(SpacingTokens.Small))
-
-                Main.Config.Component.SyncAnilistData(
-                    onRescan = { onAction(ConfigAction.SyncAnilistMetadata) },
-                    state = getSyncActionVisualState(ConfigAction.SyncAnilistMetadata),
-                    modifier = Modifier.padding(horizontal = SpacingTokens.Large),
-                )
-
-                HorizontalDivider(
-                    modifier =
-                        Modifier
-                            .padding(horizontal = SpacingTokens.Huge, vertical = SpacingTokens.Small)
-                            .alpha(0.3f),
-                )
+                    Main.Config.Component.SyncAnilistData(
+                        onRescan = { onAction(ConfigAction.SyncAnilistMetadata) },
+                        state = getSyncActionVisualState(ConfigAction.SyncAnilistMetadata),
+                    )
+                }
 
                 // NOTE: Sincronização P2P
-                SectionHeader(stringResource(id = R.string.label_sync_activity))
-
-                Acerola.Component.HeroButton(
+                Acerola.Component.AccordionCard(
                     title = stringResource(id = R.string.label_sync_activity),
-                    description = stringResource(id = R.string.description_sync_activity),
                     icon = Icons.Default.Sync,
-                    iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    iconBackground = MaterialTheme.colorScheme.primaryContainer,
-                    onClick = { onAction(ConfigAction.NavigateToSync) },
-                    modifier = Modifier.padding(horizontal = SpacingTokens.Large),
-                )
+                    accentColor = MaterialTheme.colorScheme.tertiary,
+                    expanded = "p2p" in expandedCategories,
+                    onToggleExpanded = { toggleCategory("p2p") },
+                    modifier = categoryModifier,
+                ) {
+                    Acerola.Component.HeroButton(
+                        title = stringResource(id = R.string.label_sync_activity),
+                        description = stringResource(id = R.string.description_sync_activity),
+                        icon = Icons.Default.Sync,
+                        iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        iconBackground = MaterialTheme.colorScheme.primaryContainer,
+                        onClick = { onAction(ConfigAction.NavigateToSync) },
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(SizeTokens.ClickTarget))
             }
@@ -383,17 +386,6 @@ private fun OnboardingGuideCard() {
             )
         }
     }
-}
-
-@Composable
-private fun SectionHeader(title: String) {
-    Text(
-        text = title.uppercase(),
-        style = MaterialTheme.typography.labelMedium,
-        fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.secondary,
-        modifier = Modifier.padding(start = SpacingTokens.Huge, top = SpacingTokens.Huge, bottom = SpacingTokens.Small),
-    )
 }
 
 @Preview(name = "Light", showBackground = true)
