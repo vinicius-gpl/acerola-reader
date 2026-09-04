@@ -42,7 +42,8 @@ pub mod network {
 /// Builder de transports
 pub mod transport {
     pub use crate::core::transport::{
-        iroh::IrohTransportBuilder, IncomingConnection, P2pTransport, TransportP2pBuilder,
+        iroh::{IrohTransportBuilder, RelayModeConfig, ACEROLA_DEFAULT_RELAY_URL},
+        IncomingConnection, P2pTransport, TransportP2pBuilder,
     };
 }
 
