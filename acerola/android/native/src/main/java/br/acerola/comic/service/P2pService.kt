@@ -9,6 +9,7 @@ import android.util.Log
 import p2p.CoverBrowseProvider
 import p2p.FfiNetworkMode
 import p2p.FfiPeerAddr
+import p2p.FfiRelaySettings
 import p2p.FfiSyncDirection
 import p2p.FileSyncProvider
 import p2p.HistorySyncProvider
@@ -21,6 +22,26 @@ enum class NetworkMode {
     LOCAL,
     RELAY,
 }
+
+/** Configuração de relay combinável a passar pro `P2PNode::new` — espelha
+ *  `FfiRelaySettings` (gerado via UniFFI), mesmo padrão de [NetworkMode]/[SyncDirection]:
+ *  os tipos `Ffi*` não vazam além da fronteira deste módulo `:native`. Ver
+ *  `br.acerola.comic.config.preference.RelayPreference.RelaySettings`, a fonte persistida
+ *  destes valores. */
+data class RelaySettings(
+    val useAcerolaRelay: Boolean,
+    val useIrohPublicNetwork: Boolean,
+    val customRelayUrls: List<String>,
+    val irohRelayUrls: List<String>,
+)
+
+private fun RelaySettings.toFfi(): FfiRelaySettings =
+    FfiRelaySettings(
+        useAcerolaRelay = useAcerolaRelay,
+        useIrohPublicNetwork = useIrohPublicNetwork,
+        customRelayUrls = customRelayUrls,
+        irohRelayUrls = irohRelayUrls,
+    )
 
 /** Direção explícita de um [syncComic] — `PUSH` manda o quadrinho pro peer, `PULL` puxa dele.
  *  Espelha `FfiSyncDirection` (gerado via UniFFI); mesmo padrão de [NetworkMode]/[FfiNetworkMode]
@@ -53,7 +74,7 @@ data class ConnectedPeerInfo(
 
 class P2pService(
     context: Context,
-    relayUrlOverride: String?,
+    relaySettings: RelaySettings,
     /** Apelido custom salvo pelo usuário (DataStore, `DeviceAliasPreference`) — `null` quando
      *  nunca definido, e o `Build.MODEL` padrão é usado. Só lido aqui, na construção do node;
      *  renomear depois de iniciado é feito em runtime via [setLocalDeviceName], sem
@@ -100,7 +121,7 @@ class P2pService(
             callbackHandler,
             legacyDataDir,
             blobsDir,
-            relayUrlOverride,
+            relaySettings.toFfi(),
             deviceNameOverride ?: Build.MODEL,
             appVersion,
             secureStore,

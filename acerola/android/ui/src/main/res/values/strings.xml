@@ -40,9 +40,6 @@
     <string name="title_sync_this_device">Este dispositivo</string>
     <string name="label_sync_mode_local">Rede local</string>
     <string name="label_sync_mode_relay">Relay</string>
-    <string name="label_sync_relay_label">Relay</string>
-    <string name="label_sync_relay_default">padrão</string>
-    <string name="label_sync_relay_custom">customizado</string>
     <string name="action_sync_copy_id">Copiar ID</string>
     <string name="action_sync_rename_device">Renomear dispositivo</string>
     <string name="hint_sync_rename_device">Nome deste dispositivo</string>
@@ -70,6 +67,26 @@
     <string name="error_sync_connect_failed">Não foi possível conectar. Confira se o código está certo e se o outro dispositivo está com o Acerola aberto.</string>
     <string name="error_sync_scan_failed">Não foi possível abrir o leitor de QR Code. Tente novamente ou cole o código manualmente.</string>
     <string name="error_sync_scan_empty">O QR Code escaneado não contém texto legível.</string>
+
+    <!-- Sync screen - Relay settings card -->
+    <string name="title_relay_settings">Conexão</string>
+    <string name="label_relay_settings_summary_mdns_only">Só rede local (mDNS) — nenhum relay ativo, só dispositivos na mesma rede conseguem conectar.</string>
+    <string name="label_relay_settings_summary_iroh_public">Usando a rede pública de relays do Iroh.</string>
+    <string name="label_relay_settings_summary_active">%1$d fonte(s) de relay ativa(s).</string>
+    <string name="label_relay_settings_use_acerola_relay">Usar o relay do Acerola</string>
+    <string name="label_relay_settings_use_acerola_relay_desc">Gerenciado automaticamente (%1$s).</string>
+    <string name="label_relay_settings_use_iroh_public_network">Usar a rede pública do Iroh</string>
+    <string name="label_relay_settings_use_iroh_public_network_desc">Rede pública de relays padrão do projeto Iroh (n0) — não pode ser combinada com as fontes abaixo.</string>
+    <string name="label_relay_settings_exclusive_note">Desabilitado enquanto a rede pública do Iroh estiver ativa.</string>
+    <string name="title_relay_settings_custom_relays">Seus relays próprios</string>
+    <string name="hint_relay_settings_custom_relay_add">https://seu-relay.exemplo.com</string>
+    <string name="label_relay_settings_custom_relays_empty">Nenhum relay próprio adicionado.</string>
+    <string name="action_relay_settings_custom_relay_remove">Remover relay próprio</string>
+    <string name="title_relay_settings_iroh_relays">Relays Iroh</string>
+    <string name="hint_relay_settings_iroh_relay_add">https://iroh-relay.exemplo.com</string>
+    <string name="label_relay_settings_iroh_relays_empty">Nenhum relay Iroh adicionado.</string>
+    <string name="action_relay_settings_iroh_relay_remove">Remover relay Iroh</string>
+    <string name="error_relay_settings_invalid_url">Digite uma URL válida (ex.: https://relay.exemplo.com).</string>
 
     <string name="title_sync_peers">Dispositivos pareados</string>
     <string name="label_sync_no_peers">Nenhum dispositivo pareado ainda. Toque em \"Adicionar dispositivo\" pra parear um.</string>

@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentPaste
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Error
@@ -41,6 +42,7 @@ import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -56,6 +58,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -70,6 +73,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -77,12 +81,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import br.acerola.comic.common.state.LocalSnackbarHostState
 import br.acerola.comic.common.state.SyncActionVisualState
 import br.acerola.comic.common.ux.Acerola
+import br.acerola.comic.common.ux.component.AccordionCard
 import br.acerola.comic.common.ux.component.AdaptiveSheet
 import br.acerola.comic.common.ux.component.Dialog
 import br.acerola.comic.common.ux.component.DialogButton
@@ -95,12 +101,14 @@ import br.acerola.comic.common.ux.theme.AcerolaTheme
 import br.acerola.comic.common.ux.tokens.ShapeTokens
 import br.acerola.comic.common.ux.tokens.SizeTokens
 import br.acerola.comic.common.ux.tokens.SpacingTokens
+import br.acerola.comic.config.preference.RelayPreference
 import br.acerola.comic.logging.AcerolaLogger
 import br.acerola.comic.logging.LogSource
 import br.acerola.comic.module.main.Main
 import br.acerola.comic.module.main.sync.state.ConnectError
 import br.acerola.comic.module.main.sync.state.LogState
 import br.acerola.comic.module.main.sync.state.PairedPeer
+import br.acerola.comic.module.main.sync.state.RelaySettingsUiState
 import br.acerola.comic.module.main.sync.state.SyncAction
 import br.acerola.comic.module.main.sync.state.SyncResult
 import br.acerola.comic.module.main.sync.state.SyncUiState
@@ -227,6 +235,8 @@ private fun SyncLayout(
 
             ThisDeviceSection(uiState = uiState, onAction = onAction)
 
+            RelaySettingsCard(relaySettings = uiState.relaySettings, onAction = onAction)
+
             PeersSection(
                 uiState = uiState,
                 onAction = onAction,
@@ -301,7 +311,6 @@ private fun ThisDeviceSection(
     onAction: (SyncAction) -> Unit,
 ) {
     val clipboardManager = LocalClipboardManager.current
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = LocalSnackbarHostState.current
     val copiedMessage = stringResource(id = R.string.label_sync_copied)
@@ -392,25 +401,13 @@ private fun ThisDeviceSection(
             ) {
                 Text(
                     text =
-                        buildString {
-                            append(
+                        stringResource(
+                            id =
                                 when (uiState.mode) {
-                                    NetworkMode.LOCAL -> context.getString(R.string.label_sync_mode_local)
-                                    NetworkMode.RELAY -> context.getString(R.string.label_sync_mode_relay)
+                                    NetworkMode.LOCAL -> R.string.label_sync_mode_local
+                                    NetworkMode.RELAY -> R.string.label_sync_mode_relay
                                 },
-                            )
-                            append(" · ")
-                            append(context.getString(R.string.label_sync_relay_label))
-                            append(": ")
-                            append(uiState.relayUrl)
-                            append(" (")
-                            append(
-                                context.getString(
-                                    if (uiState.isRelayOverridden) R.string.label_sync_relay_custom else R.string.label_sync_relay_default,
-                                ),
-                            )
-                            append(")")
-                        },
+                        ),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -418,6 +415,232 @@ private fun ThisDeviceSection(
         },
     )
 }
+
+@Composable
+private fun RelaySettingsCard(
+    relaySettings: RelaySettingsUiState,
+    onAction: (SyncAction) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    val activeSourceCount =
+        (if (relaySettings.useAcerolaRelay) 1 else 0) +
+            relaySettings.customRelayUrls.size +
+            relaySettings.irohRelayUrls.size
+
+    val summary =
+        when {
+            relaySettings.useIrohPublicNetwork -> stringResource(id = R.string.label_relay_settings_summary_iroh_public)
+            activeSourceCount == 0 -> stringResource(id = R.string.label_relay_settings_summary_mdns_only)
+            else -> stringResource(id = R.string.label_relay_settings_summary_active, activeSourceCount)
+        }
+
+    Acerola.Component.AccordionCard(
+        title = stringResource(id = R.string.title_relay_settings),
+        description = summary,
+        icon = Icons.Default.Wifi,
+        accentColor = MaterialTheme.colorScheme.secondary,
+        expanded = expanded,
+        onToggleExpanded = { expanded = !expanded },
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        RelaySwitchRow(
+            title = stringResource(id = R.string.label_relay_settings_use_acerola_relay),
+            description = stringResource(id = R.string.label_relay_settings_use_acerola_relay_desc, RelayPreference.DEFAULT_ACEROLA_RELAY_URL),
+            checked = relaySettings.useAcerolaRelay,
+            enabled = !relaySettings.useIrohPublicNetwork,
+            onCheckedChange = { onAction(SyncAction.ToggleUseAcerolaRelay(it)) },
+        )
+
+        RelaySwitchRow(
+            title = stringResource(id = R.string.label_relay_settings_use_iroh_public_network),
+            description = stringResource(id = R.string.label_relay_settings_use_iroh_public_network_desc),
+            checked = relaySettings.useIrohPublicNetwork,
+            enabled = true,
+            onCheckedChange = { onAction(SyncAction.ToggleUseIrohPublicNetwork(it)) },
+        )
+
+        if (relaySettings.useIrohPublicNetwork) {
+            Text(
+                text = stringResource(id = R.string.label_relay_settings_exclusive_note),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = SpacingTokens.Small),
+            )
+        }
+
+        RelayUrlListEditor(
+            title = stringResource(id = R.string.title_relay_settings_custom_relays),
+            urls = relaySettings.customRelayUrls,
+            placeholder = stringResource(id = R.string.hint_relay_settings_custom_relay_add),
+            emptyLabel = stringResource(id = R.string.label_relay_settings_custom_relays_empty),
+            removeContentDescription = stringResource(id = R.string.action_relay_settings_custom_relay_remove),
+            enabled = !relaySettings.useIrohPublicNetwork,
+            onAdd = { onAction(SyncAction.AddCustomRelayUrl(it)) },
+            onRemove = { onAction(SyncAction.RemoveCustomRelayUrl(it)) },
+        )
+
+        RelayUrlListEditor(
+            title = stringResource(id = R.string.title_relay_settings_iroh_relays),
+            urls = relaySettings.irohRelayUrls,
+            placeholder = stringResource(id = R.string.hint_relay_settings_iroh_relay_add),
+            emptyLabel = stringResource(id = R.string.label_relay_settings_iroh_relays_empty),
+            removeContentDescription = stringResource(id = R.string.action_relay_settings_iroh_relay_remove),
+            enabled = !relaySettings.useIrohPublicNetwork,
+            onAdd = { onAction(SyncAction.AddIrohRelayUrl(it)) },
+            onRemove = { onAction(SyncAction.RemoveIrohRelayUrl(it)) },
+        )
+    }
+}
+
+@Composable
+private fun RelaySwitchRow(
+    title: String,
+    description: String,
+    checked: Boolean,
+    enabled: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = SpacingTokens.Small),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Spacer(modifier = Modifier.width(SpacingTokens.Small))
+        Switch(checked = checked, enabled = enabled, onCheckedChange = onCheckedChange)
+    }
+}
+
+/** Espelha o comportamento das listas de relay próprio/Iroh do Desktop
+ *  (`acerola-network-relay-settings-card.svelte`): valida a URL (http/https) antes de aceitar,
+ *  desabilita edição enquanto a rede pública do Iroh estiver ativa (mutuamente exclusiva). */
+@Composable
+private fun RelayUrlListEditor(
+    title: String,
+    urls: List<String>,
+    placeholder: String,
+    emptyLabel: String,
+    removeContentDescription: String,
+    enabled: Boolean,
+    onAdd: (String) -> Unit,
+    onRemove: (String) -> Unit,
+) {
+    var draft by remember { mutableStateOf("") }
+    var showError by remember { mutableStateOf(false) }
+
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = SpacingTokens.Small),
+        verticalArrangement = Arrangement.spacedBy(SpacingTokens.Small),
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
+        if (urls.isEmpty()) {
+            Text(
+                text = emptyLabel,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        urls.forEach { url ->
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(ShapeTokens.Medium)
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                        .padding(start = SpacingTokens.Medium, end = SpacingTokens.ExtraSmall),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = url,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                IconButton(enabled = enabled, onClick = { onRemove(url) }) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = removeContentDescription,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(SizeTokens.IconSmall),
+                    )
+                }
+            }
+        }
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(SpacingTokens.Small),
+        ) {
+            OutlinedTextField(
+                value = draft,
+                onValueChange = {
+                    draft = it
+                    showError = false
+                },
+                placeholder = { Text(text = placeholder) },
+                singleLine = true,
+                enabled = enabled,
+                modifier = Modifier.weight(1f),
+            )
+            IconButton(
+                enabled = enabled && draft.isNotBlank(),
+                onClick = {
+                    val trimmed = draft.trim()
+                    if (isValidRelayUrl(trimmed)) {
+                        onAdd(trimmed)
+                        draft = ""
+                        showError = false
+                    } else {
+                        showError = true
+                    }
+                },
+            ) {
+                Icon(imageVector = Icons.Default.Add, contentDescription = null)
+            }
+        }
+
+        if (showError) {
+            Text(
+                text = stringResource(id = R.string.error_relay_settings_invalid_url),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+    }
+}
+
+private fun isValidRelayUrl(value: String): Boolean =
+    try {
+        val scheme = java.net.URI(value).scheme
+        scheme == "http" || scheme == "https"
+    } catch (error: java.net.URISyntaxException) {
+        false
+    }
 
 @Composable
 private fun PeersSection(
@@ -1058,8 +1281,7 @@ private fun previewUiState() =
         localDeviceName = "Pixel 8",
         pairingCode = "acerola1:eyJpIjoiZGVtbyJ9",
         mode = NetworkMode.LOCAL,
-        relayUrl = "relay.acerola-comic.com",
-        isRelayOverridden = false,
+        relaySettings = RelaySettingsUiState(),
         pairedPeers =
             listOf(
                 PairedPeer(peerId = "z6Mkabc123def456ghi789", deviceName = "Desktop-Vinicius"),

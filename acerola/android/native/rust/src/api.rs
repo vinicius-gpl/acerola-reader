@@ -29,6 +29,7 @@ use crate::{
         history::{HistorySyncInbound, HistorySyncOutbound, HISTORY_SYNC_ALPN},
         library_browse::{LibraryBrowseInbound, LibraryBrowseOutbound, LIBRARY_BROWSE_ALPN},
     },
+    relay_settings::FfiRelaySettings,
     singleton::TOKIO_RUNTIME,
     storage::{SecureP2pStorage, SharedSecureP2pStorage},
     sync_direction::FfiSyncDirection,
@@ -37,12 +38,6 @@ use crate::{
 
 #[cfg(target_os = "android")]
 use std::{collections::HashMap, sync::Mutex};
-
-/// URL do relay oficial do projeto, usado quando nenhum override é fornecido pelo app.
-///
-/// TODO: Fazer isso mudar junto com a versão do app android, colocar na action de release.
-#[cfg(target_os = "android")]
-const DEFAULT_RELAY_URL: &str = "https://relay.acerola-comic.com/";
 
 #[uniffi::export(with_foreign)]
 pub trait P2PCallback: Send + Sync {
@@ -107,7 +102,7 @@ impl P2PNode {
         callback: Arc<dyn P2PCallback>,
         legacy_data_dir: Option<String>,
         blobs_dir: String,
-        relay_url: Option<String>,
+        relay_settings: FfiRelaySettings,
         device_name: String,
         device_version: String,
         secure_store: Arc<dyn SecureBlobStore>,
@@ -166,7 +161,7 @@ impl P2PNode {
                 // imediatamente enquanto o hang do FsStore é isolado/corrigido.
                 let _ = &blobs_dir;
                 let transport = IrohTransportBuilder::default()
-                    .relay(relay_url.as_deref().unwrap_or(DEFAULT_RELAY_URL))
+                    .relay_mode(relay_settings.resolve())
                     .blobs(IrohBlobsConfig::mem());
 
                 let device = DefaultDeviceInfoProvider::new(device_name, device_version)

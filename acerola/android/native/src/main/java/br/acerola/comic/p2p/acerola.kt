@@ -1108,7 +1108,7 @@ internal interface UniffiLib : Library {
     ): Pointer
     fun uniffi_acerola_fn_free_p2pnode(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
-    fun uniffi_acerola_fn_constructor_p2pnode_new(`callback`: Pointer,`legacyDataDir`: RustBuffer.ByValue,`blobsDir`: RustBuffer.ByValue,`relayUrl`: RustBuffer.ByValue,`deviceName`: RustBuffer.ByValue,`deviceVersion`: RustBuffer.ByValue,`secureStore`: Pointer,`historyProvider`: Pointer,`fileProvider`: Pointer,`coverProvider`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
+    fun uniffi_acerola_fn_constructor_p2pnode_new(`callback`: Pointer,`legacyDataDir`: RustBuffer.ByValue,`blobsDir`: RustBuffer.ByValue,`relaySettings`: RustBuffer.ByValue,`deviceName`: RustBuffer.ByValue,`deviceVersion`: RustBuffer.ByValue,`secureStore`: Pointer,`historyProvider`: Pointer,`fileProvider`: Pointer,`coverProvider`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): Pointer
     fun uniffi_acerola_fn_method_p2pnode_browse_cover(`ptr`: Pointer,`peerAddr`: RustBuffer.ByValue,`comicName`: RustBuffer.ByValue,`knownVersion`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
@@ -1478,7 +1478,7 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
     if (lib.uniffi_acerola_checksum_method_secureblobstore_load_blob() != 6864.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_acerola_checksum_constructor_p2pnode_new() != 7853.toShort()) {
+    if (lib.uniffi_acerola_checksum_constructor_p2pnode_new() != 35773.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
 }
@@ -3763,11 +3763,11 @@ open class P2pNode: Disposable, AutoCloseable, P2pNodeInterface {
         this.pointer = null
         this.cleanable = UniffiLib.CLEANER.register(this, UniffiCleanAction(pointer))
     }
-    constructor(`callback`: P2pCallback, `legacyDataDir`: kotlin.String?, `blobsDir`: kotlin.String, `relayUrl`: kotlin.String?, `deviceName`: kotlin.String, `deviceVersion`: kotlin.String, `secureStore`: SecureBlobStore, `historyProvider`: HistorySyncProvider, `fileProvider`: FileSyncProvider, `coverProvider`: CoverBrowseProvider) :
+    constructor(`callback`: P2pCallback, `legacyDataDir`: kotlin.String?, `blobsDir`: kotlin.String, `relaySettings`: FfiRelaySettings, `deviceName`: kotlin.String, `deviceVersion`: kotlin.String, `secureStore`: SecureBlobStore, `historyProvider`: HistorySyncProvider, `fileProvider`: FileSyncProvider, `coverProvider`: CoverBrowseProvider) :
         this(
     uniffiRustCall() { _status ->
     UniffiLib.INSTANCE.uniffi_acerola_fn_constructor_p2pnode_new(
-        FfiConverterTypeP2PCallback.lower(`callback`),FfiConverterOptionalString.lower(`legacyDataDir`),FfiConverterString.lower(`blobsDir`),FfiConverterOptionalString.lower(`relayUrl`),FfiConverterString.lower(`deviceName`),FfiConverterString.lower(`deviceVersion`),FfiConverterTypeSecureBlobStore.lower(`secureStore`),FfiConverterTypeHistorySyncProvider.lower(`historyProvider`),FfiConverterTypeFileSyncProvider.lower(`fileProvider`),FfiConverterTypeCoverBrowseProvider.lower(`coverProvider`),_status)
+        FfiConverterTypeP2PCallback.lower(`callback`),FfiConverterOptionalString.lower(`legacyDataDir`),FfiConverterString.lower(`blobsDir`),FfiConverterTypeFfiRelaySettings.lower(`relaySettings`),FfiConverterString.lower(`deviceName`),FfiConverterString.lower(`deviceVersion`),FfiConverterTypeSecureBlobStore.lower(`secureStore`),FfiConverterTypeHistorySyncProvider.lower(`historyProvider`),FfiConverterTypeFileSyncProvider.lower(`fileProvider`),FfiConverterTypeCoverBrowseProvider.lower(`coverProvider`),_status)
 }
     )
 
@@ -4822,6 +4822,67 @@ public object FfiConverterTypeFfiReadingProgressEntry: FfiConverterRustBuffer<Ff
 
 
 
+/**
+ * Configuração de relay combinável exposta pra fronteira FFI (Kotlin) — espelha
+ * `RelaySettings`/`RelaySettings::resolve` do Desktop (`bios/scopes.rs`). A diferença é só de
+ * onde as fontes vêm: no Desktop é lido de `settings.json` pelo próprio Rust, no Android é lido
+ * do DataStore pelo Kotlin (`RelayPreference`) e passado inteiro aqui na construção do
+ * `P2PNode` — a lógica de combinar as fontes num `RelayModeConfig` é a mesma nos dois apps.
+ */
+data class FfiRelaySettings (
+    /**
+     * Usa o relay oficial mantido pelo Acerola (`ACEROLA_DEFAULT_RELAY_URL`).
+     */
+    var `useAcerolaRelay`: kotlin.Boolean, 
+    /**
+     * Usa a rede pública padrão de relays do projeto Iroh (n0) — mutuamente exclusiva com as
+     * demais fontes: `iroh::RelayMode` só permite `Disabled | Default | Custom`, nunca uma
+     * combinação de `Default` com URLs específicas.
+     */
+    var `useIrohPublicNetwork`: kotlin.Boolean, 
+    /**
+     * Relay(s) próprio(s) do usuário (self-hosted).
+     */
+    var `customRelayUrls`: List<kotlin.String>, 
+    /**
+     * Relay(s) que falam o protocolo Iroh, mas não fazem parte da rede pública n0.
+     */
+    var `irohRelayUrls`: List<kotlin.String>
+) {
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeFfiRelaySettings: FfiConverterRustBuffer<FfiRelaySettings> {
+    override fun read(buf: ByteBuffer): FfiRelaySettings {
+        return FfiRelaySettings(
+            FfiConverterBoolean.read(buf),
+            FfiConverterBoolean.read(buf),
+            FfiConverterSequenceString.read(buf),
+            FfiConverterSequenceString.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: FfiRelaySettings) = (
+            FfiConverterBoolean.allocationSize(value.`useAcerolaRelay`) +
+            FfiConverterBoolean.allocationSize(value.`useIrohPublicNetwork`) +
+            FfiConverterSequenceString.allocationSize(value.`customRelayUrls`) +
+            FfiConverterSequenceString.allocationSize(value.`irohRelayUrls`)
+    )
+
+    override fun write(value: FfiRelaySettings, buf: ByteBuffer) {
+            FfiConverterBoolean.write(value.`useAcerolaRelay`, buf)
+            FfiConverterBoolean.write(value.`useIrohPublicNetwork`, buf)
+            FfiConverterSequenceString.write(value.`customRelayUrls`, buf)
+            FfiConverterSequenceString.write(value.`irohRelayUrls`, buf)
+    }
+}
+
+
+
 
 enum class FfiNetworkMode {
     
@@ -5037,6 +5098,34 @@ public object FfiConverterOptionalByteArray: FfiConverterRustBuffer<kotlin.ByteA
         } else {
             buf.put(1)
             FfiConverterByteArray.write(value, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterSequenceString: FfiConverterRustBuffer<List<kotlin.String>> {
+    override fun read(buf: ByteBuffer): List<kotlin.String> {
+        val len = buf.getInt()
+        return List<kotlin.String>(len) {
+            FfiConverterString.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<kotlin.String>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterString.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<kotlin.String>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterString.write(it, buf)
         }
     }
 }

@@ -13,6 +13,7 @@ import br.acerola.comic.module.main.sync.state.ConnectError
 import br.acerola.comic.module.main.sync.state.LogState
 import br.acerola.comic.module.main.sync.state.PairedPeer
 import br.acerola.comic.module.main.sync.state.PendingConnect
+import br.acerola.comic.module.main.sync.state.RelaySettingsUiState
 import br.acerola.comic.module.main.sync.state.SyncAction
 import br.acerola.comic.module.main.sync.state.SyncResult
 import br.acerola.comic.module.main.sync.state.SyncUiState
@@ -91,12 +92,18 @@ class SyncViewModel
             viewModelScope.launch { loadPersistedLog() }
 
             viewModelScope.launch {
-                val override = RelayPreference.relayUrlOverrideFlow(context).first()
-                _uiState.update {
-                    it.copy(
-                        relayUrl = override ?: RelayPreference.DEFAULT_RELAY_URL,
-                        isRelayOverridden = override != null,
-                    )
+                RelayPreference.relaySettingsFlow(context).collect { settings ->
+                    _uiState.update {
+                        it.copy(
+                            relaySettings =
+                                RelaySettingsUiState(
+                                    useAcerolaRelay = settings.useAcerolaRelay,
+                                    useIrohPublicNetwork = settings.useIrohPublicNetwork,
+                                    customRelayUrls = settings.customRelayUrls,
+                                    irohRelayUrls = settings.irohRelayUrls,
+                                ),
+                        )
+                    }
                 }
             }
 
@@ -204,6 +211,19 @@ class SyncViewModel
                         )
                     }
                 is SyncAction.SyncComic -> syncComic(action.peerId, action.comicName)
+
+                is SyncAction.ToggleUseAcerolaRelay ->
+                    viewModelScope.launch { RelayPreference.setUseAcerolaRelay(context, action.value) }
+                is SyncAction.ToggleUseIrohPublicNetwork ->
+                    viewModelScope.launch { RelayPreference.setUseIrohPublicNetwork(context, action.value) }
+                is SyncAction.AddCustomRelayUrl ->
+                    viewModelScope.launch { RelayPreference.addCustomRelayUrl(context, action.url) }
+                is SyncAction.RemoveCustomRelayUrl ->
+                    viewModelScope.launch { RelayPreference.removeCustomRelayUrl(context, action.url) }
+                is SyncAction.AddIrohRelayUrl ->
+                    viewModelScope.launch { RelayPreference.addIrohRelayUrl(context, action.url) }
+                is SyncAction.RemoveIrohRelayUrl ->
+                    viewModelScope.launch { RelayPreference.removeIrohRelayUrl(context, action.url) }
             }
         }
 

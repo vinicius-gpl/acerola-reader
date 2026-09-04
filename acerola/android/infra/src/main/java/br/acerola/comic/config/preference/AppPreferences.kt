@@ -1,12 +1,15 @@
 package br.acerola.comic.config.preference
 
 import android.content.Context
+import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import br.acerola.comic.config.preference.types.VolumeViewType
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 object VolumeViewPreference {
@@ -116,26 +119,103 @@ object DeviceAliasPreference {
     fun deviceAliasFlow(context: Context): Flow<String?> = context.dataStore.data.map { prefs -> prefs[DEVICE_ALIAS] }
 }
 
+/**
+ * Configuração de relay combinável, espelhando `RelaySettings`/`RelaySettings::resolve` do
+ * Desktop (`bios/scopes.rs`) — relay do Acerola, rede pública Iroh e listas de relays próprios/
+ * Iroh podem ser combinados entre si (exceto a rede pública Iroh, exclusiva com as demais).
+ * Mudar qualquer fonte só tem efeito no próximo início do app: `P2pService`/`NetworkCaseModule`
+ * só lê isso na construção do `P2PNode`, a lib não suporta trocar relay em runtime.
+ */
 object RelayPreference {
-    const val DEFAULT_RELAY_URL = "https://relay.acerola-comic.com/"
+    const val DEFAULT_ACEROLA_RELAY_URL = "https://relay.acerola-comic.com"
 
     private val Context.dataStore by preferencesDataStore(name = "relay_prefs")
-    private val RELAY_URL_OVERRIDE = stringPreferencesKey(name = "relay_url_override")
+    private val USE_ACEROLA_RELAY = booleanPreferencesKey(name = "use_acerola_relay")
+    private val USE_IROH_PUBLIC_NETWORK = booleanPreferencesKey(name = "use_iroh_public_network")
+    private val CUSTOM_RELAY_URLS = stringSetPreferencesKey(name = "custom_relay_urls")
+    private val IROH_RELAY_URLS = stringSetPreferencesKey(name = "iroh_relay_urls")
 
-    suspend fun saveOverride(
+    // Chave legada (de antes desta feature, URL única) — só lida quando nenhuma das chaves
+    // novas acima existe ainda, pra migrar pra dentro de `customRelayUrls`. Sem isso, quem já
+    // tinha configurado um relay próprio perderia essa escolha silenciosamente no primeiro boot
+    // após o update (mesmo cuidado do Desktop com `relay_url` em `settings.json`).
+    private val LEGACY_RELAY_URL_OVERRIDE = stringPreferencesKey(name = "relay_url_override")
+
+    data class RelaySettings(
+        val useAcerolaRelay: Boolean = true,
+        val useIrohPublicNetwork: Boolean = false,
+        val customRelayUrls: List<String> = emptyList(),
+        val irohRelayUrls: List<String> = emptyList(),
+    )
+
+    suspend fun setUseAcerolaRelay(
+        context: Context,
+        value: Boolean,
+    ) {
+        context.dataStore.edit { prefs -> prefs[USE_ACEROLA_RELAY] = value }
+    }
+
+    suspend fun setUseIrohPublicNetwork(
+        context: Context,
+        value: Boolean,
+    ) {
+        context.dataStore.edit { prefs -> prefs[USE_IROH_PUBLIC_NETWORK] = value }
+    }
+
+    suspend fun addCustomRelayUrl(
         context: Context,
         url: String,
     ) {
-        context.dataStore.edit { prefs ->
-            prefs[RELAY_URL_OVERRIDE] = url
-        }
+        context.dataStore.edit { prefs -> prefs[CUSTOM_RELAY_URLS] = (prefs[CUSTOM_RELAY_URLS] ?: emptySet()) + url }
     }
 
-    suspend fun clearOverride(context: Context) {
-        context.dataStore.edit { prefs ->
-            prefs.remove(key = RELAY_URL_OVERRIDE)
-        }
+    suspend fun removeCustomRelayUrl(
+        context: Context,
+        url: String,
+    ) {
+        context.dataStore.edit { prefs -> prefs[CUSTOM_RELAY_URLS] = (prefs[CUSTOM_RELAY_URLS] ?: emptySet()) - url }
     }
 
-    fun relayUrlOverrideFlow(context: Context): Flow<String?> = context.dataStore.data.map { prefs -> prefs[RELAY_URL_OVERRIDE] }
+    suspend fun addIrohRelayUrl(
+        context: Context,
+        url: String,
+    ) {
+        context.dataStore.edit { prefs -> prefs[IROH_RELAY_URLS] = (prefs[IROH_RELAY_URLS] ?: emptySet()) + url }
+    }
+
+    suspend fun removeIrohRelayUrl(
+        context: Context,
+        url: String,
+    ) {
+        context.dataStore.edit { prefs -> prefs[IROH_RELAY_URLS] = (prefs[IROH_RELAY_URLS] ?: emptySet()) - url }
+    }
+
+    fun relaySettingsFlow(context: Context): Flow<RelaySettings> = context.dataStore.data.map(::toRelaySettings)
+
+    /** Leitura pontual (sem coletar o `Flow`) — usada na inicialização síncrona do `P2PNode`
+     *  (ver `NetworkCaseModule`), mesmo padrão do antigo `relayUrlOverrideFlow(...).first()`. */
+    suspend fun currentRelaySettings(context: Context): RelaySettings = toRelaySettings(context.dataStore.data.first())
+
+    private fun toRelaySettings(prefs: Preferences): RelaySettings {
+        val hasAnyNewKey =
+            prefs.contains(USE_ACEROLA_RELAY) ||
+                prefs.contains(USE_IROH_PUBLIC_NETWORK) ||
+                prefs.contains(CUSTOM_RELAY_URLS) ||
+                prefs.contains(IROH_RELAY_URLS)
+
+        if (!hasAnyNewKey) {
+            val legacyUrl = prefs[LEGACY_RELAY_URL_OVERRIDE]?.trim()
+            if (!legacyUrl.isNullOrEmpty()) {
+                return RelaySettings(customRelayUrls = listOf(legacyUrl))
+            }
+            return RelaySettings()
+        }
+
+        return RelaySettings(
+            useAcerolaRelay = prefs[USE_ACEROLA_RELAY] ?: true,
+            useIrohPublicNetwork = prefs[USE_IROH_PUBLIC_NETWORK] ?: false,
+            customRelayUrls = (prefs[CUSTOM_RELAY_URLS] ?: emptySet()).toList(),
+            irohRelayUrls = (prefs[IROH_RELAY_URLS] ?: emptySet()).toList(),
+        )
+    }
 }

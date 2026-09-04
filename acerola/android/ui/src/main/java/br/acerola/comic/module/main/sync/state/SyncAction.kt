@@ -50,4 +50,30 @@ sealed interface SyncAction {
         val peerId: String,
         val comicName: String,
     ) : SyncAction
+
+    /** Todas as ações de relay abaixo só têm efeito no próximo início do app — a conexão P2P
+     *  atual continua usando o relay com o qual já subiu (ver [RelaySettingsUiState]). */
+    data class ToggleUseAcerolaRelay(
+        val value: Boolean,
+    ) : SyncAction
+
+    data class ToggleUseIrohPublicNetwork(
+        val value: Boolean,
+    ) : SyncAction
+
+    data class AddCustomRelayUrl(
+        val url: String,
+    ) : SyncAction
+
+    data class RemoveCustomRelayUrl(
+        val url: String,
+    ) : SyncAction
+
+    data class AddIrohRelayUrl(
+        val url: String,
+    ) : SyncAction
+
+    data class RemoveIrohRelayUrl(
+        val url: String,
+    ) : SyncAction
 }
