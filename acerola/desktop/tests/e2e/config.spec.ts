@@ -34,10 +34,14 @@ test.describe('library configuration', () => {
 
 		await page.goto('/config');
 
+		// Categorias vêm colapsadas por padrão (accordion) — precisa expandir antes de
+		// conseguir clicar em itens que ficam dentro do corpo de cada card.
+		await page.getByText('Configuração dos Arquivos').click();
 		await page.getByText('Pasta dos quadrinhos').click();
 		await expect(page).not.toHaveURL(/\/home$/);
 		await expect(page.getByText(/C:\\Comics/)).toBeVisible();
 
+		await page.getByText('Biblioteca', { exact: true }).click();
 		await page.getByText('Sincronização rápida').click();
 		await expect(page).not.toHaveURL(/\/home$/);
 
