@@ -10,6 +10,7 @@
 	import AcerolaAlertDialog from '$lib/components/acerola-alert-dialog/acerola-alert-dialog.svelte';
 	import AcerolaRemoteLibraryDialog from '$lib/components/acerola-remote-library-dialog/acerola-remote-library-dialog.svelte';
 	import AcerolaNetworkMyDeviceCard from './components/acerola-network-my-device-card.svelte';
+	import AcerolaNetworkRelaySettingsCard from './components/acerola-network-relay-settings-card.svelte';
 	import AcerolaNetworkPairingCard from './components/acerola-network-pairing-card.svelte';
 	import AcerolaNetworkConnectCard from './components/acerola-network-connect-card.svelte';
 	import AcerolaNetworkPeerList, {
@@ -168,11 +169,21 @@
 		data={{
 			deviceName: peers.localDeviceInfo?.name,
 			localId: peers.localId,
-			mode: peers.status?.mode,
-			activeRelay: relay.relayInfo?.activeRelay,
-			isRelayOverridden: relay.isOverridden
+			mode: peers.status?.mode
 		}}
 		events={{ onRenameDevice: (name) => peers.setDeviceName(name) }}
+	/>
+
+	<AcerolaNetworkRelaySettingsCard
+		data={relay.relayInfo}
+		events={{
+			onToggleAcerolaRelay: (value) => relay.setUseAcerolaRelay(value),
+			onToggleIrohPublicNetwork: (value) => relay.setUseIrohPublicNetwork(value),
+			onAddCustomRelayUrl: (url) => relay.addCustomRelayUrl(url),
+			onRemoveCustomRelayUrl: (url) => relay.removeCustomRelayUrl(url),
+			onAddIrohRelayUrl: (url) => relay.addIrohRelayUrl(url),
+			onRemoveIrohRelayUrl: (url) => relay.removeIrohRelayUrl(url)
+		}}
 	/>
 
 	<AcerolaNetworkPairingCard data={{ code: peers.connectionCode() }} />

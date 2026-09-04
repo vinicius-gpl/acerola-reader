@@ -4,8 +4,6 @@
 			deviceName: string | null | undefined;
 			localId: string | null | undefined;
 			mode: 'relay' | 'local' | undefined;
-			activeRelay: string | null | undefined;
-			isRelayOverridden: boolean;
 		};
 		events?: {
 			onRenameDevice?: (name: string) => Promise<void>;
@@ -38,9 +36,7 @@
 		data ?? {
 			deviceName: undefined,
 			localId: undefined,
-			mode: undefined,
-			activeRelay: undefined,
-			isRelayOverridden: false
+			mode: undefined
 		}
 	);
 
@@ -169,11 +165,5 @@
 		{safeData.mode === 'relay'
 			? m['pages.network.my_device.mode_relay']()
 			: m['pages.network.my_device.mode_local']()}
-		· {m['pages.network.my_device.relay_label']()}: {safeData.activeRelay ?? '...'}
-		{#if safeData.isRelayOverridden}
-			<span class="text-chart-4">({m['pages.network.my_device.relay_custom']()})</span>
-		{:else}
-			<span>({m['pages.network.my_device.relay_default']()})</span>
-		{/if}
 	</p>
 </section>

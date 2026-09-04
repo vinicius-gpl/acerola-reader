@@ -723,9 +723,6 @@
 				"title": "This device",
 				"mode_local": "Local network",
 				"mode_relay": "Relay",
-				"relay_label": "Relay",
-				"relay_default": "default",
-				"relay_custom": "custom",
 				"copy_id": "Copy ID",
 				"rename": {
 					"action": "Rename device",
@@ -735,6 +732,33 @@
 					"success": "Device name updated!",
 					"error": "Couldn't rename the device: {msg}"
 				}
+			},
+			"relay_settings": {
+				"title": "Connection",
+				"description": "Choose how this device reaches others outside your local network.",
+				"use_acerola_relay": "Use Acerola's relay",
+				"use_acerola_relay_desc": "Managed automatically ({url}).",
+				"use_iroh_public_network": "Use Iroh's public network",
+				"use_iroh_public_network_desc": "n0's default public relay network — can't be combined with the sources below.",
+				"exclusive_note": "Disabled while the public Iroh network is active.",
+				"custom_relays": {
+					"title": "Your own relays",
+					"add_placeholder": "https://your-relay.example.com",
+					"add_button": "Add custom relay",
+					"empty": "No custom relay added.",
+					"remove": "Remove custom relay"
+				},
+				"iroh_relays": {
+					"title": "Iroh relays",
+					"add_placeholder": "https://iroh-relay.example.com",
+					"add_button": "Add Iroh relay",
+					"empty": "No Iroh relay added.",
+					"remove": "Remove Iroh relay"
+				},
+				"invalid_url": "Enter a valid URL (e.g. https://relay.example.com).",
+				"summary_mdns_only": "Local network only (mDNS) — no relay active, only devices on the same network can connect.",
+				"summary_iroh_public": "Using Iroh's public relay network.",
+				"summary_active": "{count} relay source(s) active."
 			},
 			"pairing": {
 				"title": "Connection code",
