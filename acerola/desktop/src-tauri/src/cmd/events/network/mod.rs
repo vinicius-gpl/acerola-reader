@@ -1,7 +1,14 @@
 use std::collections::HashSet;
 
-use acerola_p2p::api::{identity::DeviceInfo, network::NetworkMode, peer};
+use acerola_p2p::api::{
+    identity::DeviceInfo,
+    network::NetworkMode,
+    peer,
+    transport::ACEROLA_DEFAULT_RELAY_URL,
+};
 use serde::{Deserialize, Serialize};
+
+use crate::bios::scopes::RelaySettings;
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -78,9 +85,29 @@ impl From<(peer::PeerAddr, Option<DeviceInfo>)> for PairedPeerPayload {
     }
 }
 
+/// Estado completo de configuração de relay, combinando as fontes lidas de
+/// `settings.json` (ver [`RelaySettings`]). Trocar qualquer campo só tem efeito no
+/// próximo início do app, já que a lib não suporta trocar a configuração de relay em
+/// runtime.
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct RelayInfo {
-    pub default_relay: String,
-    pub active_relay: String,
+    /// URL fixa do relay oficial do Acerola, pra exibir mesmo quando desabilitado.
+    pub acerola_relay_url: String,
+    pub use_acerola_relay: bool,
+    pub use_iroh_public_network: bool,
+    pub custom_relay_urls: Vec<String>,
+    pub iroh_relay_urls: Vec<String>,
+}
+
+impl From<RelaySettings> for RelayInfo {
+    fn from(settings: RelaySettings) -> Self {
+        Self {
+            acerola_relay_url: ACEROLA_DEFAULT_RELAY_URL.to_string(),
+            use_acerola_relay: settings.use_acerola_relay,
+            use_iroh_public_network: settings.use_iroh_public_network,
+            custom_relay_urls: settings.custom_relay_urls,
+            iroh_relay_urls: settings.iroh_relay_urls,
+        }
+    }
 }

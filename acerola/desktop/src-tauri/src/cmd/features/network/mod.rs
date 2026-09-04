@@ -3,7 +3,7 @@ use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager, Runtime, State};
 
 use crate::{
-    bios::{network::DEFAULT_RELAY_URL, scopes::read_relay_url_override},
+    bios::scopes::read_relay_settings,
     cmd::events::network::{DeviceInfoPayload, NetworkStatusPayload, PairedPeerPayload, RelayInfo},
     core::services::network::NetworkServiceApi,
     data::{models::sync::SyncHistoryLogEntry, repositories::sync::SyncHistoryLogRepository},
@@ -86,16 +86,14 @@ pub async fn set_local_device_name(
     service.set_local_device_name(trimmed.to_string()).await
 }
 
-/// Retorna o relay padrão do Acerola e o que está ativo de fato (que pode ter sido
-/// sobrescrito nas configurações avançadas). Trocar `relay_url` só tem efeito no próximo
-/// início do app, já que a lib não suporta trocar a URL do relay em runtime.
+/// Retorna a configuração de relay combinável atual (relay do Acerola / próprio(s) /
+/// Iroh / rede pública Iroh), lida de `settings.json`. Trocar qualquer fonte só tem
+/// efeito no próximo início do app, já que a lib não suporta trocar a configuração de
+/// relay em runtime.
 #[tauri::command]
 pub async fn get_relay_info<R: Runtime>(app: AppHandle<R>) -> Result<RelayInfo, String> {
     let app_data_directory = app.path().app_data_dir().map_err(|error| error.to_string())?;
-    let active_relay = read_relay_url_override(&app_data_directory)
-        .unwrap_or_else(|| DEFAULT_RELAY_URL.to_string());
-
-    Ok(RelayInfo { default_relay: DEFAULT_RELAY_URL.to_string(), active_relay })
+    Ok(RelayInfo::from(read_relay_settings(&app_data_directory)))
 }
 
 #[tauri::command]
