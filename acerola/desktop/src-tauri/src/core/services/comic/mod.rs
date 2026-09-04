@@ -13,7 +13,10 @@ use crate::{
                 volume_archive_repo::VolumeRepository,
             },
             category::CategoryRepository,
-            history::{chapter_read_repo::ChapterReadRepository, reading_history_repo::ReadingHistoryRepository},
+            history::{
+                chapter_read_repo::ChapterReadRepository,
+                reading_history_repo::ReadingHistoryRepository,
+            },
             metadata::MetadataRepository,
         },
     },
@@ -48,7 +51,12 @@ impl ComicService {
 
     /// Reescaneia pontualmente um único quadrinho a partir do seu path atual no disco.
     pub async fn rescan_comic(&self, id: i64) -> Result<(), ComicError> {
-        let comic = self.repo.find_by_id(id).await.map_err(ComicError::from)?.ok_or(ComicError::NotFound)?;
+        let comic = self
+            .repo
+            .find_by_id(id)
+            .await
+            .map_err(ComicError::from)?
+            .ok_or(ComicError::NotFound)?;
         let scanner = ComicScannerService::new(PathBuf::from(&comic.path), self.pool.clone());
 
         scanner.rescan_comic(comic, |_| {}, |_| {}).await
@@ -56,7 +64,12 @@ impl ComicService {
 
     /// Invalida e reescaneia um único quadrinho do zero (capítulos e volumes inclusos).
     pub async fn deep_rescan_comic(&self, id: i64) -> Result<(), ComicError> {
-        let comic = self.repo.find_by_id(id).await.map_err(ComicError::from)?.ok_or(ComicError::NotFound)?;
+        let comic = self
+            .repo
+            .find_by_id(id)
+            .await
+            .map_err(ComicError::from)?
+            .ok_or(ComicError::NotFound)?;
         let scanner = ComicScannerService::new(PathBuf::from(&comic.path), self.pool.clone());
 
         scanner.deep_rescan_comic(comic, |_| {}, |_| {}).await
@@ -129,7 +142,10 @@ impl ComicService {
         let comic = match self.repo.find_by_id(id).await {
             Ok(Some(comic)) => comic,
             Ok(None) => {
-                tracing::warn!(comic_id = id, "Comic not found in database while deleting its folder");
+                tracing::warn!(
+                    comic_id = id,
+                    "Comic not found in database while deleting its folder"
+                );
                 return;
             },
             Err(error) => {
@@ -159,7 +175,12 @@ impl ComicService {
     /// (considerando a ordem de leitura, inclusive dentro de volumes), substituindo
     /// qualquer capa já definida.
     pub async fn regenerate_cover(&self, id: i64) -> Result<ComicDirectory, ComicError> {
-        let comic = self.repo.find_by_id(id).await.map_err(ComicError::from)?.ok_or(ComicError::NotFound)?;
+        let comic = self
+            .repo
+            .find_by_id(id)
+            .await
+            .map_err(ComicError::from)?
+            .ok_or(ComicError::NotFound)?;
 
         let chapters = self
             .chapter_repo
@@ -180,7 +201,9 @@ impl ComicService {
 
     /// Gera a capa de cada volume do quadrinho a partir da primeira página do seu primeiro
     /// capítulo, substituindo qualquer capa já definida. Volumes sem capítulos são ignorados.
-    pub async fn regenerate_volume_covers(&self, id: i64) -> Result<Vec<VolumeArchive>, ComicError> {
+    pub async fn regenerate_volume_covers(
+        &self, id: i64,
+    ) -> Result<Vec<VolumeArchive>, ComicError> {
         self.repo.find_by_id(id).await.map_err(ComicError::from)?.ok_or(ComicError::NotFound)?;
 
         let volumes = self.volume_repo.find_by_comic(id).await.map_err(ComicError::from)?;
@@ -203,7 +226,11 @@ impl ComicService {
             )
             .await?;
 
-            let saved = self.volume_repo.update_cover(volume.id, &cover_path).await.map_err(ComicError::from)?;
+            let saved = self
+                .volume_repo
+                .update_cover(volume.id, &cover_path)
+                .await
+                .map_err(ComicError::from)?;
             updated.push(saved);
         }
 
@@ -216,9 +243,10 @@ impl ComicService {
 async fn extract_and_persist_cover(
     chapter_file: PathBuf, target_dir: &Path,
 ) -> Result<String, ComicError> {
-    let (bytes, format) = tokio::task::spawn_blocking(move || cover_extractor::extract_first_page(&chapter_file))
-        .await
-        .map_err(|error| ComicError::SystemFailure(error.to_string()))??;
+    let (bytes, format) =
+        tokio::task::spawn_blocking(move || cover_extractor::extract_first_page(&chapter_file))
+            .await
+            .map_err(|error| ComicError::SystemFailure(error.to_string()))??;
 
     cover_extractor::persist_cover(target_dir, bytes, format).await
 }
@@ -227,8 +255,8 @@ async fn extract_and_persist_cover(
 mod tests {
     use super::ComicService;
     use crate::tests::utils::setup_test_db::{
-        insert_chapter_archive, insert_chapter_read, insert_comic_directory, insert_reading_history,
-        setup_test_db,
+        insert_chapter_archive, insert_chapter_read, insert_comic_directory,
+        insert_reading_history, setup_test_db,
     };
 
     /// Prova o próprio motivo desta mudança: excluir um quadrinho tinha que apagar a pasta
@@ -242,7 +270,8 @@ mod tests {
         tokio::fs::create_dir_all(&comic_dir).await.unwrap();
         tokio::fs::write(comic_dir.join("Cap 1.cbz"), b"fake cbz").await.unwrap();
 
-        insert_comic_directory(&pool, 1, "Quadrinho Para Excluir", &comic_dir.to_string_lossy()).await;
+        insert_comic_directory(&pool, 1, "Quadrinho Para Excluir", &comic_dir.to_string_lossy())
+            .await;
 
         let service = ComicService::new(pool);
         let deleted = service.delete_batch(&[1]).await.unwrap();
@@ -279,7 +308,8 @@ mod tests {
         let comic_dir = temp_dir.path().join("Quadrinho Com Historico");
         tokio::fs::create_dir_all(&comic_dir).await.unwrap();
 
-        insert_comic_directory(&pool, 1, "Quadrinho Com Historico", &comic_dir.to_string_lossy()).await;
+        insert_comic_directory(&pool, 1, "Quadrinho Com Historico", &comic_dir.to_string_lossy())
+            .await;
         insert_chapter_archive(&pool, 1, 1).await;
         insert_reading_history(&pool, 1, 1, 5).await;
         insert_chapter_read(&pool, 1, 1).await;

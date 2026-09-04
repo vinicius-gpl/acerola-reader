@@ -86,8 +86,7 @@ impl ChapterReadRepository {
 
         let table = ChapterRead::table_name();
         let cols = ChapterRead::columns().join(", ");
-        let placeholders =
-            chapter_ids.iter().map(|_| "(?, ?, ?)").collect::<Vec<_>>().join(", ");
+        let placeholders = chapter_ids.iter().map(|_| "(?, ?, ?)").collect::<Vec<_>>().join(", ");
 
         let sql = format!(
             "INSERT INTO {} ({}) VALUES {} ON CONFLICT(comic_directory_id, chapter_archive_id) DO NOTHING",
@@ -127,11 +126,12 @@ impl ChapterReadRepository {
     pub async fn delete_by_comic(&self, comic_directory_id: i64) -> Result<u64, DbError> {
         let table = ChapterRead::table_name();
 
-        let rows_affected = sqlx::query(&format!("DELETE FROM {} WHERE comic_directory_id = ?", table))
-            .bind(comic_directory_id)
-            .execute(&self.pool)
-            .await?
-            .rows_affected();
+        let rows_affected =
+            sqlx::query(&format!("DELETE FROM {} WHERE comic_directory_id = ?", table))
+                .bind(comic_directory_id)
+                .execute(&self.pool)
+                .await?
+                .rows_affected();
 
         Ok(rows_affected)
     }

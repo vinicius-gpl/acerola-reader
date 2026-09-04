@@ -104,7 +104,6 @@ async fn wait_for_cache_keys(
     bail!("reader cache did not reach the expected keys: {expected_sorted:?}");
 }
 
-
 #[tokio::test(flavor = "multi_thread")]
 async fn test_reader_open_chapter_rejects_invalid_format() -> Result<()> {
     let (_app, webview) = build_reader_app(true)?;

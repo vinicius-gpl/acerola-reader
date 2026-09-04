@@ -11,11 +11,18 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite};
 use crate::{
     core::services::sync::file_sync::FileSyncService,
     infra::sync::{
-        framing::{framed_reader, framed_writer, read_json, write_json, FramedReader, FramedWriter},
-        messages::{CoverRequest, CoverResponse, COVER_STATUS_CHANGED, COVER_STATUS_NOT_MODIFIED, COVER_STATUS_UNAVAILABLE},
+        framing::{
+            framed_reader, framed_writer, read_json, write_json, FramedReader, FramedWriter,
+        },
+        messages::{
+            CoverRequest, CoverResponse, COVER_STATUS_CHANGED, COVER_STATUS_NOT_MODIFIED,
+            COVER_STATUS_UNAVAILABLE,
+        },
         protocol::{
             cover_request_registry::PendingCoverRequestRegistry,
-            transfer::{classify_sync_error, sync_error_payload, ChapterTransfer, NO_PENDING_SCOPE_REASON},
+            transfer::{
+                classify_sync_error, sync_error_payload, ChapterTransfer, NO_PENDING_SCOPE_REASON,
+            },
         },
     },
 };
@@ -33,7 +40,9 @@ impl CoverBrowseInbound {
         Self { service, transfer }
     }
 
-    async fn run(&self, writer: &mut FramedWriter, reader: &mut FramedReader) -> Result<(), P2pError> {
+    async fn run(
+        &self, writer: &mut FramedWriter, reader: &mut FramedReader,
+    ) -> Result<(), P2pError> {
         let request: CoverRequest = read_json(reader).await?;
         let local_cover = self.service.get_local_cover(&request.comic_name).await?;
 
@@ -43,10 +52,12 @@ impl CoverBrowseInbound {
                 cover_version: None,
                 cover_hash: None,
             },
-            Some((cover_version, _)) if request.known_version == Some(cover_version) => CoverResponse {
-                status: COVER_STATUS_NOT_MODIFIED.to_string(),
-                cover_version: Some(cover_version),
-                cover_hash: None,
+            Some((cover_version, _)) if request.known_version == Some(cover_version) => {
+                CoverResponse {
+                    status: COVER_STATUS_NOT_MODIFIED.to_string(),
+                    cover_version: Some(cover_version),
+                    cover_hash: None,
+                }
             },
             Some((cover_version, bytes)) => {
                 let hash = self.transfer.publish(bytes).await?;
@@ -93,52 +104,64 @@ pub struct CoverBrowseOutbound {
 
 impl CoverBrowseOutbound {
     pub fn new(
-        emit: EventEmitter, transfer: Arc<dyn ChapterTransfer>, registry: Arc<PendingCoverRequestRegistry>,
-        cache_dir: PathBuf,
+        emit: EventEmitter, transfer: Arc<dyn ChapterTransfer>,
+        registry: Arc<PendingCoverRequestRegistry>, cache_dir: PathBuf,
     ) -> Self {
         Self { emit, transfer, registry, cache_dir }
     }
 
     fn sanitize(value: &str) -> String {
-        value.chars().map(|c| if c.is_ascii_alphanumeric() || c == '.' || c == '-' { c } else { '_' }).collect()
+        value
+            .chars()
+            .map(|c| if c.is_ascii_alphanumeric() || c == '.' || c == '-' { c } else { '_' })
+            .collect()
     }
 
     async fn save_to_cache(
         &self, peer_id: &str, comic_name: &str, cover_version: i64, bytes: &[u8],
     ) -> Result<String, P2pError> {
-        tokio::fs::create_dir_all(&self.cache_dir)
-            .await
-            .map_err(|err| P2pError::StreamFailed(format!("failed to create remote covers cache dir: {err}")))?;
+        tokio::fs::create_dir_all(&self.cache_dir).await.map_err(|err| {
+            P2pError::StreamFailed(format!("failed to create remote covers cache dir: {err}"))
+        })?;
 
-        let file_name =
-            format!("{}_{}_{}.jpg", Self::sanitize(peer_id), Self::sanitize(comic_name), cover_version);
+        let file_name = format!(
+            "{}_{}_{}.jpg",
+            Self::sanitize(peer_id),
+            Self::sanitize(comic_name),
+            cover_version
+        );
         let path = self.cache_dir.join(file_name);
 
-        tokio::fs::write(&path, bytes)
-            .await
-            .map_err(|err| P2pError::StreamFailed(format!("failed to write cached cover: {err}")))?;
+        tokio::fs::write(&path, bytes).await.map_err(|err| {
+            P2pError::StreamFailed(format!("failed to write cached cover: {err}"))
+        })?;
 
         Ok(path.to_string_lossy().to_string())
     }
 
     async fn run(
-        &self, comic_name: &str, known_version: Option<i64>, peer: &PeerIdentity, writer: &mut FramedWriter,
-        reader: &mut FramedReader,
+        &self, comic_name: &str, known_version: Option<i64>, peer: &PeerIdentity,
+        writer: &mut FramedWriter, reader: &mut FramedReader,
     ) -> Result<(), P2pError> {
-        write_json(writer, &CoverRequest { comic_name: comic_name.to_string(), known_version }).await?;
+        write_json(writer, &CoverRequest { comic_name: comic_name.to_string(), known_version })
+            .await?;
 
         let response: CoverResponse = read_json(reader).await?;
 
         match response.status.as_str() {
             COVER_STATUS_NOT_MODIFIED => {
                 let cover_version = response.cover_version.ok_or_else(|| {
-                    P2pError::StreamFailed("cover response missing cover_version for not_modified".into())
+                    P2pError::StreamFailed(
+                        "cover response missing cover_version for not_modified".into(),
+                    )
                 })?;
                 self.emit_result(peer, comic_name, "not_modified", Some(cover_version), None);
             },
             COVER_STATUS_CHANGED => {
                 let cover_version = response.cover_version.ok_or_else(|| {
-                    P2pError::StreamFailed("cover response missing cover_version for changed".into())
+                    P2pError::StreamFailed(
+                        "cover response missing cover_version for changed".into(),
+                    )
                 })?;
                 let hash = response.cover_hash.ok_or_else(|| {
                     P2pError::StreamFailed("cover response missing cover_hash for changed".into())
@@ -161,14 +184,19 @@ impl CoverBrowseOutbound {
             COVER_STATUS_UNAVAILABLE => {
                 self.emit_result(peer, comic_name, "unavailable", None, None);
             },
-            other => return Err(P2pError::StreamFailed(format!("unknown cover response status: {other}"))),
+            other => {
+                return Err(P2pError::StreamFailed(format!(
+                    "unknown cover response status: {other}"
+                )))
+            },
         }
 
         Ok(())
     }
 
     fn emit_result(
-        &self, peer: &PeerIdentity, comic_name: &str, status: &str, cover_version: Option<i64>, path: Option<&str>,
+        &self, peer: &PeerIdentity, comic_name: &str, status: &str, cover_version: Option<i64>,
+        path: Option<&str>,
     ) {
         (self.emit)(
             "browse:cover:result",
@@ -187,19 +215,24 @@ impl CoverBrowseOutbound {
 #[async_trait]
 impl Handler for CoverBrowseOutbound {
     async fn handle(
-        &self, peer: &PeerIdentity, send: Box<dyn AsyncWrite + Send + Unpin>, recv: Box<dyn AsyncRead + Send + Unpin>,
+        &self, peer: &PeerIdentity, send: Box<dyn AsyncWrite + Send + Unpin>,
+        recv: Box<dyn AsyncRead + Send + Unpin>,
     ) -> Result<(), P2pError> {
         let Some((comic_name, known_version)) = self.registry.take(&peer.id) else {
             let error = P2pError::StreamFailed(NO_PENDING_SCOPE_REASON.into());
             let code = classify_sync_error(&error);
-            (self.emit)("browse:cover:error", sync_error_payload(&peer.id, &error.to_string(), code, None));
+            (self.emit)(
+                "browse:cover:error",
+                sync_error_payload(&peer.id, &error.to_string(), code, None),
+            );
             return Err(error);
         };
 
         let mut writer = framed_writer(send);
         let mut reader = framed_reader(recv);
 
-        if let Err(err) = self.run(&comic_name, known_version, peer, &mut writer, &mut reader).await {
+        if let Err(err) = self.run(&comic_name, known_version, peer, &mut writer, &mut reader).await
+        {
             let message = err.to_string();
             let code = classify_sync_error(&err);
             tracing::warn!(peer = %peer.id, comic_name = %comic_name, ?code, error = %message, "[CoverBrowse] session failed");
@@ -233,7 +266,9 @@ mod tests {
         (emit, events)
     }
 
-    async fn setup_service_with_cover(cover_version: i64, cover_bytes: &[u8]) -> (FileSyncService, tempfile::TempDir) {
+    async fn setup_service_with_cover(
+        cover_version: i64, cover_bytes: &[u8],
+    ) -> (FileSyncService, tempfile::TempDir) {
         let pool = crate::tests::utils::setup_test_db::setup_test_db().await;
         let temp_dir = tempfile::tempdir().unwrap();
         let cover_path = temp_dir.path().join("cover.jpg");
@@ -268,18 +303,28 @@ mod tests {
         let (server_recv, server_send) = tokio::io::split(server_io);
 
         let inbound = CoverBrowseInbound::new(service, inbound_transfer);
-        let mut inbound_writer = framed_writer(Box::new(server_send) as Box<dyn AsyncWrite + Send + Unpin>);
-        let mut inbound_reader = framed_reader(Box::new(server_recv) as Box<dyn AsyncRead + Send + Unpin>);
+        let mut inbound_writer =
+            framed_writer(Box::new(server_send) as Box<dyn AsyncWrite + Send + Unpin>);
+        let mut inbound_reader =
+            framed_reader(Box::new(server_recv) as Box<dyn AsyncRead + Send + Unpin>);
 
         let peer = make_peer("peer-cover");
         let registry = PendingCoverRequestRegistry::new();
-        let outbound = CoverBrowseOutbound::new(emit, outbound_transfer, registry, std::env::temp_dir());
-        let mut outbound_writer = framed_writer(Box::new(client_send) as Box<dyn AsyncWrite + Send + Unpin>);
-        let mut outbound_reader = framed_reader(Box::new(client_recv) as Box<dyn AsyncRead + Send + Unpin>);
+        let outbound =
+            CoverBrowseOutbound::new(emit, outbound_transfer, registry, std::env::temp_dir());
+        let mut outbound_writer =
+            framed_writer(Box::new(client_send) as Box<dyn AsyncWrite + Send + Unpin>);
+        let mut outbound_reader =
+            framed_reader(Box::new(client_recv) as Box<dyn AsyncRead + Send + Unpin>);
 
         let inbound_fut = inbound.run(&mut inbound_writer, &mut inbound_reader);
-        let outbound_fut =
-            outbound.run("Comic A", known_version, &peer, &mut outbound_writer, &mut outbound_reader);
+        let outbound_fut = outbound.run(
+            "Comic A",
+            known_version,
+            &peer,
+            &mut outbound_writer,
+            &mut outbound_reader,
+        );
 
         let (inbound_result, outbound_result) = tokio::join!(inbound_fut, outbound_fut);
         inbound_result.expect("inbound deveria completar sem erro");
@@ -309,7 +354,8 @@ mod tests {
     async fn no_local_cover_returns_unavailable() {
         let pool = crate::tests::utils::setup_test_db::setup_test_db().await;
         let temp_dir = tempfile::tempdir().unwrap();
-        crate::tests::utils::setup_test_db::insert_comic_directory(&pool, 1, "Comic A", "/test").await;
+        crate::tests::utils::setup_test_db::insert_comic_directory(&pool, 1, "Comic A", "/test")
+            .await;
         let root = temp_dir.path().to_path_buf();
         let service = FileSyncService::new(pool, move || root.clone());
 

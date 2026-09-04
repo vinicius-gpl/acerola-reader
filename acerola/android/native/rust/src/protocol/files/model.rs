@@ -134,17 +134,24 @@ pub(super) fn build_manifest(entries: Vec<FfiFileManifestEntry>) -> FileManifest
 
     let mut by_comic: HashMap<String, Vec<FileChapterInfo>> = HashMap::new();
     for entry in entries {
-        by_comic.entry(entry.comic_name).or_default().push(FileChapterInfo {
-            chapter: entry.chapter,
-            file_name: entry.file_name,
-            checksum: Some(entry.checksum),
-            size: entry.size_bytes,
-        });
+        by_comic
+            .entry(entry.comic_name)
+            .or_default()
+            .push(FileChapterInfo {
+                chapter: entry.chapter,
+                file_name: entry.file_name,
+                checksum: Some(entry.checksum),
+                size: entry.size_bytes,
+            });
     }
 
     let comics = by_comic
         .into_iter()
-        .map(|(comic_name, chapters)| FileComicInfo { comic_name, chapters, ..Default::default() })
+        .map(|(comic_name, chapters)| FileComicInfo {
+            comic_name,
+            chapters,
+            ..Default::default()
+        })
         .collect();
 
     FileManifest { comics }
@@ -160,16 +167,29 @@ pub(super) fn merge_extras(manifest: &mut FileManifest, extras: Vec<FfiExtraMani
     // pode realocar `manifest.comics` — qualquer referência emprestada antes do `push` ficaria
     // inválida. Chaves são `String` própria (não emprestada de `manifest`) exatamente pra poder
     // inserir uma entrada nova nesse mesmo mapa sem conflitar com o empréstimo de `manifest`.
-    let mut index_by_comic: HashMap<String, usize> =
-        manifest.comics.iter().enumerate().map(|(index, comic)| (comic.comic_name.clone(), index)).collect();
+    let mut index_by_comic: HashMap<String, usize> = manifest
+        .comics
+        .iter()
+        .enumerate()
+        .map(|(index, comic)| (comic.comic_name.clone(), index))
+        .collect();
 
     for extra in extras {
-        let info = FileExtraInfo { file_name: extra.file_name, checksum: extra.checksum, size: extra.size_bytes };
+        let info = FileExtraInfo {
+            file_name: extra.file_name,
+            checksum: extra.checksum,
+            size: extra.size_bytes,
+        };
 
-        let index = *index_by_comic.entry(extra.comic_name.clone()).or_insert_with(|| {
-            manifest.comics.push(FileComicInfo { comic_name: extra.comic_name.clone(), ..Default::default() });
-            manifest.comics.len() - 1
-        });
+        let index = *index_by_comic
+            .entry(extra.comic_name.clone())
+            .or_insert_with(|| {
+                manifest.comics.push(FileComicInfo {
+                    comic_name: extra.comic_name.clone(),
+                    ..Default::default()
+                });
+                manifest.comics.len() - 1
+            });
 
         assign_extra(&mut manifest.comics[index], &extra.kind, info);
     }
@@ -180,7 +200,7 @@ fn assign_extra(comic: &mut FileComicInfo, kind: &str, info: FileExtraInfo) {
         EXTRA_KIND_COVER => comic.cover = Some(info),
         EXTRA_KIND_BANNER => comic.banner = Some(info),
         EXTRA_KIND_COMIC_INFO => comic.comic_info = Some(info),
-        _ => {},
+        _ => {}
     }
 }
 
@@ -236,9 +256,15 @@ mod wire_contract_tests {
 
     #[test]
     fn file_want_list_serializes_as_tuple_array() {
-        let wanted = FileWantList { wanted: vec![("Berserk".into(), "Cap 1".into())], ..Default::default() };
+        let wanted = FileWantList {
+            wanted: vec![("Berserk".into(), "Cap 1".into())],
+            ..Default::default()
+        };
         let value = serde_json::to_value(&wanted).unwrap();
-        assert_eq!(value, serde_json::json!({ "wanted": [["Berserk", "Cap 1"]] }));
+        assert_eq!(
+            value,
+            serde_json::json!({ "wanted": [["Berserk", "Cap 1"]] })
+        );
     }
 
     /// Trava o schema de wire de `FileComicInfo` com os campos `cover`/`banner`/`comic_info`
@@ -320,10 +346,16 @@ mod wire_contract_tests {
     /// em `snake_case`, sem tag de enum extra.
     #[test]
     fn comic_sync_scope_serializes_direction_as_snake_case_string() {
-        let scope = ComicSyncScope { comic_name: "Berserk".into(), direction: SyncDirection::Push };
+        let scope = ComicSyncScope {
+            comic_name: "Berserk".into(),
+            direction: SyncDirection::Push,
+        };
 
         let value = serde_json::to_value(&scope).unwrap();
-        assert_eq!(value, serde_json::json!({ "comic_name": "Berserk", "direction": "push" }));
+        assert_eq!(
+            value,
+            serde_json::json!({ "comic_name": "Berserk", "direction": "push" })
+        );
 
         let desktop_wire = serde_json::json!({ "comic_name": "Berserk", "direction": "pull" });
         let decoded: ComicSyncScope = serde_json::from_value(desktop_wire).unwrap();

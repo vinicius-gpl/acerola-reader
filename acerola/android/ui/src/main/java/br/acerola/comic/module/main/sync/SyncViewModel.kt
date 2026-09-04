@@ -507,8 +507,7 @@ class SyncViewModel
             }
         }
 
-        private fun isSessionStatus(status: String) =
-            status == "started" || status == "progress" || status == "complete" || status == "error"
+        private fun isSessionStatus(status: String) = status == "started" || status == "progress" || status == "complete" || status == "error"
 
         private fun isTerminalStatus(status: String) = status == "complete" || status == "error"
 

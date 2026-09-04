@@ -166,7 +166,8 @@ fun Main.Config.Template.Screen(
     fun getSyncActionVisualState(action: ConfigAction): SyncActionVisualState =
         when {
             activeSyncAction == action -> SyncActionVisualState.LOADING
-            action == ConfigAction.QuickSyncLibrary && activeLibrarySyncType == LibrarySyncWorker.SYNC_TYPE_INCREMENTAL -> SyncActionVisualState.LOADING
+            action == ConfigAction.QuickSyncLibrary &&
+                activeLibrarySyncType == LibrarySyncWorker.SYNC_TYPE_INCREMENTAL -> SyncActionVisualState.LOADING
             action == ConfigAction.DeepScanLibrary && activeLibrarySyncType == LibrarySyncWorker.SYNC_TYPE_REBUILD -> SyncActionVisualState.LOADING
             action == ConfigAction.SyncMangadexMetadata &&
                 activeMetadataSource == MetadataSyncWorker.SOURCE_MANGADEX -> SyncActionVisualState.LOADING

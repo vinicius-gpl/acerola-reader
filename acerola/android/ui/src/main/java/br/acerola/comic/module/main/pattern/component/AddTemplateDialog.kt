@@ -1,5 +1,6 @@
 package br.acerola.comic.module.main.pattern.component
 
+import android.content.res.Configuration
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -30,16 +31,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import br.acerola.comic.common.ux.Acerola
 import br.acerola.comic.common.ux.component.AdaptiveSheet
+import br.acerola.comic.common.ux.theme.AcerolaTheme
 import br.acerola.comic.common.ux.tokens.SizeTokens
 import br.acerola.comic.common.ux.tokens.SpacingTokens
 import br.acerola.comic.module.main.Main
 import br.acerola.comic.ui.R
 import br.acerola.comic.util.sort.SortType
-import androidx.compose.ui.tooling.preview.Preview
-import android.content.res.Configuration
-import br.acerola.comic.common.ux.theme.AcerolaTheme
 
 @Composable
 fun Main.Pattern.Component.AddTemplateDialog(

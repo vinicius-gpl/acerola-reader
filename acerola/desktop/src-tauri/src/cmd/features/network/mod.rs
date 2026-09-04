@@ -6,18 +6,15 @@ use crate::{
     bios::{network::DEFAULT_RELAY_URL, scopes::read_relay_url_override},
     cmd::events::network::{DeviceInfoPayload, NetworkStatusPayload, PairedPeerPayload, RelayInfo},
     core::services::network::NetworkServiceApi,
-    data::{
-        models::sync::SyncHistoryLogEntry,
-        repositories::sync::SyncHistoryLogRepository,
-    },
+    data::{models::sync::SyncHistoryLogEntry, repositories::sync::SyncHistoryLogRepository},
     infra::{
         security::MasterKeySource,
         sync::{
             messages::SyncDirection,
             protocol::{
                 comic_sync_registry::PendingComicSyncRegistry,
-                cover_request_registry::PendingCoverRequestRegistry,
-                COMIC_SYNC_ALPN, COVER_BROWSE_ALPN, FILE_SYNC_ALPN, HISTORY_SYNC_ALPN, LIBRARY_BROWSE_ALPN,
+                cover_request_registry::PendingCoverRequestRegistry, COMIC_SYNC_ALPN,
+                COVER_BROWSE_ALPN, FILE_SYNC_ALPN, HISTORY_SYNC_ALPN, LIBRARY_BROWSE_ALPN,
             },
         },
     },
@@ -95,8 +92,8 @@ pub async fn set_local_device_name(
 #[tauri::command]
 pub async fn get_relay_info<R: Runtime>(app: AppHandle<R>) -> Result<RelayInfo, String> {
     let app_data_directory = app.path().app_data_dir().map_err(|error| error.to_string())?;
-    let active_relay =
-        read_relay_url_override(&app_data_directory).unwrap_or_else(|| DEFAULT_RELAY_URL.to_string());
+    let active_relay = read_relay_url_override(&app_data_directory)
+        .unwrap_or_else(|| DEFAULT_RELAY_URL.to_string());
 
     Ok(RelayInfo { default_relay: DEFAULT_RELAY_URL.to_string(), active_relay })
 }
@@ -224,8 +221,9 @@ pub async fn query_remote_library(
 /// Resultado via `browse:cover:result`/`browse:cover:error`.
 #[tauri::command]
 pub async fn query_remote_cover(
-    service: State<'_, Arc<dyn NetworkServiceApi>>, registry: State<'_, Arc<PendingCoverRequestRegistry>>,
-    peer_id: String, addrs: Vec<u8>, comic_name: String, known_version: Option<i64>,
+    service: State<'_, Arc<dyn NetworkServiceApi>>,
+    registry: State<'_, Arc<PendingCoverRequestRegistry>>, peer_id: String, addrs: Vec<u8>,
+    comic_name: String, known_version: Option<i64>,
 ) -> Result<(), String> {
     use acerola_p2p::api::peer::{PeerAddr, PeerIdentity};
 

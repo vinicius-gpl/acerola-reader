@@ -102,21 +102,24 @@ class FileSyncProviderImpl
         override fun getFileManifest(): List<FfiFileManifestEntry> =
             runBlocking {
                 comicDirectoryDao.getAllDirectories().first().flatMap { comic ->
-                    chapterArchiveDao.getChaptersListByDirectoryId(comic.id).map { chapter ->
-                        async(Dispatchers.IO) {
-                            val checksum = chapter.checksum ?: return@async null
-                            val file = DocumentFile.fromSingleUri(context, Uri.parse(chapter.path))
-                            if (file == null || !file.exists()) return@async null
+                    chapterArchiveDao
+                        .getChaptersListByDirectoryId(comic.id)
+                        .map { chapter ->
+                            async(Dispatchers.IO) {
+                                val checksum = chapter.checksum ?: return@async null
+                                val file = DocumentFile.fromSingleUri(context, Uri.parse(chapter.path))
+                                if (file == null || !file.exists()) return@async null
 
-                            FfiFileManifestEntry(
-                                comicName = comic.name,
-                                chapter = chapter.chapter,
-                                fileName = file.name ?: chapter.chapter,
-                                checksum = checksum,
-                                sizeBytes = file.length().toULong(),
-                            )
-                        }
-                    }.awaitAll().filterNotNull()
+                                FfiFileManifestEntry(
+                                    comicName = comic.name,
+                                    chapter = chapter.chapter,
+                                    fileName = file.name ?: chapter.chapter,
+                                    checksum = checksum,
+                                    sizeBytes = file.length().toULong(),
+                                )
+                            }
+                        }.awaitAll()
+                        .filterNotNull()
                 }
             }
 
@@ -302,9 +305,13 @@ class FileSyncProviderImpl
 
         override fun getExtrasManifest(): List<FfiExtraManifestEntry> =
             runBlocking {
-                comicDirectoryDao.getAllDirectories().first().map { comic ->
-                    async(Dispatchers.IO) { buildExtraEntries(comic) }
-                }.awaitAll().flatten()
+                comicDirectoryDao
+                    .getAllDirectories()
+                    .first()
+                    .map { comic ->
+                        async(Dispatchers.IO) { buildExtraEntries(comic) }
+                    }.awaitAll()
+                    .flatten()
             }
 
         private fun buildExtraEntries(comic: ComicDirectory): List<FfiExtraManifestEntry> {
@@ -489,7 +496,8 @@ class FileSyncProviderImpl
                     return false
                 }
 
-            writeHandle.comicFolder.listFiles()
+            writeHandle.comicFolder
+                .listFiles()
                 .filter { it.isFile && it.name?.equals(writeHandle.fileName, ignoreCase = true) == true }
                 .forEach { it.delete() }
 

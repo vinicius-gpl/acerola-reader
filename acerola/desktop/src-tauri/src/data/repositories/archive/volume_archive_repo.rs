@@ -206,10 +206,7 @@ mod tests {
             })
             .await
             .unwrap();
-        repo.base
-            .insert(&VolumeArchive { id: 3, comic_directory_fk: 2, ..vol1() })
-            .await
-            .unwrap();
+        repo.base.insert(&VolumeArchive { id: 3, comic_directory_fk: 2, ..vol1() }).await.unwrap();
 
         let removed = repo.delete_by_comic(1).await.unwrap();
         assert_eq!(removed, 2);

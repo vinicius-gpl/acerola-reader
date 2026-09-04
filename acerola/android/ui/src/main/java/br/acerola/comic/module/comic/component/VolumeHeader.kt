@@ -1,5 +1,6 @@
 package br.acerola.comic.module.comic.component
 
+import android.content.res.Configuration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,13 +20,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import br.acerola.comic.common.ux.theme.AcerolaTheme
 import br.acerola.comic.dto.archive.VolumeArchiveDto
 import br.acerola.comic.module.comic.Comic
 import br.acerola.comic.ui.R
-import androidx.compose.ui.tooling.preview.Preview
-import android.content.res.Configuration
-import br.acerola.comic.common.ux.theme.AcerolaTheme
 
 @Composable
 fun Comic.Component.VolumeHeader(

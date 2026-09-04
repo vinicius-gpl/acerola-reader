@@ -1,7 +1,4 @@
-use std::{
-    io,
-    path::Path,
-};
+use std::{io, path::Path};
 
 /// Lê `path` inteiro, retornando `None` se o arquivo simplesmente não existe. Só usado hoje
 /// pra migração dos arquivos legados em texto puro (`identity.seed`/`peers.json`/

@@ -1,5 +1,6 @@
 package br.acerola.comic.common.ux.component
 
+import android.content.res.Configuration
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -17,12 +18,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import br.acerola.comic.common.ux.Acerola
+import br.acerola.comic.common.ux.theme.AcerolaTheme
 import br.acerola.comic.common.ux.tokens.ShapeTokens
 import br.acerola.comic.common.ux.tokens.SpacingTokens
-import androidx.compose.ui.tooling.preview.Preview
-import android.content.res.Configuration
-import br.acerola.comic.common.ux.theme.AcerolaTheme
 
 /** Pílula de N opções mutuamente exclusivas — para trocar de aba dentro de um mesmo
  *  contexto (ex.: "Meu código" / "Conectar" no sheet de pareamento), diferente de

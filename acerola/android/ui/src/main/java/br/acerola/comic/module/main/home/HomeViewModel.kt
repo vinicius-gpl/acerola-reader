@@ -20,6 +20,7 @@ import br.acerola.comic.logging.AcerolaLogger
 import br.acerola.comic.logging.LogSource
 import br.acerola.comic.module.main.home.state.FilterSettings
 import br.acerola.comic.module.main.sync.state.PairedPeer
+import br.acerola.comic.service.SyncDirection
 import br.acerola.comic.type.UiText
 import br.acerola.comic.ui.R
 import br.acerola.comic.usecase.DirectoryCase
@@ -31,7 +32,6 @@ import br.acerola.comic.usecase.comic.ObserveLibraryUseCase
 import br.acerola.comic.usecase.history.ObserveHistoryUseCase
 import br.acerola.comic.usecase.metadata.ClearMetadataUseCase
 import br.acerola.comic.usecase.metadata.ManageCategoriesUseCase
-import br.acerola.comic.service.SyncDirection
 import br.acerola.comic.usecase.network.P2pUseCase
 import br.acerola.comic.usecase.network.SyncComicWithPeerUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel

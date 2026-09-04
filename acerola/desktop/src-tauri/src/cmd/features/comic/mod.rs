@@ -49,7 +49,6 @@ pub async fn get_comic_summary_sorted<R: Runtime>(
     Ok(())
 }
 
-
 /// Converte IDs recebidos como string em `i64` — os IDs de `comic_directory` são hashes de
 /// path (`path_hash`) que ocupam quase toda a faixa de `i64`, bem acima de
 /// `Number.MAX_SAFE_INTEGER` (2^53) do JavaScript. Recebê-los como `Vec<i64>` direto faz o
@@ -60,8 +59,9 @@ pub async fn get_comic_summary_sorted<R: Runtime>(
 fn parse_ids(ids: Vec<String>) -> Result<Vec<i64>, ErrorPayload> {
     ids.into_iter()
         .map(|id| {
-            id.parse::<i64>()
-                .map_err(|err| ErrorPayload::from(&ComicError::SystemFailure(format!("Invalid ID: {err}"))))
+            id.parse::<i64>().map_err(|err| {
+                ErrorPayload::from(&ComicError::SystemFailure(format!("Invalid ID: {err}")))
+            })
         })
         .collect()
 }
@@ -154,7 +154,11 @@ pub async fn regenerate_comic_cover(
     })?;
 
     let service = ComicService::new(pool.inner().clone());
-    service.regenerate_cover(parsed_id).await.map(|_| ()).map_err(|error| ErrorPayload::from(&error))
+    service
+        .regenerate_cover(parsed_id)
+        .await
+        .map(|_| ())
+        .map_err(|error| ErrorPayload::from(&error))
 }
 
 /// Comando Tauri para gerar a capa de todos os volumes de um quadrinho a partir da página

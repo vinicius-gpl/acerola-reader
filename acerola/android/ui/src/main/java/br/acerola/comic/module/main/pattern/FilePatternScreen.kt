@@ -1,8 +1,5 @@
 package br.acerola.comic.module.main.pattern
-import androidx.compose.ui.tooling.preview.Preview
 import android.content.res.Configuration
-import br.acerola.comic.common.ux.theme.AcerolaTheme
-
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,10 +33,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import br.acerola.comic.common.state.LocalSnackbarHostState
 import br.acerola.comic.common.ux.component.SnackbarVariant
 import br.acerola.comic.common.ux.component.showSnackbar
+import br.acerola.comic.common.ux.theme.AcerolaTheme
 import br.acerola.comic.common.ux.tokens.SpacingTokens
 import br.acerola.comic.dto.archive.ArchiveTemplateDto
 import br.acerola.comic.module.main.Main
@@ -216,17 +215,19 @@ private fun FilePatternLayout(
 private fun FilePatternScreenPreview() {
     AcerolaTheme {
         FilePatternLayout(
-            uiState = FilePatternUiState(
-                templates = listOf(
-                    ArchiveTemplateDto(
-                        id = 1L,
-                        label = "Padrao Manga",
-                        pattern = "{title} - {chapter}",
-                        type = SortType.CHAPTER,
-                        isDefault = true,
-                    )
-                )
-            ),
+            uiState =
+                FilePatternUiState(
+                    templates =
+                        listOf(
+                            ArchiveTemplateDto(
+                                id = 1L,
+                                label = "Padrao Manga",
+                                pattern = "{title} - {chapter}",
+                                type = SortType.CHAPTER,
+                                isDefault = true,
+                            ),
+                        ),
+                ),
             onAction = {},
             onBack = {},
         )

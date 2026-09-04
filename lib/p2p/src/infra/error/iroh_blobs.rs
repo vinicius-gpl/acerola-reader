@@ -52,7 +52,10 @@ fn classify_get_error(err: &iroh_blobs::get::GetError) -> Option<ConnectionError
     if let Some(write_err) = source.downcast_ref::<iroh::endpoint::WriteError>() {
         return match write_err {
             iroh::endpoint::WriteError::Stopped(_) => {
-                tracing::warn!(layer = "iroh_blobs", "peer stopped accepting stream data during blob fetch");
+                tracing::warn!(
+                    layer = "iroh_blobs",
+                    "peer stopped accepting stream data during blob fetch"
+                );
                 Some(ConnectionError::PeerDisconnected("peer stopped accepting stream data".into()))
             },
             iroh::endpoint::WriteError::ConnectionLost(conn_err) => {

@@ -9,7 +9,9 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use crate::{
     core::services::sync::file_sync::FileSyncService,
     infra::sync::{
-        framing::{framed_reader, framed_writer, read_json, write_json, FramedReader, FramedWriter},
+        framing::{
+            framed_reader, framed_writer, read_json, write_json, FramedReader, FramedWriter,
+        },
         messages::{LibraryBrowseRequest, LibrarySummary},
         protocol::transfer::{classify_sync_error, sync_error_payload},
     },
@@ -93,7 +95,10 @@ impl Handler for LibraryBrowseOutbound {
                 let message = error.to_string();
                 let code = classify_sync_error(&error);
                 tracing::warn!(peer = %peer.id, ?code, error = %message, "[LibraryBrowse] query failed");
-                (self.emit)("library:query:error", sync_error_payload(&peer.id, &message, code, None));
+                (self.emit)(
+                    "library:query:error",
+                    sync_error_payload(&peer.id, &message, code, None),
+                );
                 Err(error)
             },
         }
@@ -145,11 +150,17 @@ impl LibraryBrowseInbound {
                     "get_library_summary did not return within {:?} — DB pool likely contended by another sync session",
                     Self::LIBRARY_SUMMARY_TIMEOUT
                 );
-                return Err(P2pError::StreamFailed("timed out querying local library summary".into()));
+                return Err(P2pError::StreamFailed(
+                    "timed out querying local library summary".into(),
+                ));
             },
         };
 
-        tracing::debug!(layer = "library_browse", comics = comics.len(), "writing library summary response");
+        tracing::debug!(
+            layer = "library_browse",
+            comics = comics.len(),
+            "writing library summary response"
+        );
         write_json(writer, &LibrarySummary { comics }).await?;
         tracing::debug!(layer = "library_browse", "library summary response written");
         Ok(())
@@ -213,8 +224,10 @@ mod tests {
         let mut writer = framed_writer(Box::new(server_send) as Box<dyn AsyncWrite + Send + Unpin>);
         inbound.run(&mut writer).await.unwrap();
 
-        let mut outbound_writer = framed_writer(Box::new(client_send) as Box<dyn AsyncWrite + Send + Unpin>);
-        let mut outbound_reader = framed_reader(Box::new(client_recv) as Box<dyn AsyncRead + Send + Unpin>);
+        let mut outbound_writer =
+            framed_writer(Box::new(client_send) as Box<dyn AsyncWrite + Send + Unpin>);
+        let mut outbound_reader =
+            framed_reader(Box::new(client_recv) as Box<dyn AsyncRead + Send + Unpin>);
         let outbound = LibraryBrowseOutbound::new(std::sync::Arc::new(|_, _| {}));
         let response = outbound.run(&mut outbound_writer, &mut outbound_reader).await.unwrap();
 

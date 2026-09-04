@@ -47,12 +47,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import br.acerola.comic.common.ux.Acerola
-import br.acerola.comic.ui.R
-import androidx.compose.ui.tooling.preview.Preview
 import br.acerola.comic.common.ux.theme.AcerolaTheme
+import br.acerola.comic.ui.R
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
@@ -258,14 +258,13 @@ private fun SearchBarPreview() {
             itemContent = { title ->
                 Text(
                     text = title,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
                     style = MaterialTheme.typography.bodyMedium,
                 )
             },
         )
     }
 }
-
-

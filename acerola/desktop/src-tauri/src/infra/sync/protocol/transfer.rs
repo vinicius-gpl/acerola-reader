@@ -147,8 +147,12 @@ pub(super) fn classify_sync_error(error: &P2pError) -> Option<SyncErrorCode> {
     match error {
         P2pError::Timeout => Some(SyncErrorCode::Timeout),
         P2pError::PeerDisconnected(_) => Some(SyncErrorCode::ConnectionLost),
-        P2pError::StreamFailed(msg) if msg.contains(SESSION_BUSY_REASON) => Some(SyncErrorCode::Busy),
-        P2pError::StreamFailed(msg) if msg == NO_PENDING_SCOPE_REASON => Some(SyncErrorCode::NoPendingRequest),
+        P2pError::StreamFailed(msg) if msg.contains(SESSION_BUSY_REASON) => {
+            Some(SyncErrorCode::Busy)
+        },
+        P2pError::StreamFailed(msg) if msg == NO_PENDING_SCOPE_REASON => {
+            Some(SyncErrorCode::NoPendingRequest)
+        },
         // Resto de `StreamFailed` é texto de I/O genérico de baixo nível (framing, disco) sem
         // uma causa específica pra nomear — cai no fallback de quem chamou (`message` cru no
         // log do backend, que nunca é mostrado como está na UI).
@@ -170,7 +174,10 @@ pub(super) fn classify_sync_error(error: &P2pError) -> Option<SyncErrorCode> {
 /// mostrado como está) — `code` é o identificador estável que o frontend usa pra traduzir via
 /// Paraglide (`tauri_errors.sync.session_busy.label`), no mesmo padrão de `errors.i18n.ts`.
 pub fn emit_busy(emit: &EventEmitter, event_name: &str, peer_id: &str) {
-    (emit)(event_name, sync_error_payload(peer_id, SESSION_BUSY_REASON, Some(SyncErrorCode::Busy), None));
+    (emit)(
+        event_name,
+        sync_error_payload(peer_id, SESSION_BUSY_REASON, Some(SyncErrorCode::Busy), None),
+    );
 }
 
 /// Monta o JSON de `sync:*:error` usado tanto por `emit_busy` quanto pelo branch `Err(error)`
@@ -201,7 +208,10 @@ pub async fn write_session_busy(send: Box<dyn AsyncWrite + Send + Unpin>) {
     let mut writer = framed_writer(send);
     let _ = write_json(
         &mut writer,
-        &SessionBusy { error: SESSION_BUSY_TAG.to_string(), reason: SESSION_BUSY_REASON.to_string() },
+        &SessionBusy {
+            error: SESSION_BUSY_TAG.to_string(),
+            reason: SESSION_BUSY_REASON.to_string(),
+        },
     )
     .await;
 }
@@ -270,7 +280,14 @@ pub async fn send_files(
 
         write_json(
             writer,
-            &FileHeader { comic_name: comic_name.clone(), chapter: chapter.clone(), file_name, size, checksum, blob_hash: Some(blob_hash) },
+            &FileHeader {
+                comic_name: comic_name.clone(),
+                chapter: chapter.clone(),
+                file_name,
+                size,
+                checksum,
+                blob_hash: Some(blob_hash),
+            },
         )
         .await?;
 
@@ -301,8 +318,9 @@ pub async fn send_files(
 /// bug que motivou esta função a mudar.
 #[allow(clippy::too_many_arguments)]
 pub async fn receive_files(
-    reader: &mut FramedReader, expected_count: usize, service: &FileSyncService, emit: &EventEmitter,
-    progress_event: &str, error_event: &str, peer: &PeerIdentity, transfer: &Arc<dyn ChapterTransfer>,
+    reader: &mut FramedReader, expected_count: usize, service: &FileSyncService,
+    emit: &EventEmitter, progress_event: &str, error_event: &str, peer: &PeerIdentity,
+    transfer: &Arc<dyn ChapterTransfer>,
 ) -> Result<usize, P2pError> {
     let mut skipped = 0usize;
 
@@ -359,7 +377,10 @@ pub async fn receive_files(
                     error_event,
                     sync_error_payload(
                         &peer.id,
-                        &format!("blob fetch failed: {} - {}: {err}", header.comic_name, header.chapter),
+                        &format!(
+                            "blob fetch failed: {} - {}: {err}",
+                            header.comic_name, header.chapter
+                        ),
                         Some(classify_sync_error(&err).unwrap_or(SyncErrorCode::BlobFetchFailed)),
                         None,
                     ),
@@ -369,7 +390,10 @@ pub async fn receive_files(
         };
 
         let mut bytes = Vec::new();
-        blob_reader.read_to_end(&mut bytes).await.map_err(|err| P2pError::StreamFailed(err.to_string()))?;
+        blob_reader
+            .read_to_end(&mut bytes)
+            .await
+            .map_err(|err| P2pError::StreamFailed(err.to_string()))?;
 
         let computed_checksum = {
             use sha2::{Digest, Sha256};
@@ -416,7 +440,10 @@ pub async fn receive_files(
                     error_event,
                     sync_error_payload(
                         &peer.id,
-                        &format!("failed to resolve comic directory: {} - {}", header.comic_name, header.chapter),
+                        &format!(
+                            "failed to resolve comic directory: {} - {}",
+                            header.comic_name, header.chapter
+                        ),
                         Some(SyncErrorCode::ComicDirectoryUnavailable),
                         None,
                     ),
@@ -512,8 +539,8 @@ pub async fn send_extras(
 #[allow(clippy::too_many_arguments)]
 pub async fn receive_extras(
     reader: &mut FramedReader, expected_count: usize, service: &FileSyncService,
-    metadata_service: &Arc<MetadataService>, emit: &EventEmitter, progress_event: &str, error_event: &str,
-    peer: &PeerIdentity, transfer: &Arc<dyn ChapterTransfer>,
+    metadata_service: &Arc<MetadataService>, emit: &EventEmitter, progress_event: &str,
+    error_event: &str, peer: &PeerIdentity, transfer: &Arc<dyn ChapterTransfer>,
 ) -> Result<usize, P2pError> {
     let mut skipped = 0usize;
 
@@ -563,7 +590,10 @@ pub async fn receive_extras(
                     error_event,
                     sync_error_payload(
                         &peer.id,
-                        &format!("blob fetch failed: {} - {}: {err}", header.comic_name, header.kind),
+                        &format!(
+                            "blob fetch failed: {} - {}: {err}",
+                            header.comic_name, header.kind
+                        ),
                         Some(classify_sync_error(&err).unwrap_or(SyncErrorCode::BlobFetchFailed)),
                         None,
                     ),
@@ -573,7 +603,10 @@ pub async fn receive_extras(
         };
 
         let mut bytes = Vec::new();
-        blob_reader.read_to_end(&mut bytes).await.map_err(|err| P2pError::StreamFailed(err.to_string()))?;
+        blob_reader
+            .read_to_end(&mut bytes)
+            .await
+            .map_err(|err| P2pError::StreamFailed(err.to_string()))?;
 
         let computed_checksum = {
             use sha2::{Digest, Sha256};
@@ -617,7 +650,10 @@ pub async fn receive_extras(
                     error_event,
                     sync_error_payload(
                         &peer.id,
-                        &format!("failed to resolve comic directory: {} - {}", header.comic_name, header.kind),
+                        &format!(
+                            "failed to resolve comic directory: {} - {}",
+                            header.comic_name, header.kind
+                        ),
                         Some(SyncErrorCode::ComicDirectoryUnavailable),
                         None,
                     ),
@@ -646,7 +682,10 @@ pub async fn receive_extras(
                     error_event,
                     sync_error_payload(
                         &peer.id,
-                        &format!("failed to persist extra: {} - {}", header.comic_name, header.kind),
+                        &format!(
+                            "failed to persist extra: {} - {}",
+                            header.comic_name, header.kind
+                        ),
                         Some(SyncErrorCode::PersistFailed),
                         None,
                     ),
@@ -683,8 +722,9 @@ pub struct InMemoryChapterTransfer {
 #[cfg(test)]
 impl InMemoryChapterTransfer {
     pub fn shared_pair() -> (Arc<dyn ChapterTransfer>, Arc<dyn ChapterTransfer>) {
-        let shared =
-            Arc::new(InMemoryChapterTransfer { blobs: std::sync::Mutex::new(std::collections::HashMap::new()) });
+        let shared = Arc::new(InMemoryChapterTransfer {
+            blobs: std::sync::Mutex::new(std::collections::HashMap::new()),
+        });
         (Arc::clone(&shared) as Arc<dyn ChapterTransfer>, shared as Arc<dyn ChapterTransfer>)
     }
 }
@@ -702,13 +742,9 @@ impl ChapterTransfer for InMemoryChapterTransfer {
     async fn fetch_reader(
         &self, blob_hash: &str, _peer: &PeerIdentity,
     ) -> Result<Box<dyn AsyncRead + Send + Unpin>, P2pError> {
-        let bytes = self
-            .blobs
-            .lock()
-            .unwrap()
-            .get(blob_hash)
-            .cloned()
-            .ok_or_else(|| P2pError::StreamFailed(format!("unknown blob hash in test transfer: {blob_hash}")))?;
+        let bytes = self.blobs.lock().unwrap().get(blob_hash).cloned().ok_or_else(|| {
+            P2pError::StreamFailed(format!("unknown blob hash in test transfer: {blob_hash}"))
+        })?;
 
         // `tokio::io::duplex` já implementa `AsyncRead`/`AsyncWrite` — mais simples que
         // implementar um `poll_read` manual só pra teste. Escreve tudo e fecha (EOF) antes de

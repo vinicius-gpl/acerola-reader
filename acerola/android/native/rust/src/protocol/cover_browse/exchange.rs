@@ -6,7 +6,9 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite};
 use tokio_stream::StreamExt;
 use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
 
-use super::model::{CoverRequest, CoverResponse, STATUS_CHANGED, STATUS_NOT_MODIFIED, STATUS_UNAVAILABLE};
+use super::model::{
+    CoverRequest, CoverResponse, STATUS_CHANGED, STATUS_NOT_MODIFIED, STATUS_UNAVAILABLE,
+};
 use crate::{
     callbacks::CoverBrowseProvider,
     protocol::{ffi_blocking::run_blocking, files::ChapterTransfer},
@@ -42,7 +44,9 @@ async fn read_json<T: serde::de::DeserializeOwned>(reader: &mut Recv) -> Result<
 /// (`ChapterTransfer::publish`) quando a versão realmente mudou, pra não pagar o custo de hash
 /// numa capa que o outbound já tem.
 pub(super) async fn run_inbound(
-    provider: &Arc<dyn CoverBrowseProvider>, transfer: &Arc<dyn ChapterTransfer>, writer: &mut Writer,
+    provider: &Arc<dyn CoverBrowseProvider>,
+    transfer: &Arc<dyn ChapterTransfer>,
+    writer: &mut Writer,
     reader: &mut Recv,
 ) -> Result<(), P2pError> {
     let request: CoverRequest = read_json(reader).await?;
@@ -69,7 +73,7 @@ pub(super) async fn run_inbound(
                 cover_version: Some(entry.cover_version),
                 cover_hash: Some(hash),
             }
-        },
+        }
     };
 
     write_json(writer, &response).await
@@ -87,36 +91,57 @@ pub(super) enum CoverOutcome {
 /// os bytes de verdade via `ChapterTransfer::fetch_reader` (que já verifica integridade via
 /// BLAKE3 antes de devolver o leitor).
 pub(super) async fn run_outbound(
-    comic_name: String, known_version: Option<i64>, peer: &PeerIdentity, transfer: &Arc<dyn ChapterTransfer>,
-    writer: &mut Writer, reader: &mut Recv,
+    comic_name: String,
+    known_version: Option<i64>,
+    peer: &PeerIdentity,
+    transfer: &Arc<dyn ChapterTransfer>,
+    writer: &mut Writer,
+    reader: &mut Recv,
 ) -> Result<CoverOutcome, P2pError> {
-    write_json(writer, &CoverRequest { comic_name, known_version }).await?;
+    write_json(
+        writer,
+        &CoverRequest {
+            comic_name,
+            known_version,
+        },
+    )
+    .await?;
 
     let response: CoverResponse = read_json(reader).await?;
 
     match response.status.as_str() {
         STATUS_NOT_MODIFIED => {
             let cover_version = response.cover_version.ok_or_else(|| {
-                P2pError::StreamFailed("cover response missing cover_version for not_modified".into())
+                P2pError::StreamFailed(
+                    "cover response missing cover_version for not_modified".into(),
+                )
             })?;
             Ok(CoverOutcome::NotModified { cover_version })
-        },
+        }
         STATUS_CHANGED => {
             let cover_version = response.cover_version.ok_or_else(|| {
                 P2pError::StreamFailed("cover response missing cover_version for changed".into())
             })?;
-            let hash = response
-                .cover_hash
-                .ok_or_else(|| P2pError::StreamFailed("cover response missing cover_hash for changed".into()))?;
+            let hash = response.cover_hash.ok_or_else(|| {
+                P2pError::StreamFailed("cover response missing cover_hash for changed".into())
+            })?;
 
             let mut blob_reader = transfer.fetch_reader(&hash, peer).await?;
             let mut bytes = Vec::new();
-            blob_reader.read_to_end(&mut bytes).await.map_err(|err| P2pError::StreamFailed(err.to_string()))?;
+            blob_reader
+                .read_to_end(&mut bytes)
+                .await
+                .map_err(|err| P2pError::StreamFailed(err.to_string()))?;
 
-            Ok(CoverOutcome::Fetched { cover_version, bytes })
-        },
+            Ok(CoverOutcome::Fetched {
+                cover_version,
+                bytes,
+            })
+        }
         STATUS_UNAVAILABLE => Ok(CoverOutcome::Unavailable),
-        other => Err(P2pError::StreamFailed(format!("unknown cover response status: {other}"))),
+        other => Err(P2pError::StreamFailed(format!(
+            "unknown cover response status: {other}"
+        ))),
     }
 }
 
@@ -132,22 +157,33 @@ mod tests {
 
     impl CoverBrowseProvider for StubCoverProvider {
         fn get_local_cover(&self, _comic_name: String) -> FfiCoverEntry {
-            FfiCoverEntry { cover_version: self.cover_version, bytes: self.bytes.clone() }
+            FfiCoverEntry {
+                cover_version: self.cover_version,
+                bytes: self.bytes.clone(),
+            }
         }
 
         fn save_remote_cover(
-            &self, _peer_id: String, _comic_name: String, _cover_version: i64, _bytes: Vec<u8>,
+            &self,
+            _peer_id: String,
+            _comic_name: String,
+            _cover_version: i64,
+            _bytes: Vec<u8>,
         ) -> String {
             unreachable!("save_remote_cover roda só do lado outbound, não usado nestes testes")
         }
     }
 
     fn make_peer(id: &str) -> PeerIdentity {
-        PeerIdentity { id: id.to_string(), device_id: None }
+        PeerIdentity {
+            id: id.to_string(),
+            device_id: None,
+        }
     }
 
     async fn run_pair(
-        inbound_provider: Arc<dyn CoverBrowseProvider>, known_version: Option<i64>,
+        inbound_provider: Arc<dyn CoverBrowseProvider>,
+        known_version: Option<i64>,
     ) -> Result<CoverOutcome, P2pError> {
         let (inbound_transfer, outbound_transfer) = InMemoryChapterTransfer::shared_pair();
 
@@ -173,7 +209,12 @@ mod tests {
         );
 
         let peer = make_peer("peer-cover");
-        let inbound_fut = run_inbound(&inbound_provider, &inbound_transfer, &mut inbound_writer, &mut inbound_reader);
+        let inbound_fut = run_inbound(
+            &inbound_provider,
+            &inbound_transfer,
+            &mut inbound_writer,
+            &mut inbound_reader,
+        );
         let outbound_fut = run_outbound(
             "Comic A".to_string(),
             known_version,
@@ -190,8 +231,10 @@ mod tests {
 
     #[tokio::test]
     async fn known_version_matching_local_returns_not_modified() {
-        let provider: Arc<dyn CoverBrowseProvider> =
-            Arc::new(StubCoverProvider { cover_version: 42, bytes: Some(b"cover bytes".to_vec()) });
+        let provider: Arc<dyn CoverBrowseProvider> = Arc::new(StubCoverProvider {
+            cover_version: 42,
+            bytes: Some(b"cover bytes".to_vec()),
+        });
 
         let outcome = run_pair(provider, Some(42)).await.unwrap();
 
@@ -203,7 +246,10 @@ mod tests {
 
     #[tokio::test]
     async fn no_local_cover_returns_unavailable() {
-        let provider: Arc<dyn CoverBrowseProvider> = Arc::new(StubCoverProvider { cover_version: 0, bytes: None });
+        let provider: Arc<dyn CoverBrowseProvider> = Arc::new(StubCoverProvider {
+            cover_version: 0,
+            bytes: None,
+        });
 
         let outcome = run_pair(provider, None).await.unwrap();
 
@@ -213,16 +259,21 @@ mod tests {
     #[tokio::test]
     async fn stale_known_version_fetches_real_bytes_via_blob_transfer() {
         let cover_bytes = b"brand new cover jpeg bytes".to_vec();
-        let provider: Arc<dyn CoverBrowseProvider> =
-            Arc::new(StubCoverProvider { cover_version: 7, bytes: Some(cover_bytes.clone()) });
+        let provider: Arc<dyn CoverBrowseProvider> = Arc::new(StubCoverProvider {
+            cover_version: 7,
+            bytes: Some(cover_bytes.clone()),
+        });
 
         let outcome = run_pair(provider, Some(3)).await.unwrap();
 
         match outcome {
-            CoverOutcome::Fetched { cover_version, bytes } => {
+            CoverOutcome::Fetched {
+                cover_version,
+                bytes,
+            } => {
                 assert_eq!(cover_version, 7);
                 assert_eq!(bytes, cover_bytes);
-            },
+            }
             _ => panic!("esperava Fetched"),
         }
     }

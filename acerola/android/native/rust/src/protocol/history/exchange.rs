@@ -57,18 +57,27 @@ pub(super) async fn build_local_manifest(
 /// Progresso de leitura do peer que vence o local — last-write-wins por `updated_at`.
 /// Puro, sem FFI: só decide o que deveria ser aplicado, não aplica.
 fn progress_entries_to_apply(
-    local: &HistoryManifest, peer_progress: Vec<crate::callbacks::FfiReadingProgressEntry>,
+    local: &HistoryManifest,
+    peer_progress: Vec<crate::callbacks::FfiReadingProgressEntry>,
 ) -> Vec<crate::callbacks::FfiReadingProgressEntry> {
     let local_by_key: HashMap<(&str, &str), &crate::callbacks::FfiReadingProgressEntry> = local
         .reading_progress
         .iter()
-        .map(|entry| ((entry.comic_name.as_str(), entry.chapter_sort.as_str()), entry))
+        .map(|entry| {
+            (
+                (entry.comic_name.as_str(), entry.chapter_sort.as_str()),
+                entry,
+            )
+        })
         .collect();
 
     peer_progress
         .into_iter()
         .filter(|peer_entry| {
-            let key = (peer_entry.comic_name.as_str(), peer_entry.chapter_sort.as_str());
+            let key = (
+                peer_entry.comic_name.as_str(),
+                peer_entry.chapter_sort.as_str(),
+            );
             match local_by_key.get(&key) {
                 Some(local_entry) => peer_entry.updated_at > local_entry.updated_at,
                 None => true,
@@ -80,7 +89,8 @@ fn progress_entries_to_apply(
 /// Capítulos lidos que o peer tem e o local ainda não — união idempotente, sem noção de
 /// "mais recente" (diferente de progresso). Puro, sem FFI.
 fn chapters_read_entries_to_apply(
-    local: &HistoryManifest, peer_chapters_read: Vec<crate::callbacks::FfiChapterReadEntry>,
+    local: &HistoryManifest,
+    peer_chapters_read: Vec<crate::callbacks::FfiChapterReadEntry>,
 ) -> Vec<crate::callbacks::FfiChapterReadEntry> {
     let local_keys: HashSet<(&str, &str)> = local
         .chapters_read
@@ -91,7 +101,10 @@ fn chapters_read_entries_to_apply(
     peer_chapters_read
         .into_iter()
         .filter(|peer_entry| {
-            let key = (peer_entry.comic_name.as_str(), peer_entry.chapter_sort.as_str());
+            let key = (
+                peer_entry.comic_name.as_str(),
+                peer_entry.chapter_sort.as_str(),
+            );
             !local_keys.contains(&key)
         })
         .collect()
@@ -100,7 +113,8 @@ fn chapters_read_entries_to_apply(
 /// Aplica as entradas já decididas via `provider` — única parte que toca FFI, roda inteira
 /// num único `spawn_blocking` (não um por entrada).
 async fn apply_entries(
-    provider: &Arc<dyn HistorySyncProvider>, progress: Vec<crate::callbacks::FfiReadingProgressEntry>,
+    provider: &Arc<dyn HistorySyncProvider>,
+    progress: Vec<crate::callbacks::FfiReadingProgressEntry>,
     chapters_read: Vec<crate::callbacks::FfiChapterReadEntry>,
 ) -> Result<HistorySyncStats, P2pError> {
     let provider = Arc::clone(provider);
@@ -133,7 +147,9 @@ async fn apply_entries(
 /// capítulos lidos. Cada lado roda essa função com seu próprio manifesto local — não há
 /// mais nenhuma troca de rede depois disso.
 pub(super) async fn diff_and_apply(
-    local: &HistoryManifest, peer: HistoryManifest, provider: &Arc<dyn HistorySyncProvider>,
+    local: &HistoryManifest,
+    peer: HistoryManifest,
+    provider: &Arc<dyn HistorySyncProvider>,
 ) -> Result<HistorySyncStats, P2pError> {
     let progress = progress_entries_to_apply(local, peer.reading_progress);
     let chapters_read = chapters_read_entries_to_apply(local, peer.chapters_read);

@@ -566,7 +566,8 @@ mod tests {
         }
         async fn load_device_info(
             &self,
-        ) -> Result<Vec<(PeerId, crate::data::identity::device_info::DeviceInfo)>, ConnectionError> {
+        ) -> Result<Vec<(PeerId, crate::data::identity::device_info::DeviceInfo)>, ConnectionError>
+        {
             Ok(vec![])
         }
     }

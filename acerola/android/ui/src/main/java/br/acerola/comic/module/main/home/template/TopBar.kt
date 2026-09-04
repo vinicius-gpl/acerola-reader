@@ -1,8 +1,5 @@
 package br.acerola.comic.module.main.home.template
-import androidx.compose.ui.tooling.preview.Preview
 import android.content.res.Configuration
-import br.acerola.comic.common.ux.theme.AcerolaTheme
-
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -13,7 +10,9 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import br.acerola.comic.common.ux.theme.AcerolaTheme
 import br.acerola.comic.module.main.Main
 
 @Composable

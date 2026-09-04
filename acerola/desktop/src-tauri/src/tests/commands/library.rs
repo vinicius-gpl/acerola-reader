@@ -10,7 +10,9 @@ use super::support::{
 };
 use crate::{
     cmd::features::{library::comic_scanner_cmd, summary as summary_cmd},
-    core::services::{archive::comic_scanner_engine::ComicScannerService, summary::ChapterCacheService},
+    core::services::{
+        archive::comic_scanner_engine::ComicScannerService, summary::ChapterCacheService,
+    },
     tests::utils::setup_test_db::setup_test_db,
 };
 
@@ -262,7 +264,8 @@ async fn test_incremental_scan_emits_scan_error_for_nonexistent_path() -> Result
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_rebuild_library_reprocesses_without_duplicating_chapters_and_emits_complete() -> Result<()> {
+async fn test_rebuild_library_reprocesses_without_duplicating_chapters_and_emits_complete(
+) -> Result<()> {
     let pool = in_memory_db().await;
     let (app, webview) = build_library_app(pool.clone())?;
     let root = TempDir::new()?;

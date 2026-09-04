@@ -1,5 +1,6 @@
 package br.acerola.comic.module.reader.template
 
+import android.content.res.Configuration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -27,17 +28,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import br.acerola.comic.common.ux.Acerola
 import br.acerola.comic.common.ux.component.AdaptiveSheet
+import br.acerola.comic.common.ux.theme.AcerolaTheme
 import br.acerola.comic.common.ux.tokens.ShapeTokens
 import br.acerola.comic.common.ux.tokens.SizeTokens
 import br.acerola.comic.common.ux.tokens.SpacingTokens
 import br.acerola.comic.config.preference.types.ReadingMode
 import br.acerola.comic.module.reader.Reader
 import br.acerola.comic.ui.R
-import androidx.compose.ui.tooling.preview.Preview
-import android.content.res.Configuration
-import br.acerola.comic.common.ux.theme.AcerolaTheme
 
 @Composable
 fun Reader.Template.SettingsSheet(

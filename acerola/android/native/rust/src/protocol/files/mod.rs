@@ -147,7 +147,10 @@ async fn run_and_report(
             exchange::run_exchange(outbound_role, peer, emit, provider, transfer, send, recv).await
         }
         None => {
-            let reason = format!("sync-files session already in progress for peer {}", peer.id);
+            let reason = format!(
+                "sync-files session already in progress for peer {}",
+                peer.id
+            );
             // Melhor esforço: avisa o outro lado do stream que a rejeição foi por ocupação, não
             // por falha de conexão. Se essa escrita falhar (peer já caiu, stream já fechado),
             // ignora — a sessão já foi rejeitada localmente de qualquer forma, o erro abaixo é
@@ -204,7 +207,13 @@ impl ComicSyncOutbound {
         transfer: Arc<dyn ChapterTransfer>,
         pending_scope: PendingComicScope,
     ) -> Self {
-        Self { emit, provider, session_guard, transfer, pending_scope }
+        Self {
+            emit,
+            provider,
+            session_guard,
+            transfer,
+            pending_scope,
+        }
     }
 }
 
@@ -253,7 +262,12 @@ impl ComicSyncInbound {
         session_guard: Arc<FileSyncSessionGuard>,
         transfer: Arc<dyn ChapterTransfer>,
     ) -> Self {
-        Self { emit, provider, session_guard, transfer }
+        Self {
+            emit,
+            provider,
+            session_guard,
+            transfer,
+        }
     }
 }
 
@@ -266,7 +280,15 @@ impl Handler for ComicSyncInbound {
         recv: Box<dyn AsyncRead + Send + Unpin>,
     ) -> Result<(), P2pError> {
         run_and_report_scoped(
-            false, peer, &self.emit, &self.provider, &self.session_guard, &self.transfer, None, send, recv,
+            false,
+            peer,
+            &self.emit,
+            &self.provider,
+            &self.session_guard,
+            &self.transfer,
+            None,
+            send,
+            recv,
         )
         .await
     }
@@ -306,7 +328,10 @@ async fn run_and_report_scoped(
             .await
         }
         None => {
-            let reason = format!("sync-comic session already in progress for peer {}", peer.id);
+            let reason = format!(
+                "sync-comic session already in progress for peer {}",
+                peer.id
+            );
             let _ = exchange::write_session_busy(send, &reason).await;
             Err(P2pError::StreamFailed(reason))
         }
@@ -473,7 +498,10 @@ mod concurrency_tests {
         assert_eq!(event_name, "sync:files:chapter_failed");
         assert!(payload.contains("already in progress"));
         let parsed: serde_json::Value = serde_json::from_str(payload).unwrap();
-        assert_eq!(parsed["code"], "busy", "lado Kotlin usa esse code pra traduzir a mensagem na UI");
+        assert_eq!(
+            parsed["code"], "busy",
+            "lado Kotlin usa esse code pra traduzir a mensagem na UI"
+        );
         drop(recorded);
 
         drop(lease); // libera a primeira sessão
@@ -560,12 +588,17 @@ mod concurrency_tests {
     /// ALPNs sejam diferentes. Sem isso, os dois protocolos rodariam ao mesmo tempo pro mesmo
     /// peer e dobrariam a varredura de biblioteca via `run_blocking`.
     #[tokio::test]
-    async fn comic_sync_session_is_rejected_while_a_full_sync_files_session_is_active_for_the_same_peer() {
+    async fn comic_sync_session_is_rejected_while_a_full_sync_files_session_is_active_for_the_same_peer(
+    ) {
         let session_guard = Arc::new(FileSyncSessionGuard::default());
         let manifest_calls = Arc::new(AtomicUsize::new(0));
-        let provider: Arc<dyn FileSyncProvider> =
-            Arc::new(CountingProvider { manifest_calls: Arc::clone(&manifest_calls) });
-        let peer = PeerIdentity { id: "peer-shared-guard".into(), device_id: None };
+        let provider: Arc<dyn FileSyncProvider> = Arc::new(CountingProvider {
+            manifest_calls: Arc::clone(&manifest_calls),
+        });
+        let peer = PeerIdentity {
+            id: "peer-shared-guard".into(),
+            device_id: None,
+        };
         let emit: EventEmitter = Arc::new(|_event, _data| {});
 
         // Simula uma sessão `sync-files` completa já em andamento pro peer.
@@ -587,19 +620,31 @@ mod concurrency_tests {
         )
         .await;
 
-        assert!(result.is_err(), "sync-comic deveria ser rejeitado com sync-files ativo pro mesmo peer");
-        assert_eq!(manifest_calls.load(Ordering::SeqCst), 0, "provider não deveria ser tocado na sessão rejeitada");
+        assert!(
+            result.is_err(),
+            "sync-comic deveria ser rejeitado com sync-files ativo pro mesmo peer"
+        );
+        assert_eq!(
+            manifest_calls.load(Ordering::SeqCst),
+            0,
+            "provider não deveria ser tocado na sessão rejeitada"
+        );
     }
 
     /// Simétrico ao teste acima: uma sessão `sync-comic` já em andamento também rejeita uma
     /// tentativa de `sync-files` completo pro mesmo peer, pelo mesmo guard compartilhado.
     #[tokio::test]
-    async fn full_sync_files_session_is_rejected_while_a_comic_sync_session_is_active_for_the_same_peer() {
+    async fn full_sync_files_session_is_rejected_while_a_comic_sync_session_is_active_for_the_same_peer(
+    ) {
         let session_guard = Arc::new(FileSyncSessionGuard::default());
         let manifest_calls = Arc::new(AtomicUsize::new(0));
-        let provider: Arc<dyn FileSyncProvider> =
-            Arc::new(CountingProvider { manifest_calls: Arc::clone(&manifest_calls) });
-        let peer = PeerIdentity { id: "peer-shared-guard-2".into(), device_id: None };
+        let provider: Arc<dyn FileSyncProvider> = Arc::new(CountingProvider {
+            manifest_calls: Arc::clone(&manifest_calls),
+        });
+        let peer = PeerIdentity {
+            id: "peer-shared-guard-2".into(),
+            device_id: None,
+        };
         let emit: EventEmitter = Arc::new(|_event, _data| {});
 
         // Simula uma sessão `sync-comic` já em andamento pro peer.
@@ -620,7 +665,14 @@ mod concurrency_tests {
         )
         .await;
 
-        assert!(result.is_err(), "sync-files deveria ser rejeitado com sync-comic ativo pro mesmo peer");
-        assert_eq!(manifest_calls.load(Ordering::SeqCst), 0, "provider não deveria ser tocado na sessão rejeitada");
+        assert!(
+            result.is_err(),
+            "sync-files deveria ser rejeitado com sync-comic ativo pro mesmo peer"
+        );
+        assert_eq!(
+            manifest_calls.load(Ordering::SeqCst),
+            0,
+            "provider não deveria ser tocado na sessão rejeitada"
+        );
     }
 }

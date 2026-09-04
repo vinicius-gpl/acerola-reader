@@ -57,7 +57,8 @@ pub async fn get_comic_chapter_ids(
 
     let service = ChapterService::new(pool.inner().clone());
 
-    let ids = service.get_all_chapter_ids(comic_directory_id).await.map_err(|error| error.to_string())?;
+    let ids =
+        service.get_all_chapter_ids(comic_directory_id).await.map_err(|error| error.to_string())?;
 
     Ok(ids.into_iter().map(|id| id.to_string()).collect())
 }

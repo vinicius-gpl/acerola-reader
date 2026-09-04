@@ -1,4 +1,5 @@
 package br.acerola.comic.common.ux.component
+import android.content.res.Configuration
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -24,16 +25,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.style.TextAlign
-import br.acerola.comic.common.ux.Acerola
-import br.acerola.comic.common.ux.tokens.SpacingTokens
-import androidx.compose.ui.tooling.preview.Preview
-import android.content.res.Configuration
-import br.acerola.comic.common.ux.theme.AcerolaTheme
-import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
+import br.acerola.comic.common.ux.Acerola
+import br.acerola.comic.common.ux.theme.AcerolaTheme
+import br.acerola.comic.common.ux.tokens.SpacingTokens
 import br.acerola.comic.ui.R
-
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -230,5 +228,3 @@ private fun CardPreview() {
         }
     }
 }
-
-

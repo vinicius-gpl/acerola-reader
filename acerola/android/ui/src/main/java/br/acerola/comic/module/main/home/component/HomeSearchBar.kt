@@ -1,19 +1,19 @@
 package br.acerola.comic.module.main.home.component
 
+import android.content.res.Configuration
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
 import br.acerola.comic.common.ux.Acerola
 import br.acerola.comic.common.ux.component.SearchBar
 import br.acerola.comic.common.ux.component.rememberSearchBarContentPadding
+import br.acerola.comic.common.ux.theme.AcerolaTheme
 import br.acerola.comic.dto.ComicDto
 import br.acerola.comic.dto.history.ReadingHistoryDto
 import br.acerola.comic.module.main.Main
 import br.acerola.comic.ui.R
-import androidx.compose.ui.tooling.preview.Preview
-import android.content.res.Configuration
-import br.acerola.comic.common.ux.theme.AcerolaTheme
 
 @Composable
 fun Main.Home.Component.HomeSearchBar(

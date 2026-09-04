@@ -44,7 +44,7 @@ impl SecureP2pStorage {
             Err(err) => {
                 tracing::error!(layer = "storage", error = %err, "failed to load cached peers, starting empty");
                 Vec::new()
-            },
+            }
         };
 
         let device_info_cache = match store.load_blob(DEVICE_INFO_KEY.to_string()) {
@@ -53,7 +53,7 @@ impl SecureP2pStorage {
             Err(err) => {
                 tracing::error!(layer = "storage", error = %err, "failed to load cached device info, starting empty");
                 Vec::new()
-            },
+            }
         };
 
         Self {
@@ -71,8 +71,9 @@ impl SecureP2pStorage {
         let mut peers = self.peers_cache.write().await;
         peers.retain(|cached| cached.id.id != id);
 
-        let bytes = serde_json::to_vec(&*peers)
-            .map_err(|err| P2pError::StartupFailed(format!("failed to encode peer cache: {err}")))?;
+        let bytes = serde_json::to_vec(&*peers).map_err(|err| {
+            P2pError::StartupFailed(format!("failed to encode peer cache: {err}"))
+        })?;
 
         self.store
             .save_blob(PEERS_KEY.to_string(), bytes)
@@ -83,12 +84,15 @@ impl SecureP2pStorage {
         let mut device_info = self.device_info_cache.write().await;
         device_info.retain(|(cached_id, _)| cached_id.id != id);
 
-        let bytes = serde_json::to_vec(&*device_info)
-            .map_err(|err| P2pError::StartupFailed(format!("failed to encode device info cache: {err}")))?;
+        let bytes = serde_json::to_vec(&*device_info).map_err(|err| {
+            P2pError::StartupFailed(format!("failed to encode device info cache: {err}"))
+        })?;
 
         self.store
             .save_blob(DEVICE_INFO_KEY.to_string(), bytes)
-            .map_err(|err| P2pError::StartupFailed(format!("failed to save device info cache: {err}")))
+            .map_err(|err| {
+                P2pError::StartupFailed(format!("failed to save device info cache: {err}"))
+            })
     }
 
     fn migrate_legacy_files(store: &Arc<dyn SecureBlobStore>, legacy_dir: &Path) {
@@ -109,14 +113,14 @@ impl SecureP2pStorage {
                     }
                 }
                 std::fs::remove_file(path).ok();
-            },
+            }
             Ok(Some(_)) => {
                 // Já migrado numa execução anterior — só limpa o arquivo antigo.
                 std::fs::remove_file(path).ok();
-            },
+            }
             Err(err) => {
                 tracing::error!(layer = "storage", key, error = %err, "secure store unavailable, skipping legacy migration");
-            },
+            }
         }
     }
 }
@@ -142,8 +146,9 @@ impl P2PStorage for SecureP2pStorage {
             None => peers.push(peer.clone()),
         }
 
-        let bytes = serde_json::to_vec(&*peers)
-            .map_err(|err| P2pError::StartupFailed(format!("failed to encode peer cache: {err}")))?;
+        let bytes = serde_json::to_vec(&*peers).map_err(|err| {
+            P2pError::StartupFailed(format!("failed to encode peer cache: {err}"))
+        })?;
 
         self.store
             .save_blob(PEERS_KEY.to_string(), bytes)
@@ -154,19 +159,29 @@ impl P2PStorage for SecureP2pStorage {
         Ok(self.peers_cache.read().await.clone())
     }
 
-    async fn save_device_info(&self, peer: &PeerIdentity, info: &DeviceInfo) -> Result<(), P2pError> {
+    async fn save_device_info(
+        &self,
+        peer: &PeerIdentity,
+        info: &DeviceInfo,
+    ) -> Result<(), P2pError> {
         let mut device_info = self.device_info_cache.write().await;
-        match device_info.iter_mut().find(|(cached_id, _)| cached_id.id == peer.id) {
+        match device_info
+            .iter_mut()
+            .find(|(cached_id, _)| cached_id.id == peer.id)
+        {
             Some(entry) => entry.1 = info.clone(),
             None => device_info.push((peer.clone(), info.clone())),
         }
 
-        let bytes = serde_json::to_vec(&*device_info)
-            .map_err(|err| P2pError::StartupFailed(format!("failed to encode device info cache: {err}")))?;
+        let bytes = serde_json::to_vec(&*device_info).map_err(|err| {
+            P2pError::StartupFailed(format!("failed to encode device info cache: {err}"))
+        })?;
 
         self.store
             .save_blob(DEVICE_INFO_KEY.to_string(), bytes)
-            .map_err(|err| P2pError::StartupFailed(format!("failed to save device info cache: {err}")))
+            .map_err(|err| {
+                P2pError::StartupFailed(format!("failed to save device info cache: {err}"))
+            })
     }
 
     async fn load_device_info(&self) -> Result<Vec<(PeerIdentity, DeviceInfo)>, P2pError> {
@@ -201,7 +216,11 @@ impl P2PStorage for SharedSecureP2pStorage {
         self.0.load_peers().await
     }
 
-    async fn save_device_info(&self, peer: &PeerIdentity, info: &DeviceInfo) -> Result<(), P2pError> {
+    async fn save_device_info(
+        &self,
+        peer: &PeerIdentity,
+        info: &DeviceInfo,
+    ) -> Result<(), P2pError> {
         self.0.save_device_info(peer, info).await
     }
 
@@ -225,7 +244,9 @@ mod tests {
 
     impl FakeBlobStore {
         fn new() -> Self {
-            Self { data: StdMutex::new(HashMap::new()) }
+            Self {
+                data: StdMutex::new(HashMap::new()),
+            }
         }
     }
 
@@ -241,7 +262,13 @@ mod tests {
     }
 
     fn make_peer(id: &str) -> PeerAddr {
-        PeerAddr { id: PeerIdentity { id: id.to_string(), device_id: None }, addrs: Vec::new() }
+        PeerAddr {
+            id: PeerIdentity {
+                id: id.to_string(),
+                device_id: None,
+            },
+            addrs: Vec::new(),
+        }
     }
 
     #[tokio::test]
@@ -295,7 +322,11 @@ mod tests {
     }
 
     fn make_device_info(name: &str) -> DeviceInfo {
-        DeviceInfo { name: name.to_string(), os: "android".to_string(), version: "1.0.0".to_string() }
+        DeviceInfo {
+            name: name.to_string(),
+            os: "android".to_string(),
+            version: "1.0.0".to_string(),
+        }
     }
 
     #[tokio::test]
@@ -303,7 +334,13 @@ mod tests {
         let blob_store: Arc<dyn SecureBlobStore> = Arc::new(FakeBlobStore::new());
 
         let storage = SecureP2pStorage::open(Arc::clone(&blob_store), None);
-        storage.save_device_info(&make_peer("peer-a").id, &make_device_info("Pixel do Vinicius")).await.unwrap();
+        storage
+            .save_device_info(
+                &make_peer("peer-a").id,
+                &make_device_info("Pixel do Vinicius"),
+            )
+            .await
+            .unwrap();
 
         let reopened = SecureP2pStorage::open(blob_store, None);
         let loaded = reopened.load_device_info().await.unwrap();
@@ -316,8 +353,14 @@ mod tests {
     async fn save_device_info_upserts_by_id_instead_of_duplicating() {
         let storage = SecureP2pStorage::open(Arc::new(FakeBlobStore::new()), None);
 
-        storage.save_device_info(&make_peer("peer-a").id, &make_device_info("old-name")).await.unwrap();
-        storage.save_device_info(&make_peer("peer-a").id, &make_device_info("new-name")).await.unwrap();
+        storage
+            .save_device_info(&make_peer("peer-a").id, &make_device_info("old-name"))
+            .await
+            .unwrap();
+        storage
+            .save_device_info(&make_peer("peer-a").id, &make_device_info("new-name"))
+            .await
+            .unwrap();
 
         let loaded = storage.load_device_info().await.unwrap();
         assert_eq!(loaded.len(), 1);
@@ -328,7 +371,13 @@ mod tests {
     async fn remove_peer_also_forgets_its_persisted_device_name() {
         let storage = SecureP2pStorage::open(Arc::new(FakeBlobStore::new()), None);
         storage.save_peer(&make_peer("peer-a")).await.unwrap();
-        storage.save_device_info(&make_peer("peer-a").id, &make_device_info("Pixel do Vinicius")).await.unwrap();
+        storage
+            .save_device_info(
+                &make_peer("peer-a").id,
+                &make_device_info("Pixel do Vinicius"),
+            )
+            .await
+            .unwrap();
 
         storage.remove_peer("peer-a").await.unwrap();
 

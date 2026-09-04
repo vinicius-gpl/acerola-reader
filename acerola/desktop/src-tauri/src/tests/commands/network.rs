@@ -64,7 +64,8 @@ impl MockNetworkService {
     }
 
     fn set_paired_peers(&self, paired_peers: Vec<(PeerAddr, Option<DeviceInfo>)>) {
-        self.state.lock().expect("network mock mutex should not be poisoned").paired_peers = paired_peers;
+        self.state.lock().expect("network mock mutex should not be poisoned").paired_peers =
+            paired_peers;
     }
 
     fn mode(&self) -> NetworkMode {
@@ -363,7 +364,8 @@ async fn test_set_local_device_name_serializes_service_error() -> Result<()> {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_get_paired_peers_returns_persisted_peers_regardless_of_active_connection() -> Result<()> {
+async fn test_get_paired_peers_returns_persisted_peers_regardless_of_active_connection(
+) -> Result<()> {
     let service = mock_network_service();
     service.set_paired_peers(vec![
         (
@@ -421,11 +423,17 @@ async fn test_remove_paired_peer_drops_it_from_the_paired_list() -> Result<()> {
     let service = mock_network_service();
     service.set_paired_peers(vec![
         (
-            PeerAddr { id: PeerIdentity { id: "peer-to-remove".to_string(), device_id: None }, addrs: vec![1] },
+            PeerAddr {
+                id: PeerIdentity { id: "peer-to-remove".to_string(), device_id: None },
+                addrs: vec![1],
+            },
             None,
         ),
         (
-            PeerAddr { id: PeerIdentity { id: "peer-to-keep".to_string(), device_id: None }, addrs: vec![2] },
+            PeerAddr {
+                id: PeerIdentity { id: "peer-to-keep".to_string(), device_id: None },
+                addrs: vec![2],
+            },
             None,
         ),
     ]);

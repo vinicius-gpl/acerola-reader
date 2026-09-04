@@ -21,8 +21,8 @@ uniffi::setup_scaffolding!();
 mod android_init {
     use jni::objects::GlobalRef;
     use once_cell::sync::OnceCell;
-    use tracing_subscriber::prelude::*;
     use tracing_subscriber::filter::{LevelFilter, Targets};
+    use tracing_subscriber::prelude::*;
 
     static CONTEXT: OnceCell<GlobalRef> = OnceCell::new();
 
@@ -62,20 +62,20 @@ mod android_init {
         CONTEXT.set(global).ok();
 
         tracing_subscriber::registry()
-              .with(tracing_android::layer("ACEROLA/P2P").unwrap())
-              .with(
-                   Targets::new()
-                        .with_default(LevelFilter::WARN)
-                        .with_target("acerola_p2p", LevelFilter::DEBUG)
-                        .with_target("acerola", LevelFilter::DEBUG)
-                        .with_target("acto", LevelFilter::OFF)
-                        .with_target("iroh", LevelFilter::DEBUG)  // temporário
-                        .with_target("noq_proto", LevelFilter::DEBUG)  // temporário
-                        .with_target("swarm_discovery", LevelFilter::OFF)
-                        .with_target("hickory_proto", LevelFilter::OFF)
-                        .with_target("iroh", LevelFilter::ERROR),
-              )
-              .init();
+            .with(tracing_android::layer("ACEROLA/P2P").unwrap())
+            .with(
+                Targets::new()
+                    .with_default(LevelFilter::WARN)
+                    .with_target("acerola_p2p", LevelFilter::DEBUG)
+                    .with_target("acerola", LevelFilter::DEBUG)
+                    .with_target("acto", LevelFilter::OFF)
+                    .with_target("iroh", LevelFilter::DEBUG) // temporário
+                    .with_target("noq_proto", LevelFilter::DEBUG) // temporário
+                    .with_target("swarm_discovery", LevelFilter::OFF)
+                    .with_target("hickory_proto", LevelFilter::OFF)
+                    .with_target("iroh", LevelFilter::ERROR),
+            )
+            .init();
 
         jni::sys::JNI_VERSION_1_6
     }

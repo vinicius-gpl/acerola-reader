@@ -1,5 +1,6 @@
 package br.acerola.comic.module.main.config.component
 
+import android.content.res.Configuration
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -17,17 +18,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
 import br.acerola.comic.common.ux.Acerola
 import br.acerola.comic.common.ux.component.HeroButton
 import br.acerola.comic.common.ux.component.IconButton
+import br.acerola.comic.common.ux.theme.AcerolaTheme
 import br.acerola.comic.common.ux.tokens.ShapeTokens
 import br.acerola.comic.common.ux.tokens.SizeTokens
 import br.acerola.comic.common.ux.tokens.SpacingTokens
 import br.acerola.comic.module.main.Main
 import br.acerola.comic.ui.R
-import androidx.compose.ui.tooling.preview.Preview
-import android.content.res.Configuration
-import br.acerola.comic.common.ux.theme.AcerolaTheme
 
 @Composable
 fun Main.Config.Component.SelectComicDirectory(

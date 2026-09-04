@@ -19,7 +19,9 @@ type Writer = FramedWrite<Box<dyn AsyncWrite + Send + Unpin>, LengthDelimitedCod
 /// transação binder cada), que é custo desnecessário só pra listar títulos e já foi a causa de
 /// `browse-library` estourar `RESPONSE_READ_TIMEOUT` numa biblioteca grande. Ver o comentário em
 /// `callbacks::FileSyncProvider::get_library_summary`.
-pub(super) async fn build_summary(provider: &Arc<dyn FileSyncProvider>) -> Result<LibrarySummary, P2pError> {
+pub(super) async fn build_summary(
+    provider: &Arc<dyn FileSyncProvider>,
+) -> Result<LibrarySummary, P2pError> {
     let provider = Arc::clone(provider);
     let entries = run_blocking(move || provider.get_library_summary()).await?;
 
@@ -44,13 +46,15 @@ pub(super) async fn build_summary(provider: &Arc<dyn FileSyncProvider>) -> Resul
 /// conexão — travando a sessão inteira nesse meio tempo (mesmo problema já corrigido no Desktop,
 /// ver `library_browse_handler.rs` lá).
 pub(super) async fn run_inbound(
-    provider: &Arc<dyn FileSyncProvider>, send: Box<dyn AsyncWrite + Send + Unpin>,
+    provider: &Arc<dyn FileSyncProvider>,
+    send: Box<dyn AsyncWrite + Send + Unpin>,
 ) -> Result<(), P2pError> {
     let summary = build_summary(provider).await?;
 
     let mut writer: Writer = FramedWrite::new(send, LengthDelimitedCodec::new());
-    let bytes = serde_json::to_vec(&summary)
-        .map_err(|err| P2pError::StreamFailed(format!("failed to encode library summary: {err}")))?;
+    let bytes = serde_json::to_vec(&summary).map_err(|err| {
+        P2pError::StreamFailed(format!("failed to encode library summary: {err}"))
+    })?;
     writer
         .send(bytes.into())
         .await
@@ -62,13 +66,13 @@ pub(super) async fn run_inbound(
 /// `accept_bi()` (regra do quinn, a lib QUIC por baixo do iroh), o que causava timeout/demora
 /// aleatória em vez de uma troca previsível.
 pub(super) async fn run_outbound(
-    send: Box<dyn AsyncWrite + Send + Unpin>, recv: Box<dyn AsyncRead + Send + Unpin>,
+    send: Box<dyn AsyncWrite + Send + Unpin>,
+    recv: Box<dyn AsyncRead + Send + Unpin>,
 ) -> Result<LibrarySummary, P2pError> {
     let mut writer: Writer = FramedWrite::new(send, LengthDelimitedCodec::new());
-    writer
-        .send(b"{}".to_vec().into())
-        .await
-        .map_err(|err| P2pError::StreamFailed(format!("failed to write library browse request: {err}")))?;
+    writer.send(b"{}".to_vec().into()).await.map_err(|err| {
+        P2pError::StreamFailed(format!("failed to write library browse request: {err}"))
+    })?;
 
     let mut reader: Recv = FramedRead::new(recv, LengthDelimitedCodec::new());
     let frame = tokio::time::timeout(RESPONSE_READ_TIMEOUT, reader.next())
@@ -107,7 +111,11 @@ mod tests {
         }
         fn close_read_handle(&self, _handle: i64) {}
         fn begin_chapter_write(
-            &self, _comic_name: String, _chapter: String, _file_name: String, _expected_checksum: String,
+            &self,
+            _comic_name: String,
+            _chapter: String,
+            _file_name: String,
+            _expected_checksum: String,
             _size_bytes: u64,
         ) -> i64 {
             -1
@@ -126,7 +134,11 @@ mod tests {
             -1
         }
         fn begin_extra_write(
-            &self, _comic_name: String, _kind: String, _file_name: String, _expected_checksum: String,
+            &self,
+            _comic_name: String,
+            _kind: String,
+            _file_name: String,
+            _expected_checksum: String,
             _size_bytes: u64,
         ) -> i64 {
             -1
@@ -138,7 +150,11 @@ mod tests {
     }
 
     fn summary_entry(comic_name: &str, chapter_count: u32) -> FfiComicSummaryEntry {
-        FfiComicSummaryEntry { comic_name: comic_name.to_string(), chapter_count, cover_version: 0 }
+        FfiComicSummaryEntry {
+            comic_name: comic_name.to_string(),
+            chapter_count,
+            cover_version: 0,
+        }
     }
 
     /// `build_summary` só mapeia/ordena o que `get_library_summary()` (agrupamento já feito no
@@ -164,15 +180,18 @@ mod tests {
     /// nada, só responde direto (mesma garantia que o teste equivalente do Desktop cobre).
     #[tokio::test]
     async fn run_outbound_writes_request_but_inbound_never_reads_it_and_still_responds() {
-        let provider: Arc<dyn FileSyncProvider> =
-            Arc::new(StubProvider { summary: vec![summary_entry("Solo Leveling", 2)] });
+        let provider: Arc<dyn FileSyncProvider> = Arc::new(StubProvider {
+            summary: vec![summary_entry("Solo Leveling", 2)],
+        });
 
         let (client_io, server_io) = tokio::io::duplex(64 * 1024);
         let (client_recv, client_send) = tokio::io::split(client_io);
         let (_server_recv, server_send) = tokio::io::split(server_io);
 
-        let inbound_fut =
-            run_inbound(&provider, Box::new(server_send) as Box<dyn AsyncWrite + Send + Unpin>);
+        let inbound_fut = run_inbound(
+            &provider,
+            Box::new(server_send) as Box<dyn AsyncWrite + Send + Unpin>,
+        );
         let outbound_fut = run_outbound(
             Box::new(client_send) as Box<dyn AsyncWrite + Send + Unpin>,
             Box::new(client_recv) as Box<dyn AsyncRead + Send + Unpin>,

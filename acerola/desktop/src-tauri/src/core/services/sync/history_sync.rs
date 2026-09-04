@@ -68,11 +68,7 @@ impl HistorySyncService {
             .find_all_with_natural_keys()
             .await?
             .into_iter()
-            .map(|(comic_name, chapter, created_at)| ReadMarker {
-                comic_name,
-                chapter,
-                created_at,
-            })
+            .map(|(comic_name, chapter, created_at)| ReadMarker { comic_name, chapter, created_at })
             .collect();
 
         Ok(HistoryManifest { entries, read_markers })
