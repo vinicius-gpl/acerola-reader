@@ -725,6 +725,9 @@ internal interface UniffiCallbackInterfaceSecureBlobStoreMethod0 : com.sun.jna.C
 internal interface UniffiCallbackInterfaceSecureBlobStoreMethod1 : com.sun.jna.Callback {
     fun callback(`uniffiHandle`: Long,`key`: RustBuffer.ByValue,`uniffiOutReturn`: RustBuffer,uniffiCallStatus: UniffiRustCallStatus,)
 }
+internal interface UniffiCallbackInterfaceSecureBlobStoreMethod2 : com.sun.jna.Callback {
+    fun callback(`uniffiHandle`: Long,`key`: RustBuffer.ByValue,`uniffiOutReturn`: Pointer,uniffiCallStatus: UniffiRustCallStatus,)
+}
 @Structure.FieldOrder("getLocalCover", "saveRemoteCover", "uniffiFree")
 internal open class UniffiVTableCallbackInterfaceCoverBrowseProvider(
     @JvmField internal var `getLocalCover`: UniffiCallbackInterfaceCoverBrowseProviderMethod0? = null,
@@ -840,25 +843,36 @@ internal open class UniffiVTableCallbackInterfaceP2pCallback(
     }
 
 }
-@Structure.FieldOrder("saveBlob", "loadBlob", "uniffiFree")
+@Structure.FieldOrder("saveBlob", "loadBlob", "clearBlob", "uniffiFree")
 internal open class UniffiVTableCallbackInterfaceSecureBlobStore(
     @JvmField internal var `saveBlob`: UniffiCallbackInterfaceSecureBlobStoreMethod0? = null,
     @JvmField internal var `loadBlob`: UniffiCallbackInterfaceSecureBlobStoreMethod1? = null,
+    @JvmField internal var `clearBlob`: UniffiCallbackInterfaceSecureBlobStoreMethod2? = null,
     @JvmField internal var `uniffiFree`: UniffiCallbackInterfaceFree? = null,
 ) : Structure() {
     class UniffiByValue(
         `saveBlob`: UniffiCallbackInterfaceSecureBlobStoreMethod0? = null,
         `loadBlob`: UniffiCallbackInterfaceSecureBlobStoreMethod1? = null,
+        `clearBlob`: UniffiCallbackInterfaceSecureBlobStoreMethod2? = null,
         `uniffiFree`: UniffiCallbackInterfaceFree? = null,
-    ): UniffiVTableCallbackInterfaceSecureBlobStore(`saveBlob`,`loadBlob`,`uniffiFree`,), Structure.ByValue
+    ): UniffiVTableCallbackInterfaceSecureBlobStore(`saveBlob`,`loadBlob`,`clearBlob`,`uniffiFree`,), Structure.ByValue
 
    internal fun uniffiSetValue(other: UniffiVTableCallbackInterfaceSecureBlobStore) {
         `saveBlob` = other.`saveBlob`
         `loadBlob` = other.`loadBlob`
+        `clearBlob` = other.`clearBlob`
         `uniffiFree` = other.`uniffiFree`
     }
 
 }
+
+
+
+
+
+
+
+
 
 
 
@@ -1114,6 +1128,8 @@ internal interface UniffiLib : Library {
     ): Unit
     fun uniffi_acerola_fn_method_p2pnode_browse_library(`ptr`: Pointer,`peerAddr`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
+    fun uniffi_acerola_fn_method_p2pnode_clear_iroh_services_ticket(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
+    ): Unit
     fun uniffi_acerola_fn_method_p2pnode_connect(`ptr`: Pointer,`peerAddr`: RustBuffer.ByValue,`alpn`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
     fun uniffi_acerola_fn_method_p2pnode_get_connected_peers(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
@@ -1128,9 +1144,13 @@ internal interface UniffiLib : Library {
     ): RustBuffer.ByValue
     fun uniffi_acerola_fn_method_p2pnode_get_paired_peers(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
+    fun uniffi_acerola_fn_method_p2pnode_has_iroh_services_ticket(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
+    ): Byte
     fun uniffi_acerola_fn_method_p2pnode_notify_network_change(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
     fun uniffi_acerola_fn_method_p2pnode_remove_paired_peer(`ptr`: Pointer,`id`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): Unit
+    fun uniffi_acerola_fn_method_p2pnode_set_iroh_services_ticket(`ptr`: Pointer,`ticket`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
     fun uniffi_acerola_fn_method_p2pnode_set_local_device_name(`ptr`: Pointer,`name`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
@@ -1152,6 +1172,8 @@ internal interface UniffiLib : Library {
     ): Unit
     fun uniffi_acerola_fn_method_secureblobstore_load_blob(`ptr`: Pointer,`key`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
+    fun uniffi_acerola_fn_method_secureblobstore_clear_blob(`ptr`: Pointer,`key`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): Unit
     fun ffi_acerola_rustbuffer_alloc(`size`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     fun ffi_acerola_rustbuffer_from_bytes(`bytes`: ForeignBytes.ByValue,uniffi_out_err: UniffiRustCallStatus, 
@@ -1310,6 +1332,8 @@ internal interface UniffiLib : Library {
     ): Short
     fun uniffi_acerola_checksum_method_p2pnode_browse_library(
     ): Short
+    fun uniffi_acerola_checksum_method_p2pnode_clear_iroh_services_ticket(
+    ): Short
     fun uniffi_acerola_checksum_method_p2pnode_connect(
     ): Short
     fun uniffi_acerola_checksum_method_p2pnode_get_connected_peers(
@@ -1324,9 +1348,13 @@ internal interface UniffiLib : Library {
     ): Short
     fun uniffi_acerola_checksum_method_p2pnode_get_paired_peers(
     ): Short
+    fun uniffi_acerola_checksum_method_p2pnode_has_iroh_services_ticket(
+    ): Short
     fun uniffi_acerola_checksum_method_p2pnode_notify_network_change(
     ): Short
     fun uniffi_acerola_checksum_method_p2pnode_remove_paired_peer(
+    ): Short
+    fun uniffi_acerola_checksum_method_p2pnode_set_iroh_services_ticket(
     ): Short
     fun uniffi_acerola_checksum_method_p2pnode_set_local_device_name(
     ): Short
@@ -1341,6 +1369,8 @@ internal interface UniffiLib : Library {
     fun uniffi_acerola_checksum_method_secureblobstore_save_blob(
     ): Short
     fun uniffi_acerola_checksum_method_secureblobstore_load_blob(
+    ): Short
+    fun uniffi_acerola_checksum_method_secureblobstore_clear_blob(
     ): Short
     fun uniffi_acerola_checksum_constructor_p2pnode_new(
     ): Short
@@ -1430,6 +1460,9 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
     if (lib.uniffi_acerola_checksum_method_p2pnode_browse_library() != 61984.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if (lib.uniffi_acerola_checksum_method_p2pnode_clear_iroh_services_ticket() != 62374.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_acerola_checksum_method_p2pnode_connect() != 27942.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
@@ -1451,10 +1484,16 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
     if (lib.uniffi_acerola_checksum_method_p2pnode_get_paired_peers() != 51722.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if (lib.uniffi_acerola_checksum_method_p2pnode_has_iroh_services_ticket() != 2600.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_acerola_checksum_method_p2pnode_notify_network_change() != 973.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_acerola_checksum_method_p2pnode_remove_paired_peer() != 11699.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_acerola_checksum_method_p2pnode_set_iroh_services_ticket() != 21627.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_acerola_checksum_method_p2pnode_set_local_device_name() != 189.toShort()) {
@@ -1476,6 +1515,9 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_acerola_checksum_method_secureblobstore_load_blob() != 6864.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_acerola_checksum_method_secureblobstore_clear_blob() != 57516.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_acerola_checksum_constructor_p2pnode_new() != 35773.toShort()) {
@@ -3676,6 +3718,11 @@ public interface P2pNodeInterface {
      */
     fun `browseLibrary`(`peerAddr`: FfiPeerAddr)
     
+    /**
+     * Remove o ticket salvo — usado quando o usuário desliga a fonte ou substitui por um novo.
+     */
+    fun `clearIrohServicesTicket`()
+    
     fun `connect`(`peerAddr`: FfiPeerAddr, `alpn`: kotlin.ByteArray)
     
     fun `getConnectedPeers`(): Map<kotlin.String, List<kotlin.ByteArray>>
@@ -3698,6 +3745,12 @@ public interface P2pNodeInterface {
     fun `getPairedPeers`(): List<FfiPairedPeer>
     
     /**
+     * `true` se o usuário já colou e salvou um ticket da própria conta em
+     * `services.iroh.computer` — nunca devolve o valor em si (é uma credencial real).
+     */
+    fun `hasIrohServicesTicket`(): kotlin.Boolean
+    
+    /**
      * Repassa ao transporte um aviso de que a rede do SO pode ter mudado (troca de Wi-Fi/dados
      * móveis, saída de Doze, etc). Existe porque o Android não expõe monitoramento de interface
      * de rede para código nativo — só para Java/Kotlin via `ConnectivityManager.NetworkCallback`
@@ -3715,6 +3768,12 @@ public interface P2pNodeInterface {
      * fluxo TOFU de um dispositivo nunca visto (ver `trust_store::SecureTrustedStore::remove`).
      */
     fun `removePairedPeer`(`id`: kotlin.String)
+    
+    /**
+     * Valida o formato antes de persistir. Só tem efeito no próximo início do app — a lib não
+     * suporta trocar relay em runtime.
+     */
+    fun `setIrohServicesTicket`(`ticket`: kotlin.String)
     
     /**
      * Sobrescreve o nome exibido deste dispositivo (apelido custom estilo LocalSend, em vez do
@@ -3868,6 +3927,20 @@ open class P2pNode: Disposable, AutoCloseable, P2pNodeInterface {
     
     
 
+    
+    /**
+     * Remove o ticket salvo — usado quando o usuário desliga a fonte ou substitui por um novo.
+     */override fun `clearIrohServicesTicket`()
+        = 
+    callWithPointer {
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_acerola_fn_method_p2pnode_clear_iroh_services_ticket(
+        it, _status)
+}
+    }
+    
+    
+
     override fun `connect`(`peerAddr`: FfiPeerAddr, `alpn`: kotlin.ByteArray)
         = 
     callWithPointer {
@@ -3960,6 +4033,22 @@ open class P2pNode: Disposable, AutoCloseable, P2pNodeInterface {
 
     
     /**
+     * `true` se o usuário já colou e salvou um ticket da própria conta em
+     * `services.iroh.computer` — nunca devolve o valor em si (é uma credencial real).
+     */override fun `hasIrohServicesTicket`(): kotlin.Boolean {
+            return FfiConverterBoolean.lift(
+    callWithPointer {
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_acerola_fn_method_p2pnode_has_iroh_services_ticket(
+        it, _status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
      * Repassa ao transporte um aviso de que a rede do SO pode ter mudado (troca de Wi-Fi/dados
      * móveis, saída de Doze, etc). Existe porque o Android não expõe monitoramento de interface
      * de rede para código nativo — só para Java/Kotlin via `ConnectivityManager.NetworkCallback`
@@ -3990,6 +4079,22 @@ open class P2pNode: Disposable, AutoCloseable, P2pNodeInterface {
     uniffiRustCall() { _status ->
     UniffiLib.INSTANCE.uniffi_acerola_fn_method_p2pnode_remove_paired_peer(
         it, FfiConverterString.lower(`id`),_status)
+}
+    }
+    
+    
+
+    
+    /**
+     * Valida o formato antes de persistir. Só tem efeito no próximo início do app — a lib não
+     * suporta trocar relay em runtime.
+     */
+    @Throws(RelayTicketException::class)override fun `setIrohServicesTicket`(`ticket`: kotlin.String)
+        = 
+    callWithPointer {
+    uniffiRustCallWithError(RelayTicketException) { _status ->
+    UniffiLib.INSTANCE.uniffi_acerola_fn_method_p2pnode_set_iroh_services_ticket(
+        it, FfiConverterString.lower(`ticket`),_status)
 }
     }
     
@@ -4226,6 +4331,13 @@ public interface SecureBlobStore {
      */
     fun `loadBlob`(`key`: kotlin.String): kotlin.ByteArray?
     
+    /**
+     * Remove uma chave — idempotente (chave inexistente não é erro). Usado hoje só pelo
+     * ticket da Iroh Services (ver `storage.rs::clear_iroh_services_ticket`), quando o
+     * usuário desliga a fonte ou substitui por um novo.
+     */
+    fun `clearBlob`(`key`: kotlin.String)
+    
     companion object
 }
 
@@ -4354,6 +4466,23 @@ open class SecureBlobStoreImpl: Disposable, AutoCloseable, SecureBlobStore {
     
 
     
+    /**
+     * Remove uma chave — idempotente (chave inexistente não é erro). Usado hoje só pelo
+     * ticket da Iroh Services (ver `storage.rs::clear_iroh_services_ticket`), quando o
+     * usuário desliga a fonte ou substitui por um novo.
+     */
+    @Throws(SecureBlobStoreException::class)override fun `clearBlob`(`key`: kotlin.String)
+        = 
+    callWithPointer {
+    uniffiRustCallWithError(SecureBlobStoreException) { _status ->
+    UniffiLib.INSTANCE.uniffi_acerola_fn_method_secureblobstore_clear_blob(
+        it, FfiConverterString.lower(`key`),_status)
+}
+    }
+    
+    
+
+    
 
     
     
@@ -4399,6 +4528,23 @@ internal object uniffiCallbackInterfaceSecureBlobStore {
             )
         }
     }
+    internal object `clearBlob`: UniffiCallbackInterfaceSecureBlobStoreMethod2 {
+        override fun callback(`uniffiHandle`: Long,`key`: RustBuffer.ByValue,`uniffiOutReturn`: Pointer,uniffiCallStatus: UniffiRustCallStatus,) {
+            val uniffiObj = FfiConverterTypeSecureBlobStore.handleMap.get(uniffiHandle)
+            val makeCall = { ->
+                uniffiObj.`clearBlob`(
+                    FfiConverterString.lift(`key`),
+                )
+            }
+            val writeReturn = { _: Unit -> Unit }
+            uniffiTraitInterfaceCallWithError(
+                uniffiCallStatus,
+                makeCall,
+                writeReturn,
+                { e: SecureBlobStoreException -> FfiConverterTypeSecureBlobStoreError.lower(e) }
+            )
+        }
+    }
 
     internal object uniffiFree: UniffiCallbackInterfaceFree {
         override fun callback(handle: Long) {
@@ -4409,6 +4555,7 @@ internal object uniffiCallbackInterfaceSecureBlobStore {
     internal var vtable = UniffiVTableCallbackInterfaceSecureBlobStore.UniffiByValue(
         `saveBlob`,
         `loadBlob`,
+        `clearBlob`,
         uniffiFree,
     )
 
@@ -4946,6 +5093,69 @@ public object FfiConverterTypeFfiSyncDirection: FfiConverterRustBuffer<FfiSyncDi
 }
 
 
+
+
+
+
+
+/**
+ * Erro exposto pra fronteira FFI (Kotlin) quando o usuário cola um ticket malformado —
+ * validado antes de persistir, em vez de só falhar silenciosamente no próximo boot.
+ */
+sealed class RelayTicketException: kotlin.Exception() {
+    
+    class Invalid(
+        
+        val `reason`: kotlin.String
+        ) : RelayTicketException() {
+        override val message
+            get() = "reason=${ `reason` }"
+    }
+    
+
+    companion object ErrorHandler : UniffiRustCallStatusErrorHandler<RelayTicketException> {
+        override fun lift(error_buf: RustBuffer.ByValue): RelayTicketException = FfiConverterTypeRelayTicketError.lift(error_buf)
+    }
+
+    
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeRelayTicketError : FfiConverterRustBuffer<RelayTicketException> {
+    override fun read(buf: ByteBuffer): RelayTicketException {
+        
+
+        return when(buf.getInt()) {
+            1 -> RelayTicketException.Invalid(
+                FfiConverterString.read(buf),
+                )
+            else -> throw RuntimeException("invalid error enum value, something is very wrong!!")
+        }
+    }
+
+    override fun allocationSize(value: RelayTicketException): ULong {
+        return when(value) {
+            is RelayTicketException.Invalid -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+                + FfiConverterString.allocationSize(value.`reason`)
+            )
+        }
+    }
+
+    override fun write(value: RelayTicketException, buf: ByteBuffer) {
+        when(value) {
+            is RelayTicketException.Invalid -> {
+                buf.putInt(1)
+                FfiConverterString.write(value.`reason`, buf)
+                Unit
+            }
+        }.let { /* this makes the `when` an expression, which ensures it is exhaustive */ }
+    }
+
+}
 
 
 

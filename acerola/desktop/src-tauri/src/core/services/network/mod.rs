@@ -47,6 +47,14 @@ pub trait NetworkServiceApi: Send + Sync + 'static {
     async fn mode(&self) -> Result<NetworkMode, String>;
     async fn connect(&self, peer_addr: PeerAddr, alpn: Vec<u8>) -> Result<(), String>;
     async fn shutdown(&self) -> Result<(), String>;
+    /// `true` se o usuário já colou e salvou um ticket da própria conta em
+    /// `services.iroh.computer` — nunca devolve o valor em si (é uma credencial real).
+    async fn has_iroh_services_ticket(&self) -> Result<bool, String>;
+    /// Valida o formato antes de persistir (rejeita colagem incompleta/errada na hora, em vez
+    /// de só falhar no próximo boot). Só tem efeito no próximo início do app — a lib não
+    /// suporta trocar relay em runtime.
+    async fn set_iroh_services_ticket(&self, ticket: String) -> Result<(), String>;
+    async fn clear_iroh_services_ticket(&self) -> Result<(), String>;
 }
 
 pub struct NetworkService {
@@ -147,5 +155,20 @@ impl NetworkServiceApi for NetworkService {
 
     async fn shutdown(&self) -> Result<(), String> {
         self.node.shutdown().await.map_err(|err| err.to_string())
+    }
+
+    async fn has_iroh_services_ticket(&self) -> Result<bool, String> {
+        Ok(self.storage.load_iroh_services_ticket().await.map_err(|err| err.to_string())?.is_some())
+    }
+
+    async fn set_iroh_services_ticket(&self, ticket: String) -> Result<(), String> {
+        let trimmed = ticket.trim();
+        acerola_p2p::api::transport::validate_iroh_services_ticket(trimmed)
+            .map_err(|err| err.to_string())?;
+        self.storage.save_iroh_services_ticket(trimmed).await.map_err(|err| err.to_string())
+    }
+
+    async fn clear_iroh_services_ticket(&self) -> Result<(), String> {
+        self.storage.clear_iroh_services_ticket().await.map_err(|err| err.to_string())
     }
 }

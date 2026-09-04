@@ -15,6 +15,7 @@ import p2p.FileSyncProvider
 import p2p.HistorySyncProvider
 import p2p.P2pCallback
 import p2p.P2pNode
+import p2p.RelayTicketException
 import p2p.SecureBlobStore
 import java.io.Closeable
 
@@ -282,6 +283,26 @@ class P2pService(
     fun removePairedPeer(id: String) {
         Log.d("P2pService", "Removing paired peer: $id")
         p2pNode.removePairedPeer(id)
+    }
+
+    /** `true` se o usuário já colou e salvou um ticket da própria conta em
+     *  `services.iroh.computer` — nunca devolve o valor em si (é uma credencial real). */
+    fun hasIrohServicesTicket(): Boolean = p2pNode.hasIrohServicesTicket()
+
+    /** Valida o formato antes de persistir. Só tem efeito no próximo início do app — a lib
+     *  não suporta trocar relay em runtime.
+     *  @throws IllegalArgumentException se o ticket for malformado. */
+    fun setIrohServicesTicket(ticket: String) {
+        try {
+            p2pNode.setIrohServicesTicket(ticket)
+        } catch (error: RelayTicketException.Invalid) {
+            throw IllegalArgumentException(error.reason)
+        }
+    }
+
+    /** Remove o ticket salvo — usado quando o usuário desliga a fonte ou substitui por um novo. */
+    fun clearIrohServicesTicket() {
+        p2pNode.clearIrohServicesTicket()
     }
 
     fun shutdown() {

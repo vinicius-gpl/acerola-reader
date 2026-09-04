@@ -145,6 +145,11 @@ pub trait SecureBlobStore: Send + Sync {
     /// `Ok(None)` se a chave nunca foi salva (estado normal). `Err` só em falha real de
     /// backend — ver `save_blob`.
     fn load_blob(&self, key: String) -> Result<Option<Vec<u8>>, SecureBlobStoreError>;
+
+    /// Remove uma chave — idempotente (chave inexistente não é erro). Usado hoje só pelo
+    /// ticket da Iroh Services (ver `storage.rs::clear_iroh_services_ticket`), quando o
+    /// usuário desliga a fonte ou substitui por um novo.
+    fn clear_blob(&self, key: String) -> Result<(), SecureBlobStoreError>;
 }
 
 #[derive(uniffi::Error, thiserror::Error, Debug)]

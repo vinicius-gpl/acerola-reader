@@ -19,13 +19,28 @@ pub struct FfiRelaySettings {
     pub iroh_relay_urls: Vec<String>,
 }
 
+/// Erro exposto pra fronteira FFI (Kotlin) quando o usuário cola um ticket malformado —
+/// validado antes de persistir, em vez de só falhar silenciosamente no próximo boot.
+#[derive(uniffi::Error, thiserror::Error, Debug)]
+pub enum RelayTicketError {
+    #[error("invalid Iroh Services ticket: {reason}")]
+    Invalid { reason: String },
+}
+
 impl FfiRelaySettings {
     /// Resolve as fontes habilitadas para o `RelayModeConfig` concreto consumido pelo
     /// `IrohTransportBuilder`. Sem nenhuma fonte ativa, cai em `MdnsOnly` — não existe um modo
     /// "mDNS only" explícito na UI, é só o estado natural de "nada selecionado".
-    pub(crate) fn resolve(&self) -> RelayModeConfig {
+    ///
+    /// `iroh_services_ticket` vem do cofre criptografado (`SecureP2pStorage`), não do
+    /// DataStore — é a conta do PRÓPRIO usuário em `services.iroh.computer`, uma credencial
+    /// real, não uma preferência qualquer. Se o toggle estiver ligado mas nenhum ticket tiver
+    /// sido colado ainda, essa fonte é ignorada e as demais combinam normalmente.
+    pub(crate) fn resolve(&self, iroh_services_ticket: Option<&str>) -> RelayModeConfig {
         if self.use_iroh_public_network {
-            return RelayModeConfig::IrohDefault;
+            if let Some(ticket) = iroh_services_ticket {
+                return RelayModeConfig::IrohDefault(ticket.to_string());
+            }
         }
 
         let mut urls = Vec::new();
@@ -58,7 +73,7 @@ mod tests {
             iroh_relay_urls: vec![],
         };
 
-        assert_eq!(settings.resolve(), RelayModeConfig::MdnsOnly);
+        assert_eq!(settings.resolve(None), RelayModeConfig::MdnsOnly);
     }
 
     #[test]
@@ -71,7 +86,7 @@ mod tests {
         };
 
         assert_eq!(
-            settings.resolve(),
+            settings.resolve(None),
             RelayModeConfig::Custom(vec![
                 ACEROLA_DEFAULT_RELAY_URL.to_string(),
                 "https://relay-a.test.local".to_string(),
@@ -81,7 +96,7 @@ mod tests {
     }
 
     #[test]
-    fn test_resolve_iroh_public_network_ignores_other_sources() {
+    fn test_resolve_iroh_public_network_with_ticket_ignores_other_sources() {
         let settings = FfiRelaySettings {
             use_acerola_relay: true,
             use_iroh_public_network: true,
@@ -89,7 +104,25 @@ mod tests {
             iroh_relay_urls: vec![],
         };
 
-        assert_eq!(settings.resolve(), RelayModeConfig::IrohDefault);
+        assert_eq!(
+            settings.resolve(Some("services-fake-ticket")),
+            RelayModeConfig::IrohDefault("services-fake-ticket".to_string())
+        );
+    }
+
+    #[test]
+    fn test_resolve_iroh_public_network_without_ticket_falls_back_to_other_sources() {
+        let settings = FfiRelaySettings {
+            use_acerola_relay: true,
+            use_iroh_public_network: true,
+            custom_relay_urls: vec![],
+            iroh_relay_urls: vec![],
+        };
+
+        assert_eq!(
+            settings.resolve(None),
+            RelayModeConfig::Custom(vec![ACEROLA_DEFAULT_RELAY_URL.to_string()])
+        );
     }
 
     #[test]
@@ -102,7 +135,7 @@ mod tests {
         };
 
         assert_eq!(
-            settings.resolve(),
+            settings.resolve(None),
             RelayModeConfig::Custom(vec![ACEROLA_DEFAULT_RELAY_URL.to_string()])
         );
     }

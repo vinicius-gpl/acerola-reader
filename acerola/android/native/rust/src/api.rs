@@ -29,7 +29,7 @@ use crate::{
         history::{HistorySyncInbound, HistorySyncOutbound, HISTORY_SYNC_ALPN},
         library_browse::{LibraryBrowseInbound, LibraryBrowseOutbound, LIBRARY_BROWSE_ALPN},
     },
-    relay_settings::FfiRelaySettings,
+    relay_settings::{FfiRelaySettings, RelayTicketError},
     singleton::TOKIO_RUNTIME,
     storage::{SecureP2pStorage, SharedSecureP2pStorage},
     sync_direction::FfiSyncDirection,
@@ -132,6 +132,15 @@ impl P2PNode {
             legacy_dir,
         ));
 
+        // Ticket da conta do usuário em `services.iroh.computer` (colado por ele na tela de
+        // configuração de rede) — vem do MESMO cofre da identidade, não do DataStore. Falha
+        // real de backend não deveria travar a inicialização do resto da rede P2P por causa
+        // só da rede pública do Iroh, então também vira "sem ticket" aqui, com log.
+        let iroh_services_ticket = storage.load_iroh_services_ticket().unwrap_or_else(|error| {
+            tracing::warn!(layer = "relay", error = %error, "failed to load Iroh Services ticket");
+            None
+        });
+
         let pending_comic_scope: PendingComicScope = Arc::new(Mutex::new(HashMap::new()));
         let pending_cover_scope = PendingCoverRequestRegistry::new();
 
@@ -161,7 +170,7 @@ impl P2PNode {
                 // imediatamente enquanto o hang do FsStore é isolado/corrigido.
                 let _ = &blobs_dir;
                 let transport = IrohTransportBuilder::default()
-                    .relay_mode(relay_settings.resolve())
+                    .relay_mode(relay_settings.resolve(iroh_services_ticket.as_deref()))
                     .blobs(IrohBlobsConfig::mem());
 
                 let device = DefaultDeviceInfoProvider::new(device_name, device_version)
@@ -473,5 +482,37 @@ impl P2PNode {
                 })
                 .collect()
         })
+    }
+
+    /// `true` se o usuário já colou e salvou um ticket da própria conta em
+    /// `services.iroh.computer` — nunca devolve o valor em si (é uma credencial real).
+    pub fn has_iroh_services_ticket(&self) -> bool {
+        self.storage
+            .load_iroh_services_ticket()
+            .ok()
+            .flatten()
+            .is_some()
+    }
+
+    /// Valida o formato antes de persistir. Só tem efeito no próximo início do app — a lib não
+    /// suporta trocar relay em runtime.
+    pub fn set_iroh_services_ticket(&self, ticket: String) -> Result<(), RelayTicketError> {
+        let trimmed = ticket.trim();
+        acerola_p2p::api::transport::validate_iroh_services_ticket(trimmed).map_err(|error| {
+            RelayTicketError::Invalid {
+                reason: error.to_string(),
+            }
+        })?;
+
+        self.storage
+            .save_iroh_services_ticket(trimmed)
+            .map_err(|error| RelayTicketError::Invalid {
+                reason: error.to_string(),
+            })
+    }
+
+    /// Remove o ticket salvo — usado quando o usuário desliga a fonte ou substitui por um novo.
+    pub fn clear_iroh_services_ticket(&self) {
+        let _ = self.storage.clear_iroh_services_ticket();
     }
 }

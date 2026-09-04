@@ -76,4 +76,14 @@ sealed interface SyncAction {
     data class RemoveIrohRelayUrl(
         val url: String,
     ) : SyncAction
+
+    /** Valida o formato antes de persistir — se malformado, `SyncUiState.irohServicesTicketError`
+     *  vira `true` (ver `SyncViewModel`). */
+    data class SetIrohServicesTicket(
+        val ticket: String,
+    ) : SyncAction
+
+    data object ClearIrohServicesTicket : SyncAction
+
+    data object DismissIrohServicesTicketError : SyncAction
 }

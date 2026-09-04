@@ -195,8 +195,12 @@ mod tests {
 
     #[tokio::test]
     async fn relay_mode_iroh_default_builds_successfully() {
+        let ticket =
+            iroh_services::ApiSecret::new(SecretKey::generate(), SecretKey::generate().public())
+                .to_string();
+
         let transport = IrohTransportBuilder::default()
-            .relay_mode(RelayModeConfig::IrohDefault)
+            .relay_mode(RelayModeConfig::IrohDefault(ticket))
             .build(vec![b"test/proto".to_vec()]);
         assert!(transport.await.is_ok());
     }

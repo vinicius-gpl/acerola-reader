@@ -5,6 +5,7 @@
 		useIrohPublicNetwork: boolean;
 		customRelayUrls: string[];
 		irohRelayUrls: string[];
+		hasIrohServicesTicket: boolean;
 	};
 
 	export type NetworkRelaySettingsCardProps = {
@@ -16,6 +17,8 @@
 			onRemoveCustomRelayUrl: (url: string) => void;
 			onAddIrohRelayUrl: (url: string) => void;
 			onRemoveIrohRelayUrl: (url: string) => void;
+			onSetIrohServicesTicket: (ticket: string) => Promise<void>;
+			onClearIrohServicesTicket: () => Promise<void>;
 		};
 	};
 </script>
@@ -40,6 +43,9 @@
 	let irohUrlDraft = $state('');
 	let customUrlError = $state(false);
 	let irohUrlError = $state(false);
+	let ticketDraft = $state('');
+	let ticketError = $state(false);
+	let ticketSaving = $state(false);
 
 	let safeData = $derived(
 		data ?? {
@@ -47,7 +53,8 @@
 			useAcerolaRelay: false,
 			useIrohPublicNetwork: false,
 			customRelayUrls: [],
-			irohRelayUrls: []
+			irohRelayUrls: [],
+			hasIrohServicesTicket: false
 		}
 	);
 
@@ -101,6 +108,32 @@
 		events.onAddIrohRelayUrl(trimmed);
 		irohUrlDraft = '';
 	}
+
+	async function submitTicket() {
+		const trimmed = ticketDraft.trim();
+		if (!trimmed || ticketSaving) return;
+
+		ticketSaving = true;
+		try {
+			await events.onSetIrohServicesTicket(trimmed);
+			ticketDraft = '';
+			ticketError = false;
+		} catch {
+			ticketError = true;
+		} finally {
+			ticketSaving = false;
+		}
+	}
+
+	async function removeTicket() {
+		if (ticketSaving) return;
+		ticketSaving = true;
+		try {
+			await events.onClearIrohServicesTicket();
+		} finally {
+			ticketSaving = false;
+		}
+	}
 </script>
 
 <AcerolaAccordionCard
@@ -142,6 +175,7 @@
 		<AcerolaSwitch
 			state={{ checked: safeData.useIrohPublicNetwork }}
 			events={{ onCheckedChange: events.onToggleIrohPublicNetwork }}
+			ui={{ disabled: !safeData.hasIrohServicesTicket }}
 		/>
 	</div>
 
@@ -150,6 +184,66 @@
 			{m['pages.network.relay_settings.exclusive_note']()}
 		</p>
 	{/if}
+
+	<div class="space-y-2 rounded-xl border border-border bg-background/50 p-3">
+		<p class="text-xs font-bold tracking-widest text-muted-foreground uppercase">
+			{m['pages.network.relay_settings.iroh_services_ticket.label']()}
+		</p>
+		<p class="text-xs text-muted-foreground">
+			{safeData.hasIrohServicesTicket
+				? m['pages.network.relay_settings.iroh_services_ticket.configured']()
+				: m['pages.network.relay_settings.iroh_services_ticket.not_configured']()}
+		</p>
+
+		<div class="flex items-center gap-2">
+			<AcerolaInput
+				state={{ value: ticketDraft }}
+				events={{
+					onValueChange: (value) => {
+						ticketDraft = value;
+						ticketError = false;
+					}
+				}}
+				ui={{
+					type: 'password',
+					placeholder: m['pages.network.relay_settings.iroh_services_ticket.placeholder'](),
+					class: 'flex-1',
+					disabled: ticketSaving
+				}}
+			/>
+			<AcerolaButton
+				events={{ onClick: submitTicket }}
+				ui={{ size: 'sm', disabled: !ticketDraft.trim() || ticketSaving }}
+			>
+				{safeData.hasIrohServicesTicket
+					? m['pages.network.relay_settings.iroh_services_ticket.replace_button']()
+					: m['pages.network.relay_settings.iroh_services_ticket.save_button']()}
+			</AcerolaButton>
+			{#if safeData.hasIrohServicesTicket}
+				<AcerolaButtonIcon
+					events={{ onClick: removeTicket }}
+					ui={{
+						variant: 'ghost',
+						class: 'size-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive',
+						disabled: ticketSaving,
+						'aria-label': m['pages.network.relay_settings.iroh_services_ticket.remove_button']()
+					}}
+				>
+					<Trash2Icon size={14} />
+				</AcerolaButtonIcon>
+			{/if}
+		</div>
+
+		{#if ticketError}
+			<p class="text-xs text-destructive">
+				{m['pages.network.relay_settings.iroh_services_ticket.invalid']()}
+			</p>
+		{/if}
+
+		<p class="text-xs text-muted-foreground italic">
+			{m['pages.network.relay_settings.iroh_services_ticket.help']()}
+		</p>
+	</div>
 
 	<div class="space-y-2" class:opacity-50={safeData.useIrohPublicNetwork}>
 		<p class="text-xs font-bold tracking-widest text-muted-foreground uppercase">

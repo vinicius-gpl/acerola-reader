@@ -37,6 +37,21 @@ export function useRelaySettings() {
 		if (relayInfo) relayInfo = { ...relayInfo, useIrohPublicNetwork: value };
 	}
 
+	/// Diferente das demais fontes: o ticket não vai pro `settings.json` (tauri-plugin-store),
+	/// vai pro cofre criptografado do backend (mesma proteção da identidade P2P) — por isso
+	/// passa pelo comando Tauri, não pelo `store` direto. O valor em si nunca volta pro
+	/// frontend; só `hasIrohServicesTicket` é atualizado depois de salvar/limpar com sucesso.
+	/// Propaga o erro do backend (ex: ticket malformado) pro chamador tratar (toast).
+	async function setIrohServicesTicket(ticket: string) {
+		await invoke(NETWORK_COMMANDS.setIrohServicesTicket, { ticket });
+		if (relayInfo) relayInfo = { ...relayInfo, hasIrohServicesTicket: true };
+	}
+
+	async function clearIrohServicesTicket() {
+		await invoke(NETWORK_COMMANDS.clearIrohServicesTicket);
+		if (relayInfo) relayInfo = { ...relayInfo, hasIrohServicesTicket: false };
+	}
+
 	async function addUrlToList(field: RelayUrlListField, url: string) {
 		const trimmed = url.trim();
 		if (!trimmed || !relayInfo || relayInfo[field].includes(trimmed)) return;
@@ -68,6 +83,8 @@ export function useRelaySettings() {
 		removeCustomRelayUrl: (url: string) => removeUrlFromList('customRelayUrls', url),
 		addIrohRelayUrl: (url: string) => addUrlToList('irohRelayUrls', url),
 		removeIrohRelayUrl: (url: string) => removeUrlFromList('irohRelayUrls', url),
+		setIrohServicesTicket,
+		clearIrohServicesTicket,
 		get relayInfo() {
 			return relayInfo;
 		},

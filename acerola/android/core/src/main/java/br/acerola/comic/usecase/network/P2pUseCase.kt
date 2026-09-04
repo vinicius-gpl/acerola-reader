@@ -89,6 +89,18 @@ class P2pUseCase
 
         fun getPairedPeers(): List<PeerAddress> = p2pService.getPairedPeers()
 
+        fun hasIrohServicesTicket(): Boolean = p2pService.hasIrohServicesTicket()
+
+        fun setIrohServicesTicket(ticket: String) {
+            AcerolaLogger.i("P2pUseCase", "Setting Iroh Services ticket", LogSource.NETWORK)
+            p2pService.setIrohServicesTicket(ticket)
+        }
+
+        fun clearIrohServicesTicket() {
+            AcerolaLogger.i("P2pUseCase", "Clearing Iroh Services ticket", LogSource.NETWORK)
+            p2pService.clearIrohServicesTicket()
+        }
+
         fun removePairedPeer(id: String) {
             AcerolaLogger.i("P2pUseCase", "Removing paired peer: $id", LogSource.NETWORK)
             p2pService.removePairedPeer(id)

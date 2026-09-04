@@ -10,6 +10,9 @@ data class SyncUiState(
     val pairingCode: String? = null,
     val mode: NetworkMode = NetworkMode.LOCAL,
     val relaySettings: RelaySettingsUiState = RelaySettingsUiState(),
+    /** `true` logo após `SyncAction.SetIrohServicesTicket` falhar (formato inválido) — a
+     *  própria [RelaySettingsUiState.hasIrohServicesTicket] não muda nesse caso. */
+    val irohServicesTicketError: Boolean = false,
     val pairedPeers: List<PairedPeer> = emptyList(),
     val pendingConnect: PendingConnect? = null,
     val connecting: Boolean = false,
@@ -69,6 +72,10 @@ data class RelaySettingsUiState(
     val useIrohPublicNetwork: Boolean = false,
     val customRelayUrls: List<String> = emptyList(),
     val irohRelayUrls: List<String> = emptyList(),
+    /** Só indica SE um ticket da conta do usuário em `services.iroh.computer` já foi colado e
+     *  salvo — o valor em si nunca é exposto na UI (é uma credencial real, guardada no cofre
+     *  criptografado do node, não no DataStore junto das demais preferências de relay). */
+    val hasIrohServicesTicket: Boolean = false,
 )
 
 data class SyncResult(

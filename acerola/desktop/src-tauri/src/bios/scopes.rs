@@ -52,9 +52,17 @@ impl RelaySettings {
     /// Resolve as fontes habilitadas para o `RelayModeConfig` concreto consumido pelo
     /// `IrohTransportBuilder`. Sem nenhuma fonte ativa, cai em `MdnsOnly` — não existe um
     /// modo "mDNS only" explícito na UI, é só o estado natural de "nada selecionado".
-    pub fn resolve(&self) -> RelayModeConfig {
+    ///
+    /// `iroh_services_ticket` vem do cofre criptografado (`SecureP2pStorage`), não de
+    /// `settings.json` — é a conta do PRÓPRIO usuário em `services.iroh.computer`, nunca um
+    /// secret de projeto embutido no build. Se o toggle estiver ligado mas nenhum ticket
+    /// tiver sido colado ainda, essa fonte é ignorada (não há como montar
+    /// `RelayModeConfig::IrohDefault` sem ele) e as demais fontes combinam normalmente.
+    pub fn resolve(&self, iroh_services_ticket: Option<&str>) -> RelayModeConfig {
         if self.use_iroh_public_network {
-            return RelayModeConfig::IrohDefault;
+            if let Some(ticket) = iroh_services_ticket {
+                return RelayModeConfig::IrohDefault(ticket.to_string());
+            }
         }
 
         let mut urls = Vec::new();
@@ -97,7 +105,10 @@ pub fn read_relay_settings(app_data_directory: &std::path::Path) -> RelaySetting
             tracing::info!(
                 "[Bios::Scopes] Migrating legacy 'relay_url' override into 'relay_custom_urls'"
             );
-            return RelaySettings { custom_relay_urls: vec![legacy_url], ..RelaySettings::default() };
+            return RelaySettings {
+                custom_relay_urls: vec![legacy_url],
+                ..RelaySettings::default()
+            };
         }
         return RelaySettings::default();
     }
@@ -308,7 +319,7 @@ mod tests {
             custom_relay_urls: vec![],
             iroh_relay_urls: vec![],
         };
-        assert_eq!(settings.resolve(), RelayModeConfig::MdnsOnly);
+        assert_eq!(settings.resolve(None), RelayModeConfig::MdnsOnly);
     }
 
     #[test]
@@ -321,7 +332,7 @@ mod tests {
         };
 
         assert_eq!(
-            settings.resolve(),
+            settings.resolve(None),
             RelayModeConfig::Custom(vec![
                 acerola_p2p::api::transport::ACEROLA_DEFAULT_RELAY_URL.to_string(),
                 "https://relay-a.test.local".to_string(),
@@ -331,7 +342,7 @@ mod tests {
     }
 
     #[test]
-    fn test_relay_settings_resolve_iroh_public_network_ignores_other_sources() {
+    fn test_relay_settings_resolve_iroh_public_network_with_ticket_ignores_other_sources() {
         let settings = RelaySettings {
             use_acerola_relay: true,
             use_iroh_public_network: true,
@@ -339,7 +350,31 @@ mod tests {
             iroh_relay_urls: vec![],
         };
 
-        assert_eq!(settings.resolve(), RelayModeConfig::IrohDefault);
+        assert_eq!(
+            settings.resolve(Some("services-fake-ticket")),
+            RelayModeConfig::IrohDefault("services-fake-ticket".to_string())
+        );
+    }
+
+    /// Toggle ligado mas sem ticket colado ainda (primeiro uso, ou usuário desmarcou depois de
+    /// já ter salvo em `settings.json`) — não há como montar `IrohDefault` sem o ticket, então
+    /// cai pras demais fontes combinadas normalmente, como se o toggle estivesse desligado.
+    #[test]
+    fn test_relay_settings_resolve_iroh_public_network_without_ticket_falls_back_to_other_sources()
+    {
+        let settings = RelaySettings {
+            use_acerola_relay: true,
+            use_iroh_public_network: true,
+            custom_relay_urls: vec![],
+            iroh_relay_urls: vec![],
+        };
+
+        assert_eq!(
+            settings.resolve(None),
+            RelayModeConfig::Custom(vec![
+                acerola_p2p::api::transport::ACEROLA_DEFAULT_RELAY_URL.to_string()
+            ])
+        );
     }
 
     #[test]

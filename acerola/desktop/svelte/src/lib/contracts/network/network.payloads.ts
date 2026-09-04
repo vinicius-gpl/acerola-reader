@@ -34,6 +34,10 @@ export type RelayInfo = {
 	useIrohPublicNetwork: boolean;
 	customRelayUrls: string[];
 	irohRelayUrls: string[];
+	/** Só indica SE um ticket da conta do usuário em `services.iroh.computer` já foi colado e
+	 *  salvo — o valor em si nunca é devolvido pro frontend (é uma credencial real, guardada
+	 *  no cofre criptografado, não em `settings.json`). */
+	hasIrohServicesTicket: boolean;
 };
 
 /** Resumo de um quadrinho da biblioteca remota (ver `library_browse_handler.rs`) — só título +

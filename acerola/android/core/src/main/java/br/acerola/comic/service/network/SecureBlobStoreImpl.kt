@@ -75,4 +75,13 @@ class SecureBlobStoreImpl
                 AcerolaLogger.e(TAG, "Failed to load blob for key \"$key\"", LogSource.NETWORK, error)
                 throw SecureBlobStoreException.AccessFailed(error.message ?: error.javaClass.simpleName)
             }
+
+        override fun clearBlob(key: String) {
+            try {
+                prefs.edit().remove(key).commit()
+            } catch (error: Exception) {
+                AcerolaLogger.e(TAG, "Failed to clear blob for key \"$key\"", LogSource.NETWORK, error)
+                throw SecureBlobStoreException.AccessFailed(error.message ?: error.javaClass.simpleName)
+            }
+        }
     }

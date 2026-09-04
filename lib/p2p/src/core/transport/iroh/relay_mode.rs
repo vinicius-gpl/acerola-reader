@@ -15,18 +15,20 @@ use crate::infra::error::ConnectionError;
 /// aberto ao público — sem autenticação, diferente do relay da rede pública do Iroh abaixo).
 pub const ACEROLA_DEFAULT_RELAY_URL: &str = "https://relay.acerola-comic.com";
 
-/// Secret do projeto Acerola na Iroh Services (dashboard `services.iroh.computer`), embutido em
-/// tempo de compilação via variável de ambiente do CI — não existe shell de usuário final pra
-/// ler isso em runtime, e o app não pode depender de um `.env` no dispositivo de cada usuário.
-/// Nunca é enviado pro relay: só serve pra assinar localmente um token de curta duração
-/// vinculado à identidade deste node (ver [`RelayModeConfig::iroh_default_mode`]). Ausente em
-/// builds locais/dev sem o secret configurado — nesse caso cai em `RelayMode::Default` sem
-/// token, que o relay da n0 rejeita hoje (ver `IROH_SERVICES_API_SECRET` na doc do iroh).
-const IROH_SERVICES_API_SECRET: Option<&str> = option_env!("IROH_SERVICES_API_SECRET");
-
-/// Validade do token de autenticação derivado do secret do projeto — mesmo padrão (30 dias)
+/// Validade do token de autenticação derivado do ticket do usuário — mesmo padrão (30 dias)
 /// usado pelo preset oficial da `iroh_services` (`PresetBuilder::build`).
 const RELAY_AUTH_TOKEN_TTL: Duration = Duration::from_secs(60 * 60 * 24 * 30);
+
+/// Valida o formato de um ticket da Iroh Services (o texto que o usuário cola na tela de
+/// configuração de rede, gerado na própria conta dele em `services.iroh.computer`) sem se
+/// conectar a nada — só confirma que decodifica. Os apps chamam isso antes de persistir o
+/// valor colado, pra rejeitar um ticket malformado na hora em vez de só descobrir no próximo
+/// boot (quando `RelayModeConfig::IrohDefault` for de fato resolvido).
+pub fn validate_iroh_services_ticket(ticket: &str) -> Result<(), ConnectionError> {
+    ticket.parse::<ApiSecret>().map(|_| ()).map_err(|err| {
+        ConnectionError::StartupFailed(format!("invalid Iroh Services ticket: {err}"))
+    })
+}
 
 /// Os 4 modos de relay suportados pela lib para transposição de NAT via `IrohTransportBuilder`.
 ///
@@ -37,12 +39,17 @@ const RELAY_AUTH_TOKEN_TTL: Duration = Duration::from_secs(60 * 60 * 24 * 30);
 pub enum RelayModeConfig {
     /// Sem relay remoto algum — só descoberta mDNS na rede local (offline/alta privacidade).
     MdnsOnly,
-    /// Relay(s) customizado(s) informado(s) pelo app consumidor ("meu relay").
+    /// Relay(s) customizado(s) informado(s) pelo app consumidor ("meu relay", self-hosted,
+    /// aberto — o usuário pode inclusive rodar sua própria instância do mesmo software do
+    /// relay do Acerola).
     Custom(Vec<String>),
     /// Relay oficial mantido pelo Acerola (`ACEROLA_DEFAULT_RELAY_URL`, "relay próprio").
     AcerolaOwn,
-    /// Rede pública de relays padrão do projeto Iroh (produção n0).
-    IrohDefault,
+    /// Rede da Iroh Services (n0) autenticada pelo ticket da PRÓPRIA conta do usuário em
+    /// `services.iroh.computer` — nunca um secret embutido no build do Acerola (ver
+    /// `iroh_default_mode`). O ticket é o texto opaco que a Iroh Services entrega ao usuário
+    /// (formato `services...`, decodificável via `iroh_services::ApiSecret`).
+    IrohDefault(String),
 }
 
 impl RelayModeConfig {
@@ -56,9 +63,7 @@ impl RelayModeConfig {
     ) -> Result<IrohRelayMode, ConnectionError> {
         match self {
             RelayModeConfig::MdnsOnly => Ok(IrohRelayMode::Disabled),
-            RelayModeConfig::IrohDefault => {
-                Self::iroh_default_mode(node_secret, IROH_SERVICES_API_SECRET)
-            },
+            RelayModeConfig::IrohDefault(ticket) => Self::iroh_default_mode(node_secret, ticket),
             RelayModeConfig::AcerolaOwn => {
                 Self::custom_mode(&[ACEROLA_DEFAULT_RELAY_URL.to_string()])
             },
@@ -78,32 +83,21 @@ impl RelayModeConfig {
         Ok(IrohRelayMode::Custom(RelayMap::from_iter(relay_configs)))
     }
 
-    /// A rede pública/oficial do Iroh (n0) hoje exige autenticação — relays "Shared"/"Dedicated"
-    /// da Iroh Services só aceitam tráfego de endpoints portando um token emitido a partir do
-    /// secret do projeto (ver `IROH_SERVICES_API_SECRET` na doc do iroh, "authenticated
-    /// relays"). Sem esse token, a conexão com o relay é recusada.
+    /// Relays "Shared"/"Dedicated" da Iroh Services só aceitam tráfego de endpoints portando um
+    /// token emitido a partir do ticket da conta do usuário (ver doc do iroh, "authenticated
+    /// relays") — sem esse token, a conexão com o relay é recusada. O ticket é da PRÓPRIA conta
+    /// do usuário em `services.iroh.computer`, colado por ele na tela de configuração de rede —
+    /// nunca um secret de projeto embutido no build do Acerola.
     ///
-    /// O secret nunca é enviado pro relay: só assina localmente um token (rcan) vinculado à
+    /// O ticket nunca é enviado pro relay: só assina localmente um token (rcan) vinculado à
     /// chave pública de `node_secret`, com validade de 30 dias, escopado só a uso de relay
     /// (`Caps::relay_use`) — mesmo mecanismo do preset oficial `iroh_services::preset()`, só que
     /// aplicado sobre a identidade que este builder já resolveu, em vez de gerar uma nova.
-    ///
-    /// `api_secret_ticket` recebido por parâmetro (em vez de ler `IROH_SERVICES_API_SECRET`
-    /// direto aqui) só pra manter a função testável — `resolve()` é quem de fato lê a constante
-    /// embutida em tempo de compilação.
     fn iroh_default_mode(
-        node_secret: &SecretKey, api_secret_ticket: Option<&str>,
+        node_secret: &SecretKey, api_secret_ticket: &str,
     ) -> Result<IrohRelayMode, ConnectionError> {
-        let Some(embedded_secret) = api_secret_ticket else {
-            tracing::warn!(
-                "[RelayMode] IROH_SERVICES_API_SECRET não embutido neste build — a rede \
-                 pública do Iroh vai recusar a conexão sem um token de autenticação válido."
-            );
-            return Ok(IrohRelayMode::Default);
-        };
-
-        let api_secret: ApiSecret = embedded_secret.parse().map_err(|err| {
-            ConnectionError::StartupFailed(format!("invalid IROH_SERVICES_API_SECRET: {err}"))
+        let api_secret: ApiSecret = api_secret_ticket.parse().map_err(|err| {
+            ConnectionError::StartupFailed(format!("invalid Iroh Services ticket: {err}"))
         })?;
 
         let token = create_api_token_from_secret_key(
@@ -199,21 +193,15 @@ mod tests {
     }
 
     #[test]
-    fn iroh_default_without_embedded_secret_falls_back_to_unauthenticated_default() {
-        let resolved = RelayModeConfig::iroh_default_mode(&node_secret(), None).unwrap();
-        assert_eq!(resolved, IrohRelayMode::Default);
-    }
-
-    #[test]
-    fn iroh_default_with_invalid_secret_ticket_returns_startup_failed_error() {
-        let result = RelayModeConfig::iroh_default_mode(&node_secret(), Some("not-a-valid-ticket"));
+    fn iroh_default_with_invalid_ticket_returns_startup_failed_error() {
+        let result = RelayModeConfig::iroh_default_mode(&node_secret(), "not-a-valid-ticket");
         assert!(matches!(result, Err(ConnectionError::StartupFailed(_))));
     }
 
     #[test]
-    fn iroh_default_with_valid_secret_returns_authenticated_custom_map() {
+    fn iroh_default_with_valid_ticket_returns_authenticated_custom_map() {
         let ticket = fake_api_secret_ticket();
-        let resolved = RelayModeConfig::iroh_default_mode(&node_secret(), Some(&ticket)).unwrap();
+        let resolved = RelayModeConfig::iroh_default_mode(&node_secret(), &ticket).unwrap();
 
         let IrohRelayMode::Custom(map) = resolved else {
             panic!("expected RelayMode::Custom, got {resolved:?}");
@@ -230,11 +218,29 @@ mod tests {
     }
 
     #[test]
+    fn iroh_default_via_resolve_returns_authenticated_custom_map() {
+        let ticket = fake_api_secret_ticket();
+        let resolved = RelayModeConfig::IrohDefault(ticket).resolve(&node_secret()).unwrap();
+
+        let IrohRelayMode::Custom(map) = resolved else {
+            panic!("expected RelayMode::Custom, got {resolved:?}");
+        };
+        assert!(!map.is_empty());
+    }
+
+    #[test]
+    fn iroh_default_via_resolve_with_invalid_ticket_returns_startup_failed_error() {
+        let result =
+            RelayModeConfig::IrohDefault("not-a-valid-ticket".to_string()).resolve(&node_secret());
+        assert!(matches!(result, Err(ConnectionError::StartupFailed(_))));
+    }
+
+    #[test]
     fn iroh_default_token_differs_per_node_identity() {
         let ticket = fake_api_secret_ticket();
 
-        let resolved_a = RelayModeConfig::iroh_default_mode(&node_secret(), Some(&ticket)).unwrap();
-        let resolved_b = RelayModeConfig::iroh_default_mode(&node_secret(), Some(&ticket)).unwrap();
+        let resolved_a = RelayModeConfig::iroh_default_mode(&node_secret(), &ticket).unwrap();
+        let resolved_b = RelayModeConfig::iroh_default_mode(&node_secret(), &ticket).unwrap();
 
         let (IrohRelayMode::Custom(map_a), IrohRelayMode::Custom(map_b)) = (resolved_a, resolved_b)
         else {

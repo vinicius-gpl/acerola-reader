@@ -17,13 +17,16 @@
 	});
 
 	const noop = () => {};
+	const noopAsync = async () => {};
 	const events = {
 		onToggleAcerolaRelay: noop,
 		onToggleIrohPublicNetwork: noop,
 		onAddCustomRelayUrl: noop,
 		onRemoveCustomRelayUrl: noop,
 		onAddIrohRelayUrl: noop,
-		onRemoveIrohRelayUrl: noop
+		onRemoveIrohRelayUrl: noop,
+		onSetIrohServicesTicket: noopAsync,
+		onClearIrohServicesTicket: noopAsync
 	};
 </script>
 
@@ -36,7 +39,8 @@
 					useAcerolaRelay: true,
 					useIrohPublicNetwork: false,
 					customRelayUrls: [],
-					irohRelayUrls: []
+					irohRelayUrls: [],
+					hasIrohServicesTicket: false
 				}}
 				{events}
 			/>
@@ -53,7 +57,8 @@
 					useAcerolaRelay: true,
 					useIrohPublicNetwork: false,
 					customRelayUrls: ['https://relay.example.com'],
-					irohRelayUrls: ['https://iroh-relay.example.com']
+					irohRelayUrls: ['https://iroh-relay.example.com'],
+					hasIrohServicesTicket: false
 				}}
 				{events}
 			/>
@@ -61,7 +66,7 @@
 	{/snippet}
 </Story>
 
-<Story name="Iroh Public Network (Exclusive)" asChild>
+<Story name="Iroh Services (Exclusive, Ticket Configured)" asChild>
 	{#snippet children()}
 		<div class="max-w-md bg-surface p-8">
 			<AcerolaNetworkRelaySettingsCard
@@ -70,7 +75,8 @@
 					useAcerolaRelay: true,
 					useIrohPublicNetwork: true,
 					customRelayUrls: [],
-					irohRelayUrls: []
+					irohRelayUrls: [],
+					hasIrohServicesTicket: true
 				}}
 				{events}
 			/>
@@ -87,7 +93,8 @@
 					useAcerolaRelay: false,
 					useIrohPublicNetwork: false,
 					customRelayUrls: [],
-					irohRelayUrls: []
+					irohRelayUrls: [],
+					hasIrohServicesTicket: false
 				}}
 				{events}
 			/>

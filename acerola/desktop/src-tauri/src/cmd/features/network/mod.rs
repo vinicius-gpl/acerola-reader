@@ -91,9 +91,30 @@ pub async fn set_local_device_name(
 /// efeito no próximo início do app, já que a lib não suporta trocar a configuração de
 /// relay em runtime.
 #[tauri::command]
-pub async fn get_relay_info<R: Runtime>(app: AppHandle<R>) -> Result<RelayInfo, String> {
+pub async fn get_relay_info<R: Runtime>(
+    app: AppHandle<R>, service: State<'_, Arc<dyn NetworkServiceApi>>,
+) -> Result<RelayInfo, String> {
     let app_data_directory = app.path().app_data_dir().map_err(|error| error.to_string())?;
-    Ok(RelayInfo::from(read_relay_settings(&app_data_directory)))
+    let has_ticket = service.has_iroh_services_ticket().await?;
+    Ok(RelayInfo::new(read_relay_settings(&app_data_directory), has_ticket))
+}
+
+/// Salva o ticket da conta do usuário em `services.iroh.computer` (colado por ele na tela de
+/// configuração de rede) no cofre criptografado — nunca em `settings.json`. Valida o formato
+/// antes de persistir. Só tem efeito no próximo início do app.
+#[tauri::command]
+pub async fn set_iroh_services_ticket(
+    service: State<'_, Arc<dyn NetworkServiceApi>>, ticket: String,
+) -> Result<(), String> {
+    service.set_iroh_services_ticket(ticket).await
+}
+
+/// Remove o ticket salvo — usado quando o usuário desliga a fonte ou substitui por um novo.
+#[tauri::command]
+pub async fn clear_iroh_services_ticket(
+    service: State<'_, Arc<dyn NetworkServiceApi>>,
+) -> Result<(), String> {
+    service.clear_iroh_services_ticket().await
 }
 
 #[tauri::command]

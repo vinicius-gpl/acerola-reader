@@ -11,6 +11,7 @@ function data(overrides: Partial<NetworkRelaySettingsCardData> = {}): NetworkRel
 		useIrohPublicNetwork: false,
 		customRelayUrls: [],
 		irohRelayUrls: [],
+		hasIrohServicesTicket: false,
 		...overrides
 	};
 }
@@ -22,7 +23,9 @@ function events() {
 		onAddCustomRelayUrl: vi.fn(),
 		onRemoveCustomRelayUrl: vi.fn(),
 		onAddIrohRelayUrl: vi.fn(),
-		onRemoveIrohRelayUrl: vi.fn()
+		onRemoveIrohRelayUrl: vi.fn(),
+		onSetIrohServicesTicket: vi.fn().mockResolvedValue(undefined),
+		onClearIrohServicesTicket: vi.fn().mockResolvedValue(undefined)
 	};
 }
 
@@ -73,15 +76,70 @@ describe('AcerolaNetworkRelaySettingsCard', () => {
 		expect(handlers.onToggleAcerolaRelay).toHaveBeenCalledWith(false);
 	});
 
-	it('toggles the iroh public network switch', async () => {
+	it('toggles the iroh public network switch when a ticket is configured', async () => {
 		const handlers = events();
-		render(AcerolaNetworkRelaySettingsCard, { props: { data: data(), events: handlers } });
+		render(AcerolaNetworkRelaySettingsCard, {
+			props: { data: data({ hasIrohServicesTicket: true }), events: handlers }
+		});
 		await expandCard();
 
 		const switches = screen.getAllByRole('switch');
 		await fireEvent.click(switches[1]);
 
 		expect(handlers.onToggleIrohPublicNetwork).toHaveBeenCalledWith(true);
+	});
+
+	it('disables the iroh public network switch without a configured ticket', async () => {
+		render(AcerolaNetworkRelaySettingsCard, {
+			props: { data: data({ hasIrohServicesTicket: false }), events: events() }
+		});
+		await expandCard();
+
+		const switches = screen.getAllByRole('switch');
+		expect(switches[1]).toBeDisabled();
+	});
+
+	it('saves an iroh services ticket', async () => {
+		const handlers = events();
+		render(AcerolaNetworkRelaySettingsCard, { props: { data: data(), events: handlers } });
+		await expandCard();
+
+		const input = screen.getByPlaceholderText(/services\.iroh\.computer/i);
+		await fireEvent.input(input, { target: { value: 'services-fake-ticket' } });
+		await fireEvent.click(
+			screen.getByRole('button', { name: /Save ticket|Salvar ticket/i })
+		);
+
+		expect(handlers.onSetIrohServicesTicket).toHaveBeenCalledWith('services-fake-ticket');
+	});
+
+	it('shows an error when saving an invalid ticket fails', async () => {
+		const handlers = events();
+		handlers.onSetIrohServicesTicket.mockRejectedValueOnce(new Error('invalid ticket'));
+		render(AcerolaNetworkRelaySettingsCard, { props: { data: data(), events: handlers } });
+		await expandCard();
+
+		const input = screen.getByPlaceholderText(/services\.iroh\.computer/i);
+		await fireEvent.input(input, { target: { value: 'not-a-valid-ticket' } });
+		await fireEvent.click(
+			screen.getByRole('button', { name: /Save ticket|Salvar ticket/i })
+		);
+
+		expect(await screen.findByText(/[Ii]nvalid ticket|[Tt]icket inválido/i)).toBeInTheDocument();
+	});
+
+	it('removes a configured iroh services ticket', async () => {
+		const handlers = events();
+		render(AcerolaNetworkRelaySettingsCard, {
+			props: { data: data({ hasIrohServicesTicket: true }), events: handlers }
+		});
+		await expandCard();
+
+		await fireEvent.click(
+			screen.getByRole('button', { name: /Remove ticket|Remover ticket/i })
+		);
+
+		expect(handlers.onClearIrohServicesTicket).toHaveBeenCalled();
 	});
 
 	it('adds a custom relay url', async () => {

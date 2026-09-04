@@ -13,7 +13,6 @@ import br.acerola.comic.module.main.sync.state.ConnectError
 import br.acerola.comic.module.main.sync.state.LogState
 import br.acerola.comic.module.main.sync.state.PairedPeer
 import br.acerola.comic.module.main.sync.state.PendingConnect
-import br.acerola.comic.module.main.sync.state.RelaySettingsUiState
 import br.acerola.comic.module.main.sync.state.SyncAction
 import br.acerola.comic.module.main.sync.state.SyncResult
 import br.acerola.comic.module.main.sync.state.SyncUiState
@@ -93,10 +92,14 @@ class SyncViewModel
 
             viewModelScope.launch {
                 RelayPreference.relaySettingsFlow(context).collect { settings ->
+                    // `.copy(...)` em cima do `relaySettings` atual, não um `RelaySettingsUiState`
+                    // novo do zero — `hasIrohServicesTicket` vem de outra fonte (o cofre nativo
+                    // do node, ver abaixo), não do DataStore, e não pode ser resetado a cada
+                    // emissão deste Flow.
                     _uiState.update {
                         it.copy(
                             relaySettings =
-                                RelaySettingsUiState(
+                                it.relaySettings.copy(
                                     useAcerolaRelay = settings.useAcerolaRelay,
                                     useIrohPublicNetwork = settings.useIrohPublicNetwork,
                                     customRelayUrls = settings.customRelayUrls,
@@ -104,6 +107,13 @@ class SyncViewModel
                                 ),
                         )
                     }
+                }
+            }
+
+            viewModelScope.launch(Dispatchers.IO) {
+                val hasTicket = p2pUseCase.hasIrohServicesTicket()
+                _uiState.update {
+                    it.copy(relaySettings = it.relaySettings.copy(hasIrohServicesTicket = hasTicket))
                 }
             }
 
@@ -224,6 +234,38 @@ class SyncViewModel
                     viewModelScope.launch { RelayPreference.addIrohRelayUrl(context, action.url) }
                 is SyncAction.RemoveIrohRelayUrl ->
                     viewModelScope.launch { RelayPreference.removeIrohRelayUrl(context, action.url) }
+                is SyncAction.SetIrohServicesTicket -> setIrohServicesTicket(action.ticket)
+                SyncAction.ClearIrohServicesTicket -> clearIrohServicesTicket()
+                SyncAction.DismissIrohServicesTicketError ->
+                    _uiState.update { it.copy(irohServicesTicketError = false) }
+            }
+        }
+
+        /** Valida o formato no lado nativo antes de persistir — `p2pUseCase.setIrohServicesTicket`
+         *  lança `IllegalArgumentException` se malformado, virando `irohServicesTicketError`. */
+        private fun setIrohServicesTicket(ticket: String) {
+            viewModelScope.launch(Dispatchers.IO) {
+                try {
+                    p2pUseCase.setIrohServicesTicket(ticket)
+                    _uiState.update {
+                        it.copy(
+                            relaySettings = it.relaySettings.copy(hasIrohServicesTicket = true),
+                            irohServicesTicketError = false,
+                        )
+                    }
+                } catch (error: IllegalArgumentException) {
+                    AcerolaLogger.w("SyncViewModel", "Invalid Iroh Services ticket: ${error.message}", LogSource.UI)
+                    _uiState.update { it.copy(irohServicesTicketError = true) }
+                }
+            }
+        }
+
+        private fun clearIrohServicesTicket() {
+            viewModelScope.launch(Dispatchers.IO) {
+                p2pUseCase.clearIrohServicesTicket()
+                _uiState.update {
+                    it.copy(relaySettings = it.relaySettings.copy(hasIrohServicesTicket = false))
+                }
             }
         }
 

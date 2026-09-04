@@ -182,6 +182,11 @@ mod tests {
         fn load_blob(&self, key: String) -> Result<Option<Vec<u8>>, SecureBlobStoreError> {
             Ok(self.data.lock().unwrap().get(&key).cloned())
         }
+
+        fn clear_blob(&self, key: String) -> Result<(), SecureBlobStoreError> {
+            self.data.lock().unwrap().remove(&key);
+            Ok(())
+        }
     }
 
     fn noop_emitter() -> EventEmitter {

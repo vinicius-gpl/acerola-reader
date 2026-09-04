@@ -131,7 +131,17 @@ pub async fn setup_network(app_handle: &tauri::AppHandle) -> Result<(), ComicErr
     // Combina as fontes de relay habilitadas pelo usuário na tela de Rede (relay do
     // Acerola / relay(s) próprio(s) / relay(s) Iroh / rede pública Iroh), persistidas em
     // `settings.json`. Só é lido na inicialização — trocar em runtime não é suportado.
-    let relay_mode = read_relay_settings(&app_data_directory).resolve();
+    //
+    // O ticket da rede pública do Iroh vem do cofre criptografado (`secure_p2p_storage`), não
+    // de `settings.json` — é a conta do PRÓPRIO usuário em `services.iroh.computer`, uma
+    // credencial real, não uma preferência qualquer.
+    let iroh_services_ticket =
+        secure_p2p_storage.load_iroh_services_ticket().await.unwrap_or_else(|error| {
+            tracing::warn!("[Bios::Network] Failed to load Iroh Services ticket: {}", error);
+            None
+        });
+    let relay_mode =
+        read_relay_settings(&app_data_directory).resolve(iroh_services_ticket.as_deref());
     tracing::info!("[Bios::Network] Using relay mode: {:?}", relay_mode);
 
     // Sem `.seed(...)` aqui — o builder resolve a identidade sozinho a partir do

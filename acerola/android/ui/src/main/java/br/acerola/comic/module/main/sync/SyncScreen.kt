@@ -81,6 +81,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -235,7 +236,11 @@ private fun SyncLayout(
 
             ThisDeviceSection(uiState = uiState, onAction = onAction)
 
-            RelaySettingsCard(relaySettings = uiState.relaySettings, onAction = onAction)
+            RelaySettingsCard(
+                relaySettings = uiState.relaySettings,
+                irohServicesTicketError = uiState.irohServicesTicketError,
+                onAction = onAction,
+            )
 
             PeersSection(
                 uiState = uiState,
@@ -419,6 +424,7 @@ private fun ThisDeviceSection(
 @Composable
 private fun RelaySettingsCard(
     relaySettings: RelaySettingsUiState,
+    irohServicesTicketError: Boolean,
     onAction: (SyncAction) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -456,7 +462,7 @@ private fun RelaySettingsCard(
             title = stringResource(id = R.string.label_relay_settings_use_iroh_public_network),
             description = stringResource(id = R.string.label_relay_settings_use_iroh_public_network_desc),
             checked = relaySettings.useIrohPublicNetwork,
-            enabled = true,
+            enabled = relaySettings.hasIrohServicesTicket,
             onCheckedChange = { onAction(SyncAction.ToggleUseIrohPublicNetwork(it)) },
         )
 
@@ -468,6 +474,14 @@ private fun RelaySettingsCard(
                 modifier = Modifier.padding(horizontal = SpacingTokens.Small),
             )
         }
+
+        IrohServicesTicketSection(
+            hasTicket = relaySettings.hasIrohServicesTicket,
+            hasError = irohServicesTicketError,
+            onSave = { onAction(SyncAction.SetIrohServicesTicket(it)) },
+            onRemove = { onAction(SyncAction.ClearIrohServicesTicket) },
+            onDismissError = { onAction(SyncAction.DismissIrohServicesTicketError) },
+        )
 
         RelayUrlListEditor(
             title = stringResource(id = R.string.title_relay_settings_custom_relays),
@@ -489,6 +503,113 @@ private fun RelaySettingsCard(
             enabled = !relaySettings.useIrohPublicNetwork,
             onAdd = { onAction(SyncAction.AddIrohRelayUrl(it)) },
             onRemove = { onAction(SyncAction.RemoveIrohRelayUrl(it)) },
+        )
+    }
+}
+
+/** Ticket da conta do PRÓPRIO usuário em `services.iroh.computer` — nunca um secret de projeto
+ *  embutido no build (ver `RelayModeConfig::IrohDefault` do lado Rust). O valor em si nunca é
+ *  exibido de volta (é uma credencial real, guardada no cofre criptografado do node) — só
+ *  [hasTicket] chega aqui. */
+@Composable
+private fun IrohServicesTicketSection(
+    hasTicket: Boolean,
+    hasError: Boolean,
+    onSave: (String) -> Unit,
+    onRemove: () -> Unit,
+    onDismissError: () -> Unit,
+) {
+    var draft by remember { mutableStateOf("") }
+
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(ShapeTokens.Medium)
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                .padding(SpacingTokens.Medium),
+        verticalArrangement = Arrangement.spacedBy(SpacingTokens.Small),
+    ) {
+        Text(
+            text = stringResource(id = R.string.title_relay_settings_iroh_services_ticket),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text =
+                stringResource(
+                    id =
+                        if (hasTicket) {
+                            R.string.label_relay_settings_iroh_services_ticket_configured
+                        } else {
+                            R.string.label_relay_settings_iroh_services_ticket_not_configured
+                        },
+                ),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(SpacingTokens.Small),
+        ) {
+            OutlinedTextField(
+                value = draft,
+                onValueChange = {
+                    draft = it
+                    if (hasError) onDismissError()
+                },
+                placeholder = { Text(text = stringResource(id = R.string.hint_relay_settings_iroh_services_ticket)) },
+                singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
+                modifier = Modifier.weight(1f),
+            )
+            Button(
+                onClick = {
+                    val trimmed = draft.trim()
+                    if (trimmed.isBlank()) return@Button
+                    onSave(trimmed)
+                    draft = ""
+                },
+                enabled = draft.isNotBlank(),
+            ) {
+                Text(
+                    text =
+                        stringResource(
+                            id =
+                                if (hasTicket) {
+                                    R.string.action_relay_settings_iroh_services_ticket_replace
+                                } else {
+                                    R.string.action_relay_settings_iroh_services_ticket_save
+                                },
+                        ),
+                )
+            }
+            if (hasTicket) {
+                IconButton(onClick = onRemove) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = stringResource(id = R.string.action_relay_settings_iroh_services_ticket_remove),
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(SizeTokens.IconSmall),
+                    )
+                }
+            }
+        }
+
+        if (hasError) {
+            Text(
+                text = stringResource(id = R.string.error_relay_settings_iroh_services_ticket_invalid),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+
+        Text(
+            text = stringResource(id = R.string.label_relay_settings_iroh_services_ticket_help),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }

@@ -265,6 +265,7 @@ describe('useRelaySettings', () => {
 			useIrohPublicNetwork: false,
 			customRelayUrls: [],
 			irohRelayUrls: [],
+			hasIrohServicesTicket: false,
 			...overrides
 		};
 	}
@@ -379,5 +380,44 @@ describe('useRelaySettings', () => {
 		await hook.removeIrohRelayUrl('https://iroh-relay.test.local');
 		expect(store.set).toHaveBeenCalledWith(STORE_KEYS.relayIrohUrls, []);
 		expect(hook.relayInfo?.irohRelayUrls).toEqual([]);
+	});
+
+	it('sets the iroh services ticket via the backend command, not the store', async () => {
+		const store = mockStore();
+		invokeMock.mockResolvedValue(relayInfo());
+		const hook = await renderHook(useRelaySettings);
+		await hook.loadRelayInfo();
+
+		await hook.setIrohServicesTicket('services-fake-ticket');
+
+		expect(invokeMock).toHaveBeenCalledWith(NETWORK_COMMANDS.setIrohServicesTicket, {
+			ticket: 'services-fake-ticket'
+		});
+		expect(store.set).not.toHaveBeenCalled();
+		expect(hook.relayInfo?.hasIrohServicesTicket).toBe(true);
+	});
+
+	it('propagates a backend error when the ticket is invalid', async () => {
+		invokeMock.mockResolvedValue(relayInfo());
+		const hook = await renderHook(useRelaySettings);
+		await hook.loadRelayInfo();
+
+		invokeMock.mockRejectedValueOnce(new Error('invalid ticket'));
+
+		await expect(hook.setIrohServicesTicket('not-a-valid-ticket')).rejects.toThrow(
+			'invalid ticket'
+		);
+		expect(hook.relayInfo?.hasIrohServicesTicket).toBe(false);
+	});
+
+	it('clears the iroh services ticket via the backend command', async () => {
+		invokeMock.mockResolvedValue(relayInfo({ hasIrohServicesTicket: true }));
+		const hook = await renderHook(useRelaySettings);
+		await hook.loadRelayInfo();
+
+		await hook.clearIrohServicesTicket();
+
+		expect(invokeMock).toHaveBeenCalledWith(NETWORK_COMMANDS.clearIrohServicesTicket);
+		expect(hook.relayInfo?.hasIrohServicesTicket).toBe(false);
 	});
 });

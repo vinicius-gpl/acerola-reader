@@ -738,9 +738,20 @@
 				"description": "Escolha como este dispositivo alcança outros fora da sua rede local.",
 				"use_acerola_relay": "Usar o relay do Acerola",
 				"use_acerola_relay_desc": "Gerenciado automaticamente ({url}).",
-				"use_iroh_public_network": "Usar a rede pública do Iroh",
-				"use_iroh_public_network_desc": "Rede pública de relays padrão do projeto Iroh (n0) — não pode ser combinada com as fontes abaixo.",
-				"exclusive_note": "Desabilitado enquanto a rede pública do Iroh estiver ativa.",
+				"use_iroh_public_network": "Usar a Iroh Services (conta própria)",
+				"use_iroh_public_network_desc": "Autenticado com o ticket da sua própria conta em services.iroh.computer — não pode ser combinada com as fontes abaixo.",
+				"exclusive_note": "Desabilitado enquanto a Iroh Services estiver ativa.",
+				"iroh_services_ticket": {
+					"label": "Ticket da Iroh Services",
+					"configured": "Ticket configurado.",
+					"not_configured": "Nenhum ticket configurado ainda.",
+					"placeholder": "Cole aqui o ticket gerado em services.iroh.computer",
+					"save_button": "Salvar ticket",
+					"replace_button": "Trocar ticket",
+					"remove_button": "Remover ticket",
+					"invalid": "Ticket inválido. Confira se você copiou o texto completo.",
+					"help": "Crie uma conta gratuita em services.iroh.computer, gere um ticket no seu projeto e cole aqui — a credencial fica só neste dispositivo, nunca é enviada pro relay."
+				},
 				"custom_relays": {
 					"title": "Seus relays próprios",
 					"add_placeholder": "https://seu-relay.exemplo.com",
