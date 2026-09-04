@@ -14,7 +14,7 @@ use acerola_p2p::api::{
 use tauri::{Emitter, Manager};
 
 use crate::{
-    bios::scopes::{read_device_alias_override, read_library_path, read_relay_url_override},
+    bios::scopes::{read_device_alias_override, read_library_path, read_relay_settings},
     cmd::features::metadata::MetadataState,
     core::services::{
         network::{NetworkService, NetworkServiceApi},
@@ -44,9 +44,6 @@ use crate::{
         },
     },
 };
-
-/// Relay oficial do Acerola — default sempre disponível, sem exigir nenhuma configuração.
-pub const DEFAULT_RELAY_URL: &str = "https://relay.acerola-comic.com";
 
 /// Nome do antigo arquivo de seed em texto puro — só é lido uma vez pra migrar pra
 /// `identity.enc` (ver [`migrate_plaintext_seed_if_present`]); depois disso deixa de existir.
@@ -131,12 +128,11 @@ pub async fn setup_network(app_handle: &tauri::AppHandle) -> Result<(), ComicErr
         Arc::new(SecureP2pStorage::open(&app_data_directory, master_key).map_err(ComicError::Io)?);
     migrate_plaintext_seed_if_present(&app_data_directory, &secure_p2p_storage).await?;
 
-    // O relay próprio (`relay.acerola-comic.com`) é o default; usuários avançados podem
-    // apontar pra outro relay via a tela de Rede, persistido em `settings.json` como
-    // `relay_url`. Só é lido na inicialização — trocar em runtime não é suportado.
-    let relay_url =
-        read_relay_url_override(&app_data_directory).unwrap_or(DEFAULT_RELAY_URL.to_string());
-    tracing::info!("[Bios::Network] Using relay: {}", relay_url);
+    // Combina as fontes de relay habilitadas pelo usuário na tela de Rede (relay do
+    // Acerola / relay(s) próprio(s) / relay(s) Iroh / rede pública Iroh), persistidas em
+    // `settings.json`. Só é lido na inicialização — trocar em runtime não é suportado.
+    let relay_mode = read_relay_settings(&app_data_directory).resolve();
+    tracing::info!("[Bios::Network] Using relay mode: {:?}", relay_mode);
 
     // Sem `.seed(...)` aqui — o builder resolve a identidade sozinho a partir do
     // `.storage(...)` abaixo (`acerola_builder.rs::resolve_identity`): carrega o seed
@@ -148,7 +144,7 @@ pub async fn setup_network(app_handle: &tauri::AppHandle) -> Result<(), ComicErr
     // `.manage()`. `.mem()` não persiste blobs entre reinícios, mas destrava o app
     // imediatamente enquanto o hang do FsStore é isolado/corrigido.
     let transport_builder =
-        IrohTransportBuilder::default().relay(&relay_url).blobs(IrohBlobsConfig::mem());
+        IrohTransportBuilder::default().relay_mode(relay_mode).blobs(IrohBlobsConfig::mem());
 
     // Apelido custom estilo LocalSend (`device_alias` em `settings.json`) sobrescreve o
     // hostname automático nesta inicialização. Renomear em runtime depois (`set_local_device_name`,
