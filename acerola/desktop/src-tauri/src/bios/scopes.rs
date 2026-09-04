@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use acerola_p2p::api::transport::{RelayModeConfig, ACEROLA_DEFAULT_RELAY_URL};
 use serde_json::Value;
 use tauri::Manager;
 use tauri_plugin_fs::FsExt;
@@ -20,21 +21,129 @@ pub fn read_library_path(app_data_directory: &std::path::Path) -> Option<PathBuf
     extract_library_path(&file_content)
 }
 
-/// Lê o override opcional de `relay_url` de `settings.json`. Se ausente (caso comum — a
-/// maioria dos usuários nunca mexe nisso), o chamador deve cair no relay padrão hardcoded.
-/// Só é lido na inicialização: trocar a URL do relay em runtime não é suportado pela lib,
-/// só a troca de modo local/relay (já exposta via `switch_to_local`/`switch_to_relay`).
-pub fn read_relay_url_override(app_data_directory: &std::path::Path) -> Option<String> {
-    let settings_file_path = app_data_directory.join("settings.json");
-    let file_content = std::fs::read_to_string(&settings_file_path).ok()?;
-    let json_value: Value = serde_json::from_str(&file_content).ok()?;
-    let relay_url = json_value.get("relay_url")?.as_str()?.trim().to_string();
+/// Configuração de relay resolvida a partir de `settings.json`, combinável em múltiplas
+/// fontes simultâneas (ver [`RelaySettings::resolve`]).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RelaySettings {
+    /// Usa o relay oficial mantido pelo Acerola (`ACEROLA_DEFAULT_RELAY_URL`).
+    pub use_acerola_relay: bool,
+    /// Usa a rede pública padrão de relays do projeto Iroh (n0) — mutuamente exclusiva com
+    /// as demais fontes: `iroh::RelayMode` só permite `Disabled | Default | Custom`, nunca
+    /// uma combinação de `Default` com URLs específicas.
+    pub use_iroh_public_network: bool,
+    /// Relay(s) próprio(s) do usuário (self-hosted).
+    pub custom_relay_urls: Vec<String>,
+    /// Relay(s) que falam o protocolo Iroh, mas não fazem parte da rede pública n0.
+    pub iroh_relay_urls: Vec<String>,
+}
 
+impl Default for RelaySettings {
+    fn default() -> Self {
+        Self {
+            use_acerola_relay: true,
+            use_iroh_public_network: false,
+            custom_relay_urls: Vec::new(),
+            iroh_relay_urls: Vec::new(),
+        }
+    }
+}
+
+impl RelaySettings {
+    /// Resolve as fontes habilitadas para o `RelayModeConfig` concreto consumido pelo
+    /// `IrohTransportBuilder`. Sem nenhuma fonte ativa, cai em `MdnsOnly` — não existe um
+    /// modo "mDNS only" explícito na UI, é só o estado natural de "nada selecionado".
+    pub fn resolve(&self) -> RelayModeConfig {
+        if self.use_iroh_public_network {
+            return RelayModeConfig::IrohDefault;
+        }
+
+        let mut urls = Vec::new();
+        if self.use_acerola_relay {
+            urls.push(ACEROLA_DEFAULT_RELAY_URL.to_string());
+        }
+        urls.extend(self.custom_relay_urls.iter().cloned());
+        urls.extend(self.iroh_relay_urls.iter().cloned());
+
+        if urls.is_empty() {
+            RelayModeConfig::MdnsOnly
+        } else {
+            RelayModeConfig::Custom(urls)
+        }
+    }
+}
+
+/// Lê a configuração de relay combinável de `settings.json` (`relay_use_acerola`,
+/// `relay_use_iroh_public`, `relay_custom_urls`, `relay_iroh_urls`). Ausência total do
+/// arquivo/chaves cai no [`RelaySettings::default`] (relay do Acerola habilitado, sem mais
+/// nenhuma fonte). Só é lida na inicialização: trocar a configuração de relay em runtime não
+/// é suportado pela lib, só a troca de modo local/relay (já exposta via
+/// `switch_to_local`/`switch_to_relay`).
+///
+/// Migração: se nenhuma das chaves novas estiver presente mas a chave legada `relay_url`
+/// (de antes desta feature, URL única) estiver, ela é migrada para dentro de
+/// `custom_relay_urls` — sem isso, quem já tinha configurado um relay próprio perderia essa
+/// escolha silenciosamente no primeiro boot após o update.
+pub fn read_relay_settings(app_data_directory: &std::path::Path) -> RelaySettings {
+    let settings_file_path = app_data_directory.join("settings.json");
+    let Ok(file_content) = std::fs::read_to_string(&settings_file_path) else {
+        return RelaySettings::default();
+    };
+    let Ok(json_value) = serde_json::from_str::<Value>(&file_content) else {
+        return RelaySettings::default();
+    };
+
+    if !has_any_relay_settings_key(&json_value) {
+        if let Some(legacy_url) = read_legacy_relay_url(&json_value) {
+            tracing::info!(
+                "[Bios::Scopes] Migrating legacy 'relay_url' override into 'relay_custom_urls'"
+            );
+            return RelaySettings { custom_relay_urls: vec![legacy_url], ..RelaySettings::default() };
+        }
+        return RelaySettings::default();
+    }
+
+    RelaySettings {
+        use_acerola_relay: json_value
+            .get("relay_use_acerola")
+            .and_then(Value::as_bool)
+            .unwrap_or(true),
+        use_iroh_public_network: json_value
+            .get("relay_use_iroh_public")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
+        custom_relay_urls: read_string_array(&json_value, "relay_custom_urls"),
+        iroh_relay_urls: read_string_array(&json_value, "relay_iroh_urls"),
+    }
+}
+
+fn has_any_relay_settings_key(json_value: &Value) -> bool {
+    ["relay_use_acerola", "relay_use_iroh_public", "relay_custom_urls", "relay_iroh_urls"]
+        .iter()
+        .any(|key| json_value.get(key).is_some())
+}
+
+fn read_legacy_relay_url(json_value: &Value) -> Option<String> {
+    let relay_url = json_value.get("relay_url")?.as_str()?.trim().to_string();
     if relay_url.is_empty() {
         return None;
     }
-
     Some(relay_url)
+}
+
+fn read_string_array(json_value: &Value, key: &str) -> Vec<String> {
+    json_value
+        .get(key)
+        .and_then(Value::as_array)
+        .map(|values| {
+            values
+                .iter()
+                .filter_map(Value::as_str)
+                .map(str::trim)
+                .filter(|url| !url.is_empty())
+                .map(str::to_string)
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 /// Lê o apelido custom do dispositivo local (`device_alias`, estilo LocalSend) de
@@ -94,9 +203,11 @@ mod tests {
     use tauri::Manager;
     use tauri_plugin_fs::FsExt;
 
+    use acerola_p2p::api::transport::RelayModeConfig;
+
     use super::{
         apply_library_scope, extract_library_path, read_device_alias_override, read_library_path,
-        read_relay_url_override,
+        read_relay_settings, RelaySettings,
     };
 
     #[test]
@@ -129,7 +240,41 @@ mod tests {
     }
 
     #[test]
-    fn test_read_relay_url_override_returns_the_configured_value() {
+    fn test_read_relay_settings_missing_file_returns_default() {
+        let app_data_directory = tempfile::tempdir().unwrap();
+        assert_eq!(read_relay_settings(app_data_directory.path()), RelaySettings::default());
+    }
+
+    #[test]
+    fn test_read_relay_settings_reads_all_configured_fields() {
+        let app_data_directory = tempfile::tempdir().unwrap();
+        std::fs::write(
+            app_data_directory.path().join("settings.json"),
+            r#"{
+                "relay_use_acerola": false,
+                "relay_use_iroh_public": false,
+                "relay_custom_urls": ["https://relay-a.test.local", "  ", "https://relay-b.test.local"],
+                "relay_iroh_urls": ["https://iroh-relay.test.local"]
+            }"#,
+        )
+        .unwrap();
+
+        assert_eq!(
+            read_relay_settings(app_data_directory.path()),
+            RelaySettings {
+                use_acerola_relay: false,
+                use_iroh_public_network: false,
+                custom_relay_urls: vec![
+                    "https://relay-a.test.local".to_string(),
+                    "https://relay-b.test.local".to_string()
+                ],
+                iroh_relay_urls: vec!["https://iroh-relay.test.local".to_string()],
+            }
+        );
+    }
+
+    #[test]
+    fn test_read_relay_settings_migrates_legacy_relay_url_into_custom_urls() {
         let app_data_directory = tempfile::tempdir().unwrap();
         std::fs::write(
             app_data_directory.path().join("settings.json"),
@@ -138,18 +283,63 @@ mod tests {
         .unwrap();
 
         assert_eq!(
-            read_relay_url_override(app_data_directory.path()),
-            Some("https://relay.example.com".to_string())
+            read_relay_settings(app_data_directory.path()),
+            RelaySettings {
+                custom_relay_urls: vec!["https://relay.example.com".to_string()],
+                ..RelaySettings::default()
+            }
         );
     }
 
     #[test]
-    fn test_read_relay_url_override_empty_value_returns_none() {
+    fn test_read_relay_settings_empty_legacy_relay_url_returns_default() {
         let app_data_directory = tempfile::tempdir().unwrap();
         std::fs::write(app_data_directory.path().join("settings.json"), r#"{"relay_url":"  "}"#)
             .unwrap();
 
-        assert_eq!(read_relay_url_override(app_data_directory.path()), None);
+        assert_eq!(read_relay_settings(app_data_directory.path()), RelaySettings::default());
+    }
+
+    #[test]
+    fn test_relay_settings_resolve_nothing_active_returns_mdns_only() {
+        let settings = RelaySettings {
+            use_acerola_relay: false,
+            use_iroh_public_network: false,
+            custom_relay_urls: vec![],
+            iroh_relay_urls: vec![],
+        };
+        assert_eq!(settings.resolve(), RelayModeConfig::MdnsOnly);
+    }
+
+    #[test]
+    fn test_relay_settings_resolve_merges_all_active_sources_into_custom() {
+        let settings = RelaySettings {
+            use_acerola_relay: true,
+            use_iroh_public_network: false,
+            custom_relay_urls: vec!["https://relay-a.test.local".to_string()],
+            iroh_relay_urls: vec!["https://iroh-relay.test.local".to_string()],
+        };
+
+        assert_eq!(
+            settings.resolve(),
+            RelayModeConfig::Custom(vec![
+                acerola_p2p::api::transport::ACEROLA_DEFAULT_RELAY_URL.to_string(),
+                "https://relay-a.test.local".to_string(),
+                "https://iroh-relay.test.local".to_string(),
+            ])
+        );
+    }
+
+    #[test]
+    fn test_relay_settings_resolve_iroh_public_network_ignores_other_sources() {
+        let settings = RelaySettings {
+            use_acerola_relay: true,
+            use_iroh_public_network: true,
+            custom_relay_urls: vec!["https://relay-a.test.local".to_string()],
+            iroh_relay_urls: vec![],
+        };
+
+        assert_eq!(settings.resolve(), RelayModeConfig::IrohDefault);
     }
 
     #[test]
