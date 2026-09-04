@@ -18,6 +18,9 @@
 			 *  paralelo, um por dispositivo) — só pra desabilitar o item da lista certo e
 			 *  mostrar o spinner. */
 			syncingPeerIds?: string[];
+			/** `useMetadataSync().isSyncing` do chamador — true durante mangadex/anilist/comicInfo,
+			 *  desabilita os três botões pra evitar disparo duplo enquanto um já roda. */
+			metadataSyncing?: boolean;
 		};
 		events: {
 			onVolumeViewModeChange: (value: 'cover' | 'banner') => void;
@@ -242,7 +245,9 @@
 								title: m['pages.config.metadata.mangadex.title'](),
 								description: m['pages.config.metadata.mangadex.desc']()
 							}}
-							events={{ onClick: events.onSyncMangadex }}
+							events={{
+								onClick: preferences.metadataSyncing ? undefined : events.onSyncMangadex
+							}}
 						>
 							{#snippet icon()}
 								<span style="all: unset; display: inline-flex;">
@@ -254,10 +259,11 @@
 								<AcerolaButtonIcon
 									ui={{
 										class:
-											'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground'
+											'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground',
+										disabled: preferences.metadataSyncing
 									}}
 								>
-									<RefreshCw />
+									<RefreshCw class={preferences.metadataSyncing ? 'animate-spin' : ''} />
 								</AcerolaButtonIcon>
 							{/snippet}
 						</AcerolaHeroButton>
@@ -267,7 +273,9 @@
 								title: m['pages.config.metadata.anilist.title'](),
 								description: m['pages.config.metadata.anilist.desc']()
 							}}
-							events={{ onClick: events.onSyncAnilist }}
+							events={{
+								onClick: preferences.metadataSyncing ? undefined : events.onSyncAnilist
+							}}
 						>
 							{#snippet icon()}
 								<span style="all: unset; display: inline-flex;">
@@ -279,10 +287,11 @@
 								<AcerolaButtonIcon
 									ui={{
 										class:
-											'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground'
+											'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground',
+										disabled: preferences.metadataSyncing
 									}}
 								>
-									<RefreshCw />
+									<RefreshCw class={preferences.metadataSyncing ? 'animate-spin' : ''} />
 								</AcerolaButtonIcon>
 							{/snippet}
 						</AcerolaHeroButton>
@@ -293,7 +302,9 @@
 							title: m['pages.comic.toast.comic_info.title'](),
 							description: m['pages.comic.toast.comic_info.desc']()
 						}}
-						events={{ onClick: events.onSyncComicInfo }}
+						events={{
+							onClick: preferences.metadataSyncing ? undefined : events.onSyncComicInfo
+						}}
 					>
 						{#snippet icon()}
 							<span style="all: unset; display: inline-flex;">
@@ -305,10 +316,11 @@
 							<AcerolaButtonIcon
 								ui={{
 									class:
-										'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground'
+										'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground',
+									disabled: preferences.metadataSyncing
 								}}
 							>
-								<RefreshCw />
+								<RefreshCw class={preferences.metadataSyncing ? 'animate-spin' : ''} />
 							</AcerolaButtonIcon>
 						{/snippet}
 					</AcerolaHeroButton>

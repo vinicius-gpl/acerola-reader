@@ -877,7 +877,8 @@
 								volumeViewMode: volumeViewPreference.volumeViewMode,
 								bookmarkId: currentBookmarkId,
 								externalSyncEnabled: manga.metadata.externalSync,
-								syncingPeerIds
+								syncingPeerIds,
+								metadataSyncing: metadataSync.isSyncing
 							}}
 							events={{
 								onVolumeViewModeChange: (value) => (volumeViewPreference.volumeViewMode = value),
