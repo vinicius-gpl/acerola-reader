@@ -6,7 +6,9 @@ use iroh::{
 use iroh_mdns_address_lookup as mdns;
 use secrecy::{ExposeSecret, SecretBox};
 
-use super::{blobs_bridge::BlobsIntegration, transport::IrohTransport};
+use super::{
+    blobs_bridge::BlobsIntegration, relay_mode::RelayModeConfig, transport::IrohTransport,
+};
 use crate::{core::transport::TransportP2pBuilder, infra::error::ConnectionError};
 
 const IDENTITY_DERIVE_CONTEXT: &str = "acerola-p2p 2026 node identity";
@@ -15,14 +17,29 @@ const IDENTITY_DERIVE_CONTEXT: &str = "acerola-p2p 2026 node identity";
 #[derive(Default)]
 pub struct IrohTransportBuilder {
     relay_urls: Vec<String>,
+    relay_mode: Option<RelayModeConfig>,
     seed: Option<SecretBox<[u8; 32]>>,
     blobs_config: super::blobs_bridge::BlobsConfigSlot,
 }
 
 impl IrohTransportBuilder {
     /// Adiciona uma URL de relay ao pool gerenciado pelo Iroh.
+    ///
+    /// Atalho equivalente a `.relay_mode(RelayModeConfig::Custom(vec![url]))` — mantido por
+    /// compatibilidade com código existente. Ignorado se `.relay_mode(...)` também for chamado.
     pub fn relay(mut self, url: &str) -> Self {
         self.relay_urls.push(url.to_string());
+        self
+    }
+
+    /// Define o modo de relay via um dos 4 presets suportados pela lib: sem relay remoto
+    /// (`MdnsOnly`), relay(s) customizado(s) informado(s) pelo app (`Custom`), o relay oficial
+    /// do Acerola (`AcerolaOwn`) ou a rede pública padrão do Iroh (`IrohDefault`).
+    ///
+    /// Tem prioridade sobre `.relay(url)` — se ambos forem chamados no mesmo builder, este
+    /// vence e as URLs acumuladas via `.relay()` são ignoradas.
+    pub fn relay_mode(mut self, mode: RelayModeConfig) -> Self {
+        self.relay_mode = Some(mode);
         self
     }
 
@@ -85,20 +102,22 @@ impl TransportP2pBuilder for IrohTransportBuilder {
 impl IrohTransportBuilder {
     fn build_mode(&self, alpns: Vec<Vec<u8>>) -> Result<endpoint::Builder, ConnectionError> {
         let mdns = mdns::MdnsAddressLookup::builder();
-        let mut builder = Endpoint::builder(presets::N0).address_lookup(mdns).alpns(alpns);
+        let builder = Endpoint::builder(presets::N0).address_lookup(mdns).alpns(alpns);
 
-        builder = if self.relay_urls.is_empty() {
-            builder.relay_mode(iroh::RelayMode::Disabled)
-        } else {
-            let relay_configs: Vec<RelayConfig> = self.relay_urls.iter()
-                .map(|url| url.parse::<RelayUrl>().map(
-                    RelayConfig::from
-                )).collect::<Result<_, iroh::RelayUrlParseError>>()?;
+        let iroh_relay_mode = match &self.relay_mode {
+            Some(config) => config.resolve()?,
+            None if self.relay_urls.is_empty() => iroh::RelayMode::Disabled,
+            None => {
+                let relay_configs: Vec<RelayConfig> = self.relay_urls.iter()
+                    .map(|url| url.parse::<RelayUrl>().map(
+                        RelayConfig::from
+                    )).collect::<Result<_, iroh::RelayUrlParseError>>()?;
 
-            builder.relay_mode(iroh::RelayMode::Custom(RelayMap::from_iter(relay_configs)))
+                iroh::RelayMode::Custom(RelayMap::from_iter(relay_configs))
+            }
         };
 
-        Ok(builder)
+        Ok(builder.relay_mode(iroh_relay_mode))
     }
 
     fn apply_secret(&self, mut builder: endpoint::Builder) -> endpoint::Builder {
@@ -146,5 +165,56 @@ mod tests {
         let mut builder_configured = IrohTransportBuilder::default();
         builder_configured.set_seed(target_seed);
         assert_eq!(builder_configured.get_seed(), Some(target_seed));
+    }
+
+    #[tokio::test]
+    async fn relay_mode_mdns_only_builds_successfully() {
+        let transport = IrohTransportBuilder::default()
+            .relay_mode(RelayModeConfig::MdnsOnly)
+            .build(vec![b"test/proto".to_vec()]);
+        assert!(transport.await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn relay_mode_iroh_default_builds_successfully() {
+        let transport = IrohTransportBuilder::default()
+            .relay_mode(RelayModeConfig::IrohDefault)
+            .build(vec![b"test/proto".to_vec()]);
+        assert!(transport.await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn relay_mode_acerola_own_builds_successfully() {
+        let transport = IrohTransportBuilder::default()
+            .relay_mode(RelayModeConfig::AcerolaOwn)
+            .build(vec![b"test/proto".to_vec()]);
+        assert!(transport.await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn relay_mode_custom_valid_url_builds_successfully() {
+        let transport = IrohTransportBuilder::default()
+            .relay_mode(RelayModeConfig::Custom(vec!["https://relay.test.local".to_string()]))
+            .build(vec![b"test/proto".to_vec()]);
+        assert!(transport.await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn relay_mode_custom_invalid_url_returns_error() {
+        let transport = IrohTransportBuilder::default()
+            .relay_mode(RelayModeConfig::Custom(vec!["not-a-valid-url".to_string()]))
+            .build(vec![b"test/proto".to_vec()]);
+        assert!(transport.await.is_err());
+    }
+
+    #[tokio::test]
+    async fn relay_mode_takes_priority_over_legacy_relay_urls() {
+        // A URL legada é claramente inválida — se `.relay_mode(...)` não tivesse prioridade,
+        // o build falharia ao tentar resolvê-la.
+        let transport = IrohTransportBuilder::default()
+            .relay("not-a-valid-url")
+            .relay_mode(RelayModeConfig::MdnsOnly)
+            .build(vec![b"test/proto".to_vec()]);
+        assert!(transport.await.is_ok());
     }
 }

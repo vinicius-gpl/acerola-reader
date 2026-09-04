@@ -137,6 +137,31 @@ let node = AcerolaP2p::builder(emit, transport_builder, device_info)
     .await?;
 ```
 
+#### Modos de relay (`RelayModeConfig`)
+
+Para uma escolha explícita entre os modos de relay suportados — em vez de inferir o modo a
+partir de haver ou não uma URL configurada — use `.relay_mode(...)`, que tem prioridade sobre
+`.relay(url)` caso ambos sejam chamados:
+
+```rust
+use acerola_p2p::api::transport::{IrohTransportBuilder, RelayModeConfig};
+
+// Sem relay remoto — só descoberta mDNS na rede local (offline/alta privacidade).
+let mdns_only = IrohTransportBuilder::default().relay_mode(RelayModeConfig::MdnsOnly);
+
+// Relay(s) customizado(s), informado(s) pelo app consumidor.
+let custom = IrohTransportBuilder::default()
+    .relay_mode(RelayModeConfig::Custom(vec!["https://meu-relay.exemplo.com".to_string()]));
+
+// Relay oficial mantido pelo ecossistema Acerola (`ACEROLA_DEFAULT_RELAY_URL`).
+let acerola_own = IrohTransportBuilder::default().relay_mode(RelayModeConfig::AcerolaOwn);
+
+// Rede pública de relays padrão do projeto Iroh (produção n0).
+let iroh_default = IrohTransportBuilder::default().relay_mode(RelayModeConfig::IrohDefault);
+```
+
+Só afeta o momento de montar o node (builder) — trocar o modo em runtime, com o node já rodando, não é suportado.
+
 ### 2. Persistência de Identidade e Cache de Peers (`P2PStorage`)
 
 Ao fornecer um storage, o builder sincroniza e restaura automaticamente a chave mestra de identidade e o cache de endereços de peers para reconexão/bootstrapping rápido:
