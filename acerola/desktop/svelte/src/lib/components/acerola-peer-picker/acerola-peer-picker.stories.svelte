@@ -37,7 +37,7 @@
 			<button
 				type="button"
 				onclick={() => (openWithPeers = true)}
-				class="rounded-lg border border-border bg-surface-elevated px-4 py-2 text-sm font-medium text-foreground hover:opacity-80"
+				class="bg-surface-elevated rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:opacity-80"
 			>
 				Open Dialog
 			</button>
@@ -56,7 +56,7 @@
 			<button
 				type="button"
 				onclick={() => (openEmpty = true)}
-				class="rounded-lg border border-border bg-surface-elevated px-4 py-2 text-sm font-medium text-foreground hover:opacity-80"
+				class="bg-surface-elevated rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:opacity-80"
 			>
 				Open Dialog
 			</button>
