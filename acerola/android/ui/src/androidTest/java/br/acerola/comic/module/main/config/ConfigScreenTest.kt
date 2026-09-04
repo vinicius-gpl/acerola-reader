@@ -78,19 +78,16 @@ class ConfigScreenTest {
             }
         }
 
-        // Verifica títulos das seções usando os textos exatos definidos no strings.xml e transformados em uppercase no ConfigScreen
-        // "Aparência" -> "APARÊNCIA"
-        // "Arquivos locais" -> "ARQUIVOS LOCAIS" (No strings.xml é title_text_archive_configs_in_app)
-        // "Biblioteca" -> "BIBLIOTECA"
-        // "Metadados externos" -> "METADADOS EXTERNOS"
-
+        // Categorias agora são cabeçalhos de Acerola.Component.AccordionCard (ver
+        // ConfigScreen.kt) em vez do antigo SectionHeader com .uppercase() — o texto exibido
+        // é o valor exato do strings.xml, sem transformação de caixa.
         composeTestRule
-            .onNodeWithText("APARÊNCIA", useUnmergedTree = true)
+            .onNodeWithText("Aparência", useUnmergedTree = true)
             .performScrollTo()
             .assertIsDisplayed()
 
         composeTestRule
-            .onNodeWithText("BIBLIOTECA", useUnmergedTree = true)
+            .onNodeWithText("Biblioteca", useUnmergedTree = true)
             .performScrollTo()
             .assertIsDisplayed()
     }

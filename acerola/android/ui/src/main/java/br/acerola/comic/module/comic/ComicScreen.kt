@@ -124,6 +124,11 @@ fun ComicScreen(
 
     var selectedTab by remember { mutableStateOf(value = MainTab.CHAPTERS) }
 
+    // Categorias da aba de preferências colapsam/expandem inline, mesmo padrão do
+    // Acerola.Component.AccordionCard usado na config principal — hoisted aqui porque
+    // `configSection` não é `@Composable` (só monta `scope.item {}`).
+    var expandedConfigCategories by remember { mutableStateOf(setOf<String>()) }
+
     val comicState by comicViewModel.comic.collectAsStateWithLifecycle()
     val chapterDto by comicViewModel.chapters.collectAsStateWithLifecycle()
     val allChapters by comicViewModel.allChapters.collectAsStateWithLifecycle()
@@ -410,6 +415,15 @@ fun ComicScreen(
                         Comic.Template.configSection(
                             scope = this,
                             uiState = uiState,
+                            expandedCategories = expandedConfigCategories,
+                            onToggleCategory = { id ->
+                                expandedConfigCategories =
+                                    if (id in expandedConfigCategories) {
+                                        expandedConfigCategories - id
+                                    } else {
+                                        expandedConfigCategories + id
+                                    }
+                            },
                             getSyncActionVisualState = ::getSyncActionVisualState,
                             pairedPeers = pairedPeers,
                             syncWithPeerState = syncWithPeerState,

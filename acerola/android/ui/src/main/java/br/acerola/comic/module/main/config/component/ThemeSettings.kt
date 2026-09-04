@@ -20,14 +20,10 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
@@ -58,6 +54,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import android.content.res.Configuration
 import br.acerola.comic.common.ux.theme.AcerolaTheme
 
+// Sem cabeçalho próprio: quando aninhado no Acerola.Component.AccordionCard da tela de
+// config, o título/descrição já vêm do card — duplicar aqui repetiria o mesmo texto.
 @Composable
 fun Main.Config.Component.ThemeSettings(
     currentTheme: AppTheme,
@@ -67,57 +65,20 @@ fun Main.Config.Component.ThemeSettings(
     val isDark = isSystemInDarkTheme()
     val themes = AppTheme.entries
 
-    Column(
+    LazyRow(
         modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(horizontal = SpacingTokens.Large, vertical = SpacingTokens.Small),
+        horizontalArrangement = Arrangement.spacedBy(SpacingTokens.Medium),
     ) {
-        ListItem(
-            headlineContent = {
-                Text(
-                    text = stringResource(R.string.title_settings_appearance),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                )
-            },
-            supportingContent = {
-                Text(
-                    style = MaterialTheme.typography.bodySmall,
-                    text = stringResource(R.string.description_settings_appearance),
-                )
-            },
-            leadingContent = {
-                Surface(
-                    shape = ShapeTokens.Full,
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                    modifier = Modifier.size(SizeTokens.ClickTargetSmall),
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Filled.Palette,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(SizeTokens.IconSmall),
-                            contentDescription = null,
-                        )
-                    }
-                }
-            },
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        )
-
-        LazyRow(
-            modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(horizontal = SpacingTokens.Large, vertical = SpacingTokens.Small),
-            horizontalArrangement = Arrangement.spacedBy(SpacingTokens.Medium),
-        ) {
-            items(themes) { theme ->
-                ThemeCard(
-                    modifier = Modifier.width(150.dp),
-                    title = getThemeTitle(theme, isDark),
-                    subtitle = getThemeSubtitle(theme, isDark),
-                    selected = currentTheme == theme,
-                    colors = getThemeColors(theme, isDark, context),
-                    onClick = { onThemeChange(theme) },
-                )
-            }
+        items(themes) { theme ->
+            ThemeCard(
+                modifier = Modifier.width(150.dp),
+                title = getThemeTitle(theme, isDark),
+                subtitle = getThemeSubtitle(theme, isDark),
+                selected = currentTheme == theme,
+                colors = getThemeColors(theme, isDark, context),
+                onClick = { onThemeChange(theme) },
+            )
         }
     }
 }
