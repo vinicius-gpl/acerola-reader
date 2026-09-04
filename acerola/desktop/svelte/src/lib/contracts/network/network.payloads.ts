@@ -25,9 +25,15 @@ export type PairedPeerPayload = {
 	deviceName: string | null;
 };
 
+/** Configuração de relay combinável, lida de `settings.json` (ver `RelaySettings` no
+ *  backend). `acerolaRelayUrl` é fixo, só pra exibir mesmo quando `useAcerolaRelay` é
+ *  `false`. Trocar qualquer campo só tem efeito no próximo início do app. */
 export type RelayInfo = {
-	defaultRelay: string;
-	activeRelay: string;
+	acerolaRelayUrl: string;
+	useAcerolaRelay: boolean;
+	useIrohPublicNetwork: boolean;
+	customRelayUrls: string[];
+	irohRelayUrls: string[];
 };
 
 /** Resumo de um quadrinho da biblioteca remota (ver `library_browse_handler.rs`) — só título +

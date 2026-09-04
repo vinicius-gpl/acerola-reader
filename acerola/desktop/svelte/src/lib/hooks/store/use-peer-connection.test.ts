@@ -79,7 +79,13 @@ function defaultInvokeImpl(overrides: Record<string, unknown> = {}) {
 		[NETWORK_COMMANDS.getLocalId]: 'local-id',
 		[NETWORK_COMMANDS.getLocalAddr]: { id: { id: 'local-id', device_id: null }, addrs: [1, 2] },
 		[NETWORK_COMMANDS.getLocalDeviceInfo]: { name: 'Desktop', os: 'windows', version: '1.0' },
-		[NETWORK_COMMANDS.getRelayInfo]: { defaultRelay: 'relay-a', activeRelay: 'relay-a' },
+		[NETWORK_COMMANDS.getRelayInfo]: {
+			acerolaRelayUrl: 'relay-a',
+			useAcerolaRelay: true,
+			useIrohPublicNetwork: false,
+			customRelayUrls: [],
+			irohRelayUrls: []
+		},
 		[NETWORK_COMMANDS.getNetworkStatus]: undefined,
 		[NETWORK_COMMANDS.getPairedPeers]: []
 	};
@@ -142,7 +148,13 @@ describe('usePeerConnection', () => {
 
 		expect(hook.localId).toBe('local-id');
 		expect(hook.localDeviceInfo).toEqual({ name: 'Desktop', os: 'windows', version: '1.0' });
-		expect(hook.relayInfo).toEqual({ defaultRelay: 'relay-a', activeRelay: 'relay-a' });
+		expect(hook.relayInfo).toEqual({
+			acerolaRelayUrl: 'relay-a',
+			useAcerolaRelay: true,
+			useIrohPublicNetwork: false,
+			customRelayUrls: [],
+			irohRelayUrls: []
+		});
 	});
 
 	it('startListening registers status/handshake listeners and loads status + peers', async () => {

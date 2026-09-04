@@ -4,6 +4,13 @@ import { STORE_FILE, STORE_KEYS } from '$lib/constants/store-plugin';
 import { NETWORK_COMMANDS } from '$lib/contracts/network/network.commands';
 import type { RelayInfo } from '$lib/contracts/network/network.payloads';
 
+type RelayUrlListField = 'customRelayUrls' | 'irohRelayUrls';
+
+const LIST_STORE_KEY: Record<RelayUrlListField, string> = {
+	customRelayUrls: STORE_KEYS.relayCustomUrls,
+	irohRelayUrls: STORE_KEYS.relayIrohUrls
+};
+
 export function useRelaySettings() {
 	let relayInfo = $state<RelayInfo | undefined>(undefined);
 
@@ -11,36 +18,69 @@ export function useRelaySettings() {
 		relayInfo = await invoke<RelayInfo>(NETWORK_COMMANDS.getRelayInfo);
 	}
 
-	/// Salva o override. Só tem efeito no próximo início do app — a conexão P2P atual
-	/// continua usando o relay com o qual já subiu.
-	async function setRelayUrl(value: string) {
+	/// Todas as mudanças abaixo só têm efeito no próximo início do app — a conexão P2P
+	/// atual continua usando o relay com o qual já subiu.
+
+	async function setUseAcerolaRelay(value: boolean) {
 		const store = await load(STORE_FILE);
-		const trimmed = value.trim();
-
-		if (!trimmed || (relayInfo && trimmed === relayInfo.defaultRelay)) {
-			await store.delete(STORE_KEYS.relayUrl);
-		} else {
-			await store.set(STORE_KEYS.relayUrl, trimmed);
-		}
-
+		await store.set(STORE_KEYS.relayUseAcerola, value);
 		await store.save();
+
+		if (relayInfo) relayInfo = { ...relayInfo, useAcerolaRelay: value };
 	}
 
-	async function resetRelayUrl() {
+	async function setUseIrohPublicNetwork(value: boolean) {
 		const store = await load(STORE_FILE);
-		await store.delete(STORE_KEYS.relayUrl);
+		await store.set(STORE_KEYS.relayUseIrohPublic, value);
 		await store.save();
+
+		if (relayInfo) relayInfo = { ...relayInfo, useIrohPublicNetwork: value };
+	}
+
+	async function addUrlToList(field: RelayUrlListField, url: string) {
+		const trimmed = url.trim();
+		if (!trimmed || !relayInfo || relayInfo[field].includes(trimmed)) return;
+
+		const next = [...relayInfo[field], trimmed];
+		const store = await load(STORE_FILE);
+		await store.set(LIST_STORE_KEY[field], next);
+		await store.save();
+
+		relayInfo = { ...relayInfo, [field]: next };
+	}
+
+	async function removeUrlFromList(field: RelayUrlListField, url: string) {
+		if (!relayInfo) return;
+
+		const next = relayInfo[field].filter((existing) => existing !== url);
+		const store = await load(STORE_FILE);
+		await store.set(LIST_STORE_KEY[field], next);
+		await store.save();
+
+		relayInfo = { ...relayInfo, [field]: next };
 	}
 
 	return {
 		loadRelayInfo,
-		setRelayUrl,
-		resetRelayUrl,
+		setUseAcerolaRelay,
+		setUseIrohPublicNetwork,
+		addCustomRelayUrl: (url: string) => addUrlToList('customRelayUrls', url),
+		removeCustomRelayUrl: (url: string) => removeUrlFromList('customRelayUrls', url),
+		addIrohRelayUrl: (url: string) => addUrlToList('irohRelayUrls', url),
+		removeIrohRelayUrl: (url: string) => removeUrlFromList('irohRelayUrls', url),
 		get relayInfo() {
 			return relayInfo;
 		},
-		get isOverridden() {
-			return !!relayInfo && relayInfo.activeRelay !== relayInfo.defaultRelay;
+		/// Nenhuma fonte de relay ativa — estado natural de "tudo desligado", não um modo
+		/// escolhido explicitamente (espelha `RelaySettings::resolve` no backend).
+		get isMdnsOnly() {
+			return (
+				!!relayInfo &&
+				!relayInfo.useAcerolaRelay &&
+				!relayInfo.useIrohPublicNetwork &&
+				relayInfo.customRelayUrls.length === 0 &&
+				relayInfo.irohRelayUrls.length === 0
+			);
 		}
 	};
 }

@@ -260,8 +260,11 @@ describe('useRelaySettings', () => {
 
 	function relayInfo(overrides: Partial<RelayInfo> = {}): RelayInfo {
 		return {
-			defaultRelay: 'relay.default.example',
-			activeRelay: 'relay.default.example',
+			acerolaRelayUrl: 'https://relay.acerola-comic.com',
+			useAcerolaRelay: true,
+			useIrohPublicNetwork: false,
+			customRelayUrls: [],
+			irohRelayUrls: [],
 			...overrides
 		};
 	}
@@ -273,71 +276,108 @@ describe('useRelaySettings', () => {
 		await hook.loadRelayInfo();
 
 		expect(invokeMock).toHaveBeenCalledWith(NETWORK_COMMANDS.getRelayInfo);
-		expect(hook.relayInfo?.defaultRelay).toBe('relay.default.example');
+		expect(hook.relayInfo?.acerolaRelayUrl).toBe('https://relay.acerola-comic.com');
 	});
 
-	it('reports isOverridden as false when active relay matches the default', async () => {
+	it('reports isMdnsOnly as false while the acerola relay is active', async () => {
 		invokeMock.mockResolvedValue(relayInfo());
 		const hook = await renderHook(useRelaySettings);
 
 		await hook.loadRelayInfo();
 
-		expect(hook.isOverridden).toBe(false);
+		expect(hook.isMdnsOnly).toBe(false);
 	});
 
-	it('reports isOverridden as true when active relay differs from the default', async () => {
-		invokeMock.mockResolvedValue(relayInfo({ activeRelay: 'relay.custom.example' }));
+	it('reports isMdnsOnly as true when every relay source is disabled', async () => {
+		invokeMock.mockResolvedValue(relayInfo({ useAcerolaRelay: false }));
 		const hook = await renderHook(useRelaySettings);
 
 		await hook.loadRelayInfo();
 
-		expect(hook.isOverridden).toBe(true);
+		expect(hook.isMdnsOnly).toBe(true);
 	});
 
-	it('persists a custom relay override', async () => {
+	it('persists toggling the acerola relay off', async () => {
 		const store = mockStore();
 		invokeMock.mockResolvedValue(relayInfo());
 		const hook = await renderHook(useRelaySettings);
 		await hook.loadRelayInfo();
 
-		await hook.setRelayUrl('relay.custom.example');
+		await hook.setUseAcerolaRelay(false);
 
-		expect(store.set).toHaveBeenCalledWith(STORE_KEYS.relayUrl, 'relay.custom.example');
+		expect(store.set).toHaveBeenCalledWith(STORE_KEYS.relayUseAcerola, false);
 		expect(store.save).toHaveBeenCalledOnce();
+		expect(hook.relayInfo?.useAcerolaRelay).toBe(false);
 	});
 
-	it('clears the override when the value matches the default relay', async () => {
+	it('persists toggling the iroh public network on', async () => {
 		const store = mockStore();
 		invokeMock.mockResolvedValue(relayInfo());
 		const hook = await renderHook(useRelaySettings);
 		await hook.loadRelayInfo();
 
-		await hook.setRelayUrl('relay.default.example');
+		await hook.setUseIrohPublicNetwork(true);
 
-		expect(store.delete).toHaveBeenCalledWith(STORE_KEYS.relayUrl);
+		expect(store.set).toHaveBeenCalledWith(STORE_KEYS.relayUseIrohPublic, true);
+		expect(hook.relayInfo?.useIrohPublicNetwork).toBe(true);
+	});
+
+	it('adds a custom relay url', async () => {
+		const store = mockStore();
+		invokeMock.mockResolvedValue(relayInfo());
+		const hook = await renderHook(useRelaySettings);
+		await hook.loadRelayInfo();
+
+		await hook.addCustomRelayUrl('https://relay-a.test.local');
+
+		expect(store.set).toHaveBeenCalledWith(STORE_KEYS.relayCustomUrls, [
+			'https://relay-a.test.local'
+		]);
+		expect(hook.relayInfo?.customRelayUrls).toEqual(['https://relay-a.test.local']);
+	});
+
+	it('ignores blank or duplicate custom relay urls', async () => {
+		const store = mockStore();
+		invokeMock.mockResolvedValue(relayInfo({ customRelayUrls: ['https://relay-a.test.local'] }));
+		const hook = await renderHook(useRelaySettings);
+		await hook.loadRelayInfo();
+
+		await hook.addCustomRelayUrl('   ');
+		await hook.addCustomRelayUrl('https://relay-a.test.local');
+
 		expect(store.set).not.toHaveBeenCalled();
-		expect(store.save).toHaveBeenCalledOnce();
 	});
 
-	it('clears the override when the value is blank', async () => {
+	it('removes a custom relay url', async () => {
+		const store = mockStore();
+		invokeMock.mockResolvedValue(
+			relayInfo({ customRelayUrls: ['https://relay-a.test.local', 'https://relay-b.test.local'] })
+		);
+		const hook = await renderHook(useRelaySettings);
+		await hook.loadRelayInfo();
+
+		await hook.removeCustomRelayUrl('https://relay-a.test.local');
+
+		expect(store.set).toHaveBeenCalledWith(STORE_KEYS.relayCustomUrls, [
+			'https://relay-b.test.local'
+		]);
+		expect(hook.relayInfo?.customRelayUrls).toEqual(['https://relay-b.test.local']);
+	});
+
+	it('adds and removes an iroh relay url', async () => {
 		const store = mockStore();
 		invokeMock.mockResolvedValue(relayInfo());
 		const hook = await renderHook(useRelaySettings);
 		await hook.loadRelayInfo();
 
-		await hook.setRelayUrl('   ');
+		await hook.addIrohRelayUrl('https://iroh-relay.test.local');
+		expect(store.set).toHaveBeenCalledWith(STORE_KEYS.relayIrohUrls, [
+			'https://iroh-relay.test.local'
+		]);
+		expect(hook.relayInfo?.irohRelayUrls).toEqual(['https://iroh-relay.test.local']);
 
-		expect(store.delete).toHaveBeenCalledWith(STORE_KEYS.relayUrl);
-		expect(store.set).not.toHaveBeenCalled();
-	});
-
-	it('resets the relay override', async () => {
-		const store = mockStore();
-		const hook = await renderHook(useRelaySettings);
-
-		await hook.resetRelayUrl();
-
-		expect(store.delete).toHaveBeenCalledWith(STORE_KEYS.relayUrl);
-		expect(store.save).toHaveBeenCalledOnce();
+		await hook.removeIrohRelayUrl('https://iroh-relay.test.local');
+		expect(store.set).toHaveBeenCalledWith(STORE_KEYS.relayIrohUrls, []);
+		expect(hook.relayInfo?.irohRelayUrls).toEqual([]);
 	});
 });
