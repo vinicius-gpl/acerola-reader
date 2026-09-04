@@ -105,7 +105,10 @@ impl IrohTransportBuilder {
         let builder = Endpoint::builder(presets::N0).address_lookup(mdns).alpns(alpns);
 
         let iroh_relay_mode = match &self.relay_mode {
-            Some(config) => config.resolve()?,
+            // `RelayModeConfig::IrohDefault` precisa saber a chave pública do node ANTES do
+            // `.bind()` (ver `relay_mode.rs::iroh_default_mode`) — o token de autenticação da
+            // rede pública do Iroh é vinculado a essa identidade, não emitido em branco.
+            Some(config) => config.resolve(&self.derive_node_secret())?,
             None if self.relay_urls.is_empty() => iroh::RelayMode::Disabled,
             None => {
                 let relay_configs: Vec<RelayConfig> = self.relay_urls.iter()
@@ -121,12 +124,27 @@ impl IrohTransportBuilder {
     }
 
     fn apply_secret(&self, mut builder: endpoint::Builder) -> endpoint::Builder {
-        if let Some(secret) = self.seed.as_ref() {
-            let derive = blake3::derive_key(IDENTITY_DERIVE_CONTEXT, secret.expose_secret());
-            builder = builder.secret_key(SecretKey::from_bytes(&derive));
+        if self.seed.is_some() {
+            builder = builder.secret_key(self.derive_node_secret());
         }
 
         builder
+    }
+
+    /// Deriva a `SecretKey` deste node a partir da seed já resolvida (ver
+    /// `AcerolaP2pBuilder::resolve_identity`, que sempre define uma seed antes de `.build()`
+    /// rodar em produção). Sem seed (só alcançável construindo este builder isoladamente, fora
+    /// do fluxo normal — ver testes), gera uma chave efêmera só pra não travar a resolução do
+    /// modo de relay; `apply_secret` continua deixando o `.bind()` gerar a identidade real nesse
+    /// caso, então essa chave efêmera nunca é a que o node de fato assume.
+    fn derive_node_secret(&self) -> SecretKey {
+        match self.seed.as_ref() {
+            Some(secret) => {
+                let derive = blake3::derive_key(IDENTITY_DERIVE_CONTEXT, secret.expose_secret());
+                SecretKey::from_bytes(&derive)
+            },
+            None => SecretKey::generate(),
+        }
     }
 }
 
