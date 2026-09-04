@@ -13,7 +13,6 @@ import org.junit.Rule
 import org.junit.Test
 
 class NavigationBarsTest {
-
     @get:Rule
     val composeTestRule = createComposeRule()
 
@@ -26,7 +25,7 @@ class NavigationBarsTest {
             AcerolaTheme {
                 Acerola.Component.BottomBar(
                     navController = navController,
-                    hazeState = hazeState // Passado conforme exigido pelo componente
+                    hazeState = hazeState, // Passado conforme exigido pelo componente
                 )
             }
         }

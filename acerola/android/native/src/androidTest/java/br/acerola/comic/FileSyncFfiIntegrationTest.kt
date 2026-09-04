@@ -9,7 +9,6 @@ import org.junit.runner.RunWith
 import p2p.FfiChapterReadEntry
 import p2p.FfiComicSummaryEntry
 import p2p.FfiFileManifestEntry
-import p2p.FfiPeerAddr
 import p2p.FfiReadingProgressEntry
 import p2p.FileSyncProvider
 import p2p.HistorySyncProvider
@@ -26,8 +25,7 @@ import java.util.concurrent.atomic.AtomicLong
 
 private val FILE_SYNC_ALPN = "acerola/sync-files/1".toByteArray()
 
-private fun sha256(bytes: ByteArray): String =
-    MessageDigest.getInstance("SHA-256").digest(bytes).joinToString(separator = "") { "%02x".format(it) }
+private fun sha256(bytes: ByteArray): String = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString(separator = "") { "%02x".format(it) }
 
 /** Determinístico e variando com `seed` — capítulos diferentes não têm o mesmo conteúdo,
  *  pra não mascarar um bug de troca/mistura entre capítulos. */
@@ -220,13 +218,25 @@ class FileSyncFfiIntegrationTest {
 
         val nodeA =
             P2pNode(
-                callbackA, null, null, "ffi-test-device-a", "1.0",
-                InMemorySecureBlobStore(), NoOpHistoryProvider(), providerA,
+                callbackA,
+                null,
+                null,
+                "ffi-test-device-a",
+                "1.0",
+                InMemorySecureBlobStore(),
+                NoOpHistoryProvider(),
+                providerA,
             )
         val nodeB =
             P2pNode(
-                callbackB, null, null, "ffi-test-device-b", "1.0",
-                InMemorySecureBlobStore(), NoOpHistoryProvider(), providerB,
+                callbackB,
+                null,
+                null,
+                "ffi-test-device-b",
+                "1.0",
+                InMemorySecureBlobStore(),
+                NoOpHistoryProvider(),
+                providerB,
             )
 
         try {

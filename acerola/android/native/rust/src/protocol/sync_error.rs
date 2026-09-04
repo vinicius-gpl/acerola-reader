@@ -27,7 +27,9 @@ pub(crate) fn classify_sync_error(error: &P2pError) -> Option<SyncErrorCode> {
     match error {
         P2pError::Timeout => Some(SyncErrorCode::Timeout),
         P2pError::PeerDisconnected(_) => Some(SyncErrorCode::ConnectionLost),
-        P2pError::StreamFailed(msg) if msg.contains("already in progress") => Some(SyncErrorCode::Busy),
+        P2pError::StreamFailed(msg) if msg.contains("already in progress") => {
+            Some(SyncErrorCode::Busy)
+        }
         _ => None,
     }
 }

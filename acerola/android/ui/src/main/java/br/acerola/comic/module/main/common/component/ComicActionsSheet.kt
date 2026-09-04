@@ -1,5 +1,6 @@
 package br.acerola.comic.module.main.common.component
 
+import android.content.res.Configuration
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -43,14 +44,17 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import br.acerola.comic.common.ux.Acerola
 import br.acerola.comic.common.ux.component.AdaptiveSheet
 import br.acerola.comic.common.ux.component.Dialog
 import br.acerola.comic.common.ux.component.DialogButton
+import br.acerola.comic.common.ux.theme.AcerolaTheme
 import br.acerola.comic.common.ux.tokens.SizeTokens
 import br.acerola.comic.common.ux.tokens.SpacingTokens
 import br.acerola.comic.dto.ComicDto
+import br.acerola.comic.dto.archive.ComicDirectoryDto
 import br.acerola.comic.dto.metadata.category.CategoryDto
 import br.acerola.comic.module.main.Main
 import br.acerola.comic.module.main.sync.state.PairedPeer
@@ -58,10 +62,6 @@ import br.acerola.comic.service.SyncDirection
 import br.acerola.comic.ui.R
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import androidx.compose.ui.tooling.preview.Preview
-import android.content.res.Configuration
-import br.acerola.comic.common.ux.theme.AcerolaTheme
-import br.acerola.comic.dto.archive.ComicDirectoryDto
 
 @Composable
 fun Main.Common.Component.ComicActionsSheet(
@@ -539,7 +539,21 @@ fun Main.Common.Component.BatchComicCategorySheet(
 private fun ComicActionsSheetPreview() {
     AcerolaTheme {
         Main.Common.Component.ComicActionsSheet(
-            comic = ComicDto(directory = ComicDirectoryDto(id = 1L, name = "Sample Comic", path = "/path", coverUri = null, bannerUri = null, lastModified = 0L, archiveTemplateFk = null), category = null, remoteInfo = null),
+            comic =
+                ComicDto(
+                    directory =
+                        ComicDirectoryDto(
+                            id = 1L,
+                            name = "Sample Comic",
+                            path = "/path",
+                            coverUri = null,
+                            bannerUri = null,
+                            lastModified = 0L,
+                            archiveTemplateFk = null,
+                        ),
+                    category = null,
+                    remoteInfo = null,
+                ),
             categories = emptyList(),
             onHide = {},
             onDelete = {},

@@ -378,7 +378,11 @@ mod tests {
         let node = AcerolaP2p::builder(
             no_op_emitter(),
             IrohTransportBuilder::default(),
-            DeviceInfo { name: "old-name".to_string(), os: "linux".to_string(), version: "1.0.0".to_string() },
+            DeviceInfo {
+                name: "old-name".to_string(),
+                os: "linux".to_string(),
+                version: "1.0.0".to_string(),
+            },
         )
         .build()
         .await

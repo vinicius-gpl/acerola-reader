@@ -23,11 +23,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentPaste
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Error
@@ -80,8 +80,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import br.acerola.comic.common.state.SyncActionVisualState
 import br.acerola.comic.common.state.LocalSnackbarHostState
+import br.acerola.comic.common.state.SyncActionVisualState
 import br.acerola.comic.common.ux.Acerola
 import br.acerola.comic.common.ux.component.AdaptiveSheet
 import br.acerola.comic.common.ux.component.Dialog
@@ -112,11 +112,11 @@ import br.acerola.comic.util.p2p.QrBitmapGenerator
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 @Composable
 fun Main.Sync.Template.Screen(
@@ -151,7 +151,8 @@ private fun SyncLayout(
 
     fun startScan(onResult: (String) -> Unit) {
         val options = GmsBarcodeScannerOptions.Builder().setBarcodeFormats(Barcode.FORMAT_QR_CODE).build()
-        GmsBarcodeScanning.getClient(context, options)
+        GmsBarcodeScanning
+            .getClient(context, options)
             .startScan()
             .addOnSuccessListener { barcode ->
                 val value = barcode.rawValue
@@ -161,8 +162,7 @@ private fun SyncLayout(
                     AcerolaLogger.w("SyncScreen", "QR scan succeeded but rawValue was null", LogSource.UI)
                     scope.launch { snackbarHostState.showSnackbar(scanEmptyMessage, SnackbarVariant.Error) }
                 }
-            }
-            .addOnFailureListener { error ->
+            }.addOnFailureListener { error ->
                 AcerolaLogger.e("SyncScreen", "QR scan failed", LogSource.UI, error)
                 scope.launch { snackbarHostState.showSnackbar(scanFailedMessage, SnackbarVariant.Error) }
             }
@@ -1026,8 +1026,7 @@ private fun RemovePeerDialog(
 }
 
 /** Same formatting used both in the activity log and in "last synced" per peer. */
-private fun formatLogTimestamp(timestampMillis: Long): String =
-    SimpleDateFormat("dd/MM HH:mm", Locale.getDefault()).format(Date(timestampMillis))
+private fun formatLogTimestamp(timestampMillis: Long): String = SimpleDateFormat("dd/MM HH:mm", Locale.getDefault()).format(Date(timestampMillis))
 
 @Composable
 private fun SectionHeader(title: String) {
@@ -1082,7 +1081,14 @@ private fun previewUiState() =
             ),
         transferLog =
             listOf(
-                TransferLogEntry(id = 3, kind = SYNC_KIND_FILES, status = "progress", state = LogState.IN_PROGRESS, comicName = "Berserk", chapter = "42"),
+                TransferLogEntry(
+                    id = 3,
+                    kind = SYNC_KIND_FILES,
+                    status = "progress",
+                    state = LogState.IN_PROGRESS,
+                    comicName = "Berserk",
+                    chapter = "42",
+                ),
                 TransferLogEntry(id = 2, kind = SYNC_KIND_FILES, status = "error", state = LogState.ERROR, message = "connection reset"),
                 TransferLogEntry(id = 1, kind = SYNC_KIND_HISTORY, status = "complete", state = LogState.SUCCESS),
             ),

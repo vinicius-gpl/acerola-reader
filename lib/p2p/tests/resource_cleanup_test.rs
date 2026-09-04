@@ -4,11 +4,12 @@
 //! interrompe as tarefas em background e libera todos os recursos.
 
 #[cfg(feature = "iroh")]
+use std::sync::Arc;
+
+#[cfg(feature = "iroh")]
 use acerola_p2p::api::{
     identity::DeviceInfo, protocol::EventEmitter, transport::IrohTransportBuilder, AcerolaP2p,
 };
-#[cfg(feature = "iroh")]
-use std::sync::Arc;
 
 #[cfg(feature = "iroh")]
 fn no_op_emitter() -> EventEmitter {

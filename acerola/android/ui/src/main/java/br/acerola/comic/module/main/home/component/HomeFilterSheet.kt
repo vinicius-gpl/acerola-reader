@@ -1,5 +1,6 @@
 package br.acerola.comic.module.main.home.component
 
+import android.content.res.Configuration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -31,9 +32,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import br.acerola.comic.common.ux.Acerola
 import br.acerola.comic.common.ux.component.AdaptiveSheet
+import br.acerola.comic.common.ux.theme.AcerolaTheme
 import br.acerola.comic.config.preference.types.ComicSortType
 import br.acerola.comic.config.preference.types.HomeSortPreference
 import br.acerola.comic.config.preference.types.SortDirection
@@ -42,9 +45,6 @@ import br.acerola.comic.module.main.Main
 import br.acerola.comic.module.main.home.state.FilterSettings
 import br.acerola.comic.pattern.metadata.MetadataSource
 import br.acerola.comic.ui.R
-import androidx.compose.ui.tooling.preview.Preview
-import android.content.res.Configuration
-import br.acerola.comic.common.ux.theme.AcerolaTheme
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -253,10 +253,11 @@ fun Main.Home.Component.HomeFilterSheet(
 private fun HomeFilterSheetPreview() {
     AcerolaTheme {
         Main.Home.Component.HomeFilterSheet(
-            sortSettings = HomeSortPreference(
-                type = ComicSortType.TITLE,
-                direction = SortDirection.ASCENDING
-            ),
+            sortSettings =
+                HomeSortPreference(
+                    type = ComicSortType.TITLE,
+                    direction = SortDirection.ASCENDING,
+                ),
             filterSettings = FilterSettings(),
             categories = emptyList(),
             onSortChange = {},

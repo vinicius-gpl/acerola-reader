@@ -1,7 +1,6 @@
 package br.acerola.comic.usecase
 
 import android.content.Context
-import android.os.Build
 import br.acerola.comic.config.preference.DeviceAliasPreference
 import br.acerola.comic.config.preference.RelayPreference
 import br.acerola.comic.service.P2pService

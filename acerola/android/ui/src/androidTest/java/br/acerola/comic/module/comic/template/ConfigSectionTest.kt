@@ -22,17 +22,22 @@ class ConfigSectionTest {
                 Comic.Template.configSection(
                     scope = this,
                     uiState = uiState,
+                    // Categorias colapsam por padrão (ver Acerola.Component.AccordionCard) —
+                    // expande as que o teste precisa inspecionar o conteúdo.
+                    expandedCategories = setOf("display", "files", "metadata"),
+                    onToggleCategory = {},
                     onAction = {},
                     onSyncAction = {},
                 )
             }
         }
 
-        // Títulos das seções usam SectionHeader que aplica uppercase
+        // Títulos das seções agora são cabeçalhos de Acerola.Component.AccordionCard, texto
+        // exato do strings.xml (sem uppercase).
         composeTestRule.onNodeWithText("Configurações de Exibição", ignoreCase = true).assertIsDisplayed()
         composeTestRule.onNodeWithText("Configuração dos arquivos", ignoreCase = true).assertIsDisplayed()
 
-        // MangaDex é exibido dentro do componente SyncMetadata
+        // MangaDex é exibido dentro do componente SyncMetadata, na categoria "metadata" expandida
         composeTestRule.onNodeWithText("MangaDex", ignoreCase = true).assertIsDisplayed()
     }
 }

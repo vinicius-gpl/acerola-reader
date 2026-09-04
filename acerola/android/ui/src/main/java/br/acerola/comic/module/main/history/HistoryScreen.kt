@@ -1,16 +1,7 @@
 package br.acerola.comic.module.main.history
 
-import br.acerola.comic.module.main.history.state.HistoryItemState
-
-import br.acerola.comic.dto.history.ReadingHistoryWithChapterDto
-import androidx.compose.ui.tooling.preview.Preview
-import android.content.res.Configuration
-import br.acerola.comic.common.ux.theme.AcerolaTheme
-import br.acerola.comic.dto.ComicDto
-import br.acerola.comic.dto.archive.ComicDirectoryDto
-
-
 import android.content.Intent
+import android.content.res.Configuration
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -39,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import br.acerola.comic.common.state.LocalSnackbarHostState
@@ -47,12 +39,17 @@ import br.acerola.comic.common.ux.Acerola
 import br.acerola.comic.common.ux.component.SnackbarVariant
 import br.acerola.comic.common.ux.component.SyncActionIcon
 import br.acerola.comic.common.ux.component.showSnackbar
+import br.acerola.comic.common.ux.theme.AcerolaTheme
+import br.acerola.comic.dto.ComicDto
+import br.acerola.comic.dto.archive.ComicDirectoryDto
+import br.acerola.comic.dto.history.ReadingHistoryWithChapterDto
 import br.acerola.comic.module.comic.ComicActivity
 import br.acerola.comic.module.main.Main
 import br.acerola.comic.module.main.common.component.ComicListItem
 import br.acerola.comic.module.main.common.component.PeerPickerSheet
 import br.acerola.comic.module.main.history.component.HistoryHeroCard
 import br.acerola.comic.module.main.history.state.HistoryAction
+import br.acerola.comic.module.main.history.state.HistoryItemState
 import br.acerola.comic.module.main.history.state.HistoryUiState
 import br.acerola.comic.module.reader.ReaderActivity
 import br.acerola.comic.ui.R
@@ -250,28 +247,41 @@ fun HistoryScreenContent(
 private fun ScreenPreview() {
     AcerolaTheme {
         HistoryScreenContent(
-            uiState = HistoryUiState(
-                items = listOf(
-                    HistoryItemState(
-                        comic = ComicDto(
-                            directory = ComicDirectoryDto(id = 1L, name = "Cyberpunk 2077", path = "/path", coverUri = null, bannerUri = null, lastModified = 0L, archiveTemplateFk = null),
-                            category = null,
-                            remoteInfo = null,
+            uiState =
+                HistoryUiState(
+                    items =
+                        listOf(
+                            HistoryItemState(
+                                comic =
+                                    ComicDto(
+                                        directory =
+                                            ComicDirectoryDto(
+                                                id = 1L,
+                                                name = "Cyberpunk 2077",
+                                                path = "/path",
+                                                coverUri = null,
+                                                bannerUri = null,
+                                                lastModified = 0L,
+                                                archiveTemplateFk = null,
+                                            ),
+                                        category = null,
+                                        remoteInfo = null,
+                                    ),
+                                history =
+                                    ReadingHistoryWithChapterDto(
+                                        comicDirectoryId = 1L,
+                                        chapterArchiveId = 10L,
+                                        chapterSort = "0001",
+                                        lastPage = 5,
+                                        updatedAt = 123456L,
+                                        chapterName = "Capítulo 1",
+                                        isCompleted = false,
+                                    ),
+                                chapterCount = 12,
+                            ),
                         ),
-                        history = ReadingHistoryWithChapterDto(
-                            comicDirectoryId = 1L,
-                            chapterArchiveId = 10L,
-                            chapterSort = "0001",
-                            lastPage = 5,
-                            updatedAt = 123456L,
-                            chapterName = "Capítulo 1",
-                            isCompleted = false,
-                        ),
-                        chapterCount = 12,
-                    )
-                )
-            ),
+                ),
             onAction = {},
         )
     }
-}
+}

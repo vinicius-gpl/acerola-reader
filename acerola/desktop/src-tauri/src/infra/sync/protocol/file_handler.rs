@@ -10,18 +10,18 @@ use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::{
     core::services::{metadata::MetadataService, sync::file_sync::FileSyncService},
-    data::{
-        models::sync::SyncHistoryLogEntry,
-        repositories::sync::SyncHistoryLogRepository,
-    },
+    data::{models::sync::SyncHistoryLogEntry, repositories::sync::SyncHistoryLogRepository},
     infra::sync::{
-        framing::{framed_reader, framed_writer, read_json, write_json, FramedReader, FramedWriter},
+        framing::{
+            framed_reader, framed_writer, read_json, write_json, FramedReader, FramedWriter,
+        },
         messages::FileWantList,
         protocol::{
             file_session_guard::FileSyncSessionGuard,
             transfer::{
-                classify_sync_error, emit_busy, read_or_busy, receive_extras, receive_files, send_extras,
-                send_files, sync_error_payload, write_session_busy, ChapterTransfer, SyncErrorCode,
+                classify_sync_error, emit_busy, read_or_busy, receive_extras, receive_files,
+                send_extras, send_files, sync_error_payload, write_session_busy, ChapterTransfer,
+                SyncErrorCode,
             },
         },
     },
@@ -50,7 +50,8 @@ pub struct FileSyncOutbound {
 impl FileSyncOutbound {
     pub fn new(
         emit: EventEmitter, service: FileSyncService, metadata_service: Arc<MetadataService>,
-        log_repo: SyncHistoryLogRepository, guard: Arc<FileSyncSessionGuard>, transfer: Arc<dyn ChapterTransfer>,
+        log_repo: SyncHistoryLogRepository, guard: Arc<FileSyncSessionGuard>,
+        transfer: Arc<dyn ChapterTransfer>,
     ) -> Self {
         Self { emit, service, metadata_service, log_repo, guard, transfer }
     }
@@ -77,22 +78,46 @@ impl FileSyncOutbound {
 
         // Fase 1: o peer envia primeiro o que eu pedi (capítulos, depois extras).
         let received_skipped = receive_files(
-            reader, my_wanted.len(), &self.service, &self.emit, PROGRESS_EVENT, ERROR_EVENT, peer,
+            reader,
+            my_wanted.len(),
+            &self.service,
+            &self.emit,
+            PROGRESS_EVENT,
+            ERROR_EVENT,
+            peer,
             &self.transfer,
         )
         .await?;
         let received_extras_skipped = receive_extras(
-            reader, my_wanted_extras.len(), &self.service, &self.metadata_service, &self.emit, PROGRESS_EVENT,
-            ERROR_EVENT, peer, &self.transfer,
+            reader,
+            my_wanted_extras.len(),
+            &self.service,
+            &self.metadata_service,
+            &self.emit,
+            PROGRESS_EVENT,
+            ERROR_EVENT,
+            peer,
+            &self.transfer,
         )
         .await?;
 
         // Fase 2: eu envio o que o peer pediu (capítulos, depois extras).
-        let sent_skipped =
-            send_files(writer, &their_wanted.wanted, &self.service, &self.emit, PROGRESS_EVENT, &self.transfer)
-                .await?;
+        let sent_skipped = send_files(
+            writer,
+            &their_wanted.wanted,
+            &self.service,
+            &self.emit,
+            PROGRESS_EVENT,
+            &self.transfer,
+        )
+        .await?;
         let sent_extras_skipped = send_extras(
-            writer, &their_wanted.wanted_extras, &self.service, &self.emit, PROGRESS_EVENT, &self.transfer,
+            writer,
+            &their_wanted.wanted_extras,
+            &self.service,
+            &self.emit,
+            PROGRESS_EVENT,
+            &self.transfer,
         )
         .await?;
 
@@ -128,7 +153,8 @@ impl Handler for FileSyncOutbound {
                 Ok(())
             },
             Ok(skipped) => {
-                let message = format!("{skipped} chapter(s) not synced — see backend log for details");
+                let message =
+                    format!("{skipped} chapter(s) not synced — see backend log for details");
                 tracing::warn!(peer = %peer.id, skipped, "[FileSync] session finished with missing chapters");
                 (self.emit)(
                     ERROR_EVENT,
@@ -173,7 +199,8 @@ pub struct FileSyncInbound {
 impl FileSyncInbound {
     pub fn new(
         emit: EventEmitter, service: FileSyncService, metadata_service: Arc<MetadataService>,
-        log_repo: SyncHistoryLogRepository, guard: Arc<FileSyncSessionGuard>, transfer: Arc<dyn ChapterTransfer>,
+        log_repo: SyncHistoryLogRepository, guard: Arc<FileSyncSessionGuard>,
+        transfer: Arc<dyn ChapterTransfer>,
     ) -> Self {
         Self { emit, service, metadata_service, log_repo, guard, transfer }
     }
@@ -197,23 +224,47 @@ impl FileSyncInbound {
         .await?;
 
         // Fase 1: eu envio primeiro o que o peer (outbound) pediu (capítulos, depois extras).
-        let sent_skipped =
-            send_files(writer, &their_wanted.wanted, &self.service, &self.emit, PROGRESS_EVENT, &self.transfer)
-                .await?;
+        let sent_skipped = send_files(
+            writer,
+            &their_wanted.wanted,
+            &self.service,
+            &self.emit,
+            PROGRESS_EVENT,
+            &self.transfer,
+        )
+        .await?;
         let sent_extras_skipped = send_extras(
-            writer, &their_wanted.wanted_extras, &self.service, &self.emit, PROGRESS_EVENT, &self.transfer,
+            writer,
+            &their_wanted.wanted_extras,
+            &self.service,
+            &self.emit,
+            PROGRESS_EVENT,
+            &self.transfer,
         )
         .await?;
 
         // Fase 2: eu recebo o que eu pedi (capítulos, depois extras).
         let received_skipped = receive_files(
-            reader, my_wanted.len(), &self.service, &self.emit, PROGRESS_EVENT, ERROR_EVENT, peer,
+            reader,
+            my_wanted.len(),
+            &self.service,
+            &self.emit,
+            PROGRESS_EVENT,
+            ERROR_EVENT,
+            peer,
             &self.transfer,
         )
         .await?;
         let received_extras_skipped = receive_extras(
-            reader, my_wanted_extras.len(), &self.service, &self.metadata_service, &self.emit, PROGRESS_EVENT,
-            ERROR_EVENT, peer, &self.transfer,
+            reader,
+            my_wanted_extras.len(),
+            &self.service,
+            &self.metadata_service,
+            &self.emit,
+            PROGRESS_EVENT,
+            ERROR_EVENT,
+            peer,
+            &self.transfer,
         )
         .await?;
 
@@ -249,7 +300,8 @@ impl Handler for FileSyncInbound {
                 Ok(())
             },
             Ok(skipped) => {
-                let message = format!("{skipped} chapter(s) not synced — see backend log for details");
+                let message =
+                    format!("{skipped} chapter(s) not synced — see backend log for details");
                 tracing::warn!(peer = %peer.id, skipped, "[FileSync] session finished with missing chapters");
                 (self.emit)(
                     ERROR_EVENT,
@@ -303,7 +355,8 @@ mod tests {
         (emit, events)
     }
 
-    async fn setup() -> (SyncHistoryLogRepository, FileSyncService, Arc<MetadataService>, tempfile::TempDir) {
+    async fn setup(
+    ) -> (SyncHistoryLogRepository, FileSyncService, Arc<MetadataService>, tempfile::TempDir) {
         let pool = crate::tests::utils::setup_test_db::setup_test_db().await;
         let temp_dir = tempfile::tempdir().unwrap();
         let root = temp_dir.path().to_path_buf();
@@ -328,7 +381,8 @@ mod tests {
         let peer = PeerIdentity { id: "peer-busy".to_string(), device_id: None };
         let _held_lease = guard.try_acquire(&peer.id).expect("primeira reserva deveria suceder");
 
-        let inbound = FileSyncInbound::new(emit, service, metadata_service, log_repo, guard, test_transfer());
+        let inbound =
+            FileSyncInbound::new(emit, service, metadata_service, log_repo, guard, test_transfer());
 
         let result =
             inbound.handle(&peer, Box::new(tokio::io::empty()), Box::new(tokio::io::empty())).await;
@@ -354,7 +408,14 @@ mod tests {
         let peer = PeerIdentity { id: "peer-cross".to_string(), device_id: None };
         let _held_lease = guard.try_acquire(&peer.id).expect("reserva inicial deveria suceder");
 
-        let outbound = FileSyncOutbound::new(emit, service, metadata_service, log_repo, guard, test_transfer());
+        let outbound = FileSyncOutbound::new(
+            emit,
+            service,
+            metadata_service,
+            log_repo,
+            guard,
+            test_transfer(),
+        );
 
         let result = outbound
             .handle(&peer, Box::new(tokio::io::empty()), Box::new(tokio::io::empty()))
@@ -375,7 +436,8 @@ mod tests {
         let (emit, events) = mock_emitter();
 
         let peer = PeerIdentity { id: "peer-free".to_string(), device_id: None };
-        let inbound = FileSyncInbound::new(emit, service, metadata_service, log_repo, guard, test_transfer());
+        let inbound =
+            FileSyncInbound::new(emit, service, metadata_service, log_repo, guard, test_transfer());
 
         let _ =
             inbound.handle(&peer, Box::new(tokio::io::empty()), Box::new(tokio::io::empty())).await;

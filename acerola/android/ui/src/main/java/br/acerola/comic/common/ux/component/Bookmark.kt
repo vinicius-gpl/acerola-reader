@@ -1,7 +1,8 @@
 package br.acerola.comic.common.ux.component
-import androidx.compose.material3.MaterialTheme
+import android.content.res.Configuration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -9,9 +10,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.tooling.preview.Preview
-import android.content.res.Configuration
+import androidx.compose.ui.unit.LayoutDirection
 import br.acerola.comic.common.ux.theme.AcerolaTheme
 
 @Composable

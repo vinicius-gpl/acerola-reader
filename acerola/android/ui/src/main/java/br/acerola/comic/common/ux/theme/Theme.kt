@@ -1,13 +1,10 @@
 package br.acerola.comic.common.ux.theme
 
 import android.content.Context
-
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
-
-
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
@@ -20,6 +17,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import br.acerola.comic.common.ux.theme.AcerolaTheme
 import br.acerola.comic.common.ux.theme.color.Alucard
 import br.acerola.comic.common.ux.theme.color.CatppuccinLatte
 import br.acerola.comic.common.ux.theme.color.CatppuccinMocha
@@ -29,9 +27,6 @@ import br.acerola.comic.common.ux.theme.color.NordLight
 import br.acerola.comic.common.ux.theme.color.TokyoNightDark
 import br.acerola.comic.common.ux.theme.color.TokyoNightDay
 import br.acerola.comic.config.preference.types.AppTheme
-import androidx.compose.ui.tooling.preview.Preview
-import android.content.res.Configuration
-import br.acerola.comic.common.ux.theme.AcerolaTheme
 
 // Alguns temas (Nord, Dracula/Alucard, TokyoNight) não definem uma cor de "container de erro"
 // própria na paleta original. Em vez de inventar um hex sem poder validar visualmente,
@@ -310,7 +305,13 @@ private val TokyoNightLightColorScheme =
 val Typography =
     Typography(
         displayLarge =
-            TextStyle(fontFamily = FontFamily.Default, fontWeight = FontWeight.Normal, fontSize = 57.sp, lineHeight = 64.sp, letterSpacing = (-0.25).sp),
+            TextStyle(
+                fontFamily = FontFamily.Default,
+                fontWeight = FontWeight.Normal,
+                fontSize = 57.sp,
+                lineHeight = 64.sp,
+                letterSpacing = (-0.25).sp,
+            ),
         displayMedium =
             TextStyle(fontFamily = FontFamily.Default, fontWeight = FontWeight.Normal, fontSize = 45.sp, lineHeight = 52.sp, letterSpacing = 0.sp),
         displaySmall =
@@ -375,4 +376,3 @@ fun AcerolaTheme(
         content = content,
     )
 }
-

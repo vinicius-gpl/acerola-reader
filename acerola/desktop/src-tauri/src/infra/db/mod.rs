@@ -41,7 +41,9 @@ fn archive_migrations() -> Vec<Migration> {
         Migration {
             version: 19,
             description: "rename_volume_id_fk_to_volume_fk",
-            sql: include_str!("./migrations/models/archive/005_rename_volume_id_fk_to_volume_fk.sql"),
+            sql: include_str!(
+                "./migrations/models/archive/005_rename_volume_id_fk_to_volume_fk.sql"
+            ),
             kind: MigrationKind::Up,
         },
     ]
@@ -145,7 +147,9 @@ fn view_migrations() -> Vec<Migration> {
         Migration {
             version: 21,
             description: "recreate_comic_summary_view_with_fk_names",
-            sql: include_str!("./migrations/views/003_recreate_comic_summary_view_with_fk_names.sql"),
+            sql: include_str!(
+                "./migrations/views/003_recreate_comic_summary_view_with_fk_names.sql"
+            ),
             kind: MigrationKind::Up,
         },
     ]

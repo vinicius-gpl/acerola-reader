@@ -1,18 +1,17 @@
 package br.acerola.comic.common.ux.component
-import androidx.compose.material3.Text
-
+import android.content.res.Configuration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import br.acerola.comic.common.ux.Acerola
 import androidx.compose.ui.tooling.preview.Preview
-import android.content.res.Configuration
+import br.acerola.comic.common.ux.Acerola
 import br.acerola.comic.common.ux.theme.AcerolaTheme
 
 @Composable

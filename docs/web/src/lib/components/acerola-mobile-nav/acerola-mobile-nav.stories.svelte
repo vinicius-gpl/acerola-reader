@@ -76,7 +76,7 @@
 			<button
 				type="button"
 				onclick={() => (open = true)}
-				class="rounded-lg border border-border bg-surface px-4 py-2 text-sm font-medium text-foreground hover:bg-surface-elevated"
+				class="hover:bg-surface-elevated rounded-lg border border-border bg-surface px-4 py-2 text-sm font-medium text-foreground"
 			>
 				Abrir menu
 			</button>

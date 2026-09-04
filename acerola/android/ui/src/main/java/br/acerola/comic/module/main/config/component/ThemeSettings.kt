@@ -1,6 +1,7 @@
 package br.acerola.comic.module.main.config.component
 
 import android.content.Context
+import android.content.res.Configuration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -15,19 +16,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
@@ -40,8 +37,11 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import br.acerola.comic.common.ux.modifier.horizontalScrollFade
+import br.acerola.comic.common.ux.theme.AcerolaTheme
 import br.acerola.comic.common.ux.theme.color.CatppuccinLatte
 import br.acerola.comic.common.ux.theme.color.CatppuccinMocha
 import br.acerola.comic.common.ux.theme.color.Dracula
@@ -54,10 +54,9 @@ import br.acerola.comic.common.ux.tokens.SpacingTokens
 import br.acerola.comic.config.preference.types.AppTheme
 import br.acerola.comic.module.main.Main
 import br.acerola.comic.ui.R
-import androidx.compose.ui.tooling.preview.Preview
-import android.content.res.Configuration
-import br.acerola.comic.common.ux.theme.AcerolaTheme
 
+// Sem cabeçalho próprio: quando aninhado no Acerola.Component.AccordionCard da tela de
+// config, o título/descrição já vêm do card — duplicar aqui repetiria o mesmo texto.
 @Composable
 fun Main.Config.Component.ThemeSettings(
     currentTheme: AppTheme,
@@ -66,58 +65,27 @@ fun Main.Config.Component.ThemeSettings(
     val context = LocalContext.current
     val isDark = isSystemInDarkTheme()
     val themes = AppTheme.entries
+    val listState = rememberLazyListState()
 
-    Column(
-        modifier = Modifier.fillMaxWidth(),
+    // Cartão dimensionado como fração da largura visível (em vez de um dp fixo) pra sempre
+    // deixar um pedaço do próximo cortado na borda — largura fixa corria o risco de encaixar
+    // um número exato de cartões na tela e esconder que dá pra arrastar pra ver mais temas.
+    // O gradiente reforça o mesmo sinal pra quem não notar o corte.
+    LazyRow(
+        state = listState,
+        modifier = Modifier.fillMaxWidth().horizontalScrollFade(listState, edgeColor = MaterialTheme.colorScheme.surface),
+        contentPadding = PaddingValues(horizontal = SpacingTokens.Large, vertical = SpacingTokens.Small),
+        horizontalArrangement = Arrangement.spacedBy(SpacingTokens.Medium),
     ) {
-        ListItem(
-            headlineContent = {
-                Text(
-                    text = stringResource(R.string.title_settings_appearance),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                )
-            },
-            supportingContent = {
-                Text(
-                    style = MaterialTheme.typography.bodySmall,
-                    text = stringResource(R.string.description_settings_appearance),
-                )
-            },
-            leadingContent = {
-                Surface(
-                    shape = ShapeTokens.Full,
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                    modifier = Modifier.size(SizeTokens.ClickTargetSmall),
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Filled.Palette,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(SizeTokens.IconSmall),
-                            contentDescription = null,
-                        )
-                    }
-                }
-            },
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        )
-
-        LazyRow(
-            modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(horizontal = SpacingTokens.Large, vertical = SpacingTokens.Small),
-            horizontalArrangement = Arrangement.spacedBy(SpacingTokens.Medium),
-        ) {
-            items(themes) { theme ->
-                ThemeCard(
-                    modifier = Modifier.width(150.dp),
-                    title = getThemeTitle(theme, isDark),
-                    subtitle = getThemeSubtitle(theme, isDark),
-                    selected = currentTheme == theme,
-                    colors = getThemeColors(theme, isDark, context),
-                    onClick = { onThemeChange(theme) },
-                )
-            }
+        items(themes) { theme ->
+            ThemeCard(
+                modifier = Modifier.fillParentMaxWidth(0.42f),
+                title = getThemeTitle(theme, isDark),
+                subtitle = getThemeSubtitle(theme, isDark),
+                selected = currentTheme == theme,
+                colors = getThemeColors(theme, isDark, context),
+                onClick = { onThemeChange(theme) },
+            )
         }
     }
 }

@@ -1,5 +1,6 @@
 package br.acerola.comic.module.main.history.component
 
+import android.content.res.Configuration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -31,19 +32,18 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.sp
+import br.acerola.comic.common.ux.theme.AcerolaTheme
 import br.acerola.comic.common.ux.tokens.ShapeTokens
 import br.acerola.comic.common.ux.tokens.SizeTokens
 import br.acerola.comic.common.ux.tokens.SpacingTokens
 import br.acerola.comic.dto.ComicDto
+import br.acerola.comic.dto.archive.ComicDirectoryDto
 import br.acerola.comic.module.main.Main
 import br.acerola.comic.ui.R
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import androidx.compose.ui.tooling.preview.Preview
-import android.content.res.Configuration
-import br.acerola.comic.common.ux.theme.AcerolaTheme
-import br.acerola.comic.dto.archive.ComicDirectoryDto
 
 @Composable
 fun Main.History.Component.HistoryHeroCard(
@@ -187,7 +187,21 @@ fun Main.History.Component.HistoryHeroCard(
 private fun HistoryHeroCardPreview() {
     AcerolaTheme {
         Main.History.Component.HistoryHeroCard(
-            comic = ComicDto(directory = ComicDirectoryDto(id = 1L, name = "Sample Comic", path = "/path", coverUri = null, bannerUri = null, lastModified = 0L, archiveTemplateFk = null), category = null, remoteInfo = null),
+            comic =
+                ComicDto(
+                    directory =
+                        ComicDirectoryDto(
+                            id = 1L,
+                            name = "Sample Comic",
+                            path = "/path",
+                            coverUri = null,
+                            bannerUri = null,
+                            lastModified = 0L,
+                            archiveTemplateFk = null,
+                        ),
+                    category = null,
+                    remoteInfo = null,
+                ),
             onClick = {},
             onContinueClick = {},
         )

@@ -114,17 +114,23 @@ impl FileSyncService {
                 continue;
             }
 
-            comics.push(FileComicInfo { comic_name: comic.name.clone(), chapters, cover, banner, comic_info });
+            comics.push(FileComicInfo {
+                comic_name: comic.name.clone(),
+                chapters,
+                cover,
+                banner,
+                comic_info,
+            });
         }
 
         // Defensivo: um capítulo cujo `comic_name` não bateu com nenhuma linha de
         // `comic_directory` não deveria existir (a FK garante consistência), mas não descarta
         // silenciosamente se acontecer.
-        comics.extend(
-            by_comic
-                .into_iter()
-                .map(|(comic_name, chapters)| FileComicInfo { comic_name, chapters, ..Default::default() }),
-        );
+        comics.extend(by_comic.into_iter().map(|(comic_name, chapters)| FileComicInfo {
+            comic_name,
+            chapters,
+            ..Default::default()
+        }));
 
         Ok(FileManifest { comics })
     }
@@ -174,7 +180,9 @@ impl FileSyncService {
     /// no repositório: bibliotecas pessoais são pequenas o bastante pra isso não importar, e
     /// evita duplicar a lógica de montagem de `FileChapterInfo` (tamanho em disco, nome do
     /// arquivo) em dois lugares.
-    pub async fn build_manifest_for_comic(&self, comic_name: &str) -> Result<FileManifest, ComicError> {
+    pub async fn build_manifest_for_comic(
+        &self, comic_name: &str,
+    ) -> Result<FileManifest, ComicError> {
         let mut manifest = self.build_manifest().await?;
         manifest.comics.retain(|comic| comic.comic_name == comic_name);
         Ok(manifest)
@@ -225,7 +233,9 @@ impl FileSyncService {
                 let Some(peer_extra) = peer_extra else { continue };
 
                 let local_checksum = match &local_comic {
-                    Some(existing) => self.local_extra_info(existing, kind).await.map(|info| info.checksum),
+                    Some(existing) => {
+                        self.local_extra_info(existing, kind).await.map(|info| info.checksum)
+                    },
                     None => None,
                 };
 
@@ -241,7 +251,9 @@ impl FileSyncService {
     async fn local_extra_info(&self, comic: &ComicDirectory, kind: &str) -> Option<FileExtraInfo> {
         match kind {
             EXTRA_KIND_COVER => Self::hash_extra_file(comic.cover.as_deref().map(Path::new)).await,
-            EXTRA_KIND_BANNER => Self::hash_extra_file(comic.banner.as_deref().map(Path::new)).await,
+            EXTRA_KIND_BANNER => {
+                Self::hash_extra_file(comic.banner.as_deref().map(Path::new)).await
+            },
             EXTRA_KIND_COMIC_INFO => {
                 let path = find_comic_info_path(Path::new(&comic.path));
                 Self::hash_extra_file(path.as_deref()).await
@@ -295,8 +307,7 @@ impl FileSyncService {
         let Ok(bytes) = tokio::fs::read(&path).await else {
             return Ok(None);
         };
-        let file_name =
-            path.file_name().and_then(|name| name.to_str()).unwrap_or(kind).to_string();
+        let file_name = path.file_name().and_then(|name| name.to_str()).unwrap_or(kind).to_string();
 
         Ok(Some((path, bytes.len() as u64, Some(sha256_hex(&bytes)), file_name)))
     }
@@ -304,7 +315,9 @@ impl FileSyncService {
     /// Capa local (versão + bytes) de `comic_name`, usada por `acerola/browse-cover/1`. `None`
     /// cobre tanto "quadrinho não existe" quanto "existe mas não tem capa salva" — os dois casos
     /// resultam na mesma resposta pro peer, não há necessidade de distinguir.
-    pub async fn get_local_cover(&self, comic_name: &str) -> Result<Option<(i64, Vec<u8>)>, ComicError> {
+    pub async fn get_local_cover(
+        &self, comic_name: &str,
+    ) -> Result<Option<(i64, Vec<u8>)>, ComicError> {
         let Some(comic) = self.comic_repo.find_by_name(comic_name).await? else {
             return Ok(None);
         };
@@ -359,18 +372,15 @@ impl FileSyncService {
     /// `file_name` real do arquivo, que é sempre confiável (é literalmente o nome do arquivo
     /// que acabamos de gravar em disco).
     pub async fn persist_received_chapter(
-        &self, comic_name: &str, chapter: &str, file_name: &str, temp_path: &Path,
-        checksum: String,
+        &self, comic_name: &str, chapter: &str, file_name: &str, temp_path: &Path, checksum: String,
     ) -> Result<(), ComicError> {
         let comic = self.resolve_comic_dir(comic_name).await?;
         let comic_dir = PathBuf::from(&comic.path);
         let dest_path = comic_dir.join(file_name);
         tokio::fs::rename(temp_path, &dest_path).await.map_err(ComicError::Io)?;
 
-        let display_chapter = Path::new(file_name)
-            .file_stem()
-            .and_then(|stem| stem.to_str())
-            .unwrap_or(chapter);
+        let display_chapter =
+            Path::new(file_name).file_stem().and_then(|stem| stem.to_str()).unwrap_or(chapter);
 
         // `(comic_directory_fk, chapter)` já existente cobre um reenvio (sync interrompido e
         // retomado, ou o mesmo capítulo pedido duas vezes) — nesse caso precisa ser um UPDATE
@@ -431,7 +441,9 @@ impl FileSyncService {
         let comic_dir = PathBuf::from(&comic.path);
 
         match kind {
-            EXTRA_KIND_COVER => self.persist_artwork_extra(&comic, &comic_dir, "cover", file_name, temp_path).await,
+            EXTRA_KIND_COVER => {
+                self.persist_artwork_extra(&comic, &comic_dir, "cover", file_name, temp_path).await
+            },
             EXTRA_KIND_BANNER => {
                 self.persist_artwork_extra(&comic, &comic_dir, "banner", file_name, temp_path).await
             },
@@ -462,7 +474,8 @@ impl FileSyncService {
     /// aquela função pública — evita mexer num contrato já usado pelo fluxo manual de
     /// metadata), e atualiza a coluna correspondente (`cover`/`banner`) + `last_modified`.
     async fn persist_artwork_extra(
-        &self, comic: &ComicDirectory, comic_dir: &Path, stem: &str, file_name: &str, temp_path: &Path,
+        &self, comic: &ComicDirectory, comic_dir: &Path, stem: &str, file_name: &str,
+        temp_path: &Path,
     ) -> Result<ComicDirectory, ComicError> {
         let extension = Path::new(file_name)
             .extension()
@@ -475,7 +488,8 @@ impl FileSyncService {
             if stale_extension == extension {
                 continue;
             }
-            let _ = tokio::fs::remove_file(comic_dir.join(format!("{stem}.{stale_extension}"))).await;
+            let _ =
+                tokio::fs::remove_file(comic_dir.join(format!("{stem}.{stale_extension}"))).await;
         }
 
         tokio::fs::rename(temp_path, &dest_path).await.map_err(ComicError::Io)?;
@@ -662,11 +676,12 @@ mod tests {
             .await
             .unwrap();
 
-        let comic: (i64,) =
-            sqlx::query_as("SELECT COUNT(*) FROM comic_directory WHERE name = 'Quadrinho Recebido'")
-                .fetch_one(&pool)
-                .await
-                .unwrap();
+        let comic: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM comic_directory WHERE name = 'Quadrinho Recebido'",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
         assert_eq!(comic.0, 1);
 
         let chapter: (i64,) =

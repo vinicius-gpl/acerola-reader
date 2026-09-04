@@ -31,7 +31,9 @@ impl HistorySyncOutbound {
 #[async_trait]
 impl Handler for HistorySyncOutbound {
     async fn handle(
-        &self, peer: &PeerIdentity, send: Box<dyn AsyncWrite + Send + Unpin>,
+        &self,
+        peer: &PeerIdentity,
+        send: Box<dyn AsyncWrite + Send + Unpin>,
         recv: Box<dyn AsyncRead + Send + Unpin>,
     ) -> Result<(), P2pError> {
         exchange::run_exchange(true, peer, &self.emit, &self.provider, send, recv)
@@ -56,7 +58,9 @@ impl HistorySyncInbound {
 #[async_trait]
 impl Handler for HistorySyncInbound {
     async fn handle(
-        &self, peer: &PeerIdentity, send: Box<dyn AsyncWrite + Send + Unpin>,
+        &self,
+        peer: &PeerIdentity,
+        send: Box<dyn AsyncWrite + Send + Unpin>,
         recv: Box<dyn AsyncRead + Send + Unpin>,
     ) -> Result<(), P2pError> {
         exchange::run_exchange(false, peer, &self.emit, &self.provider, send, recv)

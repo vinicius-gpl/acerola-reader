@@ -1,5 +1,6 @@
 package br.acerola.comic.common.ux.component
 
+import android.content.res.Configuration
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -25,17 +26,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import br.acerola.comic.common.ux.Acerola
-import androidx.compose.ui.tooling.preview.Preview
-import android.content.res.Configuration
 import br.acerola.comic.common.ux.theme.AcerolaTheme
-import androidx.compose.ui.res.stringResource
 import br.acerola.comic.ui.R
-
 
 @Composable
 fun Acerola.Component.DialogButton(
@@ -217,5 +216,3 @@ private fun DialogPreview() {
         }
     }
 }
-
-

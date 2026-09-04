@@ -51,7 +51,7 @@
 		<button
 			type="button"
 			onclick={() => (openDefault = true)}
-			class="m-4 rounded-lg border border-border bg-surface-elevated px-4 py-2 text-sm font-medium text-foreground hover:opacity-80"
+			class="bg-surface-elevated m-4 rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:opacity-80"
 		>
 			Open Command Palette
 		</button>
@@ -68,7 +68,7 @@
 		<button
 			type="button"
 			onclick={() => (openZoomMode = true)}
-			class="m-4 rounded-lg border border-border bg-surface-elevated px-4 py-2 text-sm font-medium text-foreground hover:opacity-80"
+			class="bg-surface-elevated m-4 rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:opacity-80"
 		>
 			Open Command Palette
 		</button>

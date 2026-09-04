@@ -35,7 +35,9 @@ pub trait P2PStorage: Send + Sync {
     /// Salva as informações de dispositivo (nome, SO, versão) trocadas no handshake com um
     /// peer — sem isso, o nome de um peer só existe em memória (`NetworkState`) e some ao
     /// reiniciar o app até o próximo handshake com aquele peer específico.
-    async fn save_device_info(&self, peer: &PeerId, info: &DeviceInfo) -> Result<(), ConnectionError>;
+    async fn save_device_info(
+        &self, peer: &PeerId, info: &DeviceInfo,
+    ) -> Result<(), ConnectionError>;
 
     /// Carrega todas as informações de dispositivo persistidas anteriormente.
     async fn load_device_info(&self) -> Result<Vec<(PeerId, DeviceInfo)>, ConnectionError>;
@@ -76,13 +78,21 @@ impl P2PStorage for InMemoryStorage {
         Ok(self.peers.read().await.values().cloned().collect())
     }
 
-    async fn save_device_info(&self, peer: &PeerId, info: &DeviceInfo) -> Result<(), ConnectionError> {
+    async fn save_device_info(
+        &self, peer: &PeerId, info: &DeviceInfo,
+    ) -> Result<(), ConnectionError> {
         self.device_info.write().await.insert(peer.clone(), info.clone());
         Ok(())
     }
 
     async fn load_device_info(&self) -> Result<Vec<(PeerId, DeviceInfo)>, ConnectionError> {
-        Ok(self.device_info.read().await.iter().map(|(peer, info)| (peer.clone(), info.clone())).collect())
+        Ok(self
+            .device_info
+            .read()
+            .await
+            .iter()
+            .map(|(peer, info)| (peer.clone(), info.clone()))
+            .collect())
     }
 }
 

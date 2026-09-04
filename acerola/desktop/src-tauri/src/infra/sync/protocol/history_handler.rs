@@ -8,12 +8,11 @@ use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::{
     core::services::sync::history_sync::HistorySyncService,
-    data::{
-        models::sync::SyncHistoryLogEntry,
-        repositories::sync::SyncHistoryLogRepository,
-    },
+    data::{models::sync::SyncHistoryLogEntry, repositories::sync::SyncHistoryLogRepository},
     infra::sync::{
-        framing::{framed_reader, framed_writer, read_json, write_json, FramedReader, FramedWriter},
+        framing::{
+            framed_reader, framed_writer, read_json, write_json, FramedReader, FramedWriter,
+        },
         protocol::transfer::{classify_sync_error, sync_error_payload},
     },
 };
@@ -31,11 +30,15 @@ pub struct HistorySyncOutbound {
 }
 
 impl HistorySyncOutbound {
-    pub fn new(emit: EventEmitter, service: HistorySyncService, log_repo: SyncHistoryLogRepository) -> Self {
+    pub fn new(
+        emit: EventEmitter, service: HistorySyncService, log_repo: SyncHistoryLogRepository,
+    ) -> Self {
         Self { emit, service, log_repo }
     }
 
-    async fn run(&self, writer: &mut FramedWriter, reader: &mut FramedReader) -> Result<(), P2pError> {
+    async fn run(
+        &self, writer: &mut FramedWriter, reader: &mut FramedReader,
+    ) -> Result<(), P2pError> {
         let local_manifest = self.service.build_manifest().await?;
         write_json(writer, &local_manifest).await?;
 
@@ -71,7 +74,10 @@ impl Handler for HistorySyncOutbound {
                 let message = error.to_string();
                 let code = classify_sync_error(&error);
                 tracing::warn!(peer = %peer.id, ?code, error = %message, "[HistorySync] session failed");
-                (self.emit)("sync:history:error", sync_error_payload(&peer.id, &message, code, None));
+                (self.emit)(
+                    "sync:history:error",
+                    sync_error_payload(&peer.id, &message, code, None),
+                );
                 self.log_repo
                     .base
                     .insert(&SyncHistoryLogEntry::new(&peer.id, LOG_KIND, "error", Some(&message)))
@@ -92,11 +98,15 @@ pub struct HistorySyncInbound {
 }
 
 impl HistorySyncInbound {
-    pub fn new(emit: EventEmitter, service: HistorySyncService, log_repo: SyncHistoryLogRepository) -> Self {
+    pub fn new(
+        emit: EventEmitter, service: HistorySyncService, log_repo: SyncHistoryLogRepository,
+    ) -> Self {
         Self { emit, service, log_repo }
     }
 
-    async fn run(&self, writer: &mut FramedWriter, reader: &mut FramedReader) -> Result<(), P2pError> {
+    async fn run(
+        &self, writer: &mut FramedWriter, reader: &mut FramedReader,
+    ) -> Result<(), P2pError> {
         let peer_manifest = read_json(reader).await?;
 
         let local_manifest = self.service.build_manifest().await?;
@@ -133,7 +143,10 @@ impl Handler for HistorySyncInbound {
                 let message = error.to_string();
                 let code = classify_sync_error(&error);
                 tracing::warn!(peer = %peer.id, ?code, error = %message, "[HistorySync] session failed");
-                (self.emit)("sync:history:error", sync_error_payload(&peer.id, &message, code, None));
+                (self.emit)(
+                    "sync:history:error",
+                    sync_error_payload(&peer.id, &message, code, None),
+                );
                 self.log_repo
                     .base
                     .insert(&SyncHistoryLogEntry::new(&peer.id, LOG_KIND, "error", Some(&message)))

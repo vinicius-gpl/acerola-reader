@@ -89,7 +89,8 @@ impl HomeRepository {
                 Ok(result)
             },
             SortCriteria::ChapterCountAsc | SortCriteria::ChapterCountDesc => {
-                let dir = if matches!(criteria, SortCriteria::ChapterCountAsc) { "ASC" } else { "DESC" };
+                let dir =
+                    if matches!(criteria, SortCriteria::ChapterCountAsc) { "ASC" } else { "DESC" };
                 let sql = format!(
                     "SELECT {} FROM {} v JOIN comic_directory d ON v.directory_fk = d.id LEFT JOIN (SELECT comic_directory_fk, COUNT(*) as chapter_count FROM chapter_archive GROUP BY comic_directory_fk) c ON v.directory_fk = c.comic_directory_fk {} ORDER BY COALESCE(c.chapter_count, 0) {}",
                     cols, table, where_clause, dir
@@ -183,7 +184,8 @@ mod tests {
         insert_comic_with_chapters(&pool, 2, "Manga B", "Manga B", 2).await;
         insert_comic_with_chapters(&pool, 3, "Manga C", "Manga C", 10).await;
 
-        let result = repo.find_all_sorted(SortCriteria::ChapterCountAsc, false, None).await.unwrap();
+        let result =
+            repo.find_all_sorted(SortCriteria::ChapterCountAsc, false, None).await.unwrap();
         assert_eq!(result.len(), 3);
         // Ordenado por contagem: B (2), A (5), C (10)
         assert_eq!(result[0].folder_name, "Manga B");
@@ -199,7 +201,8 @@ mod tests {
         insert_comic_with_chapters(&pool, 2, "Manga B", "Manga B", 2).await;
         insert_comic_with_chapters(&pool, 3, "Manga C", "Manga C", 10).await;
 
-        let result = repo.find_all_sorted(SortCriteria::ChapterCountDesc, false, None).await.unwrap();
+        let result =
+            repo.find_all_sorted(SortCriteria::ChapterCountDesc, false, None).await.unwrap();
         assert_eq!(result.len(), 3);
         // Ordenado por contagem: C (10), A (5), B (2)
         assert_eq!(result[0].folder_name, "Manga C");

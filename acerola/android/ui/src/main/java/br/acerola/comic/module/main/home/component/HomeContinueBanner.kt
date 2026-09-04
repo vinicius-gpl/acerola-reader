@@ -1,5 +1,6 @@
 package br.acerola.comic.module.main.home.component
 
+import android.content.res.Configuration
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -42,21 +43,20 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import br.acerola.comic.common.ux.theme.AcerolaTheme
 import br.acerola.comic.common.ux.tokens.SpacingTokens
 import br.acerola.comic.dto.ComicDto
+import br.acerola.comic.dto.archive.ComicDirectoryDto
 import br.acerola.comic.dto.history.ReadingHistoryDto
 import br.acerola.comic.module.main.Main
 import br.acerola.comic.ui.R
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import kotlin.math.roundToInt
-import androidx.compose.ui.tooling.preview.Preview
-import android.content.res.Configuration
-import br.acerola.comic.common.ux.theme.AcerolaTheme
-import br.acerola.comic.dto.archive.ComicDirectoryDto
 
 private val BannerExpandedHeightPortrait = 280.dp
 private val BannerExpandedHeightLandscape = 180.dp
@@ -332,8 +332,30 @@ fun Main.Home.Component.HomeContinueBanner(
 private fun HomeContinueBannerPreview() {
     AcerolaTheme {
         Main.Home.Component.HomeContinueBanner(
-            comic = ComicDto(directory = ComicDirectoryDto(id = 1L, name = "Sample Comic", path = "/path", coverUri = null, bannerUri = null, lastModified = 0L, archiveTemplateFk = null), category = null, remoteInfo = null),
-            history = ReadingHistoryDto(comicDirectoryId = 1L, chapterArchiveId = 10L, chapterSort = "0001", lastPage = 5, isCompleted = false, updatedAt = 123456L),
+            comic =
+                ComicDto(
+                    directory =
+                        ComicDirectoryDto(
+                            id = 1L,
+                            name = "Sample Comic",
+                            path = "/path",
+                            coverUri = null,
+                            bannerUri = null,
+                            lastModified = 0L,
+                            archiveTemplateFk = null,
+                        ),
+                    category = null,
+                    remoteInfo = null,
+                ),
+            history =
+                ReadingHistoryDto(
+                    comicDirectoryId = 1L,
+                    chapterArchiveId = 10L,
+                    chapterSort = "0001",
+                    lastPage = 5,
+                    isCompleted = false,
+                    updatedAt = 123456L,
+                ),
             isExpanded = true,
             onExpandedChange = {},
             onContinueClick = {},

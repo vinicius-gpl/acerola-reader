@@ -18,10 +18,13 @@ use crate::{
     callbacks::{CoverBrowseProvider, FileSyncProvider, HistorySyncProvider, SecureBlobStore},
     mode::FfiNetworkMode,
     protocol::{
-        cover_browse::{CoverBrowseInbound, CoverBrowseOutbound, PendingCoverRequestRegistry, COVER_BROWSE_ALPN},
+        cover_browse::{
+            CoverBrowseInbound, CoverBrowseOutbound, PendingCoverRequestRegistry, COVER_BROWSE_ALPN,
+        },
         files::{
-            BlobChapterTransfer, ChapterTransfer, ComicSyncInbound, ComicSyncOutbound, FileSyncInbound,
-            FileSyncOutbound, FileSyncSessionGuard, PendingComicScope, COMIC_SYNC_ALPN, FILE_SYNC_ALPN,
+            BlobChapterTransfer, ChapterTransfer, ComicSyncInbound, ComicSyncOutbound,
+            FileSyncInbound, FileSyncOutbound, FileSyncSessionGuard, PendingComicScope,
+            COMIC_SYNC_ALPN, FILE_SYNC_ALPN,
         },
         history::{HistorySyncInbound, HistorySyncOutbound, HISTORY_SYNC_ALPN},
         library_browse::{LibraryBrowseInbound, LibraryBrowseOutbound, LIBRARY_BROWSE_ALPN},
@@ -33,10 +36,7 @@ use crate::{
 };
 
 #[cfg(target_os = "android")]
-use std::{
-    collections::HashMap,
-    sync::Mutex,
-};
+use std::{collections::HashMap, sync::Mutex};
 
 /// URL do relay oficial do projeto, usado quando nenhum override é fornecido pelo app.
 ///
@@ -104,10 +104,16 @@ pub struct P2PNode {
 impl P2PNode {
     #[uniffi::constructor]
     pub fn new(
-        callback: Arc<dyn P2PCallback>, legacy_data_dir: Option<String>, blobs_dir: String,
-        relay_url: Option<String>, device_name: String, device_version: String,
-        secure_store: Arc<dyn SecureBlobStore>, history_provider: Arc<dyn HistorySyncProvider>,
-        file_provider: Arc<dyn FileSyncProvider>, cover_provider: Arc<dyn CoverBrowseProvider>,
+        callback: Arc<dyn P2PCallback>,
+        legacy_data_dir: Option<String>,
+        blobs_dir: String,
+        relay_url: Option<String>,
+        device_name: String,
+        device_version: String,
+        secure_store: Arc<dyn SecureBlobStore>,
+        history_provider: Arc<dyn HistorySyncProvider>,
+        file_provider: Arc<dyn FileSyncProvider>,
+        cover_provider: Arc<dyn CoverBrowseProvider>,
     ) -> Self {
         let runtime = TOKIO_RUNTIME.clone();
 
@@ -126,7 +132,10 @@ impl P2PNode {
             legacy_dir,
         ));
 
-        let storage = Arc::new(SecureP2pStorage::open(Arc::clone(&secure_store), legacy_dir));
+        let storage = Arc::new(SecureP2pStorage::open(
+            Arc::clone(&secure_store),
+            legacy_dir,
+        ));
 
         let pending_comic_scope: PendingComicScope = Arc::new(Mutex::new(HashMap::new()));
         let pending_cover_scope = PendingCoverRequestRegistry::new();
@@ -136,7 +145,8 @@ impl P2PNode {
         // blobs — `BlobContext` guarda um `Weak<AcerolaP2p>` preenchido só depois de `.build()`
         // (ver `protocol::blob_context`).
         let blob_context = crate::protocol::blob_context::BlobContext::new();
-        let chapter_transfer: Arc<dyn ChapterTransfer> = Arc::new(BlobChapterTransfer::new(Arc::clone(&blob_context)));
+        let chapter_transfer: Arc<dyn ChapterTransfer> =
+            Arc::new(BlobChapterTransfer::new(Arc::clone(&blob_context)));
 
         let node = {
             let trust_store = Arc::clone(&trust_store);
@@ -165,8 +175,10 @@ impl P2PNode {
 
                 let acerola_node = AcerolaP2p::builder(emit, transport, device)
                     .guard(
-                        TofuGuard::new(trust_store as Arc<dyn acerola_p2p::api::guard::TrustedPeerStore>)
-                            .into_validator(),
+                        TofuGuard::new(
+                            trust_store as Arc<dyn acerola_p2p::api::guard::TrustedPeerStore>,
+                        )
+                        .into_validator(),
                     )
                     .storage(SharedSecureP2pStorage(storage_for_builder))
                     .inbound(
@@ -233,7 +245,10 @@ impl P2PNode {
                     )
                     .inbound(
                         COVER_BROWSE_ALPN,
-                        Arc::new(CoverBrowseInbound::new(Arc::clone(&cover_provider), Arc::clone(&chapter_transfer))),
+                        Arc::new(CoverBrowseInbound::new(
+                            Arc::clone(&cover_provider),
+                            Arc::clone(&chapter_transfer),
+                        )),
                     )
                     .outbound(
                         COVER_BROWSE_ALPN,
@@ -254,7 +269,14 @@ impl P2PNode {
             })
         };
 
-        Self { node, runtime, trust_store, storage, pending_comic_scope, pending_cover_scope }
+        Self {
+            node,
+            runtime,
+            trust_store,
+            storage,
+            pending_comic_scope,
+            pending_cover_scope,
+        }
     }
 
     pub fn get_local_id(&self) -> String {
@@ -318,7 +340,12 @@ impl P2PNode {
     /// pendente ANTES de conectar — é a única forma dessa escolha (que só existe aqui, do lado
     /// que chamou) chegar até `ComicSyncOutbound::handle`, já que `connect()` não carrega
     /// payload (ver `protocol::files::COMIC_SYNC_ALPN`).
-    pub fn sync_comic(&self, peer_addr: FfiPeerAddr, comic_name: String, direction: FfiSyncDirection) {
+    pub fn sync_comic(
+        &self,
+        peer_addr: FfiPeerAddr,
+        comic_name: String,
+        direction: FfiSyncDirection,
+    ) {
         self.pending_comic_scope
             .lock()
             .expect("pending comic scope mutex poisoned")
@@ -338,8 +365,14 @@ impl P2PNode {
     /// nunca buscou essa capa antes. Mesmo padrão fire-and-forget de `sync_comic`: grava o
     /// escopo pendente antes de conectar, resultado chega via
     /// `browse:cover:result`/`browse:cover:error` (ver `protocol::cover_browse`).
-    pub fn browse_cover(&self, peer_addr: FfiPeerAddr, comic_name: String, known_version: Option<i64>) {
-        self.pending_cover_scope.push(peer_addr.id.clone(), comic_name, known_version);
+    pub fn browse_cover(
+        &self,
+        peer_addr: FfiPeerAddr,
+        comic_name: String,
+        known_version: Option<i64>,
+    ) {
+        self.pending_cover_scope
+            .push(peer_addr.id.clone(), comic_name, known_version);
         self.connect(peer_addr, COVER_BROWSE_ALPN.to_vec());
     }
 
@@ -354,8 +387,9 @@ impl P2PNode {
         let node = Arc::clone(&self.node);
         let trust_store = Arc::clone(&self.trust_store);
         self.runtime.spawn(async move {
-            let guard = TofuGuard::new(trust_store as Arc<dyn acerola_p2p::api::guard::TrustedPeerStore>)
-                .into_validator();
+            let guard =
+                TofuGuard::new(trust_store as Arc<dyn acerola_p2p::api::guard::TrustedPeerStore>)
+                    .into_validator();
             let _ = node.switch_guard(guard, NetworkMode::Local).await;
         });
     }
@@ -364,8 +398,9 @@ impl P2PNode {
         let node = Arc::clone(&self.node);
         let trust_store = Arc::clone(&self.trust_store);
         self.runtime.spawn(async move {
-            let guard = TofuGuard::new(trust_store as Arc<dyn acerola_p2p::api::guard::TrustedPeerStore>)
-                .into_validator();
+            let guard =
+                TofuGuard::new(trust_store as Arc<dyn acerola_p2p::api::guard::TrustedPeerStore>)
+                    .into_validator();
             let _ = node.switch_guard(guard, NetworkMode::Relay).await;
         });
     }

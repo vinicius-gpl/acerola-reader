@@ -45,7 +45,10 @@ impl PendingCoverRequestRegistry {
 
     /// Retira o pedido mais antigo ainda pendente pro peer (FIFO). `None` se não há nenhum.
     pub(crate) fn take(&self, peer_id: &str) -> Option<PendingCoverRequest> {
-        let mut pending = self.pending.lock().expect("pending cover request registry mutex poisoned");
+        let mut pending = self
+            .pending
+            .lock()
+            .expect("pending cover request registry mutex poisoned");
         let queue = pending.get_mut(peer_id)?;
         let next = queue.pop_front();
         if queue.is_empty() {
@@ -64,7 +67,10 @@ mod tests {
         let registry = PendingCoverRequestRegistry::new();
         registry.push("peer-1".to_string(), "Berserk".to_string(), Some(42));
 
-        assert_eq!(registry.take("peer-1"), Some(("Berserk".to_string(), Some(42))));
+        assert_eq!(
+            registry.take("peer-1"),
+            Some(("Berserk".to_string(), Some(42)))
+        );
         assert_eq!(registry.take("peer-1"), None);
     }
 
@@ -85,7 +91,10 @@ mod tests {
         registry.push("peer-1".to_string(), "Vinland Saga".to_string(), Some(3));
 
         assert_eq!(registry.take("peer-1"), Some(("Berserk".to_string(), None)));
-        assert_eq!(registry.take("peer-1"), Some(("Vinland Saga".to_string(), Some(3))));
+        assert_eq!(
+            registry.take("peer-1"),
+            Some(("Vinland Saga".to_string(), Some(3)))
+        );
         assert_eq!(registry.take("peer-1"), None);
     }
 

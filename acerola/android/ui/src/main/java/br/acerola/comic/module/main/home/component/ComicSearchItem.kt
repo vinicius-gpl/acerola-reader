@@ -1,5 +1,6 @@
 package br.acerola.comic.module.main.home.component
 
+import android.content.res.Configuration
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -26,10 +27,13 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import br.acerola.comic.common.ux.Acerola
 import br.acerola.comic.common.ux.component.ImageCard
+import br.acerola.comic.common.ux.theme.AcerolaTheme
 import br.acerola.comic.dto.ComicDto
+import br.acerola.comic.dto.archive.ComicDirectoryDto
 import br.acerola.comic.module.main.Main
 import br.acerola.comic.pattern.metadata.MetadataSource
 import br.acerola.comic.ui.R
@@ -37,10 +41,6 @@ import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import coil.size.Size
 import coil.size.SizeResolver
-import androidx.compose.ui.tooling.preview.Preview
-import android.content.res.Configuration
-import br.acerola.comic.common.ux.theme.AcerolaTheme
-import br.acerola.comic.dto.archive.ComicDirectoryDto
 
 @Composable
 fun Main.Home.Component.ComicSearchItem(
@@ -215,7 +215,21 @@ fun Main.Home.Component.ComicSearchItem(
 private fun ComicSearchItemPreview() {
     AcerolaTheme {
         Main.Home.Component.ComicSearchItem(
-            comic = ComicDto(directory = ComicDirectoryDto(id = 1L, name = "Sample Comic", path = "/path", coverUri = null, bannerUri = null, lastModified = 0L, archiveTemplateFk = null), category = null, remoteInfo = null),
+            comic =
+                ComicDto(
+                    directory =
+                        ComicDirectoryDto(
+                            id = 1L,
+                            name = "Sample Comic",
+                            path = "/path",
+                            coverUri = null,
+                            bannerUri = null,
+                            lastModified = 0L,
+                            archiveTemplateFk = null,
+                        ),
+                    category = null,
+                    remoteInfo = null,
+                ),
             chapterCount = 10,
             onClick = {},
         )

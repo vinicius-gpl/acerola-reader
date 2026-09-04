@@ -1,4 +1,5 @@
 package br.acerola.comic.common.ux.component
+import android.content.res.Configuration
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,9 +11,8 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
-import br.acerola.comic.common.ux.Acerola
 import androidx.compose.ui.tooling.preview.Preview
-import android.content.res.Configuration
+import br.acerola.comic.common.ux.Acerola
 import br.acerola.comic.common.ux.theme.AcerolaTheme
 
 @Composable

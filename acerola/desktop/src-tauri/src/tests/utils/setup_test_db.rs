@@ -206,7 +206,9 @@ pub async fn insert_comic_directory_with_cover(
 }
 
 /// Insere metadados mínimos de um quadrinho, vinculados por `comic_directory_fk`.
-pub async fn insert_comic_metadata(pool: &sqlx::SqlitePool, id: i64, comic_directory_fk: i64, title: &str) {
+pub async fn insert_comic_metadata(
+    pool: &sqlx::SqlitePool, id: i64, comic_directory_fk: i64, title: &str,
+) {
     sqlx::query(
         "INSERT INTO comic_metadata (id, comic_directory_fk, title, description, status) VALUES (?, ?, ?, '', '')",
     )
@@ -234,7 +236,8 @@ pub async fn insert_chapter_archive(pool: &sqlx::SqlitePool, id: i64, comic_dire
 
 /// Insere um capítulo com checksum — usado por testes de sync de arquivos que comparam hash.
 pub async fn insert_chapter_archive_with_checksum(
-    pool: &sqlx::SqlitePool, id: i64, comic_directory_fk: i64, chapter: &str, path: &str, checksum: &str,
+    pool: &sqlx::SqlitePool, id: i64, comic_directory_fk: i64, chapter: &str, path: &str,
+    checksum: &str,
 ) {
     sqlx::query(
         "INSERT INTO chapter_archive (id, chapter, path, chapter_sort, is_special, checksum, comic_directory_fk, last_modified)
@@ -267,7 +270,9 @@ pub async fn insert_reading_history(
 }
 
 /// Marca um capítulo como lido — chave composta `comic_directory_id` + `chapter_archive_id`.
-pub async fn insert_chapter_read(pool: &sqlx::SqlitePool, comic_directory_id: i64, chapter_archive_id: i64) {
+pub async fn insert_chapter_read(
+    pool: &sqlx::SqlitePool, comic_directory_id: i64, chapter_archive_id: i64,
+) {
     sqlx::query(
         "INSERT INTO chapter_read (comic_directory_id, chapter_archive_id, created_at) VALUES (?, ?, 1000)",
     )

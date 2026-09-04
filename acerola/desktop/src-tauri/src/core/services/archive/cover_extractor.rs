@@ -81,9 +81,8 @@ fn extract_first_page_cbz(path: &Path) -> Result<(Vec<u8>, ImageFileFormat), Com
     let format = ImageFileFormat::from_path(Path::new(name))
         .ok_or_else(|| ComicError::SystemFailure("Unsupported page image format".to_string()))?;
 
-    let mut entry = archive
-        .by_name(name)
-        .map_err(|error| ComicError::SystemFailure(error.to_string()))?;
+    let mut entry =
+        archive.by_name(name).map_err(|error| ComicError::SystemFailure(error.to_string()))?;
     let mut bytes = Vec::new();
     entry.read_to_end(&mut bytes)?;
 
@@ -103,9 +102,7 @@ fn extract_first_page_cbr(path: &Path) -> Result<(Vec<u8>, ImageFileFormat), Com
             names.push(entry.filename);
         }
     }
-    names.sort_by(|left, right| {
-        natural_cmp(&left.to_string_lossy(), &right.to_string_lossy())
-    });
+    names.sort_by(|left, right| natural_cmp(&left.to_string_lossy(), &right.to_string_lossy()));
 
     let target = names
         .first()

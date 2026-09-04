@@ -149,13 +149,23 @@ class ObserveCombinedChaptersUseCaseTest {
                 }
 
             advanceUntilIdle()
-            assertEquals(1, results.last()!!.archive.items.size)
+            assertEquals(
+                1,
+                results
+                    .last()!!
+                    .archive.items.size,
+            )
 
             val secondChapter = ChapterFileDto(id = 2L, name = "Ch 2", path = "/ch2.cbz", chapterSort = "2")
             localFlow.value = firstPage.copy(items = listOf(firstChapter, secondChapter), total = 2)
             advanceUntilIdle()
 
-            assertEquals(2, results.last()!!.archive.items.size)
+            assertEquals(
+                2,
+                results
+                    .last()!!
+                    .archive.items.size,
+            )
 
             job.cancel()
         }

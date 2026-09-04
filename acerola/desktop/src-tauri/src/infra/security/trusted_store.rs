@@ -43,7 +43,10 @@ impl SecureTrustedStore {
                 let json = decrypt(master_key, &encrypted).map_err(|err| {
                     std::io::Error::new(
                         std::io::ErrorKind::InvalidData,
-                        format!("failed to decrypt {} (wrong master key or corrupted file): {err}", path.display()),
+                        format!(
+                            "failed to decrypt {} (wrong master key or corrupted file): {err}",
+                            path.display()
+                        ),
                     )
                 })?;
                 serde_json::from_slice(&json).map_err(|err| {
@@ -167,7 +170,10 @@ mod tests {
         // tivesse sido aprovado — TOFU voltaria a "confiar automaticamente" em qualquer um
         // de novo, e o próximo `insert` apagaria a lista antiga do disco.
         let reopen_result = SecureTrustedStore::open(dir.path(), [2u8; 32]);
-        assert!(reopen_result.is_err(), "abrir com a chave errada deveria falhar, não degradar em silêncio");
+        assert!(
+            reopen_result.is_err(),
+            "abrir com a chave errada deveria falhar, não degradar em silêncio"
+        );
 
         let reopened_with_correct_key = SecureTrustedStore::open(dir.path(), [1u8; 32]).unwrap();
         assert!(reopened_with_correct_key.contains("trusted-peer").await);
