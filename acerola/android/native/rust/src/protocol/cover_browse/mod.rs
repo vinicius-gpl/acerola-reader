@@ -14,8 +14,8 @@ use exchange::CoverOutcome;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
 
-use crate::{callbacks::CoverBrowseProvider, protocol::sync_error::classify_sync_error};
 use super::files::ChapterTransfer;
+use crate::{callbacks::CoverBrowseProvider, protocol::sync_error::classify_sync_error};
 pub(crate) use registry::PendingCoverRequestRegistry;
 
 /// Busca a capa (thumbnail) de UM quadrinho remoto por vez, complementar ao `browse-library`.
@@ -29,7 +29,10 @@ pub(crate) struct CoverBrowseInbound {
 }
 
 impl CoverBrowseInbound {
-    pub(crate) fn new(provider: Arc<dyn CoverBrowseProvider>, transfer: Arc<dyn ChapterTransfer>) -> Self {
+    pub(crate) fn new(
+        provider: Arc<dyn CoverBrowseProvider>,
+        transfer: Arc<dyn ChapterTransfer>,
+    ) -> Self {
         Self { provider, transfer }
     }
 }
@@ -37,7 +40,9 @@ impl CoverBrowseInbound {
 #[async_trait]
 impl Handler for CoverBrowseInbound {
     async fn handle(
-        &self, _peer: &PeerIdentity, send: Box<dyn AsyncWrite + Send + Unpin>,
+        &self,
+        _peer: &PeerIdentity,
+        send: Box<dyn AsyncWrite + Send + Unpin>,
         recv: Box<dyn AsyncRead + Send + Unpin>,
     ) -> Result<(), P2pError> {
         let mut writer = FramedWrite::new(send, LengthDelimitedCodec::new());
@@ -55,17 +60,26 @@ pub(crate) struct CoverBrowseOutbound {
 
 impl CoverBrowseOutbound {
     pub(crate) fn new(
-        emit: EventEmitter, provider: Arc<dyn CoverBrowseProvider>, transfer: Arc<dyn ChapterTransfer>,
+        emit: EventEmitter,
+        provider: Arc<dyn CoverBrowseProvider>,
+        transfer: Arc<dyn ChapterTransfer>,
         pending_scope: Arc<PendingCoverRequestRegistry>,
     ) -> Self {
-        Self { emit, provider, transfer, pending_scope }
+        Self {
+            emit,
+            provider,
+            transfer,
+            pending_scope,
+        }
     }
 }
 
 #[async_trait]
 impl Handler for CoverBrowseOutbound {
     async fn handle(
-        &self, peer: &PeerIdentity, send: Box<dyn AsyncWrite + Send + Unpin>,
+        &self,
+        peer: &PeerIdentity,
+        send: Box<dyn AsyncWrite + Send + Unpin>,
         recv: Box<dyn AsyncRead + Send + Unpin>,
     ) -> Result<(), P2pError> {
         let Some((comic_name, known_version)) = self.pending_scope.take(&peer.id) else {
@@ -102,7 +116,7 @@ impl Handler for CoverBrowseOutbound {
                     .to_string(),
                 );
                 Ok(())
-            },
+            }
             Ok(CoverOutcome::Unavailable) => {
                 (self.emit)(
                     "browse:cover:result",
@@ -114,8 +128,11 @@ impl Handler for CoverBrowseOutbound {
                     .to_string(),
                 );
                 Ok(())
-            },
-            Ok(CoverOutcome::Fetched { cover_version, bytes }) => {
+            }
+            Ok(CoverOutcome::Fetched {
+                cover_version,
+                bytes,
+            }) => {
                 let provider = Arc::clone(&self.provider);
                 let peer_id = peer.id.clone();
                 let comic_name_for_save = comic_name.clone();
@@ -136,7 +153,7 @@ impl Handler for CoverBrowseOutbound {
                     .to_string(),
                 );
                 Ok(())
-            },
+            }
             Err(err) => {
                 let code = classify_sync_error(&err);
                 tracing::warn!(peer = %peer.id, comic_name = %comic_name, ?code, error = %err, "[CoverBrowse] session failed");
@@ -151,7 +168,7 @@ impl Handler for CoverBrowseOutbound {
                     .to_string(),
                 );
                 Err(err)
-            },
+            }
         }
     }
 }

@@ -1,6 +1,5 @@
 package br.acerola.comic.common.ux.component
-import androidx.compose.material3.Icon
-
+import android.content.res.Configuration
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -19,8 +18,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -32,19 +35,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import br.acerola.comic.common.ux.Acerola
+import br.acerola.comic.common.ux.theme.AcerolaTheme
 import br.acerola.comic.common.ux.tokens.ShapeTokens
 import br.acerola.comic.common.ux.tokens.SizeTokens
 import br.acerola.comic.common.ux.tokens.SpacingTokens
-import androidx.compose.ui.tooling.preview.Preview
-import android.content.res.Configuration
-import br.acerola.comic.common.ux.theme.AcerolaTheme
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Star
 
 data class FabGroupItem(
     val icon: @Composable () -> Unit,
@@ -188,13 +187,14 @@ private fun FabGroupPreview() {
     AcerolaTheme {
         Acerola.Component.FabGroup(
             icon = { Icon(Icons.Default.Add, contentDescription = null) },
-            items = listOf(
-                FabGroupItem(
-                    icon = { Icon(Icons.Default.Star, contentDescription = null) },
-                    label = "Star",
-                    onClick = {},
-                )
-            ),
+            items =
+                listOf(
+                    FabGroupItem(
+                        icon = { Icon(Icons.Default.Star, contentDescription = null) },
+                        label = "Star",
+                        onClick = {},
+                    ),
+                ),
         )
     }
 }

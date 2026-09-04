@@ -23,7 +23,9 @@ pub(crate) trait ChapterTransfer: Send + Sync {
     /// seguido de `get`) e devolve um leitor — quem chama decide como consumir (chunk a chunk,
     /// pra progresso incremental via `FileSyncProvider::write_chapter_chunk`).
     async fn fetch_reader(
-        &self, blob_hash: &str, peer: &PeerIdentity,
+        &self,
+        blob_hash: &str,
+        peer: &PeerIdentity,
     ) -> Result<Box<dyn AsyncRead + Send + Unpin>, P2pError>;
 }
 
@@ -52,7 +54,9 @@ impl ChapterTransfer for BlobChapterTransfer {
     }
 
     async fn fetch_reader(
-        &self, blob_hash: &str, peer: &PeerIdentity,
+        &self,
+        blob_hash: &str,
+        peer: &PeerIdentity,
     ) -> Result<Box<dyn AsyncRead + Send + Unpin>, P2pError> {
         let store = self.context.blob_store().await?;
         // Formato do hash é local/estático (não vem da rede) — sem paralelo em `ConnectionError`
@@ -79,9 +83,13 @@ impl InMemoryChapterTransfer {
     /// distintos publicando/buscando no MESMO "store de rede" (o hash de um lado já está
     /// disponível pro outro, exatamente como conteúdo content-addressed real seria).
     pub(crate) fn shared_pair() -> (Arc<dyn ChapterTransfer>, Arc<dyn ChapterTransfer>) {
-        let shared =
-            Arc::new(InMemoryChapterTransfer { blobs: std::sync::Mutex::new(std::collections::HashMap::new()) });
-        (Arc::clone(&shared) as Arc<dyn ChapterTransfer>, shared as Arc<dyn ChapterTransfer>)
+        let shared = Arc::new(InMemoryChapterTransfer {
+            blobs: std::sync::Mutex::new(std::collections::HashMap::new()),
+        });
+        (
+            Arc::clone(&shared) as Arc<dyn ChapterTransfer>,
+            shared as Arc<dyn ChapterTransfer>,
+        )
     }
 }
 
@@ -95,7 +103,9 @@ impl ChapterTransfer for InMemoryChapterTransfer {
     }
 
     async fn fetch_reader(
-        &self, blob_hash: &str, _peer: &PeerIdentity,
+        &self,
+        blob_hash: &str,
+        _peer: &PeerIdentity,
     ) -> Result<Box<dyn AsyncRead + Send + Unpin>, P2pError> {
         let bytes = self
             .blobs
@@ -103,7 +113,9 @@ impl ChapterTransfer for InMemoryChapterTransfer {
             .unwrap()
             .get(blob_hash)
             .cloned()
-            .ok_or_else(|| P2pError::StreamFailed(format!("unknown blob hash in test transfer: {blob_hash}")))?;
+            .ok_or_else(|| {
+                P2pError::StreamFailed(format!("unknown blob hash in test transfer: {blob_hash}"))
+            })?;
 
         // `tokio::io::duplex` já implementa `AsyncRead`/`AsyncWrite` — mais simples que
         // implementar um `poll_read` manual só pra teste. Escreve tudo e fecha (EOF) antes de

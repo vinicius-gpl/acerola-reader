@@ -31,7 +31,9 @@ impl SecureTrustedStore {
     /// vez — sem isso, a lista de confiança TOFU existente seria perdida no primeiro update e
     /// todo peer já pareado pediria confirmação de novo.
     pub(crate) fn open(
-        store: Arc<dyn SecureBlobStore>, emit: EventEmitter, legacy_dir: Option<&Path>,
+        store: Arc<dyn SecureBlobStore>,
+        emit: EventEmitter,
+        legacy_dir: Option<&Path>,
     ) -> Self {
         if let Some(legacy_dir) = legacy_dir {
             Self::migrate_legacy_files(&store, legacy_dir);
@@ -40,7 +42,12 @@ impl SecureTrustedStore {
         let trusted = Self::read_set(&store, TRUSTED_KEY);
         let blocked = Self::read_set(&store, BLOCKED_KEY);
 
-        Self { store, trusted: RwLock::new(trusted), blocked, emit }
+        Self {
+            store,
+            trusted: RwLock::new(trusted),
+            blocked,
+            emit,
+        }
     }
 
     fn migrate_legacy_files(store: &Arc<dyn SecureBlobStore>, legacy_dir: &Path) {
@@ -68,22 +75,22 @@ impl SecureTrustedStore {
                                 tracing::error!(layer = "storage", key, error = %err, "failed to migrate legacy file");
                                 return;
                             }
-                        },
+                        }
                         Err(err) => {
                             tracing::error!(layer = "storage", key, error = ?err, "failed to encode migrated set");
                             return;
-                        },
+                        }
                     }
                 }
                 std::fs::remove_file(path).ok();
-            },
+            }
             Ok(Some(_)) => {
                 // Já migrado numa execução anterior — só limpa o arquivo antigo.
                 std::fs::remove_file(path).ok();
-            },
+            }
             Err(err) => {
                 tracing::error!(layer = "storage", key, error = %err, "secure store unavailable, skipping legacy migration");
-            },
+            }
         }
     }
 
@@ -94,7 +101,7 @@ impl SecureTrustedStore {
             Err(err) => {
                 tracing::error!(layer = "storage", key, error = %err, "failed to load set, starting empty");
                 HashSet::new()
-            },
+            }
         }
     }
 
@@ -115,10 +122,10 @@ impl SecureTrustedStore {
                 if let Err(err) = self.store.save_blob(key.to_string(), bytes) {
                     tracing::error!(layer = "storage", key, error = %err, "failed to persist blob");
                 }
-            },
+            }
             Err(err) => {
                 tracing::error!(layer = "storage", key, error = ?err, "failed to encode set");
-            },
+            }
         }
     }
 }
@@ -160,7 +167,9 @@ mod tests {
 
     impl FakeBlobStore {
         fn new() -> Self {
-            Self { data: StdMutex::new(HashMap::new()) }
+            Self {
+                data: StdMutex::new(HashMap::new()),
+            }
         }
     }
 

@@ -134,7 +134,9 @@ impl IrohBlobStore {
     /// função própria só pra poder envolver a chamada inteira (não só o `.complete()`) num
     /// único `tokio::time::timeout` em `fetch()`, sem duplicar a lógica de limpeza de tag em
     /// dois lugares (timeout vs. erro normal).
-    async fn dial_and_fetch(&self, addr: EndpointAddr, iroh_hash: Hash) -> Result<(), ConnectionError> {
+    async fn dial_and_fetch(
+        &self, addr: EndpointAddr, iroh_hash: Hash,
+    ) -> Result<(), ConnectionError> {
         let conn = self.endpoint.connect(addr, iroh_blobs::ALPN).await?;
 
         // `remote().fetch()` não usa nenhuma proteção interna — confirmado lendo o código-fonte
@@ -220,7 +222,8 @@ mod tests {
     #[ignore = "iroh-blobs 0.103.0: FsStore::load_with_opts trava (bug upstream, ja mitigado em produção com IrohBlobsConfig::mem())"]
     #[tokio::test(flavor = "multi_thread")]
     async fn fs_store_load_does_not_hang() {
-        let dir = std::env::temp_dir().join(format!("acerola-p2p-fs-store-test-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("acerola-p2p-fs-store-test-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let config = IrohBlobsConfig::fs(&dir);
         let result = tokio::time::timeout(

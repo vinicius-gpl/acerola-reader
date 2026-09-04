@@ -9,9 +9,9 @@ use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
 
 use super::{
     model::{
-        build_manifest, merge_extras, ComicSyncScope, FileComicInfo, FileExtraHeader, FileHeader, FileManifest,
-        FileSyncStats, FileWantList, SessionBusy, SyncDirection, EXTRA_KIND_BANNER, EXTRA_KIND_COMIC_INFO,
-        EXTRA_KIND_COVER,
+        build_manifest, merge_extras, ComicSyncScope, FileComicInfo, FileExtraHeader, FileHeader,
+        FileManifest, FileSyncStats, FileWantList, SessionBusy, SyncDirection, EXTRA_KIND_BANNER,
+        EXTRA_KIND_COMIC_INFO, EXTRA_KIND_COVER,
     },
     transfer::ChapterTransfer,
 };
@@ -32,8 +32,9 @@ pub(super) type Writer = FramedWrite<Box<dyn AsyncWrite + Send + Unpin>, LengthD
 /// Escreve uma mensagem de controle como frame JSON solto (sem tag de enum) — mesmo
 /// formato que o Desktop usa em `infra/sync/framing.rs::write_json`.
 async fn write_json<T: Serialize>(send: &mut Writer, value: &T) -> Result<(), P2pError> {
-    let bytes = serde_json::to_vec(value)
-        .map_err(|err| P2pError::StreamFailed(format!("failed to encode file sync message: {err}")))?;
+    let bytes = serde_json::to_vec(value).map_err(|err| {
+        P2pError::StreamFailed(format!("failed to encode file sync message: {err}"))
+    })?;
     send.send(bytes.into())
         .await
         .map_err(|err| P2pError::StreamFailed(format!("failed to write file sync message: {err}")))
@@ -44,7 +45,9 @@ async fn read_json<T: DeserializeOwned>(recv: &mut Recv) -> Result<T, P2pError> 
         .await
         .map_err(|_| P2pError::StreamFailed("timed out reading file sync message".into()))?
         .ok_or_else(|| P2pError::StreamFailed("stream closed before file sync message".into()))?
-        .map_err(|err| P2pError::StreamFailed(format!("failed to read file sync message: {err}")))?;
+        .map_err(|err| {
+            P2pError::StreamFailed(format!("failed to read file sync message: {err}"))
+        })?;
 
     serde_json::from_slice(&frame)
         .map_err(|err| P2pError::StreamFailed(format!("failed to decode file sync message: {err}")))
@@ -56,11 +59,18 @@ async fn read_json<T: DeserializeOwned>(recv: &mut Recv) -> Result<T, P2pError> 
 /// esse é exatamente o estado em que `run_and_report` está no momento da rejeição: o stream
 /// ainda não foi envolvido em nenhum framing.
 pub(super) async fn write_session_busy(
-    send: Box<dyn AsyncWrite + Send + Unpin>, reason: &str,
+    send: Box<dyn AsyncWrite + Send + Unpin>,
+    reason: &str,
 ) -> Result<(), P2pError> {
     let mut writer: Writer = FramedWrite::new(send, LengthDelimitedCodec::new());
-    write_json(&mut writer, &SessionBusy { error: SESSION_BUSY_TAG.to_string(), reason: reason.to_string() })
-        .await
+    write_json(
+        &mut writer,
+        &SessionBusy {
+            error: SESSION_BUSY_TAG.to_string(),
+            reason: reason.to_string(),
+        },
+    )
+    .await
 }
 
 /// Lê a primeira mensagem do peer podendo ser tanto o `FileManifest` normal quanto uma
@@ -73,7 +83,10 @@ async fn read_manifest_or_busy(reader: &mut Recv) -> Result<FileManifest, P2pErr
 
     let is_busy = value.get("error").and_then(|tag| tag.as_str()) == Some(SESSION_BUSY_TAG);
     if is_busy {
-        let reason = value.get("reason").and_then(|r| r.as_str()).unwrap_or("peer is busy");
+        let reason = value
+            .get("reason")
+            .and_then(|r| r.as_str())
+            .unwrap_or("peer is busy");
         return Err(P2pError::StreamFailed(format!("peer busy: {reason}")));
     }
 
@@ -87,23 +100,34 @@ async fn read_manifest_or_busy(reader: &mut Recv) -> Result<FileManifest, P2pErr
 // `receive_one_chapter` não repetirem o bloco `{ Arc::clone + run_blocking }` a cada chamada.
 
 async fn open_chapter_for_read(
-    provider: &Arc<dyn FileSyncProvider>, comic_name: String, chapter: String,
+    provider: &Arc<dyn FileSyncProvider>,
+    comic_name: String,
+    chapter: String,
 ) -> Result<i64, P2pError> {
     let provider = Arc::clone(provider);
     run_blocking(move || provider.open_chapter_for_read(comic_name, chapter)).await
 }
 
-async fn read_chapter_chunk(provider: &Arc<dyn FileSyncProvider>, handle: i64) -> Result<Vec<u8>, P2pError> {
+async fn read_chapter_chunk(
+    provider: &Arc<dyn FileSyncProvider>,
+    handle: i64,
+) -> Result<Vec<u8>, P2pError> {
     let provider = Arc::clone(provider);
     run_blocking(move || provider.read_chapter_chunk(handle, CHUNK_SIZE as u32)).await
 }
 
-async fn close_read_handle(provider: &Arc<dyn FileSyncProvider>, handle: i64) -> Result<(), P2pError> {
+async fn close_read_handle(
+    provider: &Arc<dyn FileSyncProvider>,
+    handle: i64,
+) -> Result<(), P2pError> {
     let provider = Arc::clone(provider);
     run_blocking(move || provider.close_read_handle(handle)).await
 }
 
-async fn begin_chapter_write(provider: &Arc<dyn FileSyncProvider>, header: &FileHeader) -> Result<i64, P2pError> {
+async fn begin_chapter_write(
+    provider: &Arc<dyn FileSyncProvider>,
+    header: &FileHeader,
+) -> Result<i64, P2pError> {
     let provider = Arc::clone(provider);
     let (comic_name, chapter, file_name, checksum, size) = (
         header.comic_name.clone(),
@@ -126,27 +150,40 @@ async fn begin_chapter_write(provider: &Arc<dyn FileSyncProvider>, header: &File
         "sync-files: passando expected_checksum pra FFI Rust->Kotlin (begin_chapter_write)",
     );
 
-    run_blocking(move || provider.begin_chapter_write(comic_name, chapter, file_name, checksum, size)).await
+    run_blocking(move || {
+        provider.begin_chapter_write(comic_name, chapter, file_name, checksum, size)
+    })
+    .await
 }
 
 async fn write_chapter_chunk(
-    provider: &Arc<dyn FileSyncProvider>, handle: i64, chunk: Vec<u8>,
+    provider: &Arc<dyn FileSyncProvider>,
+    handle: i64,
+    chunk: Vec<u8>,
 ) -> Result<bool, P2pError> {
     let provider = Arc::clone(provider);
     run_blocking(move || provider.write_chapter_chunk(handle, chunk)).await
 }
 
-async fn finalize_chapter_write(provider: &Arc<dyn FileSyncProvider>, handle: i64) -> Result<bool, P2pError> {
+async fn finalize_chapter_write(
+    provider: &Arc<dyn FileSyncProvider>,
+    handle: i64,
+) -> Result<bool, P2pError> {
     let provider = Arc::clone(provider);
     run_blocking(move || provider.finalize_chapter_write(handle)).await
 }
 
-async fn abort_chapter_write(provider: &Arc<dyn FileSyncProvider>, handle: i64) -> Result<(), P2pError> {
+async fn abort_chapter_write(
+    provider: &Arc<dyn FileSyncProvider>,
+    handle: i64,
+) -> Result<(), P2pError> {
     let provider = Arc::clone(provider);
     run_blocking(move || provider.abort_chapter_write(handle)).await
 }
 
-async fn build_local_manifest(provider: &Arc<dyn FileSyncProvider>) -> Result<FileManifest, P2pError> {
+async fn build_local_manifest(
+    provider: &Arc<dyn FileSyncProvider>,
+) -> Result<FileManifest, P2pError> {
     let entries = run_blocking({
         let provider = Arc::clone(provider);
         move || provider.get_file_manifest()
@@ -165,13 +202,18 @@ async fn build_local_manifest(provider: &Arc<dyn FileSyncProvider>) -> Result<Fi
 }
 
 async fn open_extra_for_read(
-    provider: &Arc<dyn FileSyncProvider>, comic_name: String, kind: String,
+    provider: &Arc<dyn FileSyncProvider>,
+    comic_name: String,
+    kind: String,
 ) -> Result<i64, P2pError> {
     let provider = Arc::clone(provider);
     run_blocking(move || provider.open_extra_for_read(comic_name, kind)).await
 }
 
-async fn begin_extra_write(provider: &Arc<dyn FileSyncProvider>, header: &FileExtraHeader) -> Result<i64, P2pError> {
+async fn begin_extra_write(
+    provider: &Arc<dyn FileSyncProvider>,
+    header: &FileExtraHeader,
+) -> Result<i64, P2pError> {
     let provider = Arc::clone(provider);
     let (comic_name, kind, file_name, checksum, size) = (
         header.comic_name.clone(),
@@ -180,15 +222,22 @@ async fn begin_extra_write(provider: &Arc<dyn FileSyncProvider>, header: &FileEx
         header.checksum.clone().unwrap_or_default(),
         header.size,
     );
-    run_blocking(move || provider.begin_extra_write(comic_name, kind, file_name, checksum, size)).await
+    run_blocking(move || provider.begin_extra_write(comic_name, kind, file_name, checksum, size))
+        .await
 }
 
-async fn finalize_extra_write(provider: &Arc<dyn FileSyncProvider>, handle: i64) -> Result<bool, P2pError> {
+async fn finalize_extra_write(
+    provider: &Arc<dyn FileSyncProvider>,
+    handle: i64,
+) -> Result<bool, P2pError> {
     let provider = Arc::clone(provider);
     run_blocking(move || provider.finalize_extra_write(handle)).await
 }
 
-async fn abort_extra_write(provider: &Arc<dyn FileSyncProvider>, handle: i64) -> Result<(), P2pError> {
+async fn abort_extra_write(
+    provider: &Arc<dyn FileSyncProvider>,
+    handle: i64,
+) -> Result<(), P2pError> {
     let provider = Arc::clone(provider);
     run_blocking(move || provider.abort_extra_write(handle)).await
 }
@@ -200,10 +249,12 @@ fn missing_from(local: &FileManifest, peer: &FileManifest) -> Vec<(String, Strin
         .comics
         .iter()
         .flat_map(|comic| {
-            comic
-                .chapters
-                .iter()
-                .map(move |chapter| ((comic.comic_name.as_str(), chapter.chapter.as_str()), chapter.checksum.as_deref()))
+            comic.chapters.iter().map(move |chapter| {
+                (
+                    (comic.comic_name.as_str(), chapter.chapter.as_str()),
+                    chapter.checksum.as_deref(),
+                )
+            })
         })
         .collect();
 
@@ -223,12 +274,19 @@ fn missing_from(local: &FileManifest, peer: &FileManifest) -> Vec<(String, Strin
         .collect()
 }
 
-fn manifest_index(manifest: &FileManifest) -> HashMap<(&str, &str), &super::model::FileChapterInfo> {
+fn manifest_index(
+    manifest: &FileManifest,
+) -> HashMap<(&str, &str), &super::model::FileChapterInfo> {
     manifest
         .comics
         .iter()
         .flat_map(|comic: &FileComicInfo| {
-            comic.chapters.iter().map(move |chapter| ((comic.comic_name.as_str(), chapter.chapter.as_str()), chapter))
+            comic.chapters.iter().map(move |chapter| {
+                (
+                    (comic.comic_name.as_str(), chapter.chapter.as_str()),
+                    chapter,
+                )
+            })
         })
         .collect()
 }
@@ -258,7 +316,10 @@ fn missing_extras_from(local: &FileManifest, peer: &FileManifest) -> Vec<(String
 
 const EXTRA_KINDS: [&str; 3] = [EXTRA_KIND_COVER, EXTRA_KIND_BANNER, EXTRA_KIND_COMIC_INFO];
 
-fn extra_for_kind<'a>(comic: &'a FileComicInfo, kind: &str) -> Option<&'a super::model::FileExtraInfo> {
+fn extra_for_kind<'a>(
+    comic: &'a FileComicInfo,
+    kind: &str,
+) -> Option<&'a super::model::FileExtraInfo> {
     match kind {
         EXTRA_KIND_COVER => comic.cover.as_ref(),
         EXTRA_KIND_BANNER => comic.banner.as_ref(),
@@ -279,7 +340,11 @@ fn extras_index(manifest: &FileManifest) -> HashMap<(&str, &str), &super::model:
         .collect()
 }
 
-async fn write_missing_header(writer: &mut Writer, comic_name: &str, chapter: &str) -> Result<(), P2pError> {
+async fn write_missing_header(
+    writer: &mut Writer,
+    comic_name: &str,
+    chapter: &str,
+) -> Result<(), P2pError> {
     write_json(
         writer,
         &FileHeader {
@@ -294,7 +359,11 @@ async fn write_missing_header(writer: &mut Writer, comic_name: &str, chapter: &s
     .await
 }
 
-async fn write_missing_extra_header(writer: &mut Writer, comic_name: &str, kind: &str) -> Result<(), P2pError> {
+async fn write_missing_extra_header(
+    writer: &mut Writer,
+    comic_name: &str,
+    kind: &str,
+) -> Result<(), P2pError> {
     write_json(
         writer,
         &FileExtraHeader {
@@ -314,8 +383,14 @@ async fn write_missing_extra_header(writer: &mut Writer, comic_name: &str, kind:
 /// é agnóstico a chapter vs. extra, fecha via `close_read_handle` reaproveitado), com
 /// `FileExtraHeader` no lugar de `FileHeader`.
 async fn send_one_extra(
-    writer: &mut Writer, provider: &Arc<dyn FileSyncProvider>, comic_name: &str, kind: &str,
-    entry: &super::model::FileExtraInfo, emit: &EventEmitter, peer: &PeerIdentity, transfer: &Arc<dyn ChapterTransfer>,
+    writer: &mut Writer,
+    provider: &Arc<dyn FileSyncProvider>,
+    comic_name: &str,
+    kind: &str,
+    entry: &super::model::FileExtraInfo,
+    emit: &EventEmitter,
+    peer: &PeerIdentity,
+    transfer: &Arc<dyn ChapterTransfer>,
 ) -> Result<bool, P2pError> {
     let handle = open_extra_for_read(provider, comic_name.to_string(), kind.to_string()).await?;
     if handle < 0 {
@@ -323,7 +398,10 @@ async fn send_one_extra(
         return Ok(false);
     }
 
-    let publish_result = publish_chapter_to_blob(provider, handle, entry.size, emit, peer, comic_name, kind, transfer).await;
+    let publish_result = publish_chapter_to_blob(
+        provider, handle, entry.size, emit, peer, comic_name, kind, transfer,
+    )
+    .await;
     close_read_handle(provider, handle).await?;
     let blob_hash = publish_result?;
 
@@ -346,21 +424,35 @@ async fn send_one_extra(
 /// Envia os itens extra pedidos — mesma lógica de `send_files`, olhando `cover`/`banner`/
 /// `comic_info` de `local_manifest` em vez da lista de capítulos.
 async fn send_extras(
-    writer: &mut Writer, provider: &Arc<dyn FileSyncProvider>, local_manifest: &FileManifest,
-    requested: &[(String, String)], emit: &EventEmitter, peer: &PeerIdentity, stats: &mut FileSyncStats,
+    writer: &mut Writer,
+    provider: &Arc<dyn FileSyncProvider>,
+    local_manifest: &FileManifest,
+    requested: &[(String, String)],
+    emit: &EventEmitter,
+    peer: &PeerIdentity,
+    stats: &mut FileSyncStats,
     transfer: &Arc<dyn ChapterTransfer>,
 ) -> Result<(), P2pError> {
-    let by_comic: HashMap<&str, &FileComicInfo> =
-        local_manifest.comics.iter().map(|comic| (comic.comic_name.as_str(), comic)).collect();
+    let by_comic: HashMap<&str, &FileComicInfo> = local_manifest
+        .comics
+        .iter()
+        .map(|comic| (comic.comic_name.as_str(), comic))
+        .collect();
 
     for (comic_name, kind) in requested {
-        let entry = by_comic.get(comic_name.as_str()).and_then(|comic| extra_for_kind(comic, kind));
+        let entry = by_comic
+            .get(comic_name.as_str())
+            .and_then(|comic| extra_for_kind(comic, kind));
         let Some(entry) = entry else {
             write_missing_extra_header(writer, comic_name, kind).await?;
             continue;
         };
 
-        if send_one_extra(writer, provider, comic_name, kind, entry, emit, peer, transfer).await? {
+        if send_one_extra(
+            writer, provider, comic_name, kind, entry, emit, peer, transfer,
+        )
+        .await?
+        {
             stats.sent_count += 1;
         }
     }
@@ -371,8 +463,12 @@ async fn send_extras(
 /// Busca o blob de um item extra e grava chunk a chunk — mesma mecânica de
 /// `receive_chapter_from_blob`, com `FileExtraHeader` no lugar de `FileHeader`.
 async fn receive_extra_from_blob(
-    provider: &Arc<dyn FileSyncProvider>, handle: i64, header: &FileExtraHeader, emit: &EventEmitter,
-    peer: &PeerIdentity, transfer: &Arc<dyn ChapterTransfer>,
+    provider: &Arc<dyn FileSyncProvider>,
+    handle: i64,
+    header: &FileExtraHeader,
+    emit: &EventEmitter,
+    peer: &PeerIdentity,
+    transfer: &Arc<dyn ChapterTransfer>,
 ) -> Result<bool, P2pError> {
     let Some(blob_hash) = header.blob_hash.as_deref() else {
         return Ok(true);
@@ -398,10 +494,9 @@ async fn receive_extra_from_blob(
     let mut buf = vec![0u8; CHUNK_SIZE];
 
     loop {
-        let n = blob_reader
-            .read(&mut buf)
-            .await
-            .map_err(|err| P2pError::StreamFailed(format!("failed to read fetched extra blob: {err}")))?;
+        let n = blob_reader.read(&mut buf).await.map_err(|err| {
+            P2pError::StreamFailed(format!("failed to read fetched extra blob: {err}"))
+        })?;
         if n == 0 {
             break;
         }
@@ -415,7 +510,14 @@ async fn receive_extra_from_blob(
 
         if bytes_since_progress >= PROGRESS_EVERY_BYTES {
             bytes_since_progress = 0;
-            emit_progress(emit, peer, &header.comic_name, &header.kind, received_bytes, header.size);
+            emit_progress(
+                emit,
+                peer,
+                &header.comic_name,
+                &header.kind,
+                received_bytes,
+                header.size,
+            );
         }
     }
 
@@ -423,7 +525,8 @@ async fn receive_extra_from_blob(
 }
 
 fn extra_complete_payload(peer: &PeerIdentity, header: &FileExtraHeader) -> String {
-    serde_json::json!({ "peerId": peer.id, "comicName": header.comic_name, "kind": header.kind }).to_string()
+    serde_json::json!({ "peerId": peer.id, "comicName": header.comic_name, "kind": header.kind })
+        .to_string()
 }
 
 fn extra_failed_payload(peer: &PeerIdentity, header: &FileExtraHeader) -> String {
@@ -437,23 +540,38 @@ fn extra_failed_payload(peer: &PeerIdentity, header: &FileExtraHeader) -> String
 }
 
 async fn receive_one_extra(
-    provider: &Arc<dyn FileSyncProvider>, emit: &EventEmitter, peer: &PeerIdentity, header: &FileExtraHeader,
-    stats: &mut FileSyncStats, transfer: &Arc<dyn ChapterTransfer>,
+    provider: &Arc<dyn FileSyncProvider>,
+    emit: &EventEmitter,
+    peer: &PeerIdentity,
+    header: &FileExtraHeader,
+    stats: &mut FileSyncStats,
+    transfer: &Arc<dyn ChapterTransfer>,
 ) -> Result<(), P2pError> {
     let handle = begin_extra_write(provider, header).await?;
-    let write_failed = receive_extra_from_blob(provider, handle, header, emit, peer, transfer).await?;
+    let write_failed =
+        receive_extra_from_blob(provider, handle, header, emit, peer, transfer).await?;
 
-    let succeeded = if !write_failed && handle >= 0 { finalize_extra_write(provider, handle).await? } else { false };
+    let succeeded = if !write_failed && handle >= 0 {
+        finalize_extra_write(provider, handle).await?
+    } else {
+        false
+    };
 
     if succeeded {
         stats.received_count += 1;
-        emit("sync:files:extra_complete", extra_complete_payload(peer, header));
+        emit(
+            "sync:files:extra_complete",
+            extra_complete_payload(peer, header),
+        );
     } else {
         if handle >= 0 {
             abort_extra_write(provider, handle).await?;
         }
         stats.failed_count += 1;
-        emit("sync:files:extra_failed", extra_failed_payload(peer, header));
+        emit(
+            "sync:files:extra_failed",
+            extra_failed_payload(peer, header),
+        );
     }
 
     Ok(())
@@ -462,8 +580,13 @@ async fn receive_one_extra(
 /// Recebe exatamente `expected_count` itens extra — mesma lógica de `receive_files`, com
 /// `FileExtraHeader` no lugar de `FileHeader`.
 async fn receive_extras(
-    reader: &mut Recv, expected_count: usize, provider: &Arc<dyn FileSyncProvider>, emit: &EventEmitter,
-    peer: &PeerIdentity, stats: &mut FileSyncStats, transfer: &Arc<dyn ChapterTransfer>,
+    reader: &mut Recv,
+    expected_count: usize,
+    provider: &Arc<dyn FileSyncProvider>,
+    emit: &EventEmitter,
+    peer: &PeerIdentity,
+    stats: &mut FileSyncStats,
+    transfer: &Arc<dyn ChapterTransfer>,
 ) -> Result<(), P2pError> {
     for _ in 0..expected_count {
         let header: FileExtraHeader = read_json(reader).await?;
@@ -483,8 +606,14 @@ async fn receive_extras(
 /// que vai no `FileHeader`. A leitura em si continua chunk a chunk (nunca destrava o loop de
 /// progresso existente), só o destino dos bytes muda: iam pro wire, agora vão pro `put()`.
 async fn publish_chapter_to_blob(
-    provider: &Arc<dyn FileSyncProvider>, handle: i64, total_size: u64, emit: &EventEmitter, peer: &PeerIdentity,
-    comic_name: &str, chapter: &str, transfer: &Arc<dyn ChapterTransfer>,
+    provider: &Arc<dyn FileSyncProvider>,
+    handle: i64,
+    total_size: u64,
+    emit: &EventEmitter,
+    peer: &PeerIdentity,
+    comic_name: &str,
+    chapter: &str,
+    transfer: &Arc<dyn ChapterTransfer>,
 ) -> Result<String, P2pError> {
     let mut bytes = Vec::new();
     let mut read_bytes_total: u64 = 0;
@@ -502,7 +631,14 @@ async fn publish_chapter_to_blob(
 
         if bytes_since_progress >= PROGRESS_EVERY_BYTES {
             bytes_since_progress = 0;
-            emit_progress(emit, peer, comic_name, chapter, read_bytes_total, total_size);
+            emit_progress(
+                emit,
+                peer,
+                comic_name,
+                chapter,
+                read_bytes_total,
+                total_size,
+            );
         }
     }
 
@@ -513,18 +649,26 @@ async fn publish_chapter_to_blob(
 /// header com o hash resultante, fecha. `Ok(false)` sinaliza "não pôde atender" (item sumiu ou
 /// handle inválido) — header vazio já escrito, sem publicação.
 async fn send_one_chapter(
-    writer: &mut Writer, provider: &Arc<dyn FileSyncProvider>, comic_name: &str, chapter: &str,
-    entry: &super::model::FileChapterInfo, emit: &EventEmitter, peer: &PeerIdentity,
+    writer: &mut Writer,
+    provider: &Arc<dyn FileSyncProvider>,
+    comic_name: &str,
+    chapter: &str,
+    entry: &super::model::FileChapterInfo,
+    emit: &EventEmitter,
+    peer: &PeerIdentity,
     transfer: &Arc<dyn ChapterTransfer>,
 ) -> Result<bool, P2pError> {
-    let handle = open_chapter_for_read(provider, comic_name.to_string(), chapter.to_string()).await?;
+    let handle =
+        open_chapter_for_read(provider, comic_name.to_string(), chapter.to_string()).await?;
     if handle < 0 {
         write_missing_header(writer, comic_name, chapter).await?;
         return Ok(false);
     }
 
-    let publish_result =
-        publish_chapter_to_blob(provider, handle, entry.size, emit, peer, comic_name, chapter, transfer).await;
+    let publish_result = publish_chapter_to_blob(
+        provider, handle, entry.size, emit, peer, comic_name, chapter, transfer,
+    )
+    .await;
     close_read_handle(provider, handle).await?;
     let blob_hash = publish_result?;
 
@@ -557,8 +701,13 @@ async fn send_one_chapter(
 /// simplesmente pulado — o outro lado conta exatamente `requested.len()` headers, então
 /// a contagem precisa ficar determinística mesmo quando um item não pode ser atendido.
 async fn send_files(
-    writer: &mut Writer, provider: &Arc<dyn FileSyncProvider>, local_manifest: &FileManifest,
-    requested: &[(String, String)], emit: &EventEmitter, peer: &PeerIdentity, stats: &mut FileSyncStats,
+    writer: &mut Writer,
+    provider: &Arc<dyn FileSyncProvider>,
+    local_manifest: &FileManifest,
+    requested: &[(String, String)],
+    emit: &EventEmitter,
+    peer: &PeerIdentity,
+    stats: &mut FileSyncStats,
     transfer: &Arc<dyn ChapterTransfer>,
 ) -> Result<(), P2pError> {
     let by_key = manifest_index(local_manifest);
@@ -569,7 +718,11 @@ async fn send_files(
             continue;
         };
 
-        if send_one_chapter(writer, provider, comic_name, chapter, entry, emit, peer, transfer).await? {
+        if send_one_chapter(
+            writer, provider, comic_name, chapter, entry, emit, peer, transfer,
+        )
+        .await?
+        {
             stats.sent_count += 1;
         }
     }
@@ -582,8 +735,13 @@ async fn send_files(
 /// escrita chunk a chunk. `size: 0` sinaliza "peer não tem mais esse capítulo" — sem blob a
 /// buscar.
 async fn receive_files(
-    reader: &mut Recv, expected_count: usize, provider: &Arc<dyn FileSyncProvider>, emit: &EventEmitter,
-    peer: &PeerIdentity, stats: &mut FileSyncStats, transfer: &Arc<dyn ChapterTransfer>,
+    reader: &mut Recv,
+    expected_count: usize,
+    provider: &Arc<dyn FileSyncProvider>,
+    emit: &EventEmitter,
+    peer: &PeerIdentity,
+    stats: &mut FileSyncStats,
+    transfer: &Arc<dyn ChapterTransfer>,
 ) -> Result<(), P2pError> {
     for _ in 0..expected_count {
         let header: FileHeader = read_json(reader).await?;
@@ -612,8 +770,12 @@ async fn receive_files(
 /// o `AsyncRead` devolvido pelo blob store após `fetch`). Retorna `true` se a busca ou alguma
 /// escrita falhou (`handle` inválido conta como falha imediata).
 async fn receive_chapter_from_blob(
-    provider: &Arc<dyn FileSyncProvider>, handle: i64, header: &FileHeader, emit: &EventEmitter,
-    peer: &PeerIdentity, transfer: &Arc<dyn ChapterTransfer>,
+    provider: &Arc<dyn FileSyncProvider>,
+    handle: i64,
+    header: &FileHeader,
+    emit: &EventEmitter,
+    peer: &PeerIdentity,
+    transfer: &Arc<dyn ChapterTransfer>,
 ) -> Result<bool, P2pError> {
     let Some(blob_hash) = header.blob_hash.as_deref() else {
         return Ok(true);
@@ -656,7 +818,14 @@ async fn receive_chapter_from_blob(
 
         if bytes_since_progress >= PROGRESS_EVERY_BYTES {
             bytes_since_progress = 0;
-            emit_progress(emit, peer, &header.comic_name, &header.chapter, received_bytes, header.size);
+            emit_progress(
+                emit,
+                peer,
+                &header.comic_name,
+                &header.chapter,
+                received_bytes,
+                header.size,
+            );
         }
     }
 
@@ -678,11 +847,16 @@ fn chapter_failed_payload(peer: &PeerIdentity, header: &FileHeader) -> String {
 }
 
 async fn receive_one_chapter(
-    provider: &Arc<dyn FileSyncProvider>, emit: &EventEmitter, peer: &PeerIdentity, header: &FileHeader,
-    stats: &mut FileSyncStats, transfer: &Arc<dyn ChapterTransfer>,
+    provider: &Arc<dyn FileSyncProvider>,
+    emit: &EventEmitter,
+    peer: &PeerIdentity,
+    header: &FileHeader,
+    stats: &mut FileSyncStats,
+    transfer: &Arc<dyn ChapterTransfer>,
 ) -> Result<(), P2pError> {
     let handle = begin_chapter_write(provider, header).await?;
-    let write_failed = receive_chapter_from_blob(provider, handle, header, emit, peer, transfer).await?;
+    let write_failed =
+        receive_chapter_from_blob(provider, handle, header, emit, peer, transfer).await?;
 
     let succeeded = if !write_failed && handle >= 0 {
         finalize_chapter_write(provider, handle).await?
@@ -707,20 +881,31 @@ async fn receive_one_chapter(
 
     if succeeded {
         stats.received_count += 1;
-        emit("sync:files:chapter_complete", chapter_complete_payload(peer, header));
+        emit(
+            "sync:files:chapter_complete",
+            chapter_complete_payload(peer, header),
+        );
     } else {
         if handle >= 0 {
             abort_chapter_write(provider, handle).await?;
         }
         stats.failed_count += 1;
-        emit("sync:files:chapter_failed", chapter_failed_payload(peer, header));
+        emit(
+            "sync:files:chapter_failed",
+            chapter_failed_payload(peer, header),
+        );
     }
 
     Ok(())
 }
 
 fn emit_progress(
-    emit: &EventEmitter, peer: &PeerIdentity, comic_name: &str, chapter: &str, transferred: u64, total: u64,
+    emit: &EventEmitter,
+    peer: &PeerIdentity,
+    comic_name: &str,
+    chapter: &str,
+    transferred: u64,
+    total: u64,
 ) {
     emit(
         "sync:files:progress",
@@ -735,13 +920,20 @@ fn emit_progress(
     );
 }
 
-fn manifest_exchanged_payload(peer: &PeerIdentity, missing_count: usize, offering_count: usize) -> String {
+fn manifest_exchanged_payload(
+    peer: &PeerIdentity,
+    missing_count: usize,
+    offering_count: usize,
+) -> String {
     serde_json::json!({ "peerId": peer.id, "missingCount": missing_count, "offeringCount": offering_count }).to_string()
 }
 
 /// Fase 1: troca de manifesto (regra 4) — outbound escreve primeiro, inbound lê primeiro.
 async fn exchange_manifests(
-    outbound_role: bool, writer: &mut Writer, reader: &mut Recv, local_manifest: &FileManifest,
+    outbound_role: bool,
+    writer: &mut Writer,
+    reader: &mut Recv,
+    local_manifest: &FileManifest,
 ) -> Result<FileManifest, P2pError> {
     if outbound_role {
         write_json(writer, local_manifest).await?;
@@ -756,11 +948,16 @@ async fn exchange_manifests(
 /// Fase 2: troca de want-list, mesma ordem espelhada da fase 1. Retorna
 /// `(wanted, wanted_extras)` do peer.
 async fn exchange_want_lists(
-    outbound_role: bool, writer: &mut Writer, reader: &mut Recv, wanted_locally: &[(String, String)],
+    outbound_role: bool,
+    writer: &mut Writer,
+    reader: &mut Recv,
+    wanted_locally: &[(String, String)],
     wanted_extras_locally: &[(String, String)],
 ) -> Result<(Vec<(String, String)>, Vec<(String, String)>), P2pError> {
-    let mine =
-        FileWantList { wanted: wanted_locally.to_vec(), wanted_extras: wanted_extras_locally.to_vec() };
+    let mine = FileWantList {
+        wanted: wanted_locally.to_vec(),
+        wanted_extras: wanted_extras_locally.to_vec(),
+    };
 
     if outbound_role {
         write_json(writer, &mine).await?;
@@ -780,21 +977,106 @@ async fn exchange_want_lists(
 /// sequência sem tag de enum que distinga qual mensagem é qual.
 #[allow(clippy::too_many_arguments)]
 async fn transfer_files(
-    outbound_role: bool, writer: &mut Writer, reader: &mut Recv, provider: &Arc<dyn FileSyncProvider>,
-    local_manifest: &FileManifest, wanted_locally: &[(String, String)], wanted_extras_locally: &[(String, String)],
-    their_wanted: &[(String, String)], their_wanted_extras: &[(String, String)], emit: &EventEmitter,
-    peer: &PeerIdentity, stats: &mut FileSyncStats, transfer: &Arc<dyn ChapterTransfer>,
+    outbound_role: bool,
+    writer: &mut Writer,
+    reader: &mut Recv,
+    provider: &Arc<dyn FileSyncProvider>,
+    local_manifest: &FileManifest,
+    wanted_locally: &[(String, String)],
+    wanted_extras_locally: &[(String, String)],
+    their_wanted: &[(String, String)],
+    their_wanted_extras: &[(String, String)],
+    emit: &EventEmitter,
+    peer: &PeerIdentity,
+    stats: &mut FileSyncStats,
+    transfer: &Arc<dyn ChapterTransfer>,
 ) -> Result<(), P2pError> {
     if outbound_role {
-        receive_files(reader, wanted_locally.len(), provider, emit, peer, stats, transfer).await?;
-        receive_extras(reader, wanted_extras_locally.len(), provider, emit, peer, stats, transfer).await?;
-        send_files(writer, provider, local_manifest, their_wanted, emit, peer, stats, transfer).await?;
-        send_extras(writer, provider, local_manifest, their_wanted_extras, emit, peer, stats, transfer).await?;
+        receive_files(
+            reader,
+            wanted_locally.len(),
+            provider,
+            emit,
+            peer,
+            stats,
+            transfer,
+        )
+        .await?;
+        receive_extras(
+            reader,
+            wanted_extras_locally.len(),
+            provider,
+            emit,
+            peer,
+            stats,
+            transfer,
+        )
+        .await?;
+        send_files(
+            writer,
+            provider,
+            local_manifest,
+            their_wanted,
+            emit,
+            peer,
+            stats,
+            transfer,
+        )
+        .await?;
+        send_extras(
+            writer,
+            provider,
+            local_manifest,
+            their_wanted_extras,
+            emit,
+            peer,
+            stats,
+            transfer,
+        )
+        .await?;
     } else {
-        send_files(writer, provider, local_manifest, their_wanted, emit, peer, stats, transfer).await?;
-        send_extras(writer, provider, local_manifest, their_wanted_extras, emit, peer, stats, transfer).await?;
-        receive_files(reader, wanted_locally.len(), provider, emit, peer, stats, transfer).await?;
-        receive_extras(reader, wanted_extras_locally.len(), provider, emit, peer, stats, transfer).await?;
+        send_files(
+            writer,
+            provider,
+            local_manifest,
+            their_wanted,
+            emit,
+            peer,
+            stats,
+            transfer,
+        )
+        .await?;
+        send_extras(
+            writer,
+            provider,
+            local_manifest,
+            their_wanted_extras,
+            emit,
+            peer,
+            stats,
+            transfer,
+        )
+        .await?;
+        receive_files(
+            reader,
+            wanted_locally.len(),
+            provider,
+            emit,
+            peer,
+            stats,
+            transfer,
+        )
+        .await?;
+        receive_extras(
+            reader,
+            wanted_extras_locally.len(),
+            provider,
+            emit,
+            peer,
+            stats,
+            transfer,
+        )
+        .await?;
     }
 
     Ok(())
@@ -809,8 +1091,14 @@ async fn transfer_files(
 /// `run_exchange_scoped`) — nesse caso a want-list local é zerada mesmo que o diff mostre algo
 /// faltando, porque este lado só deve entregar, nunca pedir de volta.
 async fn run_exchange_with_manifest(
-    outbound_role: bool, peer: &PeerIdentity, emit: &EventEmitter, provider: &Arc<dyn FileSyncProvider>,
-    local_manifest: FileManifest, writer: &mut Writer, reader: &mut Recv, transfer: &Arc<dyn ChapterTransfer>,
+    outbound_role: bool,
+    peer: &PeerIdentity,
+    emit: &EventEmitter,
+    provider: &Arc<dyn FileSyncProvider>,
+    local_manifest: FileManifest,
+    writer: &mut Writer,
+    reader: &mut Recv,
+    transfer: &Arc<dyn ChapterTransfer>,
     force_empty_wanted: bool,
 ) -> Result<FileSyncStats, P2pError> {
     let mut stats = FileSyncStats::default();
@@ -820,7 +1108,10 @@ async fn run_exchange_with_manifest(
     let (wanted_locally, wanted_extras_locally) = if force_empty_wanted {
         (Vec::new(), Vec::new())
     } else {
-        (missing_from(&local_manifest, &peer_manifest), missing_extras_from(&local_manifest, &peer_manifest))
+        (
+            missing_from(&local_manifest, &peer_manifest),
+            missing_extras_from(&local_manifest, &peer_manifest),
+        )
     };
     let wanted_by_peer = missing_from(&peer_manifest, &local_manifest);
     emit(
@@ -828,8 +1119,14 @@ async fn run_exchange_with_manifest(
         manifest_exchanged_payload(peer, wanted_locally.len(), wanted_by_peer.len()),
     );
 
-    let (their_wanted, their_wanted_extras) =
-        exchange_want_lists(outbound_role, writer, reader, &wanted_locally, &wanted_extras_locally).await?;
+    let (their_wanted, their_wanted_extras) = exchange_want_lists(
+        outbound_role,
+        writer,
+        reader,
+        &wanted_locally,
+        &wanted_extras_locally,
+    )
+    .await?;
 
     transfer_files(
         outbound_role,
@@ -855,8 +1152,12 @@ async fn run_exchange_with_manifest(
 /// Schema e sequência de wire idênticos ao Desktop (`infra/sync/protocol/file_handler.rs`):
 /// (1) troca de manifesto; (2) troca de want-list; (3) transferência de arquivos.
 pub(super) async fn run_exchange(
-    outbound_role: bool, peer: &PeerIdentity, emit: &EventEmitter, provider: &Arc<dyn FileSyncProvider>,
-    transfer: &Arc<dyn ChapterTransfer>, send: Box<dyn AsyncWrite + Send + Unpin>,
+    outbound_role: bool,
+    peer: &PeerIdentity,
+    emit: &EventEmitter,
+    provider: &Arc<dyn FileSyncProvider>,
+    transfer: &Arc<dyn ChapterTransfer>,
+    send: Box<dyn AsyncWrite + Send + Unpin>,
     recv: Box<dyn AsyncRead + Send + Unpin>,
 ) -> Result<FileSyncStats, P2pError> {
     let mut writer: Writer = FramedWrite::new(send, LengthDelimitedCodec::new());
@@ -864,7 +1165,15 @@ pub(super) async fn run_exchange(
 
     let local_manifest = build_local_manifest(provider).await?;
     run_exchange_with_manifest(
-        outbound_role, peer, emit, provider, local_manifest, &mut writer, &mut reader, transfer, false,
+        outbound_role,
+        peer,
+        emit,
+        provider,
+        local_manifest,
+        &mut writer,
+        &mut reader,
+        transfer,
+        false,
     )
     .await
 }
@@ -875,15 +1184,26 @@ pub(super) async fn run_exchange(
 /// acordados: `comic_name` filtra os manifestos, `direction` decide qual lado é o "sender" (ver
 /// `run_exchange_scoped`).
 async fn exchange_comic_scope(
-    outbound_role: bool, writer: &mut Writer, reader: &mut Recv,
+    outbound_role: bool,
+    writer: &mut Writer,
+    reader: &mut Recv,
     comic_name_outbound: Option<(&str, SyncDirection)>,
 ) -> Result<(String, SyncDirection), P2pError> {
     if outbound_role {
         let (comic_name, direction) = comic_name_outbound.ok_or_else(|| {
-            P2pError::StreamFailed("sync-comic: missing target comic_name for outbound session".into())
+            P2pError::StreamFailed(
+                "sync-comic: missing target comic_name for outbound session".into(),
+            )
         })?;
         let comic_name = comic_name.to_string();
-        write_json(writer, &ComicSyncScope { comic_name: comic_name.clone(), direction }).await?;
+        write_json(
+            writer,
+            &ComicSyncScope {
+                comic_name: comic_name.clone(),
+                direction,
+            },
+        )
+        .await?;
         Ok((comic_name, direction))
     } else {
         let scope: ComicSyncScope = read_json(reader).await?;
@@ -895,7 +1215,13 @@ async fn exchange_comic_scope(
 /// (a filtragem acontece depois de `get_file_manifest()`, que já é sobre a biblioteca inteira;
 /// não há como pedir pro `FileSyncProvider` só um quadrinho sem mudar a trait FFI).
 fn filter_manifest_to_comic(manifest: FileManifest, comic_name: &str) -> FileManifest {
-    FileManifest { comics: manifest.comics.into_iter().filter(|c| c.comic_name == comic_name).collect() }
+    FileManifest {
+        comics: manifest
+            .comics
+            .into_iter()
+            .filter(|c| c.comic_name == comic_name)
+            .collect(),
+    }
 }
 
 /// Executa a sessão inteira do protocolo `acerola/sync-comic/1` (sincronização de um único
@@ -909,23 +1235,43 @@ fn filter_manifest_to_comic(manifest: FileManifest, comic_name: &str) -> FileMan
 /// troca de manifestos em si.
 #[allow(clippy::too_many_arguments)]
 pub(super) async fn run_exchange_scoped(
-    outbound_role: bool, peer: &PeerIdentity, emit: &EventEmitter, provider: &Arc<dyn FileSyncProvider>,
-    transfer: &Arc<dyn ChapterTransfer>, comic_name_outbound: Option<(String, SyncDirection)>,
-    send: Box<dyn AsyncWrite + Send + Unpin>, recv: Box<dyn AsyncRead + Send + Unpin>,
+    outbound_role: bool,
+    peer: &PeerIdentity,
+    emit: &EventEmitter,
+    provider: &Arc<dyn FileSyncProvider>,
+    transfer: &Arc<dyn ChapterTransfer>,
+    comic_name_outbound: Option<(String, SyncDirection)>,
+    send: Box<dyn AsyncWrite + Send + Unpin>,
+    recv: Box<dyn AsyncRead + Send + Unpin>,
 ) -> Result<FileSyncStats, P2pError> {
     let mut writer: Writer = FramedWrite::new(send, LengthDelimitedCodec::new());
     let mut reader: Recv = FramedRead::new(recv, LengthDelimitedCodec::new());
 
-    let comic_name_outbound_ref = comic_name_outbound.as_ref().map(|(name, direction)| (name.as_str(), *direction));
-    let (comic_name, direction) =
-        exchange_comic_scope(outbound_role, &mut writer, &mut reader, comic_name_outbound_ref).await?;
+    let comic_name_outbound_ref = comic_name_outbound
+        .as_ref()
+        .map(|(name, direction)| (name.as_str(), *direction));
+    let (comic_name, direction) = exchange_comic_scope(
+        outbound_role,
+        &mut writer,
+        &mut reader,
+        comic_name_outbound_ref,
+    )
+    .await?;
     let is_sender = (direction == SyncDirection::Push) == outbound_role;
 
     let local_manifest = build_local_manifest(provider).await?;
     let local_manifest = filter_manifest_to_comic(local_manifest, &comic_name);
 
     run_exchange_with_manifest(
-        outbound_role, peer, emit, provider, local_manifest, &mut writer, &mut reader, transfer, is_sender,
+        outbound_role,
+        peer,
+        emit,
+        provider,
+        local_manifest,
+        &mut writer,
+        &mut reader,
+        transfer,
+        is_sender,
     )
     .await
 }
@@ -980,7 +1326,11 @@ mod tests {
         }
         fn close_read_handle(&self, _handle: i64) {}
         fn begin_chapter_write(
-            &self, _comic_name: String, _chapter: String, _file_name: String, _expected_checksum: String,
+            &self,
+            _comic_name: String,
+            _chapter: String,
+            _file_name: String,
+            _expected_checksum: String,
             _size_bytes: u64,
         ) -> i64 {
             -1
@@ -999,7 +1349,11 @@ mod tests {
             -1
         }
         fn begin_extra_write(
-            &self, _comic_name: String, _kind: String, _file_name: String, _expected_checksum: String,
+            &self,
+            _comic_name: String,
+            _kind: String,
+            _file_name: String,
+            _expected_checksum: String,
             _size_bytes: u64,
         ) -> i64 {
             -1
@@ -1011,7 +1365,10 @@ mod tests {
     }
 
     fn make_peer(id: &str) -> PeerIdentity {
-        PeerIdentity { id: id.to_string(), device_id: None }
+        PeerIdentity {
+            id: id.to_string(),
+            device_id: None,
+        }
     }
 
     fn no_op_emitter() -> EventEmitter {
@@ -1023,8 +1380,10 @@ mod tests {
     /// assinatura exata do bug relatado (sync-files travava o app inteiro por minutos).
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn build_local_manifest_does_not_block_runtime() {
-        let provider: Arc<dyn FileSyncProvider> =
-            Arc::new(CountingSlowProvider { manifest_calls: Arc::new(AtomicUsize::new(0)), sleep_ms: 200 });
+        let provider: Arc<dyn FileSyncProvider> = Arc::new(CountingSlowProvider {
+            manifest_calls: Arc::new(AtomicUsize::new(0)),
+            sleep_ms: 200,
+        });
 
         let ticks = Arc::new(AtomicU32::new(0));
         let ticks_clone = Arc::clone(&ticks);
@@ -1039,7 +1398,10 @@ mod tests {
         let _ = tokio::join!(ticker);
 
         assert!(manifest.comics.is_empty());
-        assert!(ticks.load(Ordering::SeqCst) >= 8, "runtime ficou travado durante get_file_manifest");
+        assert!(
+            ticks.load(Ordering::SeqCst) >= 8,
+            "runtime ficou travado durante get_file_manifest"
+        );
     }
 
     /// Prova que `run_exchange` monta o manifesto local exatamente 1 vez por sessão — antes
@@ -1052,10 +1414,14 @@ mod tests {
 
         let outbound_calls = Arc::new(AtomicUsize::new(0));
         let inbound_calls = Arc::new(AtomicUsize::new(0));
-        let outbound_provider: Arc<dyn FileSyncProvider> =
-            Arc::new(CountingSlowProvider { manifest_calls: Arc::clone(&outbound_calls), sleep_ms: 0 });
-        let inbound_provider: Arc<dyn FileSyncProvider> =
-            Arc::new(CountingSlowProvider { manifest_calls: Arc::clone(&inbound_calls), sleep_ms: 0 });
+        let outbound_provider: Arc<dyn FileSyncProvider> = Arc::new(CountingSlowProvider {
+            manifest_calls: Arc::clone(&outbound_calls),
+            sleep_ms: 0,
+        });
+        let inbound_provider: Arc<dyn FileSyncProvider> = Arc::new(CountingSlowProvider {
+            manifest_calls: Arc::clone(&inbound_calls),
+            sleep_ms: 0,
+        });
 
         let peer = make_peer("peer-x");
         let emit = no_op_emitter();
@@ -1161,15 +1527,20 @@ mod tests {
 
         /// `extras`: `(comic_name, kind, file_name, bytes)`.
         fn with_readable_and_extras(
-            entries: Vec<(String, String, String, Vec<u8>)>, extras: Vec<(String, String, String, Vec<u8>)>,
+            entries: Vec<(String, String, String, Vec<u8>)>,
+            extras: Vec<(String, String, String, Vec<u8>)>,
         ) -> Self {
             let readable = entries
                 .into_iter()
-                .map(|(comic_name, chapter, file_name, bytes)| ((comic_name, chapter), (file_name, bytes)))
+                .map(|(comic_name, chapter, file_name, bytes)| {
+                    ((comic_name, chapter), (file_name, bytes))
+                })
                 .collect();
             let readable_extras = extras
                 .into_iter()
-                .map(|(comic_name, kind, file_name, bytes)| ((comic_name, kind), (file_name, bytes)))
+                .map(|(comic_name, kind, file_name, bytes)| {
+                    ((comic_name, kind), (file_name, bytes))
+                })
                 .collect();
             Self {
                 readable,
@@ -1187,13 +1558,15 @@ mod tests {
         fn get_file_manifest(&self) -> Vec<FfiFileManifestEntry> {
             self.readable
                 .iter()
-                .map(|((comic_name, chapter), (file_name, bytes))| FfiFileManifestEntry {
-                    comic_name: comic_name.clone(),
-                    chapter: chapter.clone(),
-                    file_name: file_name.clone(),
-                    checksum: blake3::hash(bytes).to_hex().to_string(),
-                    size_bytes: bytes.len() as u64,
-                })
+                .map(
+                    |((comic_name, chapter), (file_name, bytes))| FfiFileManifestEntry {
+                        comic_name: comic_name.clone(),
+                        chapter: chapter.clone(),
+                        file_name: file_name.clone(),
+                        checksum: blake3::hash(bytes).to_hex().to_string(),
+                        size_bytes: bytes.len() as u64,
+                    },
+                )
                 .collect()
         }
 
@@ -1206,7 +1579,10 @@ mod tests {
                 return -1;
             };
             let handle = self.next_handle.fetch_add(1, Ordering::SeqCst);
-            self.read_handles.lock().unwrap().insert(handle, (bytes.clone(), 0));
+            self.read_handles
+                .lock()
+                .unwrap()
+                .insert(handle, (bytes.clone(), 0));
             handle
         }
 
@@ -1229,14 +1605,21 @@ mod tests {
         }
 
         fn begin_chapter_write(
-            &self, comic_name: String, chapter: String, _file_name: String, expected_checksum: String,
+            &self,
+            comic_name: String,
+            chapter: String,
+            _file_name: String,
+            expected_checksum: String,
             _size_bytes: u64,
         ) -> i64 {
             let handle = self.next_handle.fetch_add(1, Ordering::SeqCst);
             self.write_handles.lock().unwrap().insert(
                 handle,
                 WriteState {
-                    target: WriteTarget::Chapter { comic_name, chapter },
+                    target: WriteTarget::Chapter {
+                        comic_name,
+                        chapter,
+                    },
                     expected_checksum,
                     buffer: Vec::new(),
                 },
@@ -1257,7 +1640,11 @@ mod tests {
             let Some(state) = self.write_handles.lock().unwrap().remove(&handle) else {
                 return false;
             };
-            let WriteTarget::Chapter { comic_name, chapter } = state.target else {
+            let WriteTarget::Chapter {
+                comic_name,
+                chapter,
+            } = state.target
+            else {
                 return false;
             };
             let actual_checksum = blake3::hash(&state.buffer).to_hex().to_string();
@@ -1279,12 +1666,14 @@ mod tests {
         fn get_extras_manifest(&self) -> Vec<crate::callbacks::FfiExtraManifestEntry> {
             self.readable_extras
                 .iter()
-                .map(|((comic_name, kind), (file_name, bytes))| crate::callbacks::FfiExtraManifestEntry {
-                    comic_name: comic_name.clone(),
-                    kind: kind.clone(),
-                    file_name: file_name.clone(),
-                    checksum: blake3::hash(bytes).to_hex().to_string(),
-                    size_bytes: bytes.len() as u64,
+                .map(|((comic_name, kind), (file_name, bytes))| {
+                    crate::callbacks::FfiExtraManifestEntry {
+                        comic_name: comic_name.clone(),
+                        kind: kind.clone(),
+                        file_name: file_name.clone(),
+                        checksum: blake3::hash(bytes).to_hex().to_string(),
+                        size_bytes: bytes.len() as u64,
+                    }
                 })
                 .collect()
         }
@@ -1297,20 +1686,31 @@ mod tests {
                 return -1;
             };
             let handle = self.next_handle.fetch_add(1, Ordering::SeqCst);
-            self.read_handles.lock().unwrap().insert(handle, (bytes.clone(), 0));
+            self.read_handles
+                .lock()
+                .unwrap()
+                .insert(handle, (bytes.clone(), 0));
             handle
         }
 
         // Mesma ideia de `open_extra_for_read`: insere em `write_handles`, o mapa compartilhado
         // com capítulo — `write_chapter_chunk` (reaproveitado) grava aqui sem saber a diferença.
         fn begin_extra_write(
-            &self, comic_name: String, kind: String, _file_name: String, expected_checksum: String,
+            &self,
+            comic_name: String,
+            kind: String,
+            _file_name: String,
+            expected_checksum: String,
             _size_bytes: u64,
         ) -> i64 {
             let handle = self.next_handle.fetch_add(1, Ordering::SeqCst);
             self.write_handles.lock().unwrap().insert(
                 handle,
-                WriteState { target: WriteTarget::Extra { comic_name, kind }, expected_checksum, buffer: Vec::new() },
+                WriteState {
+                    target: WriteTarget::Extra { comic_name, kind },
+                    expected_checksum,
+                    buffer: Vec::new(),
+                },
             );
             handle
         }
@@ -1342,7 +1742,9 @@ mod tests {
     /// Gerador determinístico de payload — varia com `seed` pra capítulos diferentes não
     /// terem o mesmo conteúdo (evita mascarar bug de troca/mistura entre capítulos).
     fn make_payload(size: usize, seed: u8) -> Vec<u8> {
-        (0..size).map(|i| ((i as u64).wrapping_mul(31).wrapping_add(seed as u64) % 251) as u8).collect()
+        (0..size)
+            .map(|i| ((i as u64).wrapping_mul(31).wrapping_add(seed as u64) % 251) as u8)
+            .collect()
     }
 
     /// Round-trip com bytes de verdade nos dois sentidos, tamanhos propositalmente NÃO
@@ -1378,8 +1780,10 @@ mod tests {
         let emit = no_op_emitter();
         let (outbound_transfer, inbound_transfer) = test_transfer_pair();
 
-        let outbound_dyn: Arc<dyn FileSyncProvider> = Arc::clone(&outbound_provider) as Arc<dyn FileSyncProvider>;
-        let inbound_dyn: Arc<dyn FileSyncProvider> = Arc::clone(&inbound_provider) as Arc<dyn FileSyncProvider>;
+        let outbound_dyn: Arc<dyn FileSyncProvider> =
+            Arc::clone(&outbound_provider) as Arc<dyn FileSyncProvider>;
+        let inbound_dyn: Arc<dyn FileSyncProvider> =
+            Arc::clone(&inbound_provider) as Arc<dyn FileSyncProvider>;
 
         let outbound_fut = run_exchange(
             true,
@@ -1405,24 +1809,38 @@ mod tests {
         inbound_result.expect("inbound deveria completar sem erro");
 
         let outbound_received = outbound_provider.finalized.lock().unwrap();
-        assert_eq!(outbound_received.len(), 1, "outbound deveria ter recebido exatamente 1 capítulo de B");
+        assert_eq!(
+            outbound_received.len(),
+            1,
+            "outbound deveria ter recebido exatamente 1 capítulo de B"
+        );
         let received_from_b = &outbound_received[0];
         assert_eq!(received_from_b.comic_name, "Comic B");
         assert_eq!(
             received_from_b.expected_checksum, received_from_b.actual_checksum,
             "checksum declarado por B não bate com o recalculado por A após receber"
         );
-        assert_eq!(received_from_b.bytes, inbound_payload, "bytes recebidos por A não batem byte-a-byte com o que B enviou");
+        assert_eq!(
+            received_from_b.bytes, inbound_payload,
+            "bytes recebidos por A não batem byte-a-byte com o que B enviou"
+        );
 
         let inbound_received = inbound_provider.finalized.lock().unwrap();
-        assert_eq!(inbound_received.len(), 1, "inbound deveria ter recebido exatamente 1 capítulo de A");
+        assert_eq!(
+            inbound_received.len(),
+            1,
+            "inbound deveria ter recebido exatamente 1 capítulo de A"
+        );
         let received_from_a = &inbound_received[0];
         assert_eq!(received_from_a.comic_name, "Comic A");
         assert_eq!(
             received_from_a.expected_checksum, received_from_a.actual_checksum,
             "checksum declarado por A não bate com o recalculado por B após receber"
         );
-        assert_eq!(received_from_a.bytes, outbound_payload, "bytes recebidos por B não batem byte-a-byte com o que A enviou");
+        assert_eq!(
+            received_from_a.bytes, outbound_payload,
+            "bytes recebidos por B não batem byte-a-byte com o que A enviou"
+        );
     }
 
     /// Mesmo espírito do round-trip de capítulo acima, só que pros itens extra (capa/banner/
@@ -1437,7 +1855,12 @@ mod tests {
 
         let outbound_provider = Arc::new(InMemoryFileSyncProvider::with_readable_and_extras(
             vec![],
-            vec![("Comic A".to_string(), EXTRA_KIND_COVER.to_string(), "cover.jpg".to_string(), cover_bytes.clone())],
+            vec![(
+                "Comic A".to_string(),
+                EXTRA_KIND_COVER.to_string(),
+                "cover.jpg".to_string(),
+                cover_bytes.clone(),
+            )],
         ));
         let inbound_provider = Arc::new(InMemoryFileSyncProvider::with_readable_and_extras(
             vec![],
@@ -1457,8 +1880,10 @@ mod tests {
         let emit = no_op_emitter();
         let (outbound_transfer, inbound_transfer) = test_transfer_pair();
 
-        let outbound_dyn: Arc<dyn FileSyncProvider> = Arc::clone(&outbound_provider) as Arc<dyn FileSyncProvider>;
-        let inbound_dyn: Arc<dyn FileSyncProvider> = Arc::clone(&inbound_provider) as Arc<dyn FileSyncProvider>;
+        let outbound_dyn: Arc<dyn FileSyncProvider> =
+            Arc::clone(&outbound_provider) as Arc<dyn FileSyncProvider>;
+        let inbound_dyn: Arc<dyn FileSyncProvider> =
+            Arc::clone(&inbound_provider) as Arc<dyn FileSyncProvider>;
 
         let outbound_fut = run_exchange(
             true,
@@ -1484,18 +1909,32 @@ mod tests {
         inbound_result.expect("inbound deveria completar sem erro");
 
         let outbound_received = outbound_provider.finalized_extras.lock().unwrap();
-        assert_eq!(outbound_received.len(), 1, "outbound deveria ter recebido o ComicInfo.xml de B");
+        assert_eq!(
+            outbound_received.len(),
+            1,
+            "outbound deveria ter recebido o ComicInfo.xml de B"
+        );
         assert_eq!(outbound_received[0].comic_name, "Comic A");
         assert_eq!(outbound_received[0].kind, EXTRA_KIND_COMIC_INFO);
         assert_eq!(outbound_received[0].bytes, comic_info_bytes);
-        assert_eq!(outbound_received[0].expected_checksum, outbound_received[0].actual_checksum);
+        assert_eq!(
+            outbound_received[0].expected_checksum,
+            outbound_received[0].actual_checksum
+        );
 
         let inbound_received = inbound_provider.finalized_extras.lock().unwrap();
-        assert_eq!(inbound_received.len(), 1, "inbound deveria ter recebido a capa de A");
+        assert_eq!(
+            inbound_received.len(),
+            1,
+            "inbound deveria ter recebido a capa de A"
+        );
         assert_eq!(inbound_received[0].comic_name, "Comic A");
         assert_eq!(inbound_received[0].kind, EXTRA_KIND_COVER);
         assert_eq!(inbound_received[0].bytes, cover_bytes);
-        assert_eq!(inbound_received[0].expected_checksum, inbound_received[0].actual_checksum);
+        assert_eq!(
+            inbound_received[0].expected_checksum,
+            inbound_received[0].actual_checksum
+        );
     }
 
     /// Stress: muitos capítulos de tamanhos variados transferidos SEQUENCIALMENTE numa única
@@ -1522,7 +1961,9 @@ mod tests {
             ));
         }
 
-        let outbound_provider = Arc::new(InMemoryFileSyncProvider::with_readable(outbound_entries.clone()));
+        let outbound_provider = Arc::new(InMemoryFileSyncProvider::with_readable(
+            outbound_entries.clone(),
+        ));
         let inbound_provider = Arc::new(InMemoryFileSyncProvider::with_readable(vec![]));
 
         let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
@@ -1533,8 +1974,10 @@ mod tests {
         let emit = no_op_emitter();
         let (outbound_transfer, inbound_transfer) = test_transfer_pair();
 
-        let outbound_dyn: Arc<dyn FileSyncProvider> = Arc::clone(&outbound_provider) as Arc<dyn FileSyncProvider>;
-        let inbound_dyn: Arc<dyn FileSyncProvider> = Arc::clone(&inbound_provider) as Arc<dyn FileSyncProvider>;
+        let outbound_dyn: Arc<dyn FileSyncProvider> =
+            Arc::clone(&outbound_provider) as Arc<dyn FileSyncProvider>;
+        let inbound_dyn: Arc<dyn FileSyncProvider> =
+            Arc::clone(&inbound_provider) as Arc<dyn FileSyncProvider>;
 
         let outbound_fut = run_exchange(
             true,
@@ -1560,7 +2003,11 @@ mod tests {
         inbound_result.expect("inbound deveria completar sem erro");
 
         let received = inbound_provider.finalized.lock().unwrap();
-        assert_eq!(received.len(), CHAPTER_COUNT, "nem todos os capítulos chegaram");
+        assert_eq!(
+            received.len(),
+            CHAPTER_COUNT,
+            "nem todos os capítulos chegaram"
+        );
 
         let by_chapter: HashMap<&str, &FinalizedChapter> =
             received.iter().map(|f| (f.chapter.as_str(), f)).collect();
@@ -1569,7 +2016,10 @@ mod tests {
             let got = by_chapter
                 .get(chapter.as_str())
                 .unwrap_or_else(|| panic!("capítulo {chapter} nunca chegou do lado que recebeu"));
-            assert_eq!(&got.comic_name, comic_name, "capítulo {chapter}: comic_name divergiu");
+            assert_eq!(
+                &got.comic_name, comic_name,
+                "capítulo {chapter}: comic_name divergiu"
+            );
             assert_eq!(
                 got.expected_checksum, got.actual_checksum,
                 "capítulo {chapter}: checksum declarado não bate com o recalculado"
@@ -1597,8 +2047,18 @@ mod tests {
         let payload_b = make_payload(70_000, 9);
 
         let outbound_provider = Arc::new(InMemoryFileSyncProvider::with_readable(vec![
-            ("Comic A".to_string(), "Ch. 1".to_string(), "ch1.cbz".to_string(), payload_a.clone()),
-            ("Comic B".to_string(), "Ch. 1".to_string(), "ch1.cbz".to_string(), payload_b.clone()),
+            (
+                "Comic A".to_string(),
+                "Ch. 1".to_string(),
+                "ch1.cbz".to_string(),
+                payload_a.clone(),
+            ),
+            (
+                "Comic B".to_string(),
+                "Ch. 1".to_string(),
+                "ch1.cbz".to_string(),
+                payload_b.clone(),
+            ),
         ]));
         let inbound_provider = Arc::new(InMemoryFileSyncProvider::with_readable(vec![]));
 
@@ -1610,8 +2070,10 @@ mod tests {
         let emit = no_op_emitter();
         let (outbound_transfer, inbound_transfer) = test_transfer_pair();
 
-        let outbound_dyn: Arc<dyn FileSyncProvider> = Arc::clone(&outbound_provider) as Arc<dyn FileSyncProvider>;
-        let inbound_dyn: Arc<dyn FileSyncProvider> = Arc::clone(&inbound_provider) as Arc<dyn FileSyncProvider>;
+        let outbound_dyn: Arc<dyn FileSyncProvider> =
+            Arc::clone(&outbound_provider) as Arc<dyn FileSyncProvider>;
+        let inbound_dyn: Arc<dyn FileSyncProvider> =
+            Arc::clone(&inbound_provider) as Arc<dyn FileSyncProvider>;
 
         let outbound_fut = run_exchange_scoped(
             true,
@@ -1639,7 +2101,11 @@ mod tests {
         inbound_result.expect("inbound scoped exchange deveria completar sem erro");
 
         let received = inbound_provider.finalized.lock().unwrap();
-        assert_eq!(received.len(), 1, "só o quadrinho escopado deveria ter sido transferido, não a biblioteca inteira");
+        assert_eq!(
+            received.len(),
+            1,
+            "só o quadrinho escopado deveria ter sido transferido, não a biblioteca inteira"
+        );
         assert_eq!(received[0].comic_name, "Comic A");
         assert_eq!(received[0].bytes, payload_a);
     }
@@ -1668,8 +2134,10 @@ mod tests {
         let emit = no_op_emitter();
         let (outbound_transfer, inbound_transfer) = test_transfer_pair();
 
-        let outbound_dyn: Arc<dyn FileSyncProvider> = Arc::clone(&outbound_provider) as Arc<dyn FileSyncProvider>;
-        let inbound_dyn: Arc<dyn FileSyncProvider> = Arc::clone(&inbound_provider) as Arc<dyn FileSyncProvider>;
+        let outbound_dyn: Arc<dyn FileSyncProvider> =
+            Arc::clone(&outbound_provider) as Arc<dyn FileSyncProvider>;
+        let inbound_dyn: Arc<dyn FileSyncProvider> =
+            Arc::clone(&inbound_provider) as Arc<dyn FileSyncProvider>;
 
         let outbound_fut = run_exchange_scoped(
             true,
@@ -1697,7 +2165,11 @@ mod tests {
         inbound_result.expect("lado que oferece deveria completar sem erro");
 
         let received = outbound_provider.finalized.lock().unwrap();
-        assert_eq!(received.len(), 1, "quem pediu deveria ter recebido o capítulo que só existia no peer");
+        assert_eq!(
+            received.len(),
+            1,
+            "quem pediu deveria ter recebido o capítulo que só existia no peer"
+        );
         assert_eq!(received[0].comic_name, "Comic Only On Peer");
         assert_eq!(received[0].bytes, payload);
     }
@@ -1734,8 +2206,10 @@ mod tests {
         let emit = no_op_emitter();
         let (outbound_transfer, inbound_transfer) = test_transfer_pair();
 
-        let outbound_dyn: Arc<dyn FileSyncProvider> = Arc::clone(&outbound_provider) as Arc<dyn FileSyncProvider>;
-        let inbound_dyn: Arc<dyn FileSyncProvider> = Arc::clone(&inbound_provider) as Arc<dyn FileSyncProvider>;
+        let outbound_dyn: Arc<dyn FileSyncProvider> =
+            Arc::clone(&outbound_provider) as Arc<dyn FileSyncProvider>;
+        let inbound_dyn: Arc<dyn FileSyncProvider> =
+            Arc::clone(&inbound_provider) as Arc<dyn FileSyncProvider>;
 
         let outbound_fut = run_exchange_scoped(
             true,
@@ -1767,7 +2241,11 @@ mod tests {
             "outbound (sender) nunca deveria ter pedido 'Cap B' de volta"
         );
         let received = inbound_provider.finalized.lock().unwrap();
-        assert_eq!(received.len(), 1, "inbound (receiver) deveria ter recebido 'Cap A'");
+        assert_eq!(
+            received.len(),
+            1,
+            "inbound (receiver) deveria ter recebido 'Cap A'"
+        );
         assert_eq!(received[0].comic_name, "Shared Comic");
         assert_eq!(received[0].chapter, "Cap A");
         assert_eq!(received[0].bytes, payload_a);
@@ -1801,8 +2279,10 @@ mod tests {
         let emit = no_op_emitter();
         let (outbound_transfer, inbound_transfer) = test_transfer_pair();
 
-        let outbound_dyn: Arc<dyn FileSyncProvider> = Arc::clone(&outbound_provider) as Arc<dyn FileSyncProvider>;
-        let inbound_dyn: Arc<dyn FileSyncProvider> = Arc::clone(&inbound_provider) as Arc<dyn FileSyncProvider>;
+        let outbound_dyn: Arc<dyn FileSyncProvider> =
+            Arc::clone(&outbound_provider) as Arc<dyn FileSyncProvider>;
+        let inbound_dyn: Arc<dyn FileSyncProvider> =
+            Arc::clone(&inbound_provider) as Arc<dyn FileSyncProvider>;
 
         let outbound_fut = run_exchange_scoped(
             true,
@@ -1834,7 +2314,11 @@ mod tests {
             "inbound (sender) nunca deveria ter pedido 'Cap A' de volta"
         );
         let received = outbound_provider.finalized.lock().unwrap();
-        assert_eq!(received.len(), 1, "outbound (receiver) deveria ter puxado 'Cap B'");
+        assert_eq!(
+            received.len(),
+            1,
+            "outbound (receiver) deveria ter puxado 'Cap B'"
+        );
         assert_eq!(received[0].comic_name, "Shared Comic");
         assert_eq!(received[0].chapter, "Cap B");
         assert_eq!(received[0].bytes, payload_b);
@@ -1845,7 +2329,8 @@ mod tests {
     /// falha imediatamente em vez de travar esperando o peer mandar algo que nunca vai vir.
     #[tokio::test]
     async fn run_exchange_scoped_outbound_without_comic_name_fails_fast() {
-        let provider: Arc<dyn FileSyncProvider> = Arc::new(InMemoryFileSyncProvider::with_readable(vec![]));
+        let provider: Arc<dyn FileSyncProvider> =
+            Arc::new(InMemoryFileSyncProvider::with_readable(vec![]));
         let (client_io, _server_io) = tokio::io::duplex(4096);
         let (recv, send) = tokio::io::split(client_io);
         let peer = make_peer("peer-no-scope");
@@ -1863,6 +2348,9 @@ mod tests {
         )
         .await;
 
-        assert!(result.is_err(), "outbound sem comic_name deveria falhar sem travar esperando o peer");
+        assert!(
+            result.is_err(),
+            "outbound sem comic_name deveria falhar sem travar esperando o peer"
+        );
     }
 }

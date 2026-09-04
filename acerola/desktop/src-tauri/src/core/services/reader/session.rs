@@ -2,9 +2,11 @@ use std::{num::NonZeroUsize, path::PathBuf, sync::Arc};
 
 use lru::LruCache;
 
-use super::page_source::{source_from_path, mime_type_for, PageSource};
+use super::page_source::{mime_type_for, source_from_path, PageSource};
 use crate::{
-    cmd::events::reader::{ReaderChapterPayload, ReaderPagePayload, ReaderSessionPayload, ReaderStatusPayload},
+    cmd::events::reader::{
+        ReaderChapterPayload, ReaderPagePayload, ReaderSessionPayload, ReaderStatusPayload,
+    },
     infra::error::ReaderError,
 };
 
@@ -90,7 +92,9 @@ impl ReaderSession {
         })
     }
 
-    pub(super) fn prefetch_window(&mut self, center: usize, radius: usize) -> Result<(), ReaderError> {
+    pub(super) fn prefetch_window(
+        &mut self, center: usize, radius: usize,
+    ) -> Result<(), ReaderError> {
         self.ensure_index(center)?;
 
         for index in window_indices(center, self.total_pages(), radius) {

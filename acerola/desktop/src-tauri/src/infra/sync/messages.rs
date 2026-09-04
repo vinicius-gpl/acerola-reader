@@ -380,7 +380,8 @@ mod wire_contract_tests {
     /// `"push"`/`"pull"` em `snake_case`, sem tag de enum extra.
     #[test]
     fn comic_sync_request_serializes_direction_as_snake_case_string() {
-        let request = ComicSyncRequest { comic_name: "Berserk".into(), direction: SyncDirection::Push };
+        let request =
+            ComicSyncRequest { comic_name: "Berserk".into(), direction: SyncDirection::Push };
 
         let value = serde_json::to_value(&request).unwrap();
         assert_eq!(value, serde_json::json!({ "comic_name": "Berserk", "direction": "push" }));

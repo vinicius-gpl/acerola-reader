@@ -1,5 +1,6 @@
 package br.acerola.comic.module.main.common.component
 
+import android.content.res.Configuration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -40,14 +41,17 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import br.acerola.comic.common.ux.Acerola
 import br.acerola.comic.common.ux.component.BookmarkRibbon
 import br.acerola.comic.common.ux.component.ImageCard
+import br.acerola.comic.common.ux.theme.AcerolaTheme
 import br.acerola.comic.common.ux.tokens.ShapeTokens
 import br.acerola.comic.common.ux.tokens.SizeTokens
 import br.acerola.comic.common.ux.tokens.SpacingTokens
 import br.acerola.comic.dto.ComicDto
+import br.acerola.comic.dto.archive.ComicDirectoryDto
 import br.acerola.comic.module.main.Main
 import br.acerola.comic.pattern.metadata.MetadataSource
 import br.acerola.comic.ui.R
@@ -55,10 +59,6 @@ import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import coil.size.Size
 import coil.size.SizeResolver
-import androidx.compose.ui.tooling.preview.Preview
-import android.content.res.Configuration
-import br.acerola.comic.common.ux.theme.AcerolaTheme
-import br.acerola.comic.dto.archive.ComicDirectoryDto
 
 @Composable
 fun Main.Common.Component.ComicListItem(
@@ -412,7 +412,21 @@ fun Main.Common.Component.ComicListItem(
 private fun ComicListItemPreview() {
     AcerolaTheme {
         Main.Common.Component.ComicListItem(
-            comic = ComicDto(directory = ComicDirectoryDto(id = 1L, name = "Sample Comic", path = "/path", coverUri = null, bannerUri = null, lastModified = 0L, archiveTemplateFk = null), category = null, remoteInfo = null),
+            comic =
+                ComicDto(
+                    directory =
+                        ComicDirectoryDto(
+                            id = 1L,
+                            name = "Sample Comic",
+                            path = "/path",
+                            coverUri = null,
+                            bannerUri = null,
+                            lastModified = 0L,
+                            archiveTemplateFk = null,
+                        ),
+                    category = null,
+                    remoteInfo = null,
+                ),
             onClick = {},
         )
     }
@@ -424,7 +438,21 @@ private fun ComicListItemPreview() {
 private fun ComicListItemConflictPreview() {
     AcerolaTheme {
         Main.Common.Component.ComicListItem(
-            comic = ComicDto(directory = ComicDirectoryDto(id = 1L, name = "Sample Comic", path = "/path", coverUri = null, bannerUri = null, lastModified = 0L, archiveTemplateFk = null), category = null, remoteInfo = null),
+            comic =
+                ComicDto(
+                    directory =
+                        ComicDirectoryDto(
+                            id = 1L,
+                            name = "Sample Comic",
+                            path = "/path",
+                            coverUri = null,
+                            bannerUri = null,
+                            lastModified = 0L,
+                            archiveTemplateFk = null,
+                        ),
+                    category = null,
+                    remoteInfo = null,
+                ),
             chapterCount = 170,
             conflictCount = 2,
             onClick = {},

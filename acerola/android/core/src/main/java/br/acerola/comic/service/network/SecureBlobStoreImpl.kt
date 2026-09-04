@@ -37,7 +37,8 @@ class SecureBlobStoreImpl
     ) : SecureBlobStore {
         private val prefs by lazy {
             val masterKey =
-                MasterKey.Builder(context)
+                MasterKey
+                    .Builder(context)
                     .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
                     .build()
 

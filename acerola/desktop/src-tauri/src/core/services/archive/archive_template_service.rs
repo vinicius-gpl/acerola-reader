@@ -28,7 +28,8 @@ impl ArchiveTemplateService {
     /// padrão sempre no topo para deixar claro que são a referência inalterável.
     pub async fn list_templates(&self) -> Result<Vec<ArchiveTemplate>, ComicError> {
         let mut templates = self.repo.base.find_all().await?;
-        templates.sort_by(|a, b| b.is_default.cmp(&a.is_default).then_with(|| a.label.cmp(&b.label)));
+        templates
+            .sort_by(|a, b| b.is_default.cmp(&a.is_default).then_with(|| a.label.cmp(&b.label)));
         Ok(templates)
     }
 
@@ -52,7 +53,8 @@ impl ArchiveTemplateService {
         .map_err(|err| ComicError::InvalidRequest(err.to_string()))?;
 
         let id = self.repo.base.get_next_id().await?;
-        let template = ArchiveTemplate { id, label, pattern, sort_type, is_default: false, priority: 0 };
+        let template =
+            ArchiveTemplate { id, label, pattern, sort_type, is_default: false, priority: 0 };
 
         Ok(self.repo.base.insert(&template).await?)
     }
@@ -62,7 +64,8 @@ impl ArchiveTemplateService {
     /// conhecido, independentemente do que o usuário crie ou apague.
     pub async fn delete_template(&self, id: i64) -> Result<(), ComicError> {
         let templates = self.repo.base.find_all().await?;
-        let target = templates.iter().find(|template| template.id == id).ok_or(ComicError::NotFound)?;
+        let target =
+            templates.iter().find(|template| template.id == id).ok_or(ComicError::NotFound)?;
 
         if target.is_default {
             return Err(ComicError::InvalidRequest("Default templates cannot be deleted.".into()));

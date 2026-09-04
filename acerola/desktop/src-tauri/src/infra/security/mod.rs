@@ -105,8 +105,9 @@ fn get_or_create_fallback_master_key(dir: &Path) -> Result<[u8; MASTER_KEY_LEN],
         _ => {
             let mut key = [0u8; MASTER_KEY_LEN];
             rand::thread_rng().fill_bytes(&mut key);
-            std::fs::write(&path, key)
-                .map_err(|err| ComicError::SystemFailure(format!("failed to save fallback master key: {err}")))?;
+            std::fs::write(&path, key).map_err(|err| {
+                ComicError::SystemFailure(format!("failed to save fallback master key: {err}"))
+            })?;
             Ok(key)
         },
     }
@@ -118,7 +119,9 @@ pub fn encrypt(key: &[u8; MASTER_KEY_LEN], plaintext: &[u8]) -> Vec<u8> {
     let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(key));
     let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
     // Só falha se o buffer for absurdamente grande (>2^36 bytes) — não é um caso real aqui.
-    let ciphertext = cipher.encrypt(&nonce, plaintext).expect("AES-GCM encryption should not fail for small blobs");
+    let ciphertext = cipher
+        .encrypt(&nonce, plaintext)
+        .expect("AES-GCM encryption should not fail for small blobs");
 
     let mut out = Vec::with_capacity(nonce.len() + ciphertext.len());
     out.extend_from_slice(&nonce);
@@ -131,15 +134,17 @@ pub fn decrypt(key: &[u8; MASTER_KEY_LEN], blob: &[u8]) -> Result<Vec<u8>, Comic
     const NONCE_LEN: usize = 12;
 
     if blob.len() < NONCE_LEN {
-        return Err(ComicError::SystemFailure("encrypted blob too short to contain a nonce".into()));
+        return Err(ComicError::SystemFailure(
+            "encrypted blob too short to contain a nonce".into(),
+        ));
     }
 
     let (nonce_bytes, ciphertext) = blob.split_at(NONCE_LEN);
     let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(key));
 
-    cipher
-        .decrypt(nonce_bytes.into(), ciphertext)
-        .map_err(|_| ComicError::SystemFailure("failed to decrypt blob: wrong key or corrupted data".into()))
+    cipher.decrypt(nonce_bytes.into(), ciphertext).map_err(|_| {
+        ComicError::SystemFailure("failed to decrypt blob: wrong key or corrupted data".into())
+    })
 }
 
 #[cfg(test)]
@@ -166,7 +171,10 @@ mod tests {
         let first = encrypt(&key, plaintext);
         let second = encrypt(&key, plaintext);
 
-        assert_ne!(first, second, "two encryptions of the same plaintext must differ (random nonce)");
+        assert_ne!(
+            first, second,
+            "two encryptions of the same plaintext must differ (random nonce)"
+        );
     }
 
     #[test]

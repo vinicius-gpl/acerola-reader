@@ -113,26 +113,26 @@ val cargoMake: String =
 // isso, a falha que aparece é um erro cru de processo nativo não encontrado, sem dizer
 // que era o cargo-make que faltava nem como configurar um caminho customizado.
 val validateCargoMake by
-tasks.registering {
-    doFirst {
-        // `cargo-make.exe` espera receber `make` como primeiro argumento (é assim que o
-        // `cargo` internamente invoca qualquer plugin `cargo-XXX`) — chamar só
-        // `cargo-make --version` direto quebra com um erro de parser confuso.
-        val found =
-            runCatching {
-                ProcessBuilder(cargoMake, "make", "--version").redirectErrorStream(true).start().waitFor() == 0
-            }.getOrDefault(false)
+    tasks.registering {
+        doFirst {
+            // `cargo-make.exe` espera receber `make` como primeiro argumento (é assim que o
+            // `cargo` internamente invoca qualquer plugin `cargo-XXX`) — chamar só
+            // `cargo-make --version` direto quebra com um erro de parser confuso.
+            val found =
+                runCatching {
+                    ProcessBuilder(cargoMake, "make", "--version").redirectErrorStream(true).start().waitFor() == 0
+                }.getOrDefault(false)
 
-        if (!found) {
-            throw GradleException(
-                "cargo-make não encontrado (procurado em '$cargoMake'). Instale com " +
+            if (!found) {
+                throw GradleException(
+                    "cargo-make não encontrado (procurado em '$cargoMake'). Instale com " +
                         "`cargo install cargo-make`, ou configure o caminho via a propriedade de " +
                         "projeto `cargo.make.dir`, a env var CARGO_MAKE, ou `cargo.make.dir` em " +
                         "local.properties.",
-            )
+                )
+            }
         }
     }
-}
 
 tasks.register<Exec>("buildRust") {
     dependsOn(validateCargoMake)

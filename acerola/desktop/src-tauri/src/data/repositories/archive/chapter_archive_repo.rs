@@ -149,12 +149,15 @@ impl ChapterRepository {
     }
 
     /// Retorna todos os IDs de capítulo de um quadrinho, sem paginação.
-    pub async fn find_all_ids_by_directory(&self, comic_directory_fk: i64) -> Result<Vec<i64>, DbError> {
-        let rows =
-            sqlx::query_as::<_, (i64,)>("SELECT id FROM chapter_archive WHERE comic_directory_fk = ?")
-                .bind(comic_directory_fk)
-                .fetch_all(&self.pool)
-                .await?;
+    pub async fn find_all_ids_by_directory(
+        &self, comic_directory_fk: i64,
+    ) -> Result<Vec<i64>, DbError> {
+        let rows = sqlx::query_as::<_, (i64,)>(
+            "SELECT id FROM chapter_archive WHERE comic_directory_fk = ?",
+        )
+        .bind(comic_directory_fk)
+        .fetch_all(&self.pool)
+        .await?;
 
         Ok(rows.into_iter().map(|(id,)| id).collect())
     }

@@ -47,7 +47,8 @@ impl PendingCoverRequestRegistry {
 
     /// Retira o pedido mais antigo ainda pendente pro peer (FIFO). `None` se não há nenhum.
     pub fn take(&self, peer_id: &str) -> Option<PendingCoverRequest> {
-        let mut pending = self.pending.lock().expect("pending cover request registry mutex poisoned");
+        let mut pending =
+            self.pending.lock().expect("pending cover request registry mutex poisoned");
         let queue = pending.get_mut(peer_id)?;
         let next = queue.pop_front();
         if queue.is_empty() {

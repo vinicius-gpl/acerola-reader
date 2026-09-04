@@ -509,7 +509,11 @@ mod tests {
         memory_storage
             .save_device_info(
                 &cached_peer,
-                &DeviceInfo { name: "PC do Vinicius".to_string(), os: "windows".to_string(), version: "1.0.0".to_string() },
+                &DeviceInfo {
+                    name: "PC do Vinicius".to_string(),
+                    os: "windows".to_string(),
+                    version: "1.0.0".to_string(),
+                },
             )
             .await
             .unwrap();
@@ -541,7 +545,11 @@ mod tests {
         };
 
         let peer = PeerId { id: "peer-1".to_string(), device_id: None };
-        let info = DeviceInfo { name: "Notebook".to_string(), os: "linux".to_string(), version: "2.0.0".to_string() };
+        let info = DeviceInfo {
+            name: "Notebook".to_string(),
+            os: "linux".to_string(),
+            version: "2.0.0".to_string(),
+        };
         store.store_device_info(peer.clone(), info.clone()).await;
 
         let state_guard = network_state.read().await;

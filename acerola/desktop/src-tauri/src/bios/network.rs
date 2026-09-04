@@ -39,7 +39,8 @@ use crate::{
             history_handler::{HistorySyncInbound, HistorySyncOutbound},
             library_browse_handler::{LibraryBrowseInbound, LibraryBrowseOutbound},
             transfer::{BlobChapterTransfer, ChapterTransfer},
-            COMIC_SYNC_ALPN, COVER_BROWSE_ALPN, FILE_SYNC_ALPN, HISTORY_SYNC_ALPN, LIBRARY_BROWSE_ALPN,
+            COMIC_SYNC_ALPN, COVER_BROWSE_ALPN, FILE_SYNC_ALPN, HISTORY_SYNC_ALPN,
+            LIBRARY_BROWSE_ALPN,
         },
     },
 };
@@ -146,7 +147,8 @@ pub async fn setup_network(app_handle: &tauri::AppHandle) -> Result<(), ComicErr
     // Estourava o timeout de 10s do `.build()` abaixo, deixando `network_service` sem
     // `.manage()`. `.mem()` não persiste blobs entre reinícios, mas destrava o app
     // imediatamente enquanto o hang do FsStore é isolado/corrigido.
-    let transport_builder = IrohTransportBuilder::default().relay(&relay_url).blobs(IrohBlobsConfig::mem());
+    let transport_builder =
+        IrohTransportBuilder::default().relay(&relay_url).blobs(IrohBlobsConfig::mem());
 
     // Apelido custom estilo LocalSend (`device_alias` em `settings.json`) sobrescreve o
     // hostname automático nesta inicialização. Renomear em runtime depois (`set_local_device_name`,
@@ -275,7 +277,10 @@ pub async fn setup_network(app_handle: &tauri::AppHandle) -> Result<(), ComicErr
                     Arc::clone(&chapter_transfer),
                 )),
             )
-            .inbound(LIBRARY_BROWSE_ALPN, Arc::new(LibraryBrowseInbound::new(file_sync_service.clone())))
+            .inbound(
+                LIBRARY_BROWSE_ALPN,
+                Arc::new(LibraryBrowseInbound::new(file_sync_service.clone())),
+            )
             .outbound(
                 LIBRARY_BROWSE_ALPN,
                 Arc::new(LibraryBrowseOutbound::new(Arc::clone(&event_emitter))),

@@ -165,7 +165,9 @@ mod tests {
     use super::ReadingHistoryRepository;
     use crate::{
         data::models::history::reading_history::ReadingHistory,
-        tests::utils::setup_test_db::{insert_chapter_archive, insert_comic_directory, setup_test_db_with_comic},
+        tests::utils::setup_test_db::{
+            insert_chapter_archive, insert_comic_directory, setup_test_db_with_comic,
+        },
     };
 
     fn historico(

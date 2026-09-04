@@ -87,8 +87,7 @@ impl MetadataRepository {
     /// limpa explicitamente antes de apagar o registro pai. No-op se o quadrinho
     /// nunca teve metadados sincronizados.
     pub async fn delete_by_comic_id(&self, comic_directory_fk: i64) -> Result<(), DbError> {
-        let Some(metadata) = self.get_comic_metadata_by_comic_id(comic_directory_fk).await?
-        else {
+        let Some(metadata) = self.get_comic_metadata_by_comic_id(comic_directory_fk).await? else {
             return Ok(());
         };
 

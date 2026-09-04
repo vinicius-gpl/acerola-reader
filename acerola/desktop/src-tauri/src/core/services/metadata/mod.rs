@@ -7,7 +7,9 @@ use crate::{
         ArchiveFileGuard, ArtworkFileGuard, FileGuard, MetadataFileGuard,
     },
     data::{
-        models::metadata::{anilist_source::AnilistSource, author::AuthorMetadata, comic::ComicMetadata},
+        models::metadata::{
+            anilist_source::AnilistSource, author::AuthorMetadata, comic::ComicMetadata,
+        },
         repositories::{
             archive::comic_directory_repo::ComicRepository, metadata::MetadataRepository,
         },
@@ -193,8 +195,8 @@ impl MetadataService {
 
         if let Ok(entries) = std::fs::read_dir(&dir_path) {
             for path in entries.filter_map(Result::ok).map(|entry| entry.path()) {
-                let is_synced_file =
-                    metadata_guard.is_allowed(&path).is_ok() || artwork_guard.is_allowed(&path).is_ok();
+                let is_synced_file = metadata_guard.is_allowed(&path).is_ok()
+                    || artwork_guard.is_allowed(&path).is_ok();
 
                 if !is_synced_file {
                     continue;

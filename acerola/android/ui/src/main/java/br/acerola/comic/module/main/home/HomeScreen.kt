@@ -1,7 +1,4 @@
 package br.acerola.comic.module.main.home
-import androidx.compose.ui.tooling.preview.Preview
-import br.acerola.comic.common.ux.theme.AcerolaTheme
-
 import android.content.Intent
 import android.content.res.Configuration
 import android.net.Uri
@@ -80,6 +77,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -95,6 +93,7 @@ import br.acerola.comic.common.ux.component.SelectionActionDock
 import br.acerola.comic.common.ux.component.SelectionTopBar
 import br.acerola.comic.common.ux.component.SnackbarVariant
 import br.acerola.comic.common.ux.component.showSnackbar
+import br.acerola.comic.common.ux.theme.AcerolaTheme
 import br.acerola.comic.common.ux.tokens.ShapeTokens
 import br.acerola.comic.common.ux.tokens.SizeTokens
 import br.acerola.comic.common.ux.tokens.SpacingTokens
@@ -106,7 +105,6 @@ import br.acerola.comic.module.comic.ComicActivity
 import br.acerola.comic.module.main.Main
 import br.acerola.comic.module.main.common.component.BatchComicCategorySheet
 import br.acerola.comic.module.main.common.component.ComicActionsSheet
-import br.acerola.comic.module.main.common.component.ComicCategorySheet
 import br.acerola.comic.module.main.common.component.ComicListItem
 import br.acerola.comic.module.main.common.component.PeerPickerSheet
 import br.acerola.comic.module.main.home.component.ComicGridItem

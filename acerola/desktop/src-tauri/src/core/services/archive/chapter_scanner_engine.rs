@@ -148,7 +148,9 @@ async fn compute_checksum(path: &Path) -> Result<String, ComicError> {
         Ok::<String, std::io::Error>(format!("{:x}", hasher.finalize()))
     })
     .await
-    .map_err(|join_error| ComicError::SystemFailure(format!("Checksum task panicked: {join_error}")))?
+    .map_err(|join_error| {
+        ComicError::SystemFailure(format!("Checksum task panicked: {join_error}"))
+    })?
     .map_err(ComicError::Io)
 }
 

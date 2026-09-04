@@ -141,7 +141,9 @@ impl P2PStorage for SecureP2pStorage {
         let encrypted = match std::fs::read(Self::identity_path(&self.base_dir)) {
             Ok(bytes) => bytes,
             Err(err) if err.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-            Err(err) => return Err(P2pError::StreamFailed(format!("failed to load identity: {err}"))),
+            Err(err) => {
+                return Err(P2pError::StreamFailed(format!("failed to load identity: {err}")))
+            },
         };
 
         decrypt(&self.master_key, &encrypted)
@@ -174,18 +176,22 @@ impl P2PStorage for SecureP2pStorage {
         Ok(self.peers_cache.read().await.clone())
     }
 
-    async fn save_device_info(&self, peer: &PeerIdentity, info: &DeviceInfo) -> Result<(), P2pError> {
+    async fn save_device_info(
+        &self, peer: &PeerIdentity, info: &DeviceInfo,
+    ) -> Result<(), P2pError> {
         let mut device_info = self.device_info_cache.write().await;
         match device_info.iter_mut().find(|(cached_id, _)| cached_id.id == peer.id) {
             Some(entry) => entry.1 = info.clone(),
             None => device_info.push((peer.clone(), info.clone())),
         }
 
-        let json = serde_json::to_vec(&*device_info)
-            .map_err(|err| P2pError::StreamFailed(format!("failed to encode device info cache: {err}")))?;
+        let json = serde_json::to_vec(&*device_info).map_err(|err| {
+            P2pError::StreamFailed(format!("failed to encode device info cache: {err}"))
+        })?;
         let encrypted = encrypt(&self.master_key, &json);
-        std::fs::write(Self::device_info_path(&self.base_dir), encrypted)
-            .map_err(|err| P2pError::StreamFailed(format!("failed to save device info cache: {err}")))
+        std::fs::write(Self::device_info_path(&self.base_dir), encrypted).map_err(|err| {
+            P2pError::StreamFailed(format!("failed to save device info cache: {err}"))
+        })
     }
 
     async fn load_device_info(&self) -> Result<Vec<(PeerIdentity, DeviceInfo)>, P2pError> {
@@ -203,7 +209,8 @@ impl SecureP2pStorage {
         let before = peers.len();
         peers.retain(|peer| peer.id.id != id);
         if peers.len() != before {
-            let json = serde_json::to_vec(&*peers).expect("Vec<PeerAddr> serialization cannot fail");
+            let json =
+                serde_json::to_vec(&*peers).expect("Vec<PeerAddr> serialization cannot fail");
             std::fs::write(Self::peers_path(&self.base_dir), encrypt(&self.master_key, &json))?;
         }
 
@@ -213,9 +220,12 @@ impl SecureP2pStorage {
         let before = device_info.len();
         device_info.retain(|(cached_id, _)| cached_id.id != id);
         if device_info.len() != before {
-            let json =
-                serde_json::to_vec(&*device_info).expect("Vec<(PeerIdentity, DeviceInfo)> serialization cannot fail");
-            std::fs::write(Self::device_info_path(&self.base_dir), encrypt(&self.master_key, &json))?;
+            let json = serde_json::to_vec(&*device_info)
+                .expect("Vec<(PeerIdentity, DeviceInfo)> serialization cannot fail");
+            std::fs::write(
+                Self::device_info_path(&self.base_dir),
+                encrypt(&self.master_key, &json),
+            )?;
         }
 
         Ok(())
@@ -246,7 +256,9 @@ impl P2PStorage for SharedP2pStorage {
         self.0.load_peers().await
     }
 
-    async fn save_device_info(&self, peer: &PeerIdentity, info: &DeviceInfo) -> Result<(), P2pError> {
+    async fn save_device_info(
+        &self, peer: &PeerIdentity, info: &DeviceInfo,
+    ) -> Result<(), P2pError> {
         self.0.save_device_info(peer, info).await
     }
 
@@ -257,8 +269,9 @@ impl P2PStorage for SharedP2pStorage {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use acerola_p2p::api::peer::PeerIdentity;
+
+    use super::*;
 
     fn peer(id: &str) -> PeerAddr {
         PeerAddr { id: PeerIdentity { id: id.to_string(), device_id: None }, addrs: vec![1, 2, 3] }
@@ -338,7 +351,10 @@ mod tests {
 
         let duplicated_on_disk = vec![
             PeerAddr {
-                id: PeerIdentity { id: "peer-a".to_string(), device_id: Some("uuid-1".to_string()) },
+                id: PeerIdentity {
+                    id: "peer-a".to_string(),
+                    device_id: Some("uuid-1".to_string()),
+                },
                 addrs: vec![1, 2, 3],
             },
             PeerAddr {
@@ -379,7 +395,11 @@ mod tests {
     }
 
     fn device_info(name: &str) -> DeviceInfo {
-        DeviceInfo { name: name.to_string(), os: "windows".to_string(), version: "1.0.0".to_string() }
+        DeviceInfo {
+            name: name.to_string(),
+            os: "windows".to_string(),
+            version: "1.0.0".to_string(),
+        }
     }
 
     #[tokio::test]
@@ -453,7 +473,10 @@ mod tests {
         // salvo com a chave antiga. Agora tem que falhar alto no `open()`, não abrir com
         // um cache vazio como se nada tivesse acontecido.
         let reopen_result = SecureP2pStorage::open(dir.path(), [2u8; 32]);
-        assert!(reopen_result.is_err(), "abrir com a chave errada deveria falhar, não degradar em silêncio");
+        assert!(
+            reopen_result.is_err(),
+            "abrir com a chave errada deveria falhar, não degradar em silêncio"
+        );
 
         // E o arquivo original continua intacto no disco — nada foi sobrescrito.
         let reopened_with_correct_key = SecureP2pStorage::open(dir.path(), [1u8; 32]).unwrap();
