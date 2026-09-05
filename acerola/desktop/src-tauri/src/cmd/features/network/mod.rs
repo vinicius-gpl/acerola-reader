@@ -87,9 +87,7 @@ pub async fn set_local_device_name(
 }
 
 /// Retorna a configuração de relay combinável atual (relay do Acerola / próprio(s) /
-/// Iroh / rede pública Iroh), lida de `settings.json`. Trocar qualquer fonte só tem
-/// efeito no próximo início do app, já que a lib não suporta trocar a configuração de
-/// relay em runtime.
+/// Iroh / rede pública Iroh), lida de `settings.json`.
 #[tauri::command]
 pub async fn get_relay_info<R: Runtime>(
     app: AppHandle<R>, service: State<'_, Arc<dyn NetworkServiceApi>>,
@@ -101,7 +99,8 @@ pub async fn get_relay_info<R: Runtime>(
 
 /// Salva o ticket da conta do usuário em `services.iroh.computer` (colado por ele na tela de
 /// configuração de rede) no cofre criptografado — nunca em `settings.json`. Valida o formato
-/// antes de persistir. Só tem efeito no próximo início do app.
+/// antes de persistir. Não aplica sozinho a config nova — o frontend chama
+/// [`apply_relay_settings`] logo em seguida, mesmo fluxo de qualquer outra mudança de relay.
 #[tauri::command]
 pub async fn set_iroh_services_ticket(
     service: State<'_, Arc<dyn NetworkServiceApi>>, ticket: String,
@@ -115,6 +114,17 @@ pub async fn clear_iroh_services_ticket(
     service: State<'_, Arc<dyn NetworkServiceApi>>,
 ) -> Result<(), String> {
     service.clear_iroh_services_ticket().await
+}
+
+/// Relê `settings.json` + o ticket do cofre e aplica a config de relay resolvida ao node JÁ
+/// VIVO, sem precisar reiniciar o app — ver `NetworkServiceApi::apply_relay_settings`. O
+/// frontend chama isso depois de QUALQUER mudança nas fontes de relay (toggle do
+/// Acerola/Iroh, add/remove de URL própria, salvar/remover ticket).
+#[tauri::command]
+pub async fn apply_relay_settings(
+    service: State<'_, Arc<dyn NetworkServiceApi>>,
+) -> Result<(), String> {
+    service.apply_relay_settings().await
 }
 
 #[tauri::command]

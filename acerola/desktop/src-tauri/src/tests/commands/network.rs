@@ -195,6 +195,11 @@ impl NetworkServiceApi for MockNetworkService {
         state.iroh_services_ticket = None;
         Ok(())
     }
+
+    async fn apply_relay_settings(&self) -> Result<(), String> {
+        let mut state = self.state.lock().expect("network mock mutex should not be poisoned");
+        Self::take_failure(&mut state)
+    }
 }
 
 fn mock_network_service() -> Arc<MockNetworkService> {

@@ -11,6 +11,7 @@ export const NETWORK_COMMANDS = {
 	getRelayInfo: 'get_relay_info',
 	setIrohServicesTicket: 'set_iroh_services_ticket',
 	clearIrohServicesTicket: 'clear_iroh_services_ticket',
+	applyRelaySettings: 'apply_relay_settings',
 	connectToPeer: 'connect_to_peer',
 	syncHistory: 'sync_history',
 	syncFiles: 'sync_files',

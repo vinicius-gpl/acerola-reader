@@ -179,6 +179,9 @@ pub async fn setup_network(app_handle: &tauri::AppHandle) -> Result<(), ComicErr
     // Precisa ser resolvido ANTES de `app_data_directory` ser movido pra dentro da closure de
     // `library_root` logo abaixo.
     let remote_covers_dir = app_data_directory.join("remote_covers");
+    // `NetworkService::apply_relay_settings` também precisa da pasta depois — clonada aqui em
+    // vez de na closure abaixo, que move a original.
+    let app_data_directory_for_service = app_data_directory.clone();
 
     let history_sync_service = HistorySyncService::new(database_pool.clone());
     let file_sync_service = FileSyncService::new(database_pool, move || {
@@ -330,8 +333,12 @@ pub async fn setup_network(app_handle: &tauri::AppHandle) -> Result<(), ComicErr
     let p2p_node = Arc::new(p2p_node);
     blob_context.set_node(&p2p_node);
 
-    let network_service: Arc<dyn NetworkServiceApi> =
-        Arc::new(NetworkService::new(p2p_node, secure_p2p_storage, trusted_store));
+    let network_service: Arc<dyn NetworkServiceApi> = Arc::new(NetworkService::new(
+        p2p_node,
+        secure_p2p_storage,
+        trusted_store,
+        app_data_directory_for_service,
+    ));
     app_handle.manage(network_service);
 
     tracing::info!("[Bios::Network] P2P network service initialized successfully");

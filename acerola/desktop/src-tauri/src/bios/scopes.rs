@@ -37,7 +37,11 @@ pub struct RelaySettings {
 
 impl Default for RelaySettings {
     fn default() -> Self {
-        Self { use_acerola_relay: true, use_iroh_public_network: false, custom_relay_urls: Vec::new() }
+        Self {
+            use_acerola_relay: true,
+            use_iroh_public_network: false,
+            custom_relay_urls: Vec::new(),
+        }
     }
 }
 
@@ -215,10 +219,9 @@ fn apply_library_scope<R: tauri::Runtime>(
 
 #[cfg(test)]
 mod tests {
+    use acerola_p2p::api::transport::RelayModeConfig;
     use tauri::Manager;
     use tauri_plugin_fs::FsExt;
-
-    use acerola_p2p::api::transport::RelayModeConfig;
 
     use super::{
         apply_library_scope, extract_library_path, read_device_alias_override, read_library_path,

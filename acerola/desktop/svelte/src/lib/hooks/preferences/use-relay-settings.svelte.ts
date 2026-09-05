@@ -11,8 +11,9 @@ export function useRelaySettings() {
 		relayInfo = await invoke<RelayInfo>(NETWORK_COMMANDS.getRelayInfo);
 	}
 
-	/// Todas as mudanças abaixo só têm efeito no próximo início do app — a conexão P2P
-	/// atual continua usando o relay com o qual já subiu.
+	/// Todas as mudanças abaixo persistem em `settings.json` E aplicam ao node P2P já vivo na
+	/// hora (`apply_relay_settings`, relê o disco/cofre e reconfigura o `Endpoint` via
+	/// `insert_relay`/`remove_relay`) — não precisa mais fechar/reabrir o app pra valer.
 
 	async function setUseAcerolaRelay(value: boolean) {
 		const store = await load(STORE_FILE);
@@ -20,6 +21,7 @@ export function useRelaySettings() {
 		await store.save();
 
 		if (relayInfo) relayInfo = { ...relayInfo, useAcerolaRelay: value };
+		await invoke(NETWORK_COMMANDS.applyRelaySettings);
 	}
 
 	async function setUseIrohPublicNetwork(value: boolean) {
@@ -28,6 +30,7 @@ export function useRelaySettings() {
 		await store.save();
 
 		if (relayInfo) relayInfo = { ...relayInfo, useIrohPublicNetwork: value };
+		await invoke(NETWORK_COMMANDS.applyRelaySettings);
 	}
 
 	/// Diferente das demais fontes: o ticket não vai pro `settings.json` (tauri-plugin-store),
@@ -38,11 +41,13 @@ export function useRelaySettings() {
 	async function setIrohServicesTicket(ticket: string) {
 		await invoke(NETWORK_COMMANDS.setIrohServicesTicket, { ticket });
 		if (relayInfo) relayInfo = { ...relayInfo, hasIrohServicesTicket: true };
+		await invoke(NETWORK_COMMANDS.applyRelaySettings);
 	}
 
 	async function clearIrohServicesTicket() {
 		await invoke(NETWORK_COMMANDS.clearIrohServicesTicket);
 		if (relayInfo) relayInfo = { ...relayInfo, hasIrohServicesTicket: false };
+		await invoke(NETWORK_COMMANDS.applyRelaySettings);
 	}
 
 	async function addCustomRelayUrl(url: string) {
@@ -55,6 +60,7 @@ export function useRelaySettings() {
 		await store.save();
 
 		relayInfo = { ...relayInfo, customRelayUrls: next };
+		await invoke(NETWORK_COMMANDS.applyRelaySettings);
 	}
 
 	async function removeCustomRelayUrl(url: string) {
@@ -66,6 +72,7 @@ export function useRelaySettings() {
 		await store.save();
 
 		relayInfo = { ...relayInfo, customRelayUrls: next };
+		await invoke(NETWORK_COMMANDS.applyRelaySettings);
 	}
 
 	return {
