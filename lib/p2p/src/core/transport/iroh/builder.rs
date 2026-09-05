@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use iroh::{
+    address_lookup::{DnsAddressLookup, PkarrPublisher, PkarrResolver},
     endpoint::{self, presets},
     Endpoint, RelayConfig, RelayMap, RelayUrl, SecretKey,
 };
@@ -100,9 +101,27 @@ impl TransportP2pBuilder for IrohTransportBuilder {
 
 #[rustfmt::skip]
 impl IrohTransportBuilder {
+    // `presets::N0` registra incondicionalmente `PkarrPublisher`/`PkarrResolver`/
+    // `DnsAddressLookup` apontando pro DNS público da n0 (`iroh.link`) — o node publica e
+    // resolve endereços por lá independentemente do `RelayMode` aplicado logo abaixo (o
+    // próprio preset `N0DisableRelay` do iroh documenta que esse discovery "persists" mesmo com
+    // relay desligado). Por isso partimos de `presets::Minimal` (só o `crypto_provider`
+    // obrigatório, sem discovery nenhum) e religamos esse trio manualmente só quando o modo
+    // resolvido é `IrohDefault` — a rede pública da própria Iroh, que depende dessa infra pra
+    // funcionar como pretendido. Nos outros 3 modos (MdnsOnly, relay próprio, relay do Acerola)
+    // isso ficaria de fora: pareamento troca `EndpointAddr` concreto via QR/código e reconexões
+    // reaproveitam o endereço já cacheado (ver `transport.rs::open_bi`), então mDNS (LAN) + o
+    // relay escolhido (WAN) já bastam, sem vazar o IP do usuário pra essa infra de terceiro.
     fn build_mode(&self, alpns: Vec<Vec<u8>>) -> Result<endpoint::Builder, ConnectionError> {
         let mdns = mdns::MdnsAddressLookup::builder();
-        let builder = Endpoint::builder(presets::N0).address_lookup(mdns).alpns(alpns);
+        let mut builder = Endpoint::builder(presets::Minimal).address_lookup(mdns).alpns(alpns);
+
+        if matches!(self.relay_mode, Some(RelayModeConfig::IrohDefault(_))) {
+            builder = builder
+                .address_lookup(PkarrPublisher::n0_dns())
+                .address_lookup(PkarrResolver::n0_dns())
+                .address_lookup(DnsAddressLookup::n0_dns());
+        }
 
         let iroh_relay_mode = match &self.relay_mode {
             // `RelayModeConfig::IrohDefault` precisa saber a chave pública do node ANTES do
