@@ -180,7 +180,11 @@ impl P2PNode {
                     RelayModeConfig::AcerolaOwn => "acerola_own",
                     RelayModeConfig::IrohDefault(_) => "iroh_default",
                 };
-                tracing::info!(layer = "relay", mode = relay_mode_label, "resolved relay mode for P2P transport");
+                tracing::info!(
+                    layer = "relay",
+                    mode = relay_mode_label,
+                    "resolved relay mode for P2P transport"
+                );
 
                 let transport = IrohTransportBuilder::default()
                     .relay_mode(resolved_relay_mode)
@@ -527,5 +531,25 @@ impl P2PNode {
     /// Remove o ticket salvo — usado quando o usuário desliga a fonte ou substitui por um novo.
     pub fn clear_iroh_services_ticket(&self) {
         let _ = self.storage.clear_iroh_services_ticket();
+    }
+
+    /// Relê a config de relay combinável (vinda do Kotlin, `RelayPreference`) + o ticket do
+    /// cofre, resolve e aplica ao node JÁ VIVO (`AcerolaP2p::apply_relay_mode`) — sem precisar
+    /// reiniciar o app. Chamado pelo Kotlin depois de QUALQUER mudança nas fontes de relay
+    /// (toggle do Acerola/Iroh, add/remove de URL própria, salvar/remover ticket). Espelha
+    /// `NetworkServiceApi::apply_relay_settings` do Desktop.
+    pub fn apply_relay_settings(
+        &self,
+        relay_settings: FfiRelaySettings,
+    ) -> Result<(), RelayTicketError> {
+        let iroh_services_ticket = self.storage.load_iroh_services_ticket().ok().flatten();
+        let config = relay_settings.resolve(iroh_services_ticket.as_deref());
+        let node = Arc::clone(&self.node);
+
+        self.runtime
+            .block_on(async move { node.apply_relay_mode(config).await })
+            .map_err(|error| RelayTicketError::Invalid {
+                reason: error.to_string(),
+            })
     }
 }

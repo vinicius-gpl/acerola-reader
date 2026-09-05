@@ -287,8 +287,8 @@ class P2pService(
      *  `services.iroh.computer` — nunca devolve o valor em si (é uma credencial real). */
     fun hasIrohServicesTicket(): Boolean = p2pNode.hasIrohServicesTicket()
 
-    /** Valida o formato antes de persistir. Só tem efeito no próximo início do app — a lib
-     *  não suporta trocar relay em runtime.
+    /** Valida o formato antes de persistir. Não aplica sozinho a config nova — quem chama
+     *  também invoca [applyRelaySettings] em seguida (ver `P2pUseCase`/`SyncViewModel`).
      *  @throws IllegalArgumentException se o ticket for malformado. */
     fun setIrohServicesTicket(ticket: String) {
         try {
@@ -301,6 +301,21 @@ class P2pService(
     /** Remove o ticket salvo — usado quando o usuário desliga a fonte ou substitui por um novo. */
     fun clearIrohServicesTicket() {
         p2pNode.clearIrohServicesTicket()
+    }
+
+    /** Relê a config de relay combinável + o ticket do cofre e aplica ao node JÁ VIVO
+     *  (`insert_relay`/`remove_relay` num `Endpoint` que continua rodando, sem derrubar
+     *  conexões ativas) — chamado depois de QUALQUER mudança nas fontes de relay (toggle do
+     *  Acerola/Iroh, add/remove de URL própria, salvar/remover ticket). Antes disso existir,
+     *  mudar a config de relay só tinha efeito no PRÓXIMO boot do app.
+     *  @throws IllegalArgumentException se a config resultante for inválida (ex: URL própria
+     *  malformada). */
+    fun applyRelaySettings(relaySettings: RelaySettings) {
+        try {
+            p2pNode.applyRelaySettings(relaySettings.toFfi())
+        } catch (error: RelayTicketException.Invalid) {
+            throw IllegalArgumentException(error.reason)
+        }
     }
 
     fun shutdown() {

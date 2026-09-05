@@ -1028,6 +1028,8 @@ internal open class UniffiVTableCallbackInterfaceSecureBlobStore(
 
 
 
+
+
 // A JNA Library to expose the extern-C FFI definitions.
 // This is an implementation detail which will be called internally by the public API.
 
@@ -1124,6 +1126,8 @@ internal interface UniffiLib : Library {
     ): Unit
     fun uniffi_acerola_fn_constructor_p2pnode_new(`callback`: Pointer,`legacyDataDir`: RustBuffer.ByValue,`blobsDir`: RustBuffer.ByValue,`relaySettings`: RustBuffer.ByValue,`deviceName`: RustBuffer.ByValue,`deviceVersion`: RustBuffer.ByValue,`secureStore`: Pointer,`historyProvider`: Pointer,`fileProvider`: Pointer,`coverProvider`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): Pointer
+    fun uniffi_acerola_fn_method_p2pnode_apply_relay_settings(`ptr`: Pointer,`relaySettings`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): Unit
     fun uniffi_acerola_fn_method_p2pnode_browse_cover(`ptr`: Pointer,`peerAddr`: RustBuffer.ByValue,`comicName`: RustBuffer.ByValue,`knownVersion`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
     fun uniffi_acerola_fn_method_p2pnode_browse_library(`ptr`: Pointer,`peerAddr`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
@@ -1328,6 +1332,8 @@ internal interface UniffiLib : Library {
     ): Short
     fun uniffi_acerola_checksum_method_p2pcallback_on_event(
     ): Short
+    fun uniffi_acerola_checksum_method_p2pnode_apply_relay_settings(
+    ): Short
     fun uniffi_acerola_checksum_method_p2pnode_browse_cover(
     ): Short
     fun uniffi_acerola_checksum_method_p2pnode_browse_library(
@@ -1452,6 +1458,9 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_acerola_checksum_method_p2pcallback_on_event() != 37231.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_acerola_checksum_method_p2pnode_apply_relay_settings() != 31342.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_acerola_checksum_method_p2pnode_browse_cover() != 36121.toShort()) {
@@ -3703,6 +3712,15 @@ public object FfiConverterTypeP2PCallback: FfiConverter<P2pCallback, Pointer> {
 public interface P2pNodeInterface {
     
     /**
+     * Relê a config de relay combinável (vinda do Kotlin, `RelayPreference`) + o ticket do
+     * cofre, resolve e aplica ao node JÁ VIVO (`AcerolaP2p::apply_relay_mode`) — sem precisar
+     * reiniciar o app. Chamado pelo Kotlin depois de QUALQUER mudança nas fontes de relay
+     * (toggle do Acerola/Iroh, add/remove de URL própria, salvar/remover ticket). Espelha
+     * `NetworkServiceApi::apply_relay_settings` do Desktop.
+     */
+    fun `applyRelaySettings`(`relaySettings`: FfiRelaySettings)
+    
+    /**
      * Busca a capa (thumbnail) de `comic_name` na biblioteca de `peer_addr` — `known_version`
      * é a versão já cacheada localmente (`(peer_id, comic_name, cover_version)`), `None` se
      * nunca buscou essa capa antes. Mesmo padrão fire-and-forget de `sync_comic`: grava o
@@ -3892,6 +3910,25 @@ open class P2pNode: Disposable, AutoCloseable, P2pNodeInterface {
             UniffiLib.INSTANCE.uniffi_acerola_fn_clone_p2pnode(pointer!!, status)
         }
     }
+
+    
+    /**
+     * Relê a config de relay combinável (vinda do Kotlin, `RelayPreference`) + o ticket do
+     * cofre, resolve e aplica ao node JÁ VIVO (`AcerolaP2p::apply_relay_mode`) — sem precisar
+     * reiniciar o app. Chamado pelo Kotlin depois de QUALQUER mudança nas fontes de relay
+     * (toggle do Acerola/Iroh, add/remove de URL própria, salvar/remover ticket). Espelha
+     * `NetworkServiceApi::apply_relay_settings` do Desktop.
+     */
+    @Throws(RelayTicketException::class)override fun `applyRelaySettings`(`relaySettings`: FfiRelaySettings)
+        = 
+    callWithPointer {
+    uniffiRustCallWithError(RelayTicketException) { _status ->
+    UniffiLib.INSTANCE.uniffi_acerola_fn_method_p2pnode_apply_relay_settings(
+        it, FfiConverterTypeFfiRelaySettings.lower(`relaySettings`),_status)
+}
+    }
+    
+    
 
     
     /**
