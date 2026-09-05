@@ -531,17 +531,37 @@ fn restrict_to_lan_addr(addr: EndpointAddr) -> EndpointAddr {
     restricted
 }
 
-/// Faixas de rede local/privada (IPv4 RFC 1918 + link-local, IPv6 ULA/link-local/loopback) — o
-/// resto (qualquer IP roteável publicamente) é tratado como WAN.
+/// Faixas de rede local/privada (IPv4 RFC 1918 + link-local + RFC 6598 CGNAT, IPv6
+/// ULA/link-local/loopback) — o resto (qualquer IP roteável publicamente) é tratado como WAN.
+///
+/// RFC 6598 (100.64.0.0/10, "Shared Address Space") faltava aqui — descoberto via teste
+/// intermitente (`fetch_fails_cleanly_when_peer_is_unreachable_then_succeeds_against_a_real_peer`
+/// falhando ~1 em cada 5 execuções): duas máquinas de teste no MESMO host, ambas em loopback,
+/// mas cujo `Endpoint` do iroh também está bindado numa interface virtual de VPN (Tailscale, que
+/// aloca deliberadamente do bloco 100.64.0.0/10 — o mesmo bloco reservado a CGNAT — pra nunca
+/// colidir com uma rede privada RFC 1918 real). Quando a conexão de teste cruzava por essa
+/// interface em vez de `127.0.0.1`, `is_private_ip` classificava incorretamente o peer como
+/// WAN, e `drive_incoming_connections` rejeitava a conexão com "relay disabled: only LAN peers
+/// allowed" mesmo os dois processos rodando na mesma máquina — reproduzindo de forma
+/// intermitente porque qual interface "vence" pra um dado fluxo UDP não é determinístico.
 fn is_private_ip(ip: std::net::IpAddr) -> bool {
     match ip {
-        std::net::IpAddr::V4(v4) => v4.is_private() || v4.is_loopback() || v4.is_link_local(),
+        std::net::IpAddr::V4(v4) => {
+            v4.is_private() || v4.is_loopback() || v4.is_link_local() || is_cgnat_ipv4(v4)
+        },
         std::net::IpAddr::V6(v6) => {
             v6.is_loopback()
                 || (v6.segments()[0] & 0xfe00) == 0xfc00 // unique local: fc00::/7
                 || (v6.segments()[0] & 0xffc0) == 0xfe80 // link-local: fe80::/10
         },
     }
+}
+
+/// `true` para endereços em 100.64.0.0/10 (RFC 6598, "Shared Address Space") — a faixa usada por
+/// CGNAT e (deliberadamente, pra evitar colisão com RFC 1918) por VPNs de malha como Tailscale.
+fn is_cgnat_ipv4(v4: std::net::Ipv4Addr) -> bool {
+    let octets = v4.octets();
+    octets[0] == 100 && (octets[1] & 0xc0) == 64
 }
 
 #[cfg(test)]
@@ -736,6 +756,27 @@ mod tests {
         assert!(!is_private_ip("8.8.8.8".parse().unwrap()));
         assert!(!is_private_ip("1.1.1.1".parse().unwrap()));
         assert!(!is_private_ip("2606:4700:4700::1111".parse().unwrap()));
+    }
+
+    /// Regressão: `100.64.0.0/10` (RFC 6598, CGNAT) faltava em `is_private_ip` — Tailscale (e
+    /// CGNAT de operadora) usam essa faixa de propósito pra nunca colidir com RFC 1918. Sem
+    /// isso, duas máquinas de teste no mesmo host cuja conexão cruzasse a interface virtual da
+    /// VPN (em vez de loopback) eram classificadas como WAN e rejeitadas por
+    /// `drive_incoming_connections` mesmo estando na mesma máquina — reproduzido de forma
+    /// intermitente em `fetch_fails_cleanly_when_peer_is_unreachable_then_succeeds_against_a_real_peer`
+    /// (falhava ~1 em 5 execuções, porque qual interface "vence" pra um fluxo UDP dado não é
+    /// determinístico).
+    #[test]
+    fn is_private_ip_accepts_rfc6598_cgnat_range() {
+        assert!(is_private_ip("100.64.0.0".parse().unwrap()), "início do range 100.64.0.0/10");
+        assert!(is_private_ip("100.100.19.3".parse().unwrap()), "IP real observado no bug");
+        assert!(is_private_ip("100.127.255.255".parse().unwrap()), "fim do range 100.64.0.0/10");
+    }
+
+    #[test]
+    fn is_private_ip_rejects_addresses_just_outside_the_cgnat_range() {
+        assert!(!is_private_ip("100.63.255.255".parse().unwrap()), "1 endereço antes do range");
+        assert!(!is_private_ip("100.128.0.0".parse().unwrap()), "1 endereço depois do range");
     }
 
     #[test]

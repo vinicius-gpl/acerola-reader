@@ -11,8 +11,12 @@ mod gc;
 use std::{collections::HashMap, sync::Arc, time::Duration};
 
 use async_trait::async_trait;
+use futures::{Stream, StreamExt};
 use iroh::{endpoint::Connection, Endpoint, EndpointAddr, EndpointId};
-use iroh_blobs::{api::Store, Hash, HashAndFormat};
+use iroh_blobs::{
+    api::{remote::GetProgressItem, Store},
+    Hash, HashAndFormat,
+};
 use tokio::{
     io::AsyncRead,
     sync::{Mutex, RwLock},
@@ -22,18 +26,23 @@ pub use self::config::IrohBlobsConfig;
 use super::{hash::BlobHash, store::P2pBlobStore};
 use crate::infra::{error::ConnectionError, peer::PeerAddr};
 
-/// Teto pra quanto tempo `fetch()` espera por uma conexão/path silenciosamente morto — mesma
-/// classe de bug já documentada e corrigida para conexões via pool em
-/// `core/transport/iroh/transport.rs::invalidate_forces_fresh_dial_on_next_open_bi`; aqui a
-/// conexão vem de `IrohBlobStore::dial_or_reuse` (próprio pool, ALPN `iroh_blobs::ALPN`,
-/// separado do de `IrohTransport` porque atende um protocolo diferente). Sem timeout, o
-/// `.complete()` do iroh-blobs pode ficar esperando indefinidamente por um path que nunca vai
-/// responder de novo, sem nunca resolver a `Err` — o que impede até o mecanismo genérico de
-/// retry do `NetworkManager` (que só reage a um handler retornando `Err`) de sequer entrar em
-/// ação. Timeout aqui garante que uma conexão/path morto sempre termina em erro, deixando quem
-/// chama (`ChapterTransfer::fetch_reader` e o resto do protocolo de sync) livre pra tratar
-/// como qualquer outra falha de rede — pular o item, tentar de novo mais tarde, etc.
-const BLOB_FETCH_TIMEOUT: Duration = Duration::from_secs(15);
+/// Teto de INATIVIDADE — não mais um teto pro fetch inteiro (ver histórico do bug abaixo).
+/// Usado em dois pontos de `dial_and_fetch`: (1) discar a conexão, e (2) o intervalo máximo
+/// entre dois avanços de progresso (`GetProgressItem::Progress`) durante o download —
+/// resetado a cada avanço via `drain_with_idle_timeout`.
+///
+/// Antes, este mesmo valor embrulhava DISCAGEM + DOWNLOAD INTEIRO num único
+/// `tokio::time::timeout`. Isso detectava corretamente um path/conexão morto (mesma classe de
+/// bug já documentada e corrigida para conexões via pool em
+/// `core/transport/iroh/transport.rs::invalidate_forces_fresh_dial_on_next_open_bi`), mas não
+/// escalava com o tamanho do blob: um capítulo de ~150MB nunca completa discagem+download
+/// inteiros em 15s reais de rede (NAT/relay), então TODO capítulo grande estourava esse teto
+/// mesmo com a transferência progredindo normalmente — reproduzido em produção
+/// (`blob fetch timed out` a cada tentativa, capítulo sempre pulado). Trocado por um teto de
+/// inatividade: continua garantindo que um path realmente morto (zero progresso) sempre
+/// termina em erro dentro de `BLOB_FETCH_IDLE_TIMEOUT`, sem impor limite ao tamanho do blob —
+/// só à ausência de progresso.
+const BLOB_FETCH_IDLE_TIMEOUT: Duration = Duration::from_secs(15);
 
 fn to_iroh_hash(hash: &BlobHash) -> Hash {
     Hash::from_bytes(*hash.as_bytes())
@@ -51,13 +60,13 @@ fn parse_endpoint_addr(peer: &PeerAddr) -> Result<EndpointAddr, ConnectionError>
 pub struct IrohBlobStore {
     store: Store,
     endpoint: Endpoint,
-    /// Sempre `BLOB_FETCH_TIMEOUT` em produção — campo existe (em vez do `const` direto em
-    /// `fetch()`) só pra um teste específico poder injetar um valor curto e simular "peer
-    /// inalcançável" sem afetar o timeout de verdade usado pelos outros testes deste módulo
-    /// (transferência de blob grande, fetch concorrente sob GC), que precisam do valor de
-    /// produção pra não estourar por serem legitimamente mais lentos que um timeout de teste
-    /// artificialmente curto.
-    fetch_timeout: Duration,
+    /// Sempre `BLOB_FETCH_IDLE_TIMEOUT` em produção — campo existe (em vez do `const` direto)
+    /// só pra testes específicos poderem injetar um valor curto (simular "peer inalcançável"
+    /// ou "path que emudece no meio do download") sem afetar o timeout de verdade usado pelos
+    /// outros testes deste módulo (transferência de blob grande, fetch concorrente sob GC), que
+    /// precisam do valor de produção pra não estourar por serem legitimamente mais lentos que
+    /// um timeout de teste artificialmente curto.
+    idle_timeout: Duration,
     /// Conexão física reaproveitada entre fetches sucessivos pro MESMO peer — sem isso, cada
     /// `fetch()` (um por capítulo/blob, discado direto aqui fora do pool de `IrohTransport`)
     /// abria uma conexão QUIC nova, reproduzindo em sequência rápida (um fetch atrás do outro
@@ -80,7 +89,7 @@ impl IrohBlobStore {
         Ok(Self {
             store,
             endpoint,
-            fetch_timeout: BLOB_FETCH_TIMEOUT,
+            idle_timeout: BLOB_FETCH_IDLE_TIMEOUT,
             connections: Arc::new(RwLock::new(HashMap::new())),
             dial_locks: Mutex::new(HashMap::new()),
         })
@@ -121,42 +130,34 @@ impl P2pBlobStore for IrohBlobStore {
     async fn fetch(&self, hash: &BlobHash, from: &PeerAddr) -> Result<(), ConnectionError> {
         let addr = parse_endpoint_addr(from)?;
         let iroh_hash = to_iroh_hash(hash);
-
-        match tokio::time::timeout(self.fetch_timeout, self.dial_and_fetch(addr, iroh_hash)).await {
-            Ok(result) => result,
-            Err(_elapsed) => {
-                // Mesma limpeza do branch de erro abaixo — `untag` é seguro mesmo se o timeout
-                // bateu antes da tag chegar a ser criada (nada casa em `tags_for_hash`, vira
-                // no-op). Sem isso, um timeout durante a fase de tag-já-criada-mas-fetch-preso
-                // deixaria uma tag permanente órfã pra sempre.
-                let _ = gc::untag(&self.store, iroh_hash).await;
-                // `ConnectionError::Timeout` (não um `StreamFailed(String)` próprio) pra quem
-                // consome poder classificar por variante de enum, igual a qualquer outro
-                // timeout de conexão (`classify_connection_error`) — o texto detalhado (segundos
-                // configurados, doc de referência) só importa pro log técnico, não precisa
-                // sobreviver na variante retornada pra continuar sendo classificável depois de
-                // atravessar `From<GetError>`/`From<IrohConnectionError>` (ver `iroh_blobs.rs`).
-                tracing::warn!(
-                    layer = "iroh_blobs",
-                    timeout_secs = self.fetch_timeout.as_secs(),
-                    "blob fetch timed out — peer connection or path is likely stale"
-                );
-                Err(ConnectionError::Timeout)
-            },
-        }
+        self.dial_and_fetch(addr, iroh_hash).await
     }
 }
 
 impl IrohBlobStore {
-    /// Disca + publica a tag de proteção + baixa o blob — corpo de `fetch()` isolado numa
-    /// função própria só pra poder envolver a chamada inteira (não só o `.complete()`) num
-    /// único `tokio::time::timeout` em `fetch()`, sem duplicar a lógica de limpeza de tag em
-    /// dois lugares (timeout vs. erro normal).
+    /// Disca (com teto de inatividade próprio) + publica a tag de proteção + baixa o blob
+    /// (com teto de inatividade que reseta a cada avanço de progresso, via
+    /// `drain_with_idle_timeout`) — corpo de `fetch()` isolado numa função própria só pra não
+    /// duplicar a lógica de limpeza de tag/invalidação de conexão em dois lugares (falha na
+    /// discagem vs. falha durante o download).
     async fn dial_and_fetch(
         &self, addr: EndpointAddr, iroh_hash: Hash,
     ) -> Result<(), ConnectionError> {
         let peer_id = addr.id;
-        let conn = self.dial_or_reuse(addr).await?;
+
+        // Sem este teto, um peer inalcançável (path morto, endpoint fechado) trava aqui pra
+        // sempre — mesmo bug documentado no teste `fetch_times_out_instead_of_hanging_when_peer_is_unreachable`.
+        let conn = match tokio::time::timeout(self.idle_timeout, self.dial_or_reuse(addr)).await {
+            Ok(result) => result?,
+            Err(_elapsed) => {
+                tracing::warn!(
+                    layer = "iroh_blobs",
+                    idle_timeout_secs = self.idle_timeout.as_secs(),
+                    "blob fetch dial timed out — peer connection or path is likely stale"
+                );
+                return Err(ConnectionError::Timeout);
+            },
+        };
 
         // `remote().fetch()` não usa nenhuma proteção interna — confirmado lendo o código-fonte
         // do iroh-blobs (`api::remote::execute_get_sink`, que escreve os chunks direto no store)
@@ -188,13 +189,17 @@ impl IrohBlobStore {
         // hash sem dado nenhum).
         self.store.tags().create(HashAndFormat::raw(iroh_hash)).await?;
 
-        if let Err(err) = self.store.remote().fetch(conn, iroh_hash).complete().await {
+        let stream = Box::pin(self.store.remote().fetch(conn, iroh_hash).stream());
+        if let Err(err) = drain_with_idle_timeout(stream, self.idle_timeout).await {
             let _ = gc::untag(&self.store, iroh_hash).await;
             // A conexão cacheada pode ter morrido no meio deste fetch — descarta pra garantir
             // que o PRÓXIMO fetch pro mesmo peer disque uma conexão física nova em vez de
-            // reaproveitar a mesma que acabou de falhar.
+            // reaproveitar a mesma que acabou de falhar. Antes, isso só rodava quando
+            // `.complete()` retornava um `Err` de verdade — um timeout (que agora também cai
+            // aqui) deixava a conexão morta cacheada, fazendo a PRÓXIMA tentativa reaproveitar
+            // a mesma conexão morta e falhar de novo do mesmo jeito.
             self.invalidate(&peer_id).await;
-            return Err(err.into());
+            return Err(err);
         }
 
         Ok(())
@@ -229,6 +234,45 @@ impl IrohBlobStore {
     /// PRÓXIMA chamada disque uma conexão física nova em vez de reaproveitar uma morta.
     async fn invalidate(&self, peer_id: &EndpointId) {
         self.connections.write().await.remove(peer_id);
+    }
+}
+
+/// Consome o stream de progresso de um fetch do iroh-blobs (`Remote::fetch(..).stream()`),
+/// resetando o teto `idle_timeout` a cada `GetProgressItem::Progress` recebido — em vez de um
+/// único `tokio::time::timeout` embrulhando o download inteiro (ver doc de
+/// `BLOB_FETCH_IDLE_TIMEOUT` pro bug que isso corrige). Um blob de qualquer tamanho pode levar
+/// o tempo que precisar pra transferir, desde que continue chegando progresso; um path
+/// realmente morto (nenhum item, nem o primeiro) ainda estoura no primeiro tick de
+/// `idle_timeout`, igual antes.
+///
+/// Extraída como função livre (não método) e genérica sobre o stream — não sobre
+/// `Connection`/`Hash` reais — pra poder ser testada com um stream sintético controlado por
+/// tempo, sem depender da velocidade de um round-trip iroh-blobs de verdade (que roda rápido
+/// demais em loopback pra exercitar de forma determinística "true total > idle_timeout, mas
+/// cada intervalo individual < idle_timeout").
+async fn drain_with_idle_timeout(
+    mut stream: std::pin::Pin<Box<dyn Stream<Item = GetProgressItem> + Send>>,
+    idle_timeout: Duration,
+) -> Result<(), ConnectionError> {
+    loop {
+        match tokio::time::timeout(idle_timeout, stream.next()).await {
+            Ok(Some(GetProgressItem::Progress(_))) => continue,
+            Ok(Some(GetProgressItem::Done(_))) => return Ok(()),
+            Ok(Some(GetProgressItem::Error(err))) => return Err(err.into()),
+            Ok(None) => {
+                return Err(ConnectionError::StreamFailed(
+                    "blob fetch stream closed without a result".to_string(),
+                ));
+            },
+            Err(_elapsed) => {
+                tracing::warn!(
+                    layer = "iroh_blobs",
+                    idle_timeout_secs = idle_timeout.as_secs(),
+                    "blob fetch idle timeout — no progress received, peer connection or path is likely stale"
+                );
+                return Err(ConnectionError::Timeout);
+            },
+        }
     }
 }
 
@@ -412,14 +456,14 @@ mod tests {
     ///
     /// Simula "path morto" com um endpoint alvo que foi fechado antes da tentativa de conexão
     /// — `fetch()` precisa retornar `Err` num tempo limitado, não travar esperando o handshake
-    /// que nunca vai completar. Usa um `fetch_timeout` curto só nesta instância (em vez do
-    /// `BLOB_FETCH_TIMEOUT` de produção, 15s) só pra o teste não demorar — os outros testes
+    /// que nunca vai completar. Usa um `idle_timeout` curto só nesta instância (em vez do
+    /// `BLOB_FETCH_IDLE_TIMEOUT` de produção, 15s) só pra o teste não demorar — os outros testes
     /// deste módulo (`mem_store()`/`mem_store_with_gc_interval()`) continuam no timeout real,
     /// já que precisam de tempo de verdade pra transferências/GC concorrentes legítimas.
     #[tokio::test]
     async fn fetch_times_out_instead_of_hanging_when_peer_is_unreachable() {
         let mut store = mem_store().await;
-        store.fetch_timeout = Duration::from_millis(300);
+        store.idle_timeout = Duration::from_millis(300);
 
         let dead_endpoint = unbound_endpoint().await;
         let dead_addr = dead_endpoint.addr();
@@ -438,8 +482,115 @@ mod tests {
         assert!(result.is_err(), "fetch pra um peer inalcançável deveria retornar Err, não travar");
         assert!(
             elapsed < Duration::from_secs(5),
-            "fetch deveria ter estourado o BLOB_FETCH_TIMEOUT de teste rapidamente, levou {elapsed:?}"
+            "fetch deveria ter estourado o BLOB_FETCH_IDLE_TIMEOUT de teste rapidamente na fase \
+             de discagem, levou {elapsed:?}"
         );
+    }
+
+    /// Constrói um stream sintético de `GetProgressItem` que espera `gap` antes de cada item —
+    /// simula o ritmo de progresso de um fetch real sem depender da velocidade de uma
+    /// transferência de verdade.
+    fn synthetic_progress_stream(
+        item_count: usize, gap: Duration, end: GetProgressItem,
+    ) -> std::pin::Pin<Box<dyn Stream<Item = GetProgressItem> + Send>> {
+        let items: Vec<GetProgressItem> =
+            (0..item_count).map(|i| GetProgressItem::Progress(i as u64)).chain([end]).collect();
+
+        Box::pin(futures::stream::iter(items).then(move |item| async move {
+            tokio::time::sleep(gap).await;
+            item
+        }))
+    }
+
+    /// Prova o próprio bug relatado em produção, isolado da rede: um fetch cuja DURAÇÃO TOTAL
+    /// excede `idle_timeout` deve ainda assim ter sucesso, desde que cada intervalo INDIVIDUAL
+    /// entre avanços de progresso fique abaixo do teto — exatamente o caso de um capítulo
+    /// grande (~150MB) que nunca completaria discagem+download inteiros em 15s de rede real,
+    /// mas segue recebendo progresso constantemente. Antes da correção (um único timeout
+    /// embrulhando o download inteiro), este cenário sempre estourava.
+    #[tokio::test]
+    async fn drain_with_idle_timeout_survives_total_duration_longer_than_timeout() {
+        let idle_timeout = Duration::from_millis(80);
+        // 10 avanços de progresso, 50ms de intervalo cada = 500ms de duração total,
+        // bem mais que os 80ms de `idle_timeout` — mas cada intervalo individual (50ms) fica
+        // abaixo do teto.
+        let stream = synthetic_progress_stream(
+            10,
+            Duration::from_millis(50),
+            GetProgressItem::Done(iroh_blobs::get::Stats::default()),
+        );
+
+        let started = std::time::Instant::now();
+        let result = drain_with_idle_timeout(stream, idle_timeout).await;
+        let elapsed = started.elapsed();
+
+        assert!(
+            result.is_ok(),
+            "duração total maior que idle_timeout não deveria falhar, desde que o progresso \
+             continue chegando: {result:?}"
+        );
+        assert!(
+            elapsed >= Duration::from_millis(500),
+            "o teste não provaria nada se não tivesse de fato ultrapassado idle_timeout no \
+             total, levou {elapsed:?}"
+        );
+    }
+
+    /// Contraprova do teste acima: um ÚNICO intervalo sem nenhum progresso, maior que
+    /// `idle_timeout`, ainda precisa estourar em erro — a correção não deve virar "sem timeout
+    /// nenhum", só deixar de exigir que o download INTEIRO caiba na mesma janela.
+    #[tokio::test]
+    async fn drain_with_idle_timeout_fails_when_a_single_gap_exceeds_timeout() {
+        let idle_timeout = Duration::from_millis(80);
+        // Um único avanço, depois um hiato de 300ms (> 80ms) antes do item final.
+        let stream = synthetic_progress_stream(
+            1,
+            Duration::from_millis(300),
+            GetProgressItem::Done(iroh_blobs::get::Stats::default()),
+        );
+
+        let started = std::time::Instant::now();
+        let result = drain_with_idle_timeout(stream, idle_timeout).await;
+        let elapsed = started.elapsed();
+
+        assert!(
+            matches!(result, Err(ConnectionError::Timeout)),
+            "um hiato de inatividade maior que idle_timeout deveria estourar em Timeout: {result:?}"
+        );
+        assert!(
+            elapsed < Duration::from_millis(200),
+            "deveria ter estourado assim que idle_timeout bateu (80ms), não esperado o hiato \
+             inteiro de 300ms, levou {elapsed:?}"
+        );
+    }
+
+    /// Fim a fim (round-trip iroh-blobs de verdade, não stream sintético): um payload maior
+    /// (alguns MB, gerado com conteúdo não-repetitivo pra não colapsar em de-dup interna do
+    /// store) ainda transfere com sucesso sob o `idle_timeout` de produção após a refatoração —
+    /// rede de garantia de que o novo caminho (`stream()` + `drain_with_idle_timeout`) não
+    /// quebrou o caso feliz que `.complete()` atendia antes.
+    #[tokio::test]
+    async fn fetch_transfers_larger_payload_end_to_end() {
+        let store_a = Arc::new(connectable_mem_store().await);
+        let store_b = connectable_mem_store().await;
+        spawn_blob_accept_loop(Arc::clone(&store_a));
+
+        let payload: Vec<u8> = (0..4 * 1024 * 1024).map(|i| (i % 251) as u8).collect();
+        let hash = store_a.put(payload.clone()).await.unwrap();
+
+        let addr_a = store_a.endpoint.addr();
+        let peer_a = PeerAddr {
+            id: PeerId { id: store_a.endpoint.id().to_string(), device_id: None },
+            addrs: serde_json::to_vec(&addr_a).unwrap(),
+        };
+
+        store_b.fetch(&hash, &peer_a).await.unwrap();
+
+        let mut reader = store_b.get(&hash).await.unwrap();
+        let mut received = Vec::new();
+        reader.read_to_end(&mut received).await.unwrap();
+
+        assert_eq!(received, payload, "payload recebido deveria bater byte a byte com o original");
     }
 
     /// Regressão do bug relatado em produção: sincronizar vários capítulos disparava um
