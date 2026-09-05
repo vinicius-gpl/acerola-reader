@@ -103,9 +103,7 @@ describe('AcerolaNetworkRelaySettingsCard', () => {
 
 		const input = screen.getByPlaceholderText(/services\.iroh\.computer/i);
 		await fireEvent.input(input, { target: { value: 'services-fake-ticket' } });
-		await fireEvent.click(
-			screen.getByRole('button', { name: /Save ticket|Salvar ticket/i })
-		);
+		await fireEvent.click(screen.getByRole('button', { name: /Save ticket|Salvar ticket/i }));
 
 		expect(handlers.onSetIrohServicesTicket).toHaveBeenCalledWith('services-fake-ticket');
 	});
@@ -118,9 +116,7 @@ describe('AcerolaNetworkRelaySettingsCard', () => {
 
 		const input = screen.getByPlaceholderText(/services\.iroh\.computer/i);
 		await fireEvent.input(input, { target: { value: 'not-a-valid-ticket' } });
-		await fireEvent.click(
-			screen.getByRole('button', { name: /Save ticket|Salvar ticket/i })
-		);
+		await fireEvent.click(screen.getByRole('button', { name: /Save ticket|Salvar ticket/i }));
 
 		expect(await screen.findByText(/[Ii]nvalid ticket|[Tt]icket inválido/i)).toBeInTheDocument();
 	});
@@ -132,9 +128,7 @@ describe('AcerolaNetworkRelaySettingsCard', () => {
 		});
 		await expandCard();
 
-		await fireEvent.click(
-			screen.getByRole('button', { name: /Remove ticket|Remover ticket/i })
-		);
+		await fireEvent.click(screen.getByRole('button', { name: /Remove ticket|Remover ticket/i }));
 
 		expect(handlers.onClearIrohServicesTicket).toHaveBeenCalled();
 	});
@@ -146,7 +140,9 @@ describe('AcerolaNetworkRelaySettingsCard', () => {
 
 		const input = screen.getByPlaceholderText(/your-relay\.example\.com|seu-relay\.exemplo\.com/i);
 		await fireEvent.input(input, { target: { value: 'https://relay-a.test.local' } });
-		await fireEvent.click(screen.getByRole('button', { name: /Add custom relay|Adicionar relay próprio/i }));
+		await fireEvent.click(
+			screen.getByRole('button', { name: /Add custom relay|Adicionar relay próprio/i })
+		);
 
 		expect(handlers.onAddCustomRelayUrl).toHaveBeenCalledWith('https://relay-a.test.local');
 	});
