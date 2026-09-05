@@ -73,12 +73,12 @@ pub(super) async fn write_session_busy(
     .await
 }
 
-/// Lê a primeira mensagem do peer podendo ser tanto o `FileManifest` normal quanto uma
-/// rejeição `SessionBusy` — a única forma de saber qual é sem uma tag de enum no wire (regra
-/// já estabelecida pelo resto do protocolo) é espiar o JSON bruto antes de decidir o tipo
-/// concreto. Só os dois pontos de leitura inicial em `exchange_manifests` usam isso: depois da
-/// primeira mensagem, uma sessão aceita nunca mais manda `SessionBusy`.
-async fn read_manifest_or_busy(reader: &mut Recv) -> Result<FileManifest, P2pError> {
+/// Espia o JSON bruto e devolve `Err("peer busy: ...")` se for um `SessionBusy` — extraído de
+/// `read_manifest_or_busy`/`read_comic_scope_or_busy` pra não duplicar a checagem
+/// `error == "busy"` em cada ponto do protocolo que pode legitimamente receber essa rejeição no
+/// lugar da mensagem esperada. Se não for busy, devolve o `value` cru pro chamador desserializar
+/// no tipo concreto certo (`FileManifest`, `ComicSyncScope`, etc.).
+async fn peek_busy(reader: &mut Recv) -> Result<serde_json::Value, P2pError> {
     let value: serde_json::Value = read_json(reader).await?;
 
     let is_busy = value.get("error").and_then(|tag| tag.as_str()) == Some(SESSION_BUSY_TAG);
@@ -90,6 +90,30 @@ async fn read_manifest_or_busy(reader: &mut Recv) -> Result<FileManifest, P2pErr
         return Err(P2pError::StreamFailed(format!("peer busy: {reason}")));
     }
 
+    Ok(value)
+}
+
+/// Lê a primeira mensagem do peer podendo ser tanto o `FileManifest` normal quanto uma
+/// rejeição `SessionBusy` — a única forma de saber qual é sem uma tag de enum no wire (regra
+/// já estabelecida pelo resto do protocolo) é espiar o JSON bruto antes de decidir o tipo
+/// concreto. Só os pontos de leitura inicial em `exchange_manifests`/`exchange_comic_scope`
+/// usam isso: depois da primeira mensagem, uma sessão aceita nunca mais manda `SessionBusy`.
+async fn read_manifest_or_busy(reader: &mut Recv) -> Result<FileManifest, P2pError> {
+    let value = peek_busy(reader).await?;
+    serde_json::from_value(value)
+        .map_err(|err| P2pError::StreamFailed(format!("failed to decode file sync message: {err}")))
+}
+
+/// Mesma ideia de `read_manifest_or_busy`, pro `ComicSyncScope` — fase 0, exclusiva de
+/// `acerola/sync-comic/1`, lida ANTES até do manifesto. Regressão real (05/09/2026): sem isso,
+/// quando o lado que disca já estava ocupado com outra sessão pro mesmo peer e respondia com
+/// `SessionBusy` em vez de `ComicSyncScope` (ver `run_and_report_scoped`/`ComicSyncOutbound::handle`
+/// no Desktop, que fazem exatamente isso), este lado tentava desserializar `{"error":"busy",...}`
+/// direto como `ComicSyncScope` e quebrava com "missing field `comic_name`" em vez de reportar
+/// "peer busy" — o único dos pontos de leitura inicial do protocolo que não usava o mesmo
+/// espia-antes-de-decodificar que `exchange_manifests` já usava dos dois lados.
+async fn read_comic_scope_or_busy(reader: &mut Recv) -> Result<ComicSyncScope, P2pError> {
+    let value = peek_busy(reader).await?;
     serde_json::from_value(value)
         .map_err(|err| P2pError::StreamFailed(format!("failed to decode file sync message: {err}")))
 }
@@ -1206,7 +1230,7 @@ async fn exchange_comic_scope(
         .await?;
         Ok((comic_name, direction))
     } else {
-        let scope: ComicSyncScope = read_json(reader).await?;
+        let scope = read_comic_scope_or_busy(reader).await?;
         Ok((scope.comic_name, scope.direction))
     }
 }
@@ -2351,6 +2375,57 @@ mod tests {
         assert!(
             result.is_err(),
             "outbound sem comic_name deveria falhar sem travar esperando o peer"
+        );
+    }
+
+    /// Regressão real (05/09/2026): o lado que disca (outbound) já estava ocupado com outra
+    /// sessão pro mesmo peer e respondeu com `SessionBusy` em vez do `ComicSyncScope` normal —
+    /// exatamente o que `write_session_busy` produz (ver `run_and_report_scoped`/
+    /// `ComicSyncOutbound::handle` no Desktop, espelhado aqui). O lado inbound (`outbound_role:
+    /// false`) precisa reconhecer isso como "peer busy", não tentar decodificar `{"error":
+    /// "busy", "reason": "..."}` como `ComicSyncScope` — antes desta correção, `exchange_comic_scope`
+    /// lia a fase 0 com `read_json` cru, sem checar busy, e quebrava com "missing field
+    /// `comic_name`" (visto ao vivo: peer WINDOWS mostrando esse erro cru na tela de sync).
+    #[tokio::test]
+    async fn run_exchange_scoped_inbound_reports_clean_busy_error_instead_of_decode_failure() {
+        let provider: Arc<dyn FileSyncProvider> =
+            Arc::new(InMemoryFileSyncProvider::with_readable(vec![]));
+        let (client_io, server_io) = tokio::io::duplex(4096);
+        let (_client_recv, client_send) = tokio::io::split(client_io);
+        let (server_recv, server_send) = tokio::io::split(server_io);
+        let peer = make_peer("peer-busy-scope");
+        let emit = no_op_emitter();
+
+        // Simula o outro lado (quem discou) já ocupado: a primeira coisa que ele manda na fase
+        // 0 do `acerola/sync-comic/1` é `SessionBusy`, não `ComicSyncScope`.
+        write_session_busy(
+            Box::new(client_send) as Box<dyn AsyncWrite + Send + Unpin>,
+            "sync-comic session already in progress for this peer",
+        )
+        .await
+        .unwrap();
+
+        let result = run_exchange_scoped(
+            false,
+            &peer,
+            &emit,
+            &provider,
+            &test_transfer_pair().0,
+            None,
+            Box::new(server_send) as Box<dyn AsyncWrite + Send + Unpin>,
+            Box::new(server_recv) as Box<dyn AsyncRead + Send + Unpin>,
+        )
+        .await;
+
+        let err = result.expect_err("deveria reportar erro, não travar nem ter sucesso");
+        let message = err.to_string();
+        assert!(
+            message.contains("peer busy"),
+            "esperava um erro de 'peer busy' reconhecido, recebeu: {message}"
+        );
+        assert!(
+            !message.contains("missing field"),
+            "não deveria mais tentar decodificar SessionBusy como ComicSyncScope: {message}"
         );
     }
 }
