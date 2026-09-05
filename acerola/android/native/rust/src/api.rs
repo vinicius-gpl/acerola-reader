@@ -305,7 +305,10 @@ impl P2PNode {
     }
 
     pub fn get_local_addr(&self) -> FfiPeerAddr {
-        let addr = self.node.local_addr();
+        // Recalculado ao vivo pelo transporte a cada chamada (ver doc de
+        // `AcerolaP2p::local_addr`) — só falha se a serialização do `EndpointAddr` quebrar,
+        // o que não acontece na prática (nenhum campo custom, é tudo serde padrão do iroh).
+        let addr = self.node.local_addr().expect("local_addr should always serialize");
         FfiPeerAddr {
             id: addr.id.id.clone(),
             device_id: addr.id.device_id.clone(),
