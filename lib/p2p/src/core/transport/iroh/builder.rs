@@ -83,7 +83,7 @@ impl TransportP2pBuilder for IrohTransportBuilder {
             "building iroh transport"
         );
 
-        let mut builder = self.build_mode(alpns)?;
+        let (mut builder, restrict_to_lan) = self.build_mode(alpns)?;
         builder = self.apply_secret(builder);
 
         let endpoint = builder.bind().await?;
@@ -91,11 +91,12 @@ impl TransportP2pBuilder for IrohTransportBuilder {
         tracing::info!(
             layer = "iroh_transport",
             local_id = %endpoint.id(),
+            restrict_to_lan,
             "iroh transport bound successfully"
         );
 
         let blobs = BlobsIntegration::configure(&self.blobs_config, &endpoint).await?;
-        Ok(IrohTransport::new(endpoint, blobs))
+        Ok(IrohTransport::new(endpoint, blobs, restrict_to_lan))
     }
 }
 
@@ -112,7 +113,7 @@ impl IrohTransportBuilder {
     // isso ficaria de fora: pareamento troca `EndpointAddr` concreto via QR/código e reconexões
     // reaproveitam o endereço já cacheado (ver `transport.rs::open_bi`), então mDNS (LAN) + o
     // relay escolhido (WAN) já bastam, sem vazar o IP do usuário pra essa infra de terceiro.
-    fn build_mode(&self, alpns: Vec<Vec<u8>>) -> Result<endpoint::Builder, ConnectionError> {
+    fn build_mode(&self, alpns: Vec<Vec<u8>>) -> Result<(endpoint::Builder, bool), ConnectionError> {
         let mdns = mdns::MdnsAddressLookup::builder();
         let mut builder = Endpoint::builder(presets::Minimal).address_lookup(mdns).alpns(alpns);
 
@@ -139,7 +140,15 @@ impl IrohTransportBuilder {
             }
         };
 
-        Ok(builder.relay_mode(iroh_relay_mode))
+        // Sem NENHUM relay configurado (`MdnsOnly`, ou o legado sem `.relay(url)` nenhuma),
+        // `IrohTransport` passa a restringir dial/accept a endereços de rede local (ver
+        // `transport.rs::restrict_to_lan_addr`/`is_private_incoming`) — sem isso, um endereço
+        // direto cacheado de um pareamento anterior (de quando um relay ainda estava ativo) ou
+        // um mapeamento de NAT que ainda não expirou no roteador continuavam permitindo conexão
+        // cross-internet mesmo com "só rede local" selecionado.
+        let restrict_to_lan = matches!(iroh_relay_mode, iroh::RelayMode::Disabled);
+
+        Ok((builder.relay_mode(iroh_relay_mode), restrict_to_lan))
     }
 
     fn apply_secret(&self, mut builder: endpoint::Builder) -> endpoint::Builder {
