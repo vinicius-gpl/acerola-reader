@@ -100,7 +100,7 @@ impl NetworkServiceApi for NetworkService {
     /// Endereço completo (id + bytes de endereçamento) usado pra gerar o código/QR de
     /// pareamento — é o que o outro dispositivo precisa pra nos alcançar via `connect()`.
     fn local_addr(&self) -> Result<PeerAddr, String> {
-        Ok(self.node.local_addr().clone())
+        self.node.local_addr().map_err(|err| err.to_string())
     }
 
     /// Nome/OS/versão deste dispositivo — usado na tela de Rede pra exibir algo mais
