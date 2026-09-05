@@ -17,7 +17,9 @@ import br.acerola.comic.module.main.sync.state.SyncAction
 import br.acerola.comic.module.main.sync.state.SyncResult
 import br.acerola.comic.module.main.sync.state.SyncUiState
 import br.acerola.comic.module.main.sync.state.TransferLogEntry
+import br.acerola.comic.service.P2pSyncForegroundService
 import br.acerola.comic.service.PeerAddress
+import br.acerola.comic.service.RelaySettings
 import br.acerola.comic.service.SyncDirection
 import br.acerola.comic.service.network.ComicSummary
 import br.acerola.comic.service.network.P2pEvent
@@ -33,7 +35,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -91,12 +95,34 @@ class SyncViewModel
             viewModelScope.launch { loadPersistedLog() }
 
             viewModelScope.launch {
-                val override = RelayPreference.relayUrlOverrideFlow(context).first()
+                RelayPreference.relaySettingsFlow(context).collect { settings ->
+                    // `.copy(...)` em cima do `relaySettings` atual, não um `RelaySettingsUiState`
+                    // novo do zero — `hasIrohServicesTicket` vem de outra fonte (o cofre nativo
+                    // do node, ver abaixo), não do DataStore, e não pode ser resetado a cada
+                    // emissão deste Flow.
+                    _uiState.update {
+                        it.copy(
+                            relaySettings =
+                                it.relaySettings.copy(
+                                    useAcerolaRelay = settings.useAcerolaRelay,
+                                    useIrohPublicNetwork = settings.useIrohPublicNetwork,
+                                    customRelayUrls = settings.customRelayUrls,
+                                ),
+                        )
+                    }
+
+                    // Aplica ao node JÁ VIVO — sem isso, mudar qualquer fonte de relay na tela
+                    // só tinha efeito no PRÓXIMO boot do app. Redundante (mas inofensivo, é um
+                    // diff que vira no-op) na primeira emissão deste Flow, que só repete a
+                    // config com a qual o node já foi construído.
+                    withContext(Dispatchers.IO) { applyCurrentRelaySettingsLive() }
+                }
+            }
+
+            viewModelScope.launch(Dispatchers.IO) {
+                val hasTicket = p2pUseCase.hasIrohServicesTicket()
                 _uiState.update {
-                    it.copy(
-                        relayUrl = override ?: RelayPreference.DEFAULT_RELAY_URL,
-                        isRelayOverridden = override != null,
-                    )
+                    it.copy(relaySettings = it.relaySettings.copy(hasIrohServicesTicket = hasTicket))
                 }
             }
 
@@ -112,6 +138,22 @@ class SyncViewModel
 
             viewModelScope.launch {
                 p2pEventBus.events.collect(::handleEvent)
+            }
+
+            // Liga o foreground service enquanto qualquer sync estiver em andamento, desliga
+            // assim que o último terminar — sem isso, uma transferência longa (minutos, capítulos
+            // grandes) roda sem NENHUMA isenção do Doze/App Standby (ver
+            // P2pSyncForegroundService). `distinctUntilChanged` garante que só reage à
+            // TRANSIÇÃO vazio<->não-vazio, não a toda mudança de `syncingKeys` (ex.: dois syncs
+            // simultâneos não disparam start() duas vezes).
+            viewModelScope.launch {
+                uiState.map { it.syncingKeys.isNotEmpty() }.distinctUntilChanged().collect { active ->
+                    if (active) {
+                        P2pSyncForegroundService.start(context)
+                    } else {
+                        P2pSyncForegroundService.stop(context)
+                    }
+                }
             }
         }
 
@@ -204,6 +246,73 @@ class SyncViewModel
                         )
                     }
                 is SyncAction.SyncComic -> syncComic(action.peerId, action.comicName)
+
+                is SyncAction.ToggleUseAcerolaRelay ->
+                    viewModelScope.launch { RelayPreference.setUseAcerolaRelay(context, action.value) }
+                is SyncAction.ToggleUseIrohPublicNetwork ->
+                    viewModelScope.launch { RelayPreference.setUseIrohPublicNetwork(context, action.value) }
+                is SyncAction.AddCustomRelayUrl ->
+                    viewModelScope.launch { RelayPreference.addCustomRelayUrl(context, action.url) }
+                is SyncAction.RemoveCustomRelayUrl ->
+                    viewModelScope.launch { RelayPreference.removeCustomRelayUrl(context, action.url) }
+                is SyncAction.SetIrohServicesTicket -> setIrohServicesTicket(action.ticket)
+                SyncAction.ClearIrohServicesTicket -> clearIrohServicesTicket()
+                SyncAction.DismissIrohServicesTicketError ->
+                    _uiState.update { it.copy(irohServicesTicketError = false) }
+            }
+        }
+
+        /** Valida o formato no lado nativo antes de persistir — `p2pUseCase.setIrohServicesTicket`
+         *  lança `IllegalArgumentException` se malformado, virando `irohServicesTicketError`. */
+        private fun setIrohServicesTicket(ticket: String) {
+            viewModelScope.launch(Dispatchers.IO) {
+                try {
+                    p2pUseCase.setIrohServicesTicket(ticket)
+                    _uiState.update {
+                        it.copy(
+                            relaySettings = it.relaySettings.copy(hasIrohServicesTicket = true),
+                            irohServicesTicketError = false,
+                        )
+                    }
+                    applyCurrentRelaySettingsLive()
+                } catch (error: IllegalArgumentException) {
+                    AcerolaLogger.w("SyncViewModel", "Invalid Iroh Services ticket: ${error.message}", LogSource.UI)
+                    _uiState.update { it.copy(irohServicesTicketError = true) }
+                }
+            }
+        }
+
+        private fun clearIrohServicesTicket() {
+            viewModelScope.launch(Dispatchers.IO) {
+                p2pUseCase.clearIrohServicesTicket()
+                _uiState.update {
+                    it.copy(relaySettings = it.relaySettings.copy(hasIrohServicesTicket = false))
+                }
+                applyCurrentRelaySettingsLive()
+            }
+        }
+
+        /** Reaplica `relaySettings` (estado atual da UI) ao node já vivo — chamado depois de
+         *  salvar/remover o ticket, já que isso muda o resultado de `resolve()` (ex: liga/desliga
+         *  a fonte "rede pública Iroh") sem que `RelayPreference.relaySettingsFlow` tenha emitido
+         *  nada novo (o ticket não vive no DataStore). Já deve rodar em `Dispatchers.IO` (chamada
+         *  bloqueante do lado Rust). */
+        private suspend fun applyCurrentRelaySettingsLive() {
+            val relaySettings = _uiState.value.relaySettings
+            runCatching {
+                p2pUseCase.applyRelaySettings(
+                    RelaySettings(
+                        useAcerolaRelay = relaySettings.useAcerolaRelay,
+                        useIrohPublicNetwork = relaySettings.useIrohPublicNetwork,
+                        customRelayUrls = relaySettings.customRelayUrls,
+                    ),
+                )
+            }.onFailure { error ->
+                AcerolaLogger.w(
+                    "SyncViewModel",
+                    "Failed to apply relay settings live: ${error.message}",
+                    LogSource.UI,
+                )
             }
         }
 

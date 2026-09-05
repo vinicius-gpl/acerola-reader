@@ -6,6 +6,7 @@ import br.acerola.comic.service.ConnectedPeerInfo
 import br.acerola.comic.service.NetworkMode
 import br.acerola.comic.service.P2pService
 import br.acerola.comic.service.PeerAddress
+import br.acerola.comic.service.RelaySettings
 import br.acerola.comic.service.SyncDirection
 import java.io.Closeable
 import javax.inject.Inject
@@ -88,6 +89,23 @@ class P2pUseCase
         fun getConnectedPeersWithInfo(): List<ConnectedPeerInfo> = p2pService.getConnectedPeersWithInfo()
 
         fun getPairedPeers(): List<PeerAddress> = p2pService.getPairedPeers()
+
+        fun hasIrohServicesTicket(): Boolean = p2pService.hasIrohServicesTicket()
+
+        fun setIrohServicesTicket(ticket: String) {
+            AcerolaLogger.i("P2pUseCase", "Setting Iroh Services ticket", LogSource.NETWORK)
+            p2pService.setIrohServicesTicket(ticket)
+        }
+
+        fun clearIrohServicesTicket() {
+            AcerolaLogger.i("P2pUseCase", "Clearing Iroh Services ticket", LogSource.NETWORK)
+            p2pService.clearIrohServicesTicket()
+        }
+
+        fun applyRelaySettings(relaySettings: RelaySettings) {
+            AcerolaLogger.i("P2pUseCase", "Applying relay settings live", LogSource.NETWORK)
+            p2pService.applyRelaySettings(relaySettings)
+        }
 
         fun removePairedPeer(id: String) {
             AcerolaLogger.i("P2pUseCase", "Removing paired peer: $id", LogSource.NETWORK)

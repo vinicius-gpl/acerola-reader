@@ -85,7 +85,7 @@ mod run_in_isolation {
         let node_a = build_node_with_blobs().await;
         let node_b = build_node_with_blobs().await;
 
-        let addr_a = node_a.local_addr().clone();
+        let addr_a = node_a.local_addr().unwrap();
         let payload = b"acerola blob round trip payload".to_vec();
 
         let blobs_a = node_a.blobs().await.unwrap();
@@ -136,7 +136,7 @@ mod run_in_isolation {
         let node_a = build_node_with_blobs().await;
         let node_b = build_node_with_blobs().await;
 
-        let addr_a = node_a.local_addr().clone();
+        let addr_a = node_a.local_addr().unwrap();
 
         const PAYLOAD_SIZE: usize = 16 * 1024 * 1024; // 16 MiB
         let payload: Vec<u8> = (0..PAYLOAD_SIZE).map(|i| (i % 251) as u8).collect();
@@ -201,7 +201,7 @@ mod run_in_isolation {
         .await
         .unwrap();
 
-        let addr_a = node_a.local_addr().clone();
+        let addr_a = node_a.local_addr().unwrap();
         let payload = b"acerola gc survival payload".to_vec();
 
         let blobs_a = node_a.blobs().await.unwrap();
@@ -260,7 +260,7 @@ mod run_in_isolation {
         .await
         .unwrap();
 
-        let addr_a = node_a.local_addr().clone();
+        let addr_a = node_a.local_addr().unwrap();
 
         // Grande o bastante pra um download real cruzar várias varreduras de GC de 5ms
         // enquanto ainda está em andamento.
@@ -315,7 +315,7 @@ mod run_in_isolation {
         .await
         .unwrap();
 
-        let addr_a = node_a.local_addr().clone();
+        let addr_a = node_a.local_addr().unwrap();
 
         // Próximo do burst real visto ao vivo (~20-22 `browse-cover` simultâneos pro mesmo peer).
         const CONCURRENT_FETCHES: usize = 24;
@@ -365,7 +365,7 @@ mod run_in_isolation {
         let node_a = build_node_with_blobs().await;
         let node_b = build_node_with_blobs().await;
 
-        let addr_a = node_a.local_addr().clone();
+        let addr_a = node_a.local_addr().unwrap();
 
         // Hash que não corresponde a nenhum conteúdo real que node_a tenha armazenado —
         // simula pedir um blob errado a um peer que está online mas não o possui.
@@ -431,7 +431,7 @@ mod run_in_isolation {
 
         wait_for_mdns().await;
 
-        blobs_b.fetch(&target_hash, &node_c.local_addr().clone()).await.unwrap();
+        blobs_b.fetch(&target_hash, &node_c.local_addr().unwrap()).await.unwrap();
 
         let mut reader = blobs_b.get(&target_hash).await.unwrap();
         let mut received = Vec::new();

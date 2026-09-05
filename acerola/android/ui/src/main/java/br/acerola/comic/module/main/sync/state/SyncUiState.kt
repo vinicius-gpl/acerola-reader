@@ -9,8 +9,10 @@ data class SyncUiState(
     val localDeviceName: String = "",
     val pairingCode: String? = null,
     val mode: NetworkMode = NetworkMode.LOCAL,
-    val relayUrl: String = "",
-    val isRelayOverridden: Boolean = false,
+    val relaySettings: RelaySettingsUiState = RelaySettingsUiState(),
+    /** `true` logo após `SyncAction.SetIrohServicesTicket` falhar (formato inválido) — a
+     *  própria [RelaySettingsUiState.hasIrohServicesTicket] não muda nesse caso. */
+    val irohServicesTicketError: Boolean = false,
     val pairedPeers: List<PairedPeer> = emptyList(),
     val pendingConnect: PendingConnect? = null,
     val connecting: Boolean = false,
@@ -57,6 +59,22 @@ data class SyncUiState(
      *  mesma versão duas vezes dentro da mesma sessão do app (ver
      *  [br.acerola.comic.module.main.sync.SyncViewModel]). */
     val remoteCoverPaths: Map<String, String> = emptyMap(),
+)
+
+/**
+ * Configuração de relay combinável exibida/editada no [br.acerola.comic.module.main.sync.RelaySettingsCard]
+ * — espelha `RelayPreference.RelaySettings` (a fonte persistida), com nome próprio aqui pro
+ * mesmo motivo de [PairedPeer]/[SyncResult]: `SyncUiState` não deve carregar tipos de outra
+ * camada por conveniência, mesmo shape só reaproveitado de propósito.
+ */
+data class RelaySettingsUiState(
+    val useAcerolaRelay: Boolean = true,
+    val useIrohPublicNetwork: Boolean = false,
+    val customRelayUrls: List<String> = emptyList(),
+    /** Só indica SE um ticket da conta do usuário em `services.iroh.computer` já foi colado e
+     *  salvo — o valor em si nunca é exposto na UI (é uma credencial real, guardada no cofre
+     *  criptografado do node, não no DataStore junto das demais preferências de relay). */
+    val hasIrohServicesTicket: Boolean = false,
 )
 
 data class SyncResult(

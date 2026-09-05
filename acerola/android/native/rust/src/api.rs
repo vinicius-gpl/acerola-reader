@@ -10,7 +10,7 @@ use acerola_p2p::api::{
     network::NetworkMode,
     peer::{PeerAddr, PeerIdentity},
     storage::P2PStorage,
-    transport::IrohTransportBuilder,
+    transport::{IrohTransportBuilder, RelayModeConfig},
 };
 
 #[cfg(target_os = "android")]
@@ -29,6 +29,7 @@ use crate::{
         history::{HistorySyncInbound, HistorySyncOutbound, HISTORY_SYNC_ALPN},
         library_browse::{LibraryBrowseInbound, LibraryBrowseOutbound, LIBRARY_BROWSE_ALPN},
     },
+    relay_settings::{FfiRelaySettings, RelayTicketError},
     singleton::TOKIO_RUNTIME,
     storage::{SecureP2pStorage, SharedSecureP2pStorage},
     sync_direction::FfiSyncDirection,
@@ -37,12 +38,6 @@ use crate::{
 
 #[cfg(target_os = "android")]
 use std::{collections::HashMap, sync::Mutex};
-
-/// URL do relay oficial do projeto, usado quando nenhum override é fornecido pelo app.
-///
-/// TODO: Fazer isso mudar junto com a versão do app android, colocar na action de release.
-#[cfg(target_os = "android")]
-const DEFAULT_RELAY_URL: &str = "https://relay.acerola-comic.com/";
 
 #[uniffi::export(with_foreign)]
 pub trait P2PCallback: Send + Sync {
@@ -107,7 +102,7 @@ impl P2PNode {
         callback: Arc<dyn P2PCallback>,
         legacy_data_dir: Option<String>,
         blobs_dir: String,
-        relay_url: Option<String>,
+        relay_settings: FfiRelaySettings,
         device_name: String,
         device_version: String,
         secure_store: Arc<dyn SecureBlobStore>,
@@ -137,6 +132,15 @@ impl P2PNode {
             legacy_dir,
         ));
 
+        // Ticket da conta do usuário em `services.iroh.computer` (colado por ele na tela de
+        // configuração de rede) — vem do MESMO cofre da identidade, não do DataStore. Falha
+        // real de backend não deveria travar a inicialização do resto da rede P2P por causa
+        // só da rede pública do Iroh, então também vira "sem ticket" aqui, com log.
+        let iroh_services_ticket = storage.load_iroh_services_ticket().unwrap_or_else(|error| {
+            tracing::warn!(layer = "relay", error = %error, "failed to load Iroh Services ticket");
+            None
+        });
+
         let pending_comic_scope: PendingComicScope = Arc::new(Mutex::new(HashMap::new()));
         let pending_cover_scope = PendingCoverRequestRegistry::new();
 
@@ -165,8 +169,25 @@ impl P2PNode {
                 // (ANR). `.mem()` não persiste blobs entre reinícios, mas destrava o app
                 // imediatamente enquanto o hang do FsStore é isolado/corrigido.
                 let _ = &blobs_dir;
+                let resolved_relay_mode = relay_settings.resolve(iroh_services_ticket.as_deref());
+                // Log redigido de propósito: `IrohDefault` carrega o ticket da conta do usuário
+                // (uma credencial real) como dado da variante — nunca deve ir pro Debug cru do
+                // enum. Só o nome da fonte resolvida importa aqui pra diagnóstico (paridade com
+                // `[Bios::Network] Using relay mode` do Desktop).
+                let relay_mode_label = match &resolved_relay_mode {
+                    RelayModeConfig::MdnsOnly => "mdns_only",
+                    RelayModeConfig::Custom(_) => "custom",
+                    RelayModeConfig::AcerolaOwn => "acerola_own",
+                    RelayModeConfig::IrohDefault(_) => "iroh_default",
+                };
+                tracing::info!(
+                    layer = "relay",
+                    mode = relay_mode_label,
+                    "resolved relay mode for P2P transport"
+                );
+
                 let transport = IrohTransportBuilder::default()
-                    .relay(relay_url.as_deref().unwrap_or(DEFAULT_RELAY_URL))
+                    .relay_mode(resolved_relay_mode)
                     .blobs(IrohBlobsConfig::mem());
 
                 let device = DefaultDeviceInfoProvider::new(device_name, device_version)
@@ -284,7 +305,10 @@ impl P2PNode {
     }
 
     pub fn get_local_addr(&self) -> FfiPeerAddr {
-        let addr = self.node.local_addr();
+        // Recalculado ao vivo pelo transporte a cada chamada (ver doc de
+        // `AcerolaP2p::local_addr`) — só falha se a serialização do `EndpointAddr` quebrar,
+        // o que não acontece na prática (nenhum campo custom, é tudo serde padrão do iroh).
+        let addr = self.node.local_addr().expect("local_addr should always serialize");
         FfiPeerAddr {
             id: addr.id.id.clone(),
             device_id: addr.id.device_id.clone(),
@@ -478,5 +502,57 @@ impl P2PNode {
                 })
                 .collect()
         })
+    }
+
+    /// `true` se o usuário já colou e salvou um ticket da própria conta em
+    /// `services.iroh.computer` — nunca devolve o valor em si (é uma credencial real).
+    pub fn has_iroh_services_ticket(&self) -> bool {
+        self.storage
+            .load_iroh_services_ticket()
+            .ok()
+            .flatten()
+            .is_some()
+    }
+
+    /// Valida o formato antes de persistir. Só tem efeito no próximo início do app — a lib não
+    /// suporta trocar relay em runtime.
+    pub fn set_iroh_services_ticket(&self, ticket: String) -> Result<(), RelayTicketError> {
+        let trimmed = ticket.trim();
+        acerola_p2p::api::transport::validate_iroh_services_ticket(trimmed).map_err(|error| {
+            RelayTicketError::Invalid {
+                reason: error.to_string(),
+            }
+        })?;
+
+        self.storage
+            .save_iroh_services_ticket(trimmed)
+            .map_err(|error| RelayTicketError::Invalid {
+                reason: error.to_string(),
+            })
+    }
+
+    /// Remove o ticket salvo — usado quando o usuário desliga a fonte ou substitui por um novo.
+    pub fn clear_iroh_services_ticket(&self) {
+        let _ = self.storage.clear_iroh_services_ticket();
+    }
+
+    /// Relê a config de relay combinável (vinda do Kotlin, `RelayPreference`) + o ticket do
+    /// cofre, resolve e aplica ao node JÁ VIVO (`AcerolaP2p::apply_relay_mode`) — sem precisar
+    /// reiniciar o app. Chamado pelo Kotlin depois de QUALQUER mudança nas fontes de relay
+    /// (toggle do Acerola/Iroh, add/remove de URL própria, salvar/remover ticket). Espelha
+    /// `NetworkServiceApi::apply_relay_settings` do Desktop.
+    pub fn apply_relay_settings(
+        &self,
+        relay_settings: FfiRelaySettings,
+    ) -> Result<(), RelayTicketError> {
+        let iroh_services_ticket = self.storage.load_iroh_services_ticket().ok().flatten();
+        let config = relay_settings.resolve(iroh_services_ticket.as_deref());
+        let node = Arc::clone(&self.node);
+
+        self.runtime
+            .block_on(async move { node.apply_relay_mode(config).await })
+            .map_err(|error| RelayTicketError::Invalid {
+                reason: error.to_string(),
+            })
     }
 }

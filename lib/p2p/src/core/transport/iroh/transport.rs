@@ -1,9 +1,15 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::HashMap,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+};
 
 use async_trait::async_trait;
 use iroh::{
     endpoint::{Connection, IncomingAddr},
-    Endpoint, EndpointAddr, EndpointId,
+    Endpoint, EndpointAddr, EndpointId, RelayMode,
 };
 use tokio::{
     io::{AsyncRead, AsyncWrite},
@@ -13,6 +19,7 @@ use tokio::{
 use super::{
     blobs_bridge::BlobsIntegration,
     connection::{ConnectionReader, ConnectionWriter, IrohIncoming},
+    relay_mode::RelayModeConfig,
 };
 use crate::{
     core::{
@@ -49,6 +56,18 @@ type ConnectionKey = (PeerId, Vec<u8>);
 /// existia antes (quando cada chamada deixava uma conexão física inteira presa para sempre).
 pub struct IrohTransport {
     endpoint: Endpoint,
+    /// `true` quando o modo de relay resolvido é `Disabled` (`RelayModeConfig::MdnsOnly`, ou o
+    /// legado sem nenhuma URL) — restringe dial (`open_bi`) e accept (`drive_incoming_connections`)
+    /// a endereços de rede local. Sem isso, um `EndpointAddr` cacheado de um pareamento anterior
+    /// (de quando um relay ainda estava ativo) ou um mapeamento de NAT ainda vivo no roteador
+    /// continuam permitindo conexão cross-internet mesmo com "só rede local" selecionado — o
+    /// `RelayMode` do iroh por si só não fecha a porta UDP nem filtra endereços cacheados.
+    ///
+    /// `Arc<AtomicBool>` (não um `bool` cru) porque `apply_relay_mode` precisa atualizar isso
+    /// em runtime — tanto aqui quanto na cópia capturada pela task de fundo
+    /// (`drive_incoming_connections`) precisam enxergar o valor novo, sem precisar reiniciar
+    /// a task nem reconstruir o transporte inteiro.
+    restrict_to_lan: Arc<AtomicBool>,
     connections: Arc<RwLock<HashMap<ConnectionKey, Connection>>>,
     /// Um mutex por `(peer, alpn)` que ainda está sendo discado, usado para serializar a
     /// sequência `check cache → dial → insert cache` em `open_bi`. Sem isso, duas chamadas
@@ -67,12 +86,21 @@ pub struct IrohTransport {
     /// Integração opcional com o adapter de blobs — "null object" quando a feature
     /// `iroh-blobs-adapter` está desligada, ver `blobs_bridge.rs`.
     blobs: BlobsIntegration,
+    /// URLs de relay atualmente aplicadas ao `Endpoint` — `Endpoint` não expõe um jeito de
+    /// CONSULTAR seu relay map ao vivo (só `insert_relay`/`remove_relay`, mutadores), então
+    /// `apply_relay_mode` precisa rastrear isso por fora pra saber o que remover/manter na
+    /// próxima troca.
+    current_relay_urls: Mutex<std::collections::HashSet<iroh::RelayUrl>>,
 }
 
 impl IrohTransport {
-    pub(crate) fn new(endpoint: Endpoint, blobs: BlobsIntegration) -> Self {
+    pub(crate) fn new(
+        endpoint: Endpoint, blobs: BlobsIntegration, restrict_to_lan: bool,
+        initial_relay_mode: RelayMode,
+    ) -> Self {
         let connections: Arc<RwLock<HashMap<ConnectionKey, Connection>>> =
             Arc::new(RwLock::new(HashMap::new()));
+        let restrict_to_lan = Arc::new(AtomicBool::new(restrict_to_lan));
         let (incoming_tx, incoming_rx) = mpsc::unbounded_channel();
 
         tokio::spawn(drive_incoming_connections(
@@ -80,14 +108,20 @@ impl IrohTransport {
             Arc::clone(&connections),
             incoming_tx,
             blobs.clone(),
+            Arc::clone(&restrict_to_lan),
         ));
+
+        let current_relay_urls =
+            initial_relay_mode.relay_map().urls::<std::collections::HashSet<_>>();
 
         Self {
             endpoint,
+            restrict_to_lan,
             connections,
             dial_locks: Mutex::new(HashMap::new()),
             incoming_rx: Mutex::new(incoming_rx),
             blobs,
+            current_relay_urls: Mutex::new(current_relay_urls),
         }
     }
 
@@ -162,6 +196,16 @@ impl P2pTransport for IrohTransport {
         } else {
             serde_json::from_slice(&peer.addrs)
                 .map_err(|_| ConnectionError::PeerNotFound(peer.id.clone()))?
+        };
+
+        // Sem relay algum configurado, um `EndpointAddr` cacheado de ANTES do usuário desligar o
+        // relay pode carregar um IP público (ou hint de relay) que ainda resolve — descartar
+        // essas pistas aqui garante que "só rede local" também vale pro lado que disca, não só
+        // pro que aceita.
+        let addr = if self.restrict_to_lan.load(Ordering::Relaxed) {
+            restrict_to_lan_addr(addr)
+        } else {
+            addr
         };
 
         let key = (peer.id.clone(), alpn.to_vec());
@@ -256,6 +300,42 @@ impl P2pTransport for IrohTransport {
         self.endpoint.network_change().await;
     }
 
+    /// Reconfigura o relay map do `Endpoint` já vivo em vez de reconstruir o transporte —
+    /// `Endpoint::insert_relay`/`remove_relay` (iroh) funcionam num endpoint já bindado, sem
+    /// derrubar conexões físicas ativas com peers já pareados. `restrict_to_lan` também é
+    /// atualizado aqui (`Arc<AtomicBool>` compartilhado com `open_bi`/`drive_incoming_connections`),
+    /// já que ele deriva do MESMO modo de relay resolvido.
+    async fn apply_relay_mode(&self, config: RelayModeConfig) -> Result<(), ConnectionError> {
+        let node_secret = self.endpoint.secret_key().clone();
+        let target = config.resolve(&node_secret)?;
+        let target_map = target.relay_map();
+        let target_urls: std::collections::HashSet<iroh::RelayUrl> = target_map.urls();
+
+        let mut current_urls = self.current_relay_urls.lock().await;
+        for url in current_urls.iter() {
+            if !target_urls.contains(url) {
+                self.endpoint.remove_relay(url).await;
+            }
+        }
+        for url in &target_urls {
+            if let Some(relay_config) = target_map.get(url) {
+                self.endpoint.insert_relay(url.clone(), relay_config).await;
+            }
+        }
+        *current_urls = target_urls;
+        drop(current_urls);
+
+        self.restrict_to_lan.store(matches!(target, RelayMode::Disabled), Ordering::Relaxed);
+
+        tracing::info!(
+            layer = "iroh_transport",
+            restrict_to_lan = matches!(target, RelayMode::Disabled),
+            "applied new relay mode to live endpoint"
+        );
+
+        Ok(())
+    }
+
     async fn invalidate(&self, peer: &PeerId, alpn: &[u8]) {
         let key = (peer.clone(), alpn.to_vec());
         self.connections.write().await.remove(&key);
@@ -294,6 +374,7 @@ fn to_peer_addr(node_id: EndpointId, addr: EndpointAddr) -> Result<PeerAddr, Con
 async fn drive_incoming_connections(
     endpoint: Endpoint, connections: Arc<RwLock<HashMap<ConnectionKey, Connection>>>,
     incoming_tx: mpsc::UnboundedSender<Box<dyn IncomingConnection>>, blobs: BlobsIntegration,
+    restrict_to_lan: Arc<AtomicBool>,
 ) {
     loop {
         let Some(incoming) = endpoint.accept().await else { break };
@@ -311,6 +392,24 @@ async fn drive_incoming_connections(
 
         let remote_id = conn.remote_id();
         let alpn = conn.alpn().to_vec();
+
+        // Sem relay algum configurado, a porta UDP local segue aberta pra qualquer pacote que
+        // chegue — um endereço direto cacheado de ANTES do relay ser desligado, ou um
+        // mapeamento de NAT ainda vivo no roteador, deixariam essa conexão passar mesmo com "só
+        // rede local" selecionado. `RelayMode::Disabled` por si só não filtra isso.
+        if restrict_to_lan.load(Ordering::Relaxed) && !is_private_incoming(&incoming_addr) {
+            tracing::warn!(
+                peer = %remote_id,
+                layer = "iroh_transport",
+                incoming_addr = ?incoming_addr,
+                "rejecting inbound connection from non-LAN address while relay is disabled"
+            );
+            conn.close(
+                iroh::endpoint::VarInt::from_u32(0),
+                b"relay disabled: only LAN peers allowed",
+            );
+            continue;
+        }
 
         // O ALPN de blobs não passa pelo dispatch genérico por ALPN registrado no
         // `NetworkManager` — o `BlobsProtocol` real do iroh-blobs precisa da `Connection`
@@ -407,6 +506,44 @@ fn resolve_endpoint_addr(remote_id: EndpointId, incoming_addr: &IncomingAddr) ->
     endpoint_addr
 }
 
+/// `true` só quando a tentativa de conexão de entrada chegou por um endereço IP direto de rede
+/// local — qualquer outra via (relay, ou uma variante desconhecida do iroh) é tratada como não
+/// confiável quando o modo de relay está desligado, já que nenhuma delas deveria sequer existir
+/// nesse cenário (ver `restrict_to_lan` em `IrohTransport`).
+fn is_private_incoming(incoming_addr: &IncomingAddr) -> bool {
+    match incoming_addr {
+        IncomingAddr::Ip(socket_address) => is_private_ip(socket_address.ip()),
+        _ => false,
+    }
+}
+
+/// Filtra um `EndpointAddr` cacheado pra manter só endereços IP de rede local, descartando
+/// qualquer hint de relay — usado por `open_bi` quando não há relay configurado, pra um endereço
+/// direto salvo de ANTES do usuário desligar o relay (ou um IP público que já tenha sido válido
+/// em algum momento) não continuar permitindo dial cross-internet.
+fn restrict_to_lan_addr(addr: EndpointAddr) -> EndpointAddr {
+    let mut restricted = EndpointAddr::new(addr.id);
+    for socket_address in
+        addr.ip_addrs().filter(|socket_address| is_private_ip(socket_address.ip()))
+    {
+        restricted = restricted.with_ip_addr(*socket_address);
+    }
+    restricted
+}
+
+/// Faixas de rede local/privada (IPv4 RFC 1918 + link-local, IPv6 ULA/link-local/loopback) — o
+/// resto (qualquer IP roteável publicamente) é tratado como WAN.
+fn is_private_ip(ip: std::net::IpAddr) -> bool {
+    match ip {
+        std::net::IpAddr::V4(v4) => v4.is_private() || v4.is_loopback() || v4.is_link_local(),
+        std::net::IpAddr::V6(v6) => {
+            v6.is_loopback()
+                || (v6.segments()[0] & 0xfe00) == 0xfc00 // unique local: fc00::/7
+                || (v6.segments()[0] & 0xffc0) == 0xfe80 // link-local: fe80::/10
+        },
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use tokio::io::AsyncWriteExt;
@@ -422,6 +559,54 @@ mod tests {
     async fn local_id_not_empty() {
         let transport = build_transport().await;
         assert!(!transport.local_id().id.is_empty());
+    }
+
+    /// Regressão do bug relatado: trocar a config de relay na UI só tinha efeito no PRÓXIMO
+    /// boot do app — o usuário via a tela "mudar" mas a conexão P2P continuava usando o relay
+    /// antigo indefinidamente. Prova que `apply_relay_mode` reconfigura `restrict_to_lan` e o
+    /// conjunto de URLs rastreado num transporte JÁ VIVO, sem precisar reconstruir nada.
+    #[tokio::test]
+    async fn apply_relay_mode_switches_restrict_to_lan_and_tracked_urls_live() {
+        let transport = IrohTransportBuilder::default()
+            .relay_mode(RelayModeConfig::Custom(vec!["https://relay-a.test.local".to_string()]))
+            .build(vec![b"test/proto".to_vec()])
+            .await
+            .unwrap();
+
+        assert!(!transport.restrict_to_lan.load(Ordering::Relaxed));
+        assert!(transport
+            .current_relay_urls
+            .lock()
+            .await
+            .contains(&"https://relay-a.test.local".parse().unwrap()));
+
+        P2pTransport::apply_relay_mode(&transport, RelayModeConfig::MdnsOnly).await.unwrap();
+
+        assert!(
+            transport.restrict_to_lan.load(Ordering::Relaxed),
+            "MdnsOnly deveria ligar restrict_to_lan"
+        );
+        assert!(
+            transport.current_relay_urls.lock().await.is_empty(),
+            "trocar pra MdnsOnly deveria remover todas as URLs rastreadas"
+        );
+
+        P2pTransport::apply_relay_mode(
+            &transport,
+            RelayModeConfig::Custom(vec!["https://relay-b.test.local".to_string()]),
+        )
+        .await
+        .unwrap();
+
+        assert!(
+            !transport.restrict_to_lan.load(Ordering::Relaxed),
+            "voltar pra Custom deveria desligar restrict_to_lan"
+        );
+        assert!(transport
+            .current_relay_urls
+            .lock()
+            .await
+            .contains(&"https://relay-b.test.local".parse().unwrap()));
     }
 
     #[tokio::test]
@@ -534,6 +719,64 @@ mod tests {
         assert!(resolved_endpoint_address.ip_addrs().any(|addr| *addr == socket_address));
     }
 
+    #[test]
+    fn is_private_ip_accepts_rfc1918_loopback_and_link_local() {
+        assert!(is_private_ip("192.168.1.10".parse().unwrap()));
+        assert!(is_private_ip("10.0.0.1".parse().unwrap()));
+        assert!(is_private_ip("172.16.5.4".parse().unwrap()));
+        assert!(is_private_ip("127.0.0.1".parse().unwrap()));
+        assert!(is_private_ip("169.254.1.1".parse().unwrap()));
+        assert!(is_private_ip("::1".parse().unwrap()));
+        assert!(is_private_ip("fc00::1".parse().unwrap()));
+        assert!(is_private_ip("fe80::1".parse().unwrap()));
+    }
+
+    #[test]
+    fn is_private_ip_rejects_public_addresses() {
+        assert!(!is_private_ip("8.8.8.8".parse().unwrap()));
+        assert!(!is_private_ip("1.1.1.1".parse().unwrap()));
+        assert!(!is_private_ip("2606:4700:4700::1111".parse().unwrap()));
+    }
+
+    #[test]
+    fn is_private_incoming_true_only_for_private_ip() {
+        let node_id = iroh::SecretKey::generate().public();
+        assert!(is_private_incoming(&IncomingAddr::Ip("192.168.1.5:1234".parse().unwrap())));
+        assert!(!is_private_incoming(&IncomingAddr::Ip("8.8.8.8:1234".parse().unwrap())));
+        assert!(!is_private_incoming(&IncomingAddr::Relay {
+            url: "https://relay.example.com.".parse().unwrap(),
+            endpoint_id: node_id,
+        }));
+    }
+
+    #[test]
+    fn restrict_to_lan_addr_keeps_only_private_ips_and_drops_relay_hints() {
+        let node_id = iroh::SecretKey::generate().public();
+        let relay_url: iroh::RelayUrl = "https://relay.example.com.".parse().unwrap();
+
+        let addr = EndpointAddr::new(node_id)
+            .with_ip_addr("192.168.1.5:1234".parse().unwrap())
+            .with_ip_addr("8.8.8.8:1234".parse().unwrap())
+            .with_relay_url(relay_url.clone());
+
+        let restricted = restrict_to_lan_addr(addr);
+
+        assert_eq!(restricted.id, node_id);
+        assert!(restricted.ip_addrs().any(|a| a.ip().to_string() == "192.168.1.5"));
+        assert!(!restricted.ip_addrs().any(|a| a.ip().to_string() == "8.8.8.8"));
+        assert_eq!(restricted.relay_urls().count(), 0);
+    }
+
+    #[test]
+    fn restrict_to_lan_addr_empties_out_when_only_public_ip_cached() {
+        let node_id = iroh::SecretKey::generate().public();
+        let addr = EndpointAddr::new(node_id).with_ip_addr("8.8.8.8:1234".parse().unwrap());
+
+        let restricted = restrict_to_lan_addr(addr);
+
+        assert_eq!(restricted.ip_addrs().count(), 0);
+    }
+
     #[tokio::test]
     async fn iroh_transport_latency_returns_none_for_unknown_peer() {
         let transport = build_transport().await;
@@ -584,6 +827,25 @@ mod tests {
             transport_a.shutdown().await.unwrap();
             transport_b.shutdown().await.unwrap();
         }
+    }
+
+    /// Regressão do bug relatado: sem relay configurado (`build_transport` usa o builder
+    /// default, que resolve pra `RelayMode::Disabled`), um `PeerAddr` cacheado de ANTES do relay
+    /// ser desligado (ou simplesmente forjado) cujo único endereço é um IP público não pode
+    /// continuar valendo pro dial — prova que `open_bi` de fato aplica `restrict_to_lan_addr`
+    /// antes de discar (não só que a função pura filtra certo, já coberto acima), inspecionando
+    /// o `EndpointAddr` que `dial_or_reuse` recebeu via o mesmo parse que `open_bi` faria.
+    #[test]
+    fn open_bi_would_strip_public_ip_only_cached_address_when_relay_disabled() {
+        let node_id = iroh::SecretKey::generate().public();
+        let cached = EndpointAddr::new(node_id).with_ip_addr("203.0.113.10:1234".parse().unwrap());
+        let addrs = serde_json::to_vec(&cached).unwrap();
+
+        let decoded: EndpointAddr = serde_json::from_slice(&addrs).unwrap();
+        let restricted = restrict_to_lan_addr(decoded);
+
+        assert_eq!(restricted.ip_addrs().count(), 0, "public IP must not survive the LAN filter");
+        assert_eq!(restricted.relay_urls().count(), 0);
     }
 
     /// O ganho principal do pool: evita discar uma conexão QUIC nova a cada `open_bi` para o

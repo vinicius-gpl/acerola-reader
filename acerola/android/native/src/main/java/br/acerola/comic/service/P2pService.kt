@@ -9,11 +9,13 @@ import android.util.Log
 import p2p.CoverBrowseProvider
 import p2p.FfiNetworkMode
 import p2p.FfiPeerAddr
+import p2p.FfiRelaySettings
 import p2p.FfiSyncDirection
 import p2p.FileSyncProvider
 import p2p.HistorySyncProvider
 import p2p.P2pCallback
 import p2p.P2pNode
+import p2p.RelayTicketException
 import p2p.SecureBlobStore
 import java.io.Closeable
 
@@ -21,6 +23,24 @@ enum class NetworkMode {
     LOCAL,
     RELAY,
 }
+
+/** Configuração de relay combinável a passar pro `P2PNode::new` — espelha
+ *  `FfiRelaySettings` (gerado via UniFFI), mesmo padrão de [NetworkMode]/[SyncDirection]:
+ *  os tipos `Ffi*` não vazam além da fronteira deste módulo `:native`. Ver
+ *  `br.acerola.comic.config.preference.RelayPreference.RelaySettings`, a fonte persistida
+ *  destes valores. */
+data class RelaySettings(
+    val useAcerolaRelay: Boolean,
+    val useIrohPublicNetwork: Boolean,
+    val customRelayUrls: List<String>,
+)
+
+private fun RelaySettings.toFfi(): FfiRelaySettings =
+    FfiRelaySettings(
+        useAcerolaRelay = useAcerolaRelay,
+        useIrohPublicNetwork = useIrohPublicNetwork,
+        customRelayUrls = customRelayUrls,
+    )
 
 /** Direção explícita de um [syncComic] — `PUSH` manda o quadrinho pro peer, `PULL` puxa dele.
  *  Espelha `FfiSyncDirection` (gerado via UniFFI); mesmo padrão de [NetworkMode]/[FfiNetworkMode]
@@ -53,7 +73,7 @@ data class ConnectedPeerInfo(
 
 class P2pService(
     context: Context,
-    relayUrlOverride: String?,
+    relaySettings: RelaySettings,
     /** Apelido custom salvo pelo usuário (DataStore, `DeviceAliasPreference`) — `null` quando
      *  nunca definido, e o `Build.MODEL` padrão é usado. Só lido aqui, na construção do node;
      *  renomear depois de iniciado é feito em runtime via [setLocalDeviceName], sem
@@ -100,7 +120,7 @@ class P2pService(
             callbackHandler,
             legacyDataDir,
             blobsDir,
-            relayUrlOverride,
+            relaySettings.toFfi(),
             deviceNameOverride ?: Build.MODEL,
             appVersion,
             secureStore,
@@ -261,6 +281,41 @@ class P2pService(
     fun removePairedPeer(id: String) {
         Log.d("P2pService", "Removing paired peer: $id")
         p2pNode.removePairedPeer(id)
+    }
+
+    /** `true` se o usuário já colou e salvou um ticket da própria conta em
+     *  `services.iroh.computer` — nunca devolve o valor em si (é uma credencial real). */
+    fun hasIrohServicesTicket(): Boolean = p2pNode.hasIrohServicesTicket()
+
+    /** Valida o formato antes de persistir. Não aplica sozinho a config nova — quem chama
+     *  também invoca [applyRelaySettings] em seguida (ver `P2pUseCase`/`SyncViewModel`).
+     *  @throws IllegalArgumentException se o ticket for malformado. */
+    fun setIrohServicesTicket(ticket: String) {
+        try {
+            p2pNode.setIrohServicesTicket(ticket)
+        } catch (error: RelayTicketException.Invalid) {
+            throw IllegalArgumentException(error.reason)
+        }
+    }
+
+    /** Remove o ticket salvo — usado quando o usuário desliga a fonte ou substitui por um novo. */
+    fun clearIrohServicesTicket() {
+        p2pNode.clearIrohServicesTicket()
+    }
+
+    /** Relê a config de relay combinável + o ticket do cofre e aplica ao node JÁ VIVO
+     *  (`insert_relay`/`remove_relay` num `Endpoint` que continua rodando, sem derrubar
+     *  conexões ativas) — chamado depois de QUALQUER mudança nas fontes de relay (toggle do
+     *  Acerola/Iroh, add/remove de URL própria, salvar/remover ticket). Antes disso existir,
+     *  mudar a config de relay só tinha efeito no PRÓXIMO boot do app.
+     *  @throws IllegalArgumentException se a config resultante for inválida (ex: URL própria
+     *  malformada). */
+    fun applyRelaySettings(relaySettings: RelaySettings) {
+        try {
+            p2pNode.applyRelaySettings(relaySettings.toFfi())
+        } catch (error: RelayTicketException.Invalid) {
+            throw IllegalArgumentException(error.reason)
+        }
     }
 
     fun shutdown() {

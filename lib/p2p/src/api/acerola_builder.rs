@@ -199,7 +199,10 @@ impl<TB: TransportP2pBuilder> AcerolaP2pBuilder<TB> {
         let transport = Arc::new(self.transport.build(alpns).await?);
 
         let local_id = transport.local_id();
-        let local_addr = transport.local_addr()?;
+        // Só valida aqui que o transporte já consegue montar um `EndpointAddr` válido — o
+        // valor em si não é guardado (`AcerolaP2p::local_addr` recalcula ao vivo a cada
+        // chamada, ver doc lá).
+        transport.local_addr()?;
 
         let (mut manager, command_tx, state) = NetworkManager::with_storage(
             Arc::clone(&transport) as Arc<dyn P2pTransport>,
@@ -251,7 +254,6 @@ impl<TB: TransportP2pBuilder> AcerolaP2pBuilder<TB> {
         Ok(AcerolaP2p {
             command_tx,
             local_id,
-            local_addr,
             state,
             device_info,
             transport: transport as Arc<dyn P2pTransport>,
@@ -361,7 +363,7 @@ mod tests {
                 .await
                 .unwrap();
 
-        let addr_b = node_b.local_addr().clone();
+        let addr_b = node_b.local_addr().unwrap();
 
         // Aguarda mDNS descobrir o peer antes de tentar conectar
         tokio::time::sleep(tokio::time::Duration::from_millis(1500)).await;

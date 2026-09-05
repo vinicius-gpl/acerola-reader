@@ -33,6 +33,7 @@ struct MockNetworkState {
     paired_peers: Vec<(PeerAddr, Option<DeviceInfo>)>,
     last_connection: Option<(String, Vec<u8>)>,
     failure: Option<String>,
+    iroh_services_ticket: Option<String>,
 }
 
 impl MockNetworkService {
@@ -46,6 +47,7 @@ impl MockNetworkService {
                 paired_peers: Vec::new(),
                 last_connection: None,
                 failure: None,
+                iroh_services_ticket: None,
             })),
         }
     }
@@ -170,6 +172,31 @@ impl NetworkServiceApi for MockNetworkService {
     }
 
     async fn shutdown(&self) -> Result<(), String> {
+        let mut state = self.state.lock().expect("network mock mutex should not be poisoned");
+        Self::take_failure(&mut state)
+    }
+
+    async fn has_iroh_services_ticket(&self) -> Result<bool, String> {
+        let mut state = self.state.lock().expect("network mock mutex should not be poisoned");
+        Self::take_failure(&mut state)?;
+        Ok(state.iroh_services_ticket.is_some())
+    }
+
+    async fn set_iroh_services_ticket(&self, ticket: String) -> Result<(), String> {
+        let mut state = self.state.lock().expect("network mock mutex should not be poisoned");
+        Self::take_failure(&mut state)?;
+        state.iroh_services_ticket = Some(ticket);
+        Ok(())
+    }
+
+    async fn clear_iroh_services_ticket(&self) -> Result<(), String> {
+        let mut state = self.state.lock().expect("network mock mutex should not be poisoned");
+        Self::take_failure(&mut state)?;
+        state.iroh_services_ticket = None;
+        Ok(())
+    }
+
+    async fn apply_relay_settings(&self) -> Result<(), String> {
         let mut state = self.state.lock().expect("network mock mutex should not be poisoned");
         Self::take_failure(&mut state)
     }

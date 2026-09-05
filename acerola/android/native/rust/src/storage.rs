@@ -14,6 +14,7 @@ use crate::callbacks::SecureBlobStore;
 const IDENTITY_KEY: &str = "identity";
 const PEERS_KEY: &str = "peers";
 const DEVICE_INFO_KEY: &str = "device_info";
+const IROH_SERVICES_TICKET_KEY: &str = "iroh_services_ticket";
 
 /// Implementação de `P2PStorage` que persiste via [`SecureBlobStore`] (Kotlin,
 /// `EncryptedSharedPreferences` protegida pelo Android Keystore) em vez de arquivos em texto
@@ -92,6 +93,44 @@ impl SecureP2pStorage {
             .save_blob(DEVICE_INFO_KEY.to_string(), bytes)
             .map_err(|err| {
                 P2pError::StartupFailed(format!("failed to save device info cache: {err}"))
+            })
+    }
+
+    /// Persiste o ticket da conta do usuário em `services.iroh.computer` (colado por ele na
+    /// tela de configuração de rede) no mesmo cofre da identidade P2P — nunca em DataStore
+    /// (que fica sem criptografia por padrão). Só tem efeito no próximo início do app, mesma
+    /// regra das outras fontes de relay (a lib não suporta trocar relay em runtime).
+    pub(crate) fn save_iroh_services_ticket(&self, ticket: &str) -> Result<(), P2pError> {
+        self.store
+            .save_blob(
+                IROH_SERVICES_TICKET_KEY.to_string(),
+                ticket.as_bytes().to_vec(),
+            )
+            .map_err(|err| {
+                P2pError::StartupFailed(format!("failed to save Iroh Services ticket: {err}"))
+            })
+    }
+
+    /// `None` quando o usuário nunca colou um ticket, ou quando o blob existe mas não decodifica
+    /// como UTF-8 (corrompido) — trata como "não configurado" em vez de propagar erro, já que a
+    /// rede pública do Iroh indisponível não deveria travar o resto da rede P2P.
+    pub(crate) fn load_iroh_services_ticket(&self) -> Result<Option<String>, P2pError> {
+        let bytes = self
+            .store
+            .load_blob(IROH_SERVICES_TICKET_KEY.to_string())
+            .map_err(|err| {
+                P2pError::StartupFailed(format!("failed to load Iroh Services ticket: {err}"))
+            })?;
+
+        Ok(bytes.and_then(|bytes| String::from_utf8(bytes).ok()))
+    }
+
+    /// Remove o ticket salvo — usado quando o usuário desliga a fonte ou substitui por um novo.
+    pub(crate) fn clear_iroh_services_ticket(&self) -> Result<(), P2pError> {
+        self.store
+            .clear_blob(IROH_SERVICES_TICKET_KEY.to_string())
+            .map_err(|err| {
+                P2pError::StartupFailed(format!("failed to clear Iroh Services ticket: {err}"))
             })
     }
 
@@ -259,6 +298,11 @@ mod tests {
         fn load_blob(&self, key: String) -> Result<Option<Vec<u8>>, SecureBlobStoreError> {
             Ok(self.data.lock().unwrap().get(&key).cloned())
         }
+
+        fn clear_blob(&self, key: String) -> Result<(), SecureBlobStoreError> {
+            self.data.lock().unwrap().remove(&key);
+            Ok(())
+        }
     }
 
     fn make_peer(id: &str) -> PeerAddr {
@@ -365,6 +409,35 @@ mod tests {
         let loaded = storage.load_device_info().await.unwrap();
         assert_eq!(loaded.len(), 1);
         assert_eq!(loaded[0].1.name, "new-name");
+    }
+
+    #[test]
+    fn iroh_services_ticket_roundtrips_through_the_secure_store() {
+        let storage = SecureP2pStorage::open(Arc::new(FakeBlobStore::new()), None);
+
+        assert_eq!(storage.load_iroh_services_ticket().unwrap(), None);
+
+        storage
+            .save_iroh_services_ticket("services-fake-ticket")
+            .unwrap();
+        assert_eq!(
+            storage.load_iroh_services_ticket().unwrap(),
+            Some("services-fake-ticket".to_string())
+        );
+    }
+
+    #[test]
+    fn clear_iroh_services_ticket_removes_it_and_is_idempotent() {
+        let storage = SecureP2pStorage::open(Arc::new(FakeBlobStore::new()), None);
+
+        storage
+            .save_iroh_services_ticket("services-fake-ticket")
+            .unwrap();
+        storage.clear_iroh_services_ticket().unwrap();
+        assert_eq!(storage.load_iroh_services_ticket().unwrap(), None);
+
+        // Chamar de novo sem nada salvo não é erro.
+        storage.clear_iroh_services_ticket().unwrap();
     }
 
     #[tokio::test]

@@ -32,7 +32,6 @@ pub struct AcerolaP2p {
     pub(super) command_tx: mpsc::Sender<NetworkCommand>,
     pub(super) state: Arc<RwLock<NetworkState>>,
     pub(super) device_info: Arc<RwLock<DeviceInfo>>,
-    pub(super) local_addr: PeerAddr,
     pub(super) local_id: PeerId,
     pub(super) transport: Arc<dyn P2pTransport>,
 }
@@ -53,9 +52,15 @@ impl AcerolaP2p {
         &self.local_id.id
     }
 
-    /// Retorna um objeto do PeerAddr, juntamente vem o id do peerid + addr
-    pub fn local_addr(&self) -> &PeerAddr {
-        &self.local_addr
+    /// Retorna um objeto do PeerAddr, juntamente vem o id do peerid + addr — recalculado a
+    /// partir do transporte vivo a cada chamada, nunca cacheado. Antes disso, o valor era
+    /// capturado uma única vez na construção do node e guardado num campo estático: qualquer
+    /// endereço direto/relay que mudasse depois (troca de rede, `apply_relay_mode`) nunca se
+    /// refletia aqui, então um QR code de pareamento gerado depois de uma troca de relay ao
+    /// vivo continuava anunciando o relay ANTIGO — o outro lado disca certinho pro endereço
+    /// que recebeu, só que ele já não é mais onde o node está de fato escutando.
+    pub fn local_addr(&self) -> Result<PeerAddr, ConnectionError> {
+        self.transport.local_addr()
     }
 
     /// Retorna o `device_id` UUID v5 derivado da chave pública do nó.
@@ -124,6 +129,17 @@ impl AcerolaP2p {
     /// `P2pTransport::network_change` para o motivo de isso ser necessário no Android.
     pub async fn network_change(&self) {
         self.transport.network_change().await;
+    }
+
+    /// Aplica um novo modo de relay ao node já vivo — ver a doc em
+    /// `P2pTransport::apply_relay_mode` para o porquê disso não precisar reconstruir o node
+    /// inteiro. Chamado sempre que o usuário muda a config de relay na UI, em vez de exigir
+    /// fechar e reabrir o app pra valer.
+    #[cfg(feature = "iroh")]
+    pub async fn apply_relay_mode(
+        &self, config: crate::core::transport::iroh::RelayModeConfig,
+    ) -> Result<(), ConnectionError> {
+        self.transport.apply_relay_mode(config).await
     }
 
     /// Retorna o store de blobs deste nó, se o adapter de transporte suportar essa capacidade
@@ -469,7 +485,7 @@ mod tests {
                 .await
                 .unwrap();
 
-        let addr_b = node_b.local_addr().clone();
+        let addr_b = node_b.local_addr().unwrap();
         let id_b = PeerId {
             id: node_b.local_id().to_string(),
             device_id: node_b.local_device_id().map(|s| s.to_string()),

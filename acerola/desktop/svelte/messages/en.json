@@ -723,9 +723,6 @@
 				"title": "This device",
 				"mode_local": "Local network",
 				"mode_relay": "Relay",
-				"relay_label": "Relay",
-				"relay_default": "default",
-				"relay_custom": "custom",
 				"copy_id": "Copy ID",
 				"rename": {
 					"action": "Rename device",
@@ -735,6 +732,38 @@
 					"success": "Device name updated!",
 					"error": "Couldn't rename the device: {msg}"
 				}
+			},
+			"relay_settings": {
+				"title": "Connection",
+				"description": "Choose how this device reaches others outside your local network.",
+				"use_acerola_relay": "Use Acerola's relay",
+				"use_acerola_relay_desc": "Managed automatically ({url}).",
+				"use_iroh_public_network": "Use Iroh Services (own account)",
+				"use_iroh_public_network_desc": "Authenticated with your own account's ticket from services.iroh.computer — can't be combined with the sources below.",
+				"exclusive_note": "Disabled while Iroh Services is active.",
+				"use_iroh_public_network_disabled_hint": "Configure a ticket below to enable this source.",
+				"iroh_services_ticket": {
+					"label": "Iroh Services ticket",
+					"configured": "Ticket configured.",
+					"not_configured": "No ticket configured yet.",
+					"placeholder": "Paste the ticket generated at services.iroh.computer",
+					"save_button": "Save ticket",
+					"replace_button": "Replace ticket",
+					"remove_button": "Remove ticket",
+					"invalid": "Invalid ticket. Check that you copied the full text.",
+					"help": "Create a free account at services.iroh.computer, generate a ticket in your project, and paste it here — the credential stays on this device only, it's never sent to the relay."
+				},
+				"custom_relays": {
+					"title": "Your own relays",
+					"add_placeholder": "https://your-relay.example.com",
+					"add_button": "Add custom relay",
+					"empty": "No custom relay added.",
+					"remove": "Remove custom relay"
+				},
+				"invalid_url": "Enter a valid URL (e.g. https://relay.example.com).",
+				"summary_mdns_only": "Local network only (mDNS) — no relay active, only devices on the same network can connect.",
+				"summary_iroh_public": "Using Iroh's public relay network.",
+				"summary_active": "{count} relay source(s) active."
 			},
 			"pairing": {
 				"title": "Connection code",

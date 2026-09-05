@@ -8,27 +8,29 @@
 mod config;
 mod gc;
 
-use std::time::Duration;
+use std::{collections::HashMap, sync::Arc, time::Duration};
 
 use async_trait::async_trait;
-use iroh::{Endpoint, EndpointAddr};
+use iroh::{endpoint::Connection, Endpoint, EndpointAddr, EndpointId};
 use iroh_blobs::{api::Store, Hash, HashAndFormat};
-use tokio::io::AsyncRead;
+use tokio::{
+    io::AsyncRead,
+    sync::{Mutex, RwLock},
+};
 
 pub use self::config::IrohBlobsConfig;
 use super::{hash::BlobHash, store::P2pBlobStore};
 use crate::infra::{error::ConnectionError, peer::PeerAddr};
 
-/// Teto pra quanto tempo `fetch()` espera por uma conexão/path silenciosamente morto — a
-/// mesma classe de bug já documentada e corrigida para conexões via pool em
-/// `core/transport/iroh/transport.rs::invalidate_forces_fresh_dial_on_next_open_bi`. A
-/// diferença é que `fetch()` aqui disca sua própria conexão direto no `Endpoint` (ALPN
-/// `iroh_blobs::ALPN`), fora do pool de `IrohTransport` — não há uma entrada de cache pra
-/// `NetworkManager::invalidate` limpar, e sem timeout nenhum aqui o `.complete()` do
-/// iroh-blobs pode ficar esperando indefinidamente por um path que nunca vai responder de
-/// novo, sem nunca resolver a `Err` — o que impede até o mecanismo genérico de retry do
-/// `NetworkManager` (que só reage a um handler retornando `Err`) de sequer entrar em ação.
-/// Timeout aqui garante que uma conexão/path morto sempre termina em erro, deixando quem
+/// Teto pra quanto tempo `fetch()` espera por uma conexão/path silenciosamente morto — mesma
+/// classe de bug já documentada e corrigida para conexões via pool em
+/// `core/transport/iroh/transport.rs::invalidate_forces_fresh_dial_on_next_open_bi`; aqui a
+/// conexão vem de `IrohBlobStore::dial_or_reuse` (próprio pool, ALPN `iroh_blobs::ALPN`,
+/// separado do de `IrohTransport` porque atende um protocolo diferente). Sem timeout, o
+/// `.complete()` do iroh-blobs pode ficar esperando indefinidamente por um path que nunca vai
+/// responder de novo, sem nunca resolver a `Err` — o que impede até o mecanismo genérico de
+/// retry do `NetworkManager` (que só reage a um handler retornando `Err`) de sequer entrar em
+/// ação. Timeout aqui garante que uma conexão/path morto sempre termina em erro, deixando quem
 /// chama (`ChapterTransfer::fetch_reader` e o resto do protocolo de sync) livre pra tratar
 /// como qualquer outra falha de rede — pular o item, tentar de novo mais tarde, etc.
 const BLOB_FETCH_TIMEOUT: Duration = Duration::from_secs(15);
@@ -56,6 +58,16 @@ pub struct IrohBlobStore {
     /// produção pra não estourar por serem legitimamente mais lentos que um timeout de teste
     /// artificialmente curto.
     fetch_timeout: Duration,
+    /// Conexão física reaproveitada entre fetches sucessivos pro MESMO peer — sem isso, cada
+    /// `fetch()` (um por capítulo/blob, discado direto aqui fora do pool de `IrohTransport`)
+    /// abria uma conexão QUIC nova, reproduzindo em sequência rápida (um fetch atrás do outro
+    /// na sincronização de uma pasta) o mesmo padrão que já colidia contra relay
+    /// (`MultipathNotNegotiated`, handshake falhando) documentado e corrigido pro pool de
+    /// `IrohTransport::open_bi` — aqui nunca tinha ganhado o mesmo tratamento.
+    connections: Arc<RwLock<HashMap<EndpointId, Connection>>>,
+    /// Serializa `check cache → dial → insert cache` por peer — mesmo motivo do
+    /// `dial_locks` em `transport.rs`.
+    dial_locks: Mutex<HashMap<EndpointId, Arc<tokio::sync::Mutex<()>>>>,
 }
 
 impl IrohBlobStore {
@@ -65,7 +77,13 @@ impl IrohBlobStore {
         config: &IrohBlobsConfig, endpoint: Endpoint,
     ) -> Result<Self, ConnectionError> {
         let store = config.build_store().await?;
-        Ok(Self { store, endpoint, fetch_timeout: BLOB_FETCH_TIMEOUT })
+        Ok(Self {
+            store,
+            endpoint,
+            fetch_timeout: BLOB_FETCH_TIMEOUT,
+            connections: Arc::new(RwLock::new(HashMap::new())),
+            dial_locks: Mutex::new(HashMap::new()),
+        })
     }
 
     /// O `Store` interno, usado por `IrohTransport` para montar o `BlobsProtocol` no lado
@@ -137,7 +155,8 @@ impl IrohBlobStore {
     async fn dial_and_fetch(
         &self, addr: EndpointAddr, iroh_hash: Hash,
     ) -> Result<(), ConnectionError> {
-        let conn = self.endpoint.connect(addr, iroh_blobs::ALPN).await?;
+        let peer_id = addr.id;
+        let conn = self.dial_or_reuse(addr).await?;
 
         // `remote().fetch()` não usa nenhuma proteção interna — confirmado lendo o código-fonte
         // do iroh-blobs (`api::remote::execute_get_sink`, que escreve os chunks direto no store)
@@ -171,10 +190,45 @@ impl IrohBlobStore {
 
         if let Err(err) = self.store.remote().fetch(conn, iroh_hash).complete().await {
             let _ = gc::untag(&self.store, iroh_hash).await;
+            // A conexão cacheada pode ter morrido no meio deste fetch — descarta pra garantir
+            // que o PRÓXIMO fetch pro mesmo peer disque uma conexão física nova em vez de
+            // reaproveitar a mesma que acabou de falhar.
+            self.invalidate(&peer_id).await;
             return Err(err.into());
         }
 
         Ok(())
+    }
+
+    /// Disca (ou reaproveita) a conexão física pro peer — mesmo padrão de
+    /// `IrohTransport::dial_or_reuse` (`transport.rs`): sem isso, cada `fetch()` (um por
+    /// capítulo/blob) discava do zero, batendo na mesma colisão de handshake concorrente já
+    /// corrigida lá.
+    async fn dial_or_reuse(&self, addr: EndpointAddr) -> Result<Connection, ConnectionError> {
+        let peer_id = addr.id;
+        let key_lock = {
+            let mut locks = self.dial_locks.lock().await;
+            Arc::clone(
+                locks.entry(peer_id).or_insert_with(|| Arc::new(tokio::sync::Mutex::new(()))),
+            )
+        };
+        let _dial_guard = key_lock.lock().await;
+
+        if let Some(conn) = self.connections.read().await.get(&peer_id).cloned() {
+            if conn.close_reason().is_none() {
+                return Ok(conn);
+            }
+        }
+
+        let conn = self.endpoint.connect(addr, iroh_blobs::ALPN).await?;
+        self.connections.write().await.insert(peer_id, conn.clone());
+        Ok(conn)
+    }
+
+    /// Remove a conexão cacheada pro peer — chamado quando um fetch falha, pra garantir que a
+    /// PRÓXIMA chamada disque uma conexão física nova em vez de reaproveitar uma morta.
+    async fn invalidate(&self, peer_id: &EndpointId) {
+        self.connections.write().await.remove(peer_id);
     }
 }
 
@@ -204,6 +258,49 @@ mod tests {
 
     async fn mem_store() -> IrohBlobStore {
         mem_store_with_gc_interval(Duration::from_secs(30)).await
+    }
+
+    /// Endpoint capaz de discar via endereço explícito sem depender de discovery nenhum —
+    /// mesmo padrão comprovado em `IrohTransportBuilder::default()`/`transport.rs`
+    /// (`presets::Minimal`, só o `crypto_provider` obrigatório). Diferente de
+    /// `unbound_endpoint()` acima (`presets::N0`, registra DNS/pkarr que depende de rede real
+    /// e nunca foi pensado pra round-trip de verdade entre dois nodes — só pra satisfazer o
+    /// construtor em testes que nunca tocam a rede).
+    async fn connectable_endpoint() -> Endpoint {
+        Endpoint::builder(iroh::endpoint::presets::Minimal)
+            .address_lookup(iroh_mdns_address_lookup::MdnsAddressLookup::builder())
+            .relay_mode(iroh::RelayMode::Disabled)
+            .alpns(vec![iroh_blobs::ALPN.to_vec()])
+            .bind()
+            .await
+            .unwrap()
+    }
+
+    async fn connectable_mem_store() -> IrohBlobStore {
+        let config = IrohBlobsConfig::Mem { gc_interval: Duration::from_secs(30) };
+        IrohBlobStore::new(&config, connectable_endpoint().await).await.unwrap()
+    }
+
+    /// `IrohBlobStore` sozinho (fora do `IrohTransport`) não tem nada chamando
+    /// `endpoint.accept()` — em produção quem faz isso é `blobs_bridge.rs::try_accept`, chamado
+    /// de dentro do loop de accept do `IrohTransport`. Testes que precisam de um round-trip de
+    /// verdade (peer que ACEITA, não só disca) precisam desse mesmo dispatch manualmente.
+    fn spawn_blob_accept_loop(store: Arc<IrohBlobStore>) {
+        use iroh::protocol::ProtocolHandler as _;
+
+        tokio::spawn(async move {
+            loop {
+                let Some(incoming) = store.endpoint.accept().await else { break };
+                let Ok(conn) = incoming.await else { continue };
+                if conn.alpn() != iroh_blobs::ALPN {
+                    continue;
+                }
+                let protocol = iroh_blobs::BlobsProtocol::new(store.inner_store(), None);
+                tokio::spawn(async move {
+                    let _ = protocol.accept(conn).await;
+                });
+            }
+        });
     }
 
     // Bug conhecido e ja documentado do iroh-blobs 0.103.0: `FsStore::load_with_opts`
@@ -308,10 +405,7 @@ mod tests {
     }
 
     /// Regressão do bug relatado em produção (Android): `sync-comic` puxando capa/banner via
-    /// `fetch()` ficava preso pra sempre quando o path pro peer estava silenciosamente morto —
-    /// a mesma classe de conexão-reaproveitada-mas-morta já documentada e corrigida para
-    /// conexões via pool em `transport.rs::invalidate_forces_fresh_dial_on_next_open_bi`, só
-    /// que sem equivalente aqui porque `fetch()` disca sua própria conexão fora daquele pool.
+    /// `fetch()` ficava preso pra sempre quando o path pro peer estava silenciosamente morto.
     /// Sem timeout, nada nunca resolve a `Err`, então nem o retry genérico do `NetworkManager`
     /// (que só reage a um handler retornando `Err`) entra em ação — o usuário via o botão de
     /// sync preso até fechar e reabrir o app.
@@ -345,6 +439,44 @@ mod tests {
         assert!(
             elapsed < Duration::from_secs(5),
             "fetch deveria ter estourado o BLOB_FETCH_TIMEOUT de teste rapidamente, levou {elapsed:?}"
+        );
+    }
+
+    /// Regressão do bug relatado em produção: sincronizar vários capítulos disparava um
+    /// `fetch()` por capítulo, cada um discando uma conexão QUIC nova pro MESMO peer em
+    /// sequência rápida — o mesmo padrão que colide contra relay (`MultipathNotNegotiated`,
+    /// handshake falhando) já documentado e corrigido pro pool de `IrohTransport::open_bi`
+    /// (`transport.rs::open_bi_reuses_cached_connection_across_calls`). Prova que um segundo
+    /// `fetch()` pro mesmo peer reaproveita a MESMA conexão física da primeira chamada, em vez
+    /// de discar outra.
+    #[tokio::test]
+    async fn fetch_reuses_cached_connection_across_calls() {
+        let store_a = Arc::new(connectable_mem_store().await);
+        let store_b = connectable_mem_store().await;
+        spawn_blob_accept_loop(Arc::clone(&store_a));
+
+        let payload = b"reuse test payload".to_vec();
+        let hash = store_a.put(payload.clone()).await.unwrap();
+
+        let addr_a = store_a.endpoint.addr();
+        let peer_a = PeerAddr {
+            id: PeerId { id: store_a.endpoint.id().to_string(), device_id: None },
+            addrs: serde_json::to_vec(&addr_a).unwrap(),
+        };
+        let peer_id = addr_a.id;
+
+        store_b.fetch(&hash, &peer_a).await.unwrap();
+        let first_stable_id =
+            store_b.connections.read().await.get(&peer_id).map(|conn| conn.stable_id());
+        assert!(first_stable_id.is_some(), "conexão deveria estar cacheada após o primeiro fetch");
+
+        store_b.fetch(&hash, &peer_a).await.unwrap();
+        let second_stable_id =
+            store_b.connections.read().await.get(&peer_id).map(|conn| conn.stable_id());
+
+        assert_eq!(
+            first_stable_id, second_stable_id,
+            "segundo fetch pro mesmo peer deveria reaproveitar a conexão cacheada, não discar outra"
         );
     }
 }

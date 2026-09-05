@@ -1,4 +1,4 @@
-use std::{collections::HashSet, sync::Arc};
+use std::{collections::HashSet, path::PathBuf, sync::Arc};
 
 use acerola_p2p::api::{
     guard::{InMemoryTrustedStore, TofuGuard, TrustedPeerStore},
@@ -10,7 +10,10 @@ use acerola_p2p::api::{
 };
 use async_trait::async_trait;
 
-use crate::infra::security::{p2p_storage::SecureP2pStorage, trusted_store::SecureTrustedStore};
+use crate::{
+    bios::scopes::read_relay_settings,
+    infra::security::{p2p_storage::SecureP2pStorage, trusted_store::SecureTrustedStore},
+};
 
 pub type ConnectedPeerInfo = (PeerIdentity, HashSet<Vec<u8>>, Option<DeviceInfo>);
 
@@ -47,6 +50,19 @@ pub trait NetworkServiceApi: Send + Sync + 'static {
     async fn mode(&self) -> Result<NetworkMode, String>;
     async fn connect(&self, peer_addr: PeerAddr, alpn: Vec<u8>) -> Result<(), String>;
     async fn shutdown(&self) -> Result<(), String>;
+    /// `true` se o usuário já colou e salvou um ticket da própria conta em
+    /// `services.iroh.computer` — nunca devolve o valor em si (é uma credencial real).
+    async fn has_iroh_services_ticket(&self) -> Result<bool, String>;
+    /// Valida o formato antes de persistir (rejeita colagem incompleta/errada na hora, em vez
+    /// de só falhar no próximo boot). Só tem efeito no próximo início do app — a lib não
+    /// suporta trocar relay em runtime.
+    async fn set_iroh_services_ticket(&self, ticket: String) -> Result<(), String>;
+    async fn clear_iroh_services_ticket(&self) -> Result<(), String>;
+    /// Relê `settings.json` + o ticket do cofre, resolve a config de relay combinável e aplica
+    /// ao node JÁ VIVO (`AcerolaP2p::apply_relay_mode`) — sem isso, mudar a config de relay na
+    /// UI só tinha efeito no PRÓXIMO boot do app. Chamado pelo frontend depois de qualquer
+    /// mudança nas fontes de relay (toggle do Acerola/Iroh, add/remove de URL própria, ticket).
+    async fn apply_relay_settings(&self) -> Result<(), String>;
 }
 
 pub struct NetworkService {
@@ -61,13 +77,17 @@ pub struct NetworkService {
     /// Mesmo motivo do campo acima, pro lado da confiança (TOFU) — `SecureTrustedStore::remove`
     /// também não faz parte de `TrustedPeerStore`.
     trust_store: Arc<SecureTrustedStore>,
+    /// Só pra [`Self::apply_relay_settings`] poder reler `settings.json` sob demanda — mesma
+    /// pasta já usada por `bios::network::setup_network` na inicialização.
+    app_data_directory: PathBuf,
 }
 
 impl NetworkService {
     pub fn new(
-        node: Arc<AcerolaP2p>, storage: Arc<SecureP2pStorage>, trust_store: Arc<SecureTrustedStore>,
+        node: Arc<AcerolaP2p>, storage: Arc<SecureP2pStorage>,
+        trust_store: Arc<SecureTrustedStore>, app_data_directory: PathBuf,
     ) -> Self {
-        Self { node, storage, trust_store }
+        Self { node, storage, trust_store, app_data_directory }
     }
 }
 
@@ -80,7 +100,7 @@ impl NetworkServiceApi for NetworkService {
     /// Endereço completo (id + bytes de endereçamento) usado pra gerar o código/QR de
     /// pareamento — é o que o outro dispositivo precisa pra nos alcançar via `connect()`.
     fn local_addr(&self) -> Result<PeerAddr, String> {
-        Ok(self.node.local_addr().clone())
+        self.node.local_addr().map_err(|err| err.to_string())
     }
 
     /// Nome/OS/versão deste dispositivo — usado na tela de Rede pra exibir algo mais
@@ -147,5 +167,28 @@ impl NetworkServiceApi for NetworkService {
 
     async fn shutdown(&self) -> Result<(), String> {
         self.node.shutdown().await.map_err(|err| err.to_string())
+    }
+
+    async fn has_iroh_services_ticket(&self) -> Result<bool, String> {
+        Ok(self.storage.load_iroh_services_ticket().await.map_err(|err| err.to_string())?.is_some())
+    }
+
+    async fn set_iroh_services_ticket(&self, ticket: String) -> Result<(), String> {
+        let trimmed = ticket.trim();
+        acerola_p2p::api::transport::validate_iroh_services_ticket(trimmed)
+            .map_err(|err| err.to_string())?;
+        self.storage.save_iroh_services_ticket(trimmed).await.map_err(|err| err.to_string())
+    }
+
+    async fn clear_iroh_services_ticket(&self) -> Result<(), String> {
+        self.storage.clear_iroh_services_ticket().await.map_err(|err| err.to_string())
+    }
+
+    async fn apply_relay_settings(&self) -> Result<(), String> {
+        let iroh_services_ticket =
+            self.storage.load_iroh_services_ticket().await.map_err(|err| err.to_string())?;
+        let relay_mode =
+            read_relay_settings(&self.app_data_directory).resolve(iroh_services_ticket.as_deref());
+        self.node.apply_relay_mode(relay_mode).await.map_err(|err| err.to_string())
     }
 }

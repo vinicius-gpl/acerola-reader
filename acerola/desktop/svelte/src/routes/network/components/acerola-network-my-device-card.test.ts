@@ -24,9 +24,7 @@ describe('AcerolaNetworkMyDeviceCard', () => {
 				data: {
 					deviceName: 'Meu Notebook',
 					localId: 'abcdefghijklmnop',
-					mode: 'local',
-					activeRelay: null,
-					isRelayOverridden: false
+					mode: 'local'
 				}
 			}
 		});
@@ -40,9 +38,7 @@ describe('AcerolaNetworkMyDeviceCard', () => {
 				data: {
 					deviceName: null,
 					localId: null,
-					mode: undefined,
-					activeRelay: null,
-					isRelayOverridden: false
+					mode: undefined
 				}
 			}
 		});
@@ -56,9 +52,7 @@ describe('AcerolaNetworkMyDeviceCard', () => {
 				data: {
 					deviceName: 'Meu Notebook',
 					localId: 'abcdefghijklmnop',
-					mode: 'relay',
-					activeRelay: 'relay.acerola.app',
-					isRelayOverridden: true
+					mode: 'relay'
 				}
 			}
 		});
@@ -74,9 +68,7 @@ describe('AcerolaNetworkMyDeviceCard', () => {
 				data: {
 					deviceName: 'Meu Notebook',
 					localId: 'abcdefghijklmnop',
-					mode: 'local',
-					activeRelay: null,
-					isRelayOverridden: false
+					mode: 'local'
 				}
 			}
 		});
@@ -91,9 +83,7 @@ describe('AcerolaNetworkMyDeviceCard', () => {
 				data: {
 					deviceName: 'Meu Notebook',
 					localId: 'abcdefghijklmnop',
-					mode: 'local',
-					activeRelay: null,
-					isRelayOverridden: false
+					mode: 'local'
 				},
 				events: { onRenameDevice }
 			}
@@ -120,9 +110,7 @@ describe('AcerolaNetworkMyDeviceCard', () => {
 				data: {
 					deviceName: 'Meu Notebook',
 					localId: 'abcdefghijklmnop',
-					mode: 'local',
-					activeRelay: null,
-					isRelayOverridden: false
+					mode: 'local'
 				},
 				events: { onRenameDevice }
 			}
@@ -135,19 +123,31 @@ describe('AcerolaNetworkMyDeviceCard', () => {
 		expect(screen.getByText('Meu Notebook')).toBeInTheDocument();
 	});
 
-	it('shows the active relay address', () => {
+	it('shows the local connection mode label', () => {
 		render(AcerolaNetworkMyDeviceCard, {
 			props: {
 				data: {
 					deviceName: 'Meu Notebook',
 					localId: 'abcdefghijklmnop',
-					mode: 'relay',
-					activeRelay: 'relay.acerola.app',
-					isRelayOverridden: false
+					mode: 'local'
 				}
 			}
 		});
 
-		expect(screen.getByText(/relay\.acerola\.app/)).toBeInTheDocument();
+		expect(screen.getByText(/Local network|Rede local/i)).toBeInTheDocument();
+	});
+
+	it('shows the relay connection mode label', () => {
+		render(AcerolaNetworkMyDeviceCard, {
+			props: {
+				data: {
+					deviceName: 'Meu Notebook',
+					localId: 'abcdefghijklmnop',
+					mode: 'relay'
+				}
+			}
+		});
+
+		expect(screen.getByText(/^Relay$/i)).toBeInTheDocument();
 	});
 });

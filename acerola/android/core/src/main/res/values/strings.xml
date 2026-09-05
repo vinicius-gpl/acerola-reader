@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">core</string>
+    <string name="p2p_sync_notification_title">Sincronizando com dispositivo</string>
+    <string name="p2p_sync_notification_description">Transferência P2P em andamento — mantendo a conexão ativa em segundo plano.</string>
 </resources>

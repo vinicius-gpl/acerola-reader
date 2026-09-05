@@ -193,7 +193,7 @@ fn bench_iroh_transport_throughput(criterion_instance: &mut Criterion) {
     let mut benchmark_group = criterion_instance.benchmark_group("iroh_transport_data_throughput");
     benchmark_group.throughput(Throughput::Bytes(payload_size_bytes as u64));
 
-    let target_addr = node_receiver.local_addr().clone();
+    let target_addr = node_receiver.local_addr().unwrap();
 
     benchmark_group.bench_function("data_transfer_1mb", |bencher: &mut Bencher| {
         bencher.iter(|| {
