@@ -10,7 +10,7 @@ use acerola_p2p::api::{
     network::NetworkMode,
     peer::{PeerAddr, PeerIdentity},
     storage::P2PStorage,
-    transport::IrohTransportBuilder,
+    transport::{IrohTransportBuilder, RelayModeConfig},
 };
 
 #[cfg(target_os = "android")]
@@ -169,8 +169,21 @@ impl P2PNode {
                 // (ANR). `.mem()` não persiste blobs entre reinícios, mas destrava o app
                 // imediatamente enquanto o hang do FsStore é isolado/corrigido.
                 let _ = &blobs_dir;
+                let resolved_relay_mode = relay_settings.resolve(iroh_services_ticket.as_deref());
+                // Log redigido de propósito: `IrohDefault` carrega o ticket da conta do usuário
+                // (uma credencial real) como dado da variante — nunca deve ir pro Debug cru do
+                // enum. Só o nome da fonte resolvida importa aqui pra diagnóstico (paridade com
+                // `[Bios::Network] Using relay mode` do Desktop).
+                let relay_mode_label = match &resolved_relay_mode {
+                    RelayModeConfig::MdnsOnly => "mdns_only",
+                    RelayModeConfig::Custom(_) => "custom",
+                    RelayModeConfig::AcerolaOwn => "acerola_own",
+                    RelayModeConfig::IrohDefault(_) => "iroh_default",
+                };
+                tracing::info!(layer = "relay", mode = relay_mode_label, "resolved relay mode for P2P transport");
+
                 let transport = IrohTransportBuilder::default()
-                    .relay_mode(relay_settings.resolve(iroh_services_ticket.as_deref()))
+                    .relay_mode(resolved_relay_mode)
                     .blobs(IrohBlobsConfig::mem());
 
                 let device = DefaultDeviceInfoProvider::new(device_name, device_version)
