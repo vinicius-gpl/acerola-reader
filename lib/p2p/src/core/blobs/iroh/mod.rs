@@ -208,7 +208,9 @@ impl IrohBlobStore {
         let peer_id = addr.id;
         let key_lock = {
             let mut locks = self.dial_locks.lock().await;
-            Arc::clone(locks.entry(peer_id).or_insert_with(|| Arc::new(tokio::sync::Mutex::new(()))))
+            Arc::clone(
+                locks.entry(peer_id).or_insert_with(|| Arc::new(tokio::sync::Mutex::new(()))),
+            )
         };
         let _dial_guard = key_lock.lock().await;
 
@@ -458,10 +460,7 @@ mod tests {
 
         let addr_a = store_a.endpoint.addr();
         let peer_a = PeerAddr {
-            id: PeerId {
-                id: store_a.endpoint.id().to_string(),
-                device_id: None,
-            },
+            id: PeerId { id: store_a.endpoint.id().to_string(), device_id: None },
             addrs: serde_json::to_vec(&addr_a).unwrap(),
         };
         let peer_id = addr_a.id;

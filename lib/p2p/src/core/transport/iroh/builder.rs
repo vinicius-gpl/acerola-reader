@@ -83,7 +83,7 @@ impl TransportP2pBuilder for IrohTransportBuilder {
             "building iroh transport"
         );
 
-        let (mut builder, restrict_to_lan) = self.build_mode(alpns)?;
+        let (mut builder, restrict_to_lan, iroh_relay_mode) = self.build_mode(alpns)?;
         builder = self.apply_secret(builder);
 
         let endpoint = builder.bind().await?;
@@ -96,7 +96,7 @@ impl TransportP2pBuilder for IrohTransportBuilder {
         );
 
         let blobs = BlobsIntegration::configure(&self.blobs_config, &endpoint).await?;
-        Ok(IrohTransport::new(endpoint, blobs, restrict_to_lan))
+        Ok(IrohTransport::new(endpoint, blobs, restrict_to_lan, iroh_relay_mode))
     }
 }
 
@@ -113,7 +113,9 @@ impl IrohTransportBuilder {
     // isso ficaria de fora: pareamento troca `EndpointAddr` concreto via QR/código e reconexões
     // reaproveitam o endereço já cacheado (ver `transport.rs::open_bi`), então mDNS (LAN) + o
     // relay escolhido (WAN) já bastam, sem vazar o IP do usuário pra essa infra de terceiro.
-    fn build_mode(&self, alpns: Vec<Vec<u8>>) -> Result<(endpoint::Builder, bool), ConnectionError> {
+    fn build_mode(
+        &self, alpns: Vec<Vec<u8>>,
+    ) -> Result<(endpoint::Builder, bool, iroh::RelayMode), ConnectionError> {
         let mdns = mdns::MdnsAddressLookup::builder();
         let mut builder = Endpoint::builder(presets::Minimal).address_lookup(mdns).alpns(alpns);
 
@@ -148,7 +150,7 @@ impl IrohTransportBuilder {
         // cross-internet mesmo com "só rede local" selecionado.
         let restrict_to_lan = matches!(iroh_relay_mode, iroh::RelayMode::Disabled);
 
-        Ok((builder.relay_mode(iroh_relay_mode), restrict_to_lan))
+        Ok((builder.relay_mode(iroh_relay_mode.clone()), restrict_to_lan, iroh_relay_mode))
     }
 
     fn apply_secret(&self, mut builder: endpoint::Builder) -> endpoint::Builder {

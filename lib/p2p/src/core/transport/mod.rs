@@ -95,6 +95,21 @@ pub trait P2pTransport: Send + Sync {
     /// padrão.
     async fn network_change(&self) {}
 
+    /// Aplica um novo modo de relay a um transporte já vivo, sem reconstruir o endpoint nem
+    /// derrubar conexões ativas — reconfiguração incremental do relay map (`insert_relay`/
+    /// `remove_relay`, iroh), que funciona num endpoint já bindado.
+    ///
+    /// Sem isso, trocar a configuração de relay em `settings.json`/DataStore só tinha efeito no
+    /// PRÓXIMO boot do app — o usuário via a UI "mudar" mas a conexão P2P continuava usando o
+    /// relay antigo até fechar e reabrir manualmente. Adapters sem relay configurável (ex: mock
+    /// de testes) herdam o no-op padrão.
+    #[cfg(feature = "iroh")]
+    async fn apply_relay_mode(
+        &self, _config: iroh::RelayModeConfig,
+    ) -> Result<(), ConnectionError> {
+        Ok(())
+    }
+
     /// Remove do pool de conexões reaproveitáveis a conexão física cacheada para `(peer, alpn)`,
     /// se houver.
     ///

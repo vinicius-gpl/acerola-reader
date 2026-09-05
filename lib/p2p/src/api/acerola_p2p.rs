@@ -126,6 +126,17 @@ impl AcerolaP2p {
         self.transport.network_change().await;
     }
 
+    /// Aplica um novo modo de relay ao node já vivo — ver a doc em
+    /// `P2pTransport::apply_relay_mode` para o porquê disso não precisar reconstruir o node
+    /// inteiro. Chamado sempre que o usuário muda a config de relay na UI, em vez de exigir
+    /// fechar e reabrir o app pra valer.
+    #[cfg(feature = "iroh")]
+    pub async fn apply_relay_mode(
+        &self, config: crate::core::transport::iroh::RelayModeConfig,
+    ) -> Result<(), ConnectionError> {
+        self.transport.apply_relay_mode(config).await
+    }
+
     /// Retorna o store de blobs deste nó, se o adapter de transporte suportar essa capacidade
     /// (ex: `IrohTransport` construído com `.blobs(...)`). `None` quando nenhum adapter de blob
     /// foi configurado.
