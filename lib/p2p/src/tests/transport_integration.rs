@@ -95,7 +95,7 @@ mod run_in_isolation {
                 .unwrap();
 
         tracing::debug!(node_a_id = %node_a.local_id(), node_b_id = %node_b.local_id(), "initiating test connection");
-        let connect_result = node_a.connect(node_b.local_addr().clone(), b"test/echo").await;
+        let connect_result = node_a.connect(node_b.local_addr().unwrap(), b"test/echo").await;
         tracing::debug!(result = ?connect_result, "connect completed");
         sleep(Duration::from_millis(1500)).await;
 
@@ -126,7 +126,7 @@ mod run_in_isolation {
                 .await
                 .unwrap();
 
-        node_a.connect(node_b.local_addr().clone(), b"test/bulk").await.unwrap();
+        node_a.connect(node_b.local_addr().unwrap(), b"test/bulk").await.unwrap();
         sleep(Duration::from_millis(2000)).await;
 
         assert_eq!(*received.lock().await, payload);
@@ -142,7 +142,7 @@ mod run_in_isolation {
         let node_b = build_node("b").await;
 
         let id_a = node_a.local_id().to_string();
-        node_a.connect(node_b.local_addr().clone(), b"acerola/handshake/1").await.unwrap();
+        node_a.connect(node_b.local_addr().unwrap(), b"acerola/handshake/1").await.unwrap();
         sleep(Duration::from_millis(500)).await;
 
         let known = node_b.known_peers().await;
@@ -164,7 +164,7 @@ mod run_in_isolation {
         let node_b = build_node("b").await;
 
         let result: Result<(), ConnectionError> =
-            node_a.connect(node_b.local_addr().clone(), b"test/ghost").await;
+            node_a.connect(node_b.local_addr().unwrap(), b"test/ghost").await;
         sleep(Duration::from_millis(300)).await;
 
         assert!(result.is_ok(), "connect should not fail on sender");
@@ -202,7 +202,7 @@ mod run_in_isolation {
 
         let id_a = node_a.local_id().to_string();
 
-        node_a.connect(node_b.local_addr().clone(), b"test/status-check").await.unwrap();
+        node_a.connect(node_b.local_addr().unwrap(), b"test/status-check").await.unwrap();
 
         // Espera de verdade a transferência acontecer (poll no buffer recebido, com timeout) —
         // um sleep fixo arbitrário mascararia uma transferência que trava no meio.
@@ -262,8 +262,8 @@ mod run_in_isolation {
                 .await
                 .unwrap();
 
-        let addr_a = node_a.local_addr().clone();
-        let addr_b = node_b.local_addr().clone();
+        let addr_a = node_a.local_addr().unwrap();
+        let addr_b = node_b.local_addr().unwrap();
 
         // Dispara os dois connect()s o mais simultâneo possível.
         let (result_a, result_b) = tokio::join!(
@@ -308,7 +308,7 @@ mod run_in_isolation {
         let node_b = build_node("b").await;
         let id_b = node_b.local_id().to_string();
 
-        node_a.connect(node_b.local_addr().clone(), b"acerola/handshake/1").await.unwrap();
+        node_a.connect(node_b.local_addr().unwrap(), b"acerola/handshake/1").await.unwrap();
         sleep(Duration::from_millis(1500)).await;
 
         // O handshake é pontual (ver comentário em `peer_appears_in_node_b_known_peers_...`) —

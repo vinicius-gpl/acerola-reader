@@ -237,7 +237,7 @@ async fn iroh_transport_throughput_and_large_payload_integrity() {
 
     let start_time = Instant::now();
 
-    node_a.connect(node_b.local_addr().clone(), b"test/throughput").await.unwrap();
+    node_a.connect(node_b.local_addr().unwrap(), b"test/throughput").await.unwrap();
 
     // Aguarda a conclusão da transferência
     let elapsed_secs = loop {
@@ -316,7 +316,7 @@ async fn iroh_transport_multiple_concurrent_streams_stress() {
     tracing::info!(streams = stream_count, "initiating concurrent dispatch of streams");
 
     for _ in 0..stream_count {
-        node_a.connect(node_b.local_addr().clone(), b"test/multi-stream").await.unwrap();
+        node_a.connect(node_b.local_addr().unwrap(), b"test/multi-stream").await.unwrap();
     }
 
     let start_time = Instant::now();

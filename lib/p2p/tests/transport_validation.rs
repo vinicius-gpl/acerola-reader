@@ -119,7 +119,7 @@ async fn validate_iroh_data_integrity_and_throughput() {
     let start_time = Instant::now();
 
     node_a
-        .connect(node_b.local_addr().clone(), b"validation/bulk")
+        .connect(node_b.local_addr().unwrap(), b"validation/bulk")
         .await
         .expect("Failed to connect on validation ALPN");
 
@@ -192,7 +192,7 @@ async fn validate_iroh_concurrent_transport_stress() {
     tracing::info!(requests = stream_count, "dispatching concurrent requests");
 
     for _ in 0..stream_count {
-        node_a.connect(node_b.local_addr().clone(), b"validation/multi").await.unwrap();
+        node_a.connect(node_b.local_addr().unwrap(), b"validation/multi").await.unwrap();
     }
 
     let start_time = Instant::now();
