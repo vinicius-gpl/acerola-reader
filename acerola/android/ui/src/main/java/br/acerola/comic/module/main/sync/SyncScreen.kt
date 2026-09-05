@@ -80,6 +80,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
@@ -466,6 +467,18 @@ private fun RelaySettingsCard(
             onCheckedChange = { onAction(SyncAction.ToggleUseIrohPublicNetwork(it)) },
         )
 
+        // Sem isso, o switch cinza acima não explica por conta própria por que está travado —
+        // o usuário precisa saber que a solução é colar um ticket na seção logo abaixo.
+        if (!relaySettings.hasIrohServicesTicket) {
+            Text(
+                text = stringResource(id = R.string.label_relay_settings_iroh_services_ticket_required_hint),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontStyle = FontStyle.Italic,
+                modifier = Modifier.padding(horizontal = SpacingTokens.Small),
+            )
+        }
+
         if (relaySettings.useIrohPublicNetwork) {
             Text(
                 text = stringResource(id = R.string.label_relay_settings_exclusive_note),
@@ -550,21 +563,52 @@ private fun IrohServicesTicketSection(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(SpacingTokens.Small),
-        ) {
-            OutlinedTextField(
-                value = draft,
-                onValueChange = {
-                    draft = it
-                    if (hasError) onDismissError()
-                },
-                placeholder = { Text(text = stringResource(id = R.string.hint_relay_settings_iroh_services_ticket)) },
-                singleLine = true,
-                visualTransformation = PasswordVisualTransformation(),
-                modifier = Modifier.weight(1f),
+        // Campo em linha própria, largura cheia — na versão anterior ele dividia a linha com o
+        // botão "Salvar ticket", o que espremia o campo a ponto do placeholder (bem mais longo
+        // que qualquer URL de relay) quebrar em 4 linhas e inflar a caixa inteira.
+        OutlinedTextField(
+            value = draft,
+            onValueChange = {
+                draft = it
+                if (hasError) onDismissError()
+            },
+            placeholder = {
+                Text(
+                    text = stringResource(id = R.string.hint_relay_settings_iroh_services_ticket),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            },
+            singleLine = true,
+            isError = hasError,
+            visualTransformation = PasswordVisualTransformation(),
+            modifier = Modifier.fillMaxWidth(),
+        )
+
+        if (hasError) {
+            Text(
+                text = stringResource(id = R.string.error_relay_settings_iroh_services_ticket_invalid),
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.error,
             )
+        }
+
+        // Ações numa linha própria, alinhadas à direita — evita competir por espaço com o campo
+        // acima em telas estreitas.
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(SpacingTokens.Small, Alignment.End),
+        ) {
+            if (hasTicket) {
+                TextButton(onClick = onRemove) {
+                    Text(
+                        text = stringResource(id = R.string.action_relay_settings_iroh_services_ticket_remove),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
             Button(
                 onClick = {
                     val trimmed = draft.trim()
@@ -586,24 +630,6 @@ private fun IrohServicesTicketSection(
                         ),
                 )
             }
-            if (hasTicket) {
-                IconButton(onClick = onRemove) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = stringResource(id = R.string.action_relay_settings_iroh_services_ticket_remove),
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(SizeTokens.IconSmall),
-                    )
-                }
-            }
-        }
-
-        if (hasError) {
-            Text(
-                text = stringResource(id = R.string.error_relay_settings_iroh_services_ticket_invalid),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.error,
-            )
         }
 
         Text(

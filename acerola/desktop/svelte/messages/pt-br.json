@@ -741,6 +741,7 @@
 				"use_iroh_public_network": "Usar a Iroh Services (conta própria)",
 				"use_iroh_public_network_desc": "Autenticado com o ticket da sua própria conta em services.iroh.computer — não pode ser combinada com as fontes abaixo.",
 				"exclusive_note": "Desabilitado enquanto a Iroh Services estiver ativa.",
+				"use_iroh_public_network_disabled_hint": "Configure um ticket abaixo para ativar essa fonte.",
 				"iroh_services_ticket": {
 					"label": "Ticket da Iroh Services",
 					"configured": "Ticket configurado.",

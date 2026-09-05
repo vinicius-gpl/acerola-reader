@@ -179,6 +179,14 @@
 		/>
 	</div>
 
+	<!-- Sem isso, o switch cinza acima não explica por conta própria por que está travado — o
+	     usuário precisa saber que a solução é colar um ticket na seção logo abaixo. -->
+	{#if !safeData.hasIrohServicesTicket}
+		<p class="text-xs text-muted-foreground italic">
+			{m['pages.network.relay_settings.use_iroh_public_network_disabled_hint']()}
+		</p>
+	{/if}
+
 	{#if safeData.useIrohPublicNetwork}
 		<p class="text-xs text-muted-foreground italic">
 			{m['pages.network.relay_settings.exclusive_note']()}
@@ -195,30 +203,32 @@
 				: m['pages.network.relay_settings.iroh_services_ticket.not_configured']()}
 		</p>
 
-		<div class="flex items-center gap-2">
-			<AcerolaInput
-				state={{ value: ticketDraft }}
-				events={{
-					onValueChange: (value) => {
-						ticketDraft = value;
-						ticketError = false;
-					}
-				}}
-				ui={{
-					type: 'password',
-					placeholder: m['pages.network.relay_settings.iroh_services_ticket.placeholder'](),
-					class: 'flex-1',
-					disabled: ticketSaving
-				}}
-			/>
-			<AcerolaButton
-				events={{ onClick: submitTicket }}
-				ui={{ size: 'sm', disabled: !ticketDraft.trim() || ticketSaving }}
-			>
-				{safeData.hasIrohServicesTicket
-					? m['pages.network.relay_settings.iroh_services_ticket.replace_button']()
-					: m['pages.network.relay_settings.iroh_services_ticket.save_button']()}
-			</AcerolaButton>
+		<!-- Campo em linha própria, largura cheia — dividir a linha com o botão espremia o
+		     campo a ponto do placeholder (bem mais longo que qualquer URL de relay) quebrar
+		     em várias linhas. -->
+		<AcerolaInput
+			state={{ value: ticketDraft }}
+			events={{
+				onValueChange: (value) => {
+					ticketDraft = value;
+					ticketError = false;
+				}
+			}}
+			ui={{
+				type: 'password',
+				placeholder: m['pages.network.relay_settings.iroh_services_ticket.placeholder'](),
+				class: 'w-full',
+				disabled: ticketSaving
+			}}
+		/>
+
+		{#if ticketError}
+			<p class="text-xs text-destructive">
+				{m['pages.network.relay_settings.iroh_services_ticket.invalid']()}
+			</p>
+		{/if}
+
+		<div class="flex items-center justify-end gap-2">
 			{#if safeData.hasIrohServicesTicket}
 				<AcerolaButtonIcon
 					events={{ onClick: removeTicket }}
@@ -232,13 +242,15 @@
 					<Trash2Icon size={14} />
 				</AcerolaButtonIcon>
 			{/if}
+			<AcerolaButton
+				events={{ onClick: submitTicket }}
+				ui={{ size: 'sm', disabled: !ticketDraft.trim() || ticketSaving }}
+			>
+				{safeData.hasIrohServicesTicket
+					? m['pages.network.relay_settings.iroh_services_ticket.replace_button']()
+					: m['pages.network.relay_settings.iroh_services_ticket.save_button']()}
+			</AcerolaButton>
 		</div>
-
-		{#if ticketError}
-			<p class="text-xs text-destructive">
-				{m['pages.network.relay_settings.iroh_services_ticket.invalid']()}
-			</p>
-		{/if}
 
 		<p class="text-xs text-muted-foreground italic">
 			{m['pages.network.relay_settings.iroh_services_ticket.help']()}
