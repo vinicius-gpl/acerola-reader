@@ -13,10 +13,8 @@ pub struct FfiRelaySettings {
     /// demais fontes: `iroh::RelayMode` só permite `Disabled | Default | Custom`, nunca uma
     /// combinação de `Default` com URLs específicas.
     pub use_iroh_public_network: bool,
-    /// Relay(s) próprio(s) do usuário (self-hosted).
+    /// Relay(s) próprio(s) do usuário (self-hosted, sem autenticação).
     pub custom_relay_urls: Vec<String>,
-    /// Relay(s) que falam o protocolo Iroh, mas não fazem parte da rede pública n0.
-    pub iroh_relay_urls: Vec<String>,
 }
 
 /// Erro exposto pra fronteira FFI (Kotlin) quando o usuário cola um ticket malformado —
@@ -48,7 +46,6 @@ impl FfiRelaySettings {
             urls.push(ACEROLA_DEFAULT_RELAY_URL.to_string());
         }
         urls.extend(self.custom_relay_urls.iter().cloned());
-        urls.extend(self.iroh_relay_urls.iter().cloned());
 
         if urls.is_empty() {
             RelayModeConfig::MdnsOnly
@@ -70,7 +67,6 @@ mod tests {
             use_acerola_relay: false,
             use_iroh_public_network: false,
             custom_relay_urls: vec![],
-            iroh_relay_urls: vec![],
         };
 
         assert_eq!(settings.resolve(None), RelayModeConfig::MdnsOnly);
@@ -82,7 +78,6 @@ mod tests {
             use_acerola_relay: true,
             use_iroh_public_network: false,
             custom_relay_urls: vec!["https://relay-a.test.local".to_string()],
-            iroh_relay_urls: vec!["https://iroh-relay.test.local".to_string()],
         };
 
         assert_eq!(
@@ -90,7 +85,6 @@ mod tests {
             RelayModeConfig::Custom(vec![
                 ACEROLA_DEFAULT_RELAY_URL.to_string(),
                 "https://relay-a.test.local".to_string(),
-                "https://iroh-relay.test.local".to_string(),
             ])
         );
     }
@@ -101,7 +95,6 @@ mod tests {
             use_acerola_relay: true,
             use_iroh_public_network: true,
             custom_relay_urls: vec!["https://relay-a.test.local".to_string()],
-            iroh_relay_urls: vec![],
         };
 
         assert_eq!(
@@ -116,7 +109,6 @@ mod tests {
             use_acerola_relay: true,
             use_iroh_public_network: true,
             custom_relay_urls: vec![],
-            iroh_relay_urls: vec![],
         };
 
         assert_eq!(
@@ -131,7 +123,6 @@ mod tests {
             use_acerola_relay: true,
             use_iroh_public_network: false,
             custom_relay_urls: vec![],
-            iroh_relay_urls: vec![],
         };
 
         assert_eq!(

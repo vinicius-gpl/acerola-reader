@@ -181,8 +181,6 @@
 			onToggleIrohPublicNetwork: (value) => relay.setUseIrohPublicNetwork(value),
 			onAddCustomRelayUrl: (url) => relay.addCustomRelayUrl(url),
 			onRemoveCustomRelayUrl: (url) => relay.removeCustomRelayUrl(url),
-			onAddIrohRelayUrl: (url) => relay.addIrohRelayUrl(url),
-			onRemoveIrohRelayUrl: (url) => relay.removeIrohRelayUrl(url),
 			onSetIrohServicesTicket: (ticket) => relay.setIrohServicesTicket(ticket),
 			onClearIrohServicesTicket: () => relay.clearIrohServicesTicket()
 		}}

@@ -264,7 +264,6 @@ describe('useRelaySettings', () => {
 			useAcerolaRelay: true,
 			useIrohPublicNetwork: false,
 			customRelayUrls: [],
-			irohRelayUrls: [],
 			hasIrohServicesTicket: false,
 			...overrides
 		};
@@ -363,23 +362,6 @@ describe('useRelaySettings', () => {
 			'https://relay-b.test.local'
 		]);
 		expect(hook.relayInfo?.customRelayUrls).toEqual(['https://relay-b.test.local']);
-	});
-
-	it('adds and removes an iroh relay url', async () => {
-		const store = mockStore();
-		invokeMock.mockResolvedValue(relayInfo());
-		const hook = await renderHook(useRelaySettings);
-		await hook.loadRelayInfo();
-
-		await hook.addIrohRelayUrl('https://iroh-relay.test.local');
-		expect(store.set).toHaveBeenCalledWith(STORE_KEYS.relayIrohUrls, [
-			'https://iroh-relay.test.local'
-		]);
-		expect(hook.relayInfo?.irohRelayUrls).toEqual(['https://iroh-relay.test.local']);
-
-		await hook.removeIrohRelayUrl('https://iroh-relay.test.local');
-		expect(store.set).toHaveBeenCalledWith(STORE_KEYS.relayIrohUrls, []);
-		expect(hook.relayInfo?.irohRelayUrls).toEqual([]);
 	});
 
 	it('sets the iroh services ticket via the backend command, not the store', async () => {

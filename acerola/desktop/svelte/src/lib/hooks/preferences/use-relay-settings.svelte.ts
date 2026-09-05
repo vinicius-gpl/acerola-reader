@@ -4,13 +4,6 @@ import { STORE_FILE, STORE_KEYS } from '$lib/constants/store-plugin';
 import { NETWORK_COMMANDS } from '$lib/contracts/network/network.commands';
 import type { RelayInfo } from '$lib/contracts/network/network.payloads';
 
-type RelayUrlListField = 'customRelayUrls' | 'irohRelayUrls';
-
-const LIST_STORE_KEY: Record<RelayUrlListField, string> = {
-	customRelayUrls: STORE_KEYS.relayCustomUrls,
-	irohRelayUrls: STORE_KEYS.relayIrohUrls
-};
-
 export function useRelaySettings() {
 	let relayInfo = $state<RelayInfo | undefined>(undefined);
 
@@ -52,37 +45,35 @@ export function useRelaySettings() {
 		if (relayInfo) relayInfo = { ...relayInfo, hasIrohServicesTicket: false };
 	}
 
-	async function addUrlToList(field: RelayUrlListField, url: string) {
+	async function addCustomRelayUrl(url: string) {
 		const trimmed = url.trim();
-		if (!trimmed || !relayInfo || relayInfo[field].includes(trimmed)) return;
+		if (!trimmed || !relayInfo || relayInfo.customRelayUrls.includes(trimmed)) return;
 
-		const next = [...relayInfo[field], trimmed];
+		const next = [...relayInfo.customRelayUrls, trimmed];
 		const store = await load(STORE_FILE);
-		await store.set(LIST_STORE_KEY[field], next);
+		await store.set(STORE_KEYS.relayCustomUrls, next);
 		await store.save();
 
-		relayInfo = { ...relayInfo, [field]: next };
+		relayInfo = { ...relayInfo, customRelayUrls: next };
 	}
 
-	async function removeUrlFromList(field: RelayUrlListField, url: string) {
+	async function removeCustomRelayUrl(url: string) {
 		if (!relayInfo) return;
 
-		const next = relayInfo[field].filter((existing) => existing !== url);
+		const next = relayInfo.customRelayUrls.filter((existing) => existing !== url);
 		const store = await load(STORE_FILE);
-		await store.set(LIST_STORE_KEY[field], next);
+		await store.set(STORE_KEYS.relayCustomUrls, next);
 		await store.save();
 
-		relayInfo = { ...relayInfo, [field]: next };
+		relayInfo = { ...relayInfo, customRelayUrls: next };
 	}
 
 	return {
 		loadRelayInfo,
 		setUseAcerolaRelay,
 		setUseIrohPublicNetwork,
-		addCustomRelayUrl: (url: string) => addUrlToList('customRelayUrls', url),
-		removeCustomRelayUrl: (url: string) => removeUrlFromList('customRelayUrls', url),
-		addIrohRelayUrl: (url: string) => addUrlToList('irohRelayUrls', url),
-		removeIrohRelayUrl: (url: string) => removeUrlFromList('irohRelayUrls', url),
+		addCustomRelayUrl,
+		removeCustomRelayUrl,
 		setIrohServicesTicket,
 		clearIrohServicesTicket,
 		get relayInfo() {
@@ -95,8 +86,7 @@ export function useRelaySettings() {
 				!!relayInfo &&
 				!relayInfo.useAcerolaRelay &&
 				!relayInfo.useIrohPublicNetwork &&
-				relayInfo.customRelayUrls.length === 0 &&
-				relayInfo.irohRelayUrls.length === 0
+				relayInfo.customRelayUrls.length === 0
 			);
 		}
 	};

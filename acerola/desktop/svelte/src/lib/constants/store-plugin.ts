@@ -13,6 +13,5 @@ export const STORE_KEYS = {
 	relayUseAcerola: 'relay_use_acerola',
 	relayUseIrohPublic: 'relay_use_iroh_public',
 	relayCustomUrls: 'relay_custom_urls',
-	relayIrohUrls: 'relay_iroh_urls',
 	deviceAlias: 'device_alias'
 } as const;

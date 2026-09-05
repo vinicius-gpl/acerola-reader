@@ -84,7 +84,6 @@ function defaultInvokeImpl(overrides: Record<string, unknown> = {}) {
 			useAcerolaRelay: true,
 			useIrohPublicNetwork: false,
 			customRelayUrls: [],
-			irohRelayUrls: [],
 			hasIrohServicesTicket: false
 		},
 		[NETWORK_COMMANDS.getNetworkStatus]: undefined,
@@ -154,7 +153,6 @@ describe('usePeerConnection', () => {
 			useAcerolaRelay: true,
 			useIrohPublicNetwork: false,
 			customRelayUrls: [],
-			irohRelayUrls: [],
 			hasIrohServicesTicket: false
 		});
 	});

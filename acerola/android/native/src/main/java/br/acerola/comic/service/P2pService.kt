@@ -33,7 +33,6 @@ data class RelaySettings(
     val useAcerolaRelay: Boolean,
     val useIrohPublicNetwork: Boolean,
     val customRelayUrls: List<String>,
-    val irohRelayUrls: List<String>,
 )
 
 private fun RelaySettings.toFfi(): FfiRelaySettings =
@@ -41,7 +40,6 @@ private fun RelaySettings.toFfi(): FfiRelaySettings =
         useAcerolaRelay = useAcerolaRelay,
         useIrohPublicNetwork = useIrohPublicNetwork,
         customRelayUrls = customRelayUrls,
-        irohRelayUrls = irohRelayUrls,
     )
 
 /** Direção explícita de um [syncComic] — `PUSH` manda o quadrinho pro peer, `PULL` puxa dele.

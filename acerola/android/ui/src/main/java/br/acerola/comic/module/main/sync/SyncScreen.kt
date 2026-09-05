@@ -432,8 +432,7 @@ private fun RelaySettingsCard(
 
     val activeSourceCount =
         (if (relaySettings.useAcerolaRelay) 1 else 0) +
-            relaySettings.customRelayUrls.size +
-            relaySettings.irohRelayUrls.size
+            relaySettings.customRelayUrls.size
 
     val summary =
         when {
@@ -505,17 +504,6 @@ private fun RelaySettingsCard(
             enabled = !relaySettings.useIrohPublicNetwork,
             onAdd = { onAction(SyncAction.AddCustomRelayUrl(it)) },
             onRemove = { onAction(SyncAction.RemoveCustomRelayUrl(it)) },
-        )
-
-        RelayUrlListEditor(
-            title = stringResource(id = R.string.title_relay_settings_iroh_relays),
-            urls = relaySettings.irohRelayUrls,
-            placeholder = stringResource(id = R.string.hint_relay_settings_iroh_relay_add),
-            emptyLabel = stringResource(id = R.string.label_relay_settings_iroh_relays_empty),
-            removeContentDescription = stringResource(id = R.string.action_relay_settings_iroh_relay_remove),
-            enabled = !relaySettings.useIrohPublicNetwork,
-            onAdd = { onAction(SyncAction.AddIrohRelayUrl(it)) },
-            onRemove = { onAction(SyncAction.RemoveIrohRelayUrl(it)) },
         )
     }
 }

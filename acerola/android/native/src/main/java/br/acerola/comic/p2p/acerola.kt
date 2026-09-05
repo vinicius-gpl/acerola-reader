@@ -4988,13 +4988,9 @@ data class FfiRelaySettings (
      */
     var `useIrohPublicNetwork`: kotlin.Boolean, 
     /**
-     * Relay(s) próprio(s) do usuário (self-hosted).
+     * Relay(s) próprio(s) do usuário (self-hosted, sem autenticação).
      */
-    var `customRelayUrls`: List<kotlin.String>, 
-    /**
-     * Relay(s) que falam o protocolo Iroh, mas não fazem parte da rede pública n0.
-     */
-    var `irohRelayUrls`: List<kotlin.String>
+    var `customRelayUrls`: List<kotlin.String>
 ) {
     
     companion object
@@ -5009,22 +5005,19 @@ public object FfiConverterTypeFfiRelaySettings: FfiConverterRustBuffer<FfiRelayS
             FfiConverterBoolean.read(buf),
             FfiConverterBoolean.read(buf),
             FfiConverterSequenceString.read(buf),
-            FfiConverterSequenceString.read(buf),
         )
     }
 
     override fun allocationSize(value: FfiRelaySettings) = (
             FfiConverterBoolean.allocationSize(value.`useAcerolaRelay`) +
             FfiConverterBoolean.allocationSize(value.`useIrohPublicNetwork`) +
-            FfiConverterSequenceString.allocationSize(value.`customRelayUrls`) +
-            FfiConverterSequenceString.allocationSize(value.`irohRelayUrls`)
+            FfiConverterSequenceString.allocationSize(value.`customRelayUrls`)
     )
 
     override fun write(value: FfiRelaySettings, buf: ByteBuffer) {
             FfiConverterBoolean.write(value.`useAcerolaRelay`, buf)
             FfiConverterBoolean.write(value.`useIrohPublicNetwork`, buf)
             FfiConverterSequenceString.write(value.`customRelayUrls`, buf)
-            FfiConverterSequenceString.write(value.`irohRelayUrls`, buf)
     }
 }
 

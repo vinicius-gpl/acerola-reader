@@ -94,7 +94,6 @@ pub struct RelayInfo {
     pub use_acerola_relay: bool,
     pub use_iroh_public_network: bool,
     pub custom_relay_urls: Vec<String>,
-    pub iroh_relay_urls: Vec<String>,
     /// Só indica SE um ticket da Iroh Services já foi colado e salvo — o valor em si nunca
     /// volta pro frontend (é uma credencial real, ver `SecureP2pStorage::load_iroh_services_ticket`).
     pub has_iroh_services_ticket: bool,
@@ -107,7 +106,6 @@ impl RelayInfo {
             use_acerola_relay: settings.use_acerola_relay,
             use_iroh_public_network: settings.use_iroh_public_network,
             custom_relay_urls: settings.custom_relay_urls,
-            iroh_relay_urls: settings.iroh_relay_urls,
             has_iroh_services_ticket,
         }
     }

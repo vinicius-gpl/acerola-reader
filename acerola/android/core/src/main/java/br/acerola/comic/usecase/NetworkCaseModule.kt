@@ -40,7 +40,6 @@ object NetworkCaseModule {
                     useAcerolaRelay = it.useAcerolaRelay,
                     useIrohPublicNetwork = it.useIrohPublicNetwork,
                     customRelayUrls = it.customRelayUrls,
-                    irohRelayUrls = it.irohRelayUrls,
                 )
             }
         // Renaming the device afterwards doesn't need a restart (see

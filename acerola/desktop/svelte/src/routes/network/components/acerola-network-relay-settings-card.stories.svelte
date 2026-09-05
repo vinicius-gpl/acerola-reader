@@ -10,7 +10,7 @@
 			docs: {
 				description: {
 					component:
-						'Configuração combinável de relay: relay do Acerola, rede pública do Iroh, e listas de relays próprios/Iroh cadastrados pelo usuário.'
+						'Configuração combinável de relay: relay do Acerola, Iroh Services (conta própria, autenticada por ticket) e lista de relays próprios cadastrados pelo usuário.'
 				}
 			}
 		}
@@ -23,8 +23,6 @@
 		onToggleIrohPublicNetwork: noop,
 		onAddCustomRelayUrl: noop,
 		onRemoveCustomRelayUrl: noop,
-		onAddIrohRelayUrl: noop,
-		onRemoveIrohRelayUrl: noop,
 		onSetIrohServicesTicket: noopAsync,
 		onClearIrohServicesTicket: noopAsync
 	};
@@ -39,7 +37,6 @@
 					useAcerolaRelay: true,
 					useIrohPublicNetwork: false,
 					customRelayUrls: [],
-					irohRelayUrls: [],
 					hasIrohServicesTicket: false
 				}}
 				{events}
@@ -57,7 +54,6 @@
 					useAcerolaRelay: true,
 					useIrohPublicNetwork: false,
 					customRelayUrls: ['https://relay.example.com'],
-					irohRelayUrls: ['https://iroh-relay.example.com'],
 					hasIrohServicesTicket: false
 				}}
 				{events}
@@ -75,7 +71,6 @@
 					useAcerolaRelay: true,
 					useIrohPublicNetwork: true,
 					customRelayUrls: [],
-					irohRelayUrls: [],
 					hasIrohServicesTicket: true
 				}}
 				{events}
@@ -93,7 +88,6 @@
 					useAcerolaRelay: false,
 					useIrohPublicNetwork: false,
 					customRelayUrls: [],
-					irohRelayUrls: [],
 					hasIrohServicesTicket: false
 				}}
 				{events}

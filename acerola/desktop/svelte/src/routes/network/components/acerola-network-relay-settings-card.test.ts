@@ -10,7 +10,6 @@ function data(overrides: Partial<NetworkRelaySettingsCardData> = {}): NetworkRel
 		useAcerolaRelay: true,
 		useIrohPublicNetwork: false,
 		customRelayUrls: [],
-		irohRelayUrls: [],
 		hasIrohServicesTicket: false,
 		...overrides
 	};
@@ -22,8 +21,6 @@ function events() {
 		onToggleIrohPublicNetwork: vi.fn(),
 		onAddCustomRelayUrl: vi.fn(),
 		onRemoveCustomRelayUrl: vi.fn(),
-		onAddIrohRelayUrl: vi.fn(),
-		onRemoveIrohRelayUrl: vi.fn(),
 		onSetIrohServicesTicket: vi.fn().mockResolvedValue(undefined),
 		onClearIrohServicesTicket: vi.fn().mockResolvedValue(undefined)
 	};
@@ -186,7 +183,7 @@ describe('AcerolaNetworkRelaySettingsCard', () => {
 		expect(handlers.onRemoveCustomRelayUrl).toHaveBeenCalledWith('https://relay-a.test.local');
 	});
 
-	it('disables the custom/iroh inputs while the iroh public network is active', async () => {
+	it('disables the custom relay input while the iroh public network is active', async () => {
 		render(AcerolaNetworkRelaySettingsCard, {
 			props: { data: data({ useIrohPublicNetwork: true }), events: events() }
 		});
@@ -194,9 +191,6 @@ describe('AcerolaNetworkRelaySettingsCard', () => {
 
 		expect(
 			screen.getByPlaceholderText(/your-relay\.example\.com|seu-relay\.exemplo\.com/i)
-		).toBeDisabled();
-		expect(
-			screen.getByPlaceholderText(/iroh-relay\.example\.com|iroh-relay\.exemplo\.com/i)
 		).toBeDisabled();
 	});
 });

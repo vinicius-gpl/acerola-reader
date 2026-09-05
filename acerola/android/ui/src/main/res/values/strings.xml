@@ -92,10 +92,6 @@
     <string name="hint_relay_settings_custom_relay_add">https://seu-relay.exemplo.com</string>
     <string name="label_relay_settings_custom_relays_empty">Nenhum relay próprio adicionado.</string>
     <string name="action_relay_settings_custom_relay_remove">Remover relay próprio</string>
-    <string name="title_relay_settings_iroh_relays">Relays Iroh</string>
-    <string name="hint_relay_settings_iroh_relay_add">https://iroh-relay.exemplo.com</string>
-    <string name="label_relay_settings_iroh_relays_empty">Nenhum relay Iroh adicionado.</string>
-    <string name="action_relay_settings_iroh_relay_remove">Remover relay Iroh</string>
     <string name="error_relay_settings_invalid_url">Digite uma URL válida (ex.: https://relay.exemplo.com).</string>
 
     <string name="title_sync_peers">Dispositivos pareados</string>

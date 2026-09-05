@@ -33,7 +33,6 @@ export type RelayInfo = {
 	useAcerolaRelay: boolean;
 	useIrohPublicNetwork: boolean;
 	customRelayUrls: string[];
-	irohRelayUrls: string[];
 	/** Só indica SE um ticket da conta do usuário em `services.iroh.computer` já foi colado e
 	 *  salvo — o valor em si nunca é devolvido pro frontend (é uma credencial real, guardada
 	 *  no cofre criptografado, não em `settings.json`). */

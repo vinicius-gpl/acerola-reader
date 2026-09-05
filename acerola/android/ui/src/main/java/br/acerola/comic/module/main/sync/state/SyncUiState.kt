@@ -71,7 +71,6 @@ data class RelaySettingsUiState(
     val useAcerolaRelay: Boolean = true,
     val useIrohPublicNetwork: Boolean = false,
     val customRelayUrls: List<String> = emptyList(),
-    val irohRelayUrls: List<String> = emptyList(),
     /** Só indica SE um ticket da conta do usuário em `services.iroh.computer` já foi colado e
      *  salvo — o valor em si nunca é exposto na UI (é uma credencial real, guardada no cofre
      *  criptografado do node, não no DataStore junto das demais preferências de relay). */

@@ -760,13 +760,6 @@
 					"empty": "Nenhum relay próprio adicionado.",
 					"remove": "Remover relay próprio"
 				},
-				"iroh_relays": {
-					"title": "Relays Iroh",
-					"add_placeholder": "https://iroh-relay.exemplo.com",
-					"add_button": "Adicionar relay Iroh",
-					"empty": "Nenhum relay Iroh adicionado.",
-					"remove": "Remover relay Iroh"
-				},
 				"invalid_url": "Digite uma URL válida (ex.: https://relay.exemplo.com).",
 				"summary_mdns_only": "Só rede local (mDNS) — nenhum relay ativo, só dispositivos na mesma rede conseguem conectar.",
 				"summary_iroh_public": "Usando a rede pública de relays do Iroh.",

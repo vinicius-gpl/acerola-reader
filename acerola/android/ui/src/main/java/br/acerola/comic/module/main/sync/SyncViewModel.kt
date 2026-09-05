@@ -103,7 +103,6 @@ class SyncViewModel
                                     useAcerolaRelay = settings.useAcerolaRelay,
                                     useIrohPublicNetwork = settings.useIrohPublicNetwork,
                                     customRelayUrls = settings.customRelayUrls,
-                                    irohRelayUrls = settings.irohRelayUrls,
                                 ),
                         )
                     }
@@ -230,10 +229,6 @@ class SyncViewModel
                     viewModelScope.launch { RelayPreference.addCustomRelayUrl(context, action.url) }
                 is SyncAction.RemoveCustomRelayUrl ->
                     viewModelScope.launch { RelayPreference.removeCustomRelayUrl(context, action.url) }
-                is SyncAction.AddIrohRelayUrl ->
-                    viewModelScope.launch { RelayPreference.addIrohRelayUrl(context, action.url) }
-                is SyncAction.RemoveIrohRelayUrl ->
-                    viewModelScope.launch { RelayPreference.removeIrohRelayUrl(context, action.url) }
                 is SyncAction.SetIrohServicesTicket -> setIrohServicesTicket(action.ticket)
                 SyncAction.ClearIrohServicesTicket -> clearIrohServicesTicket()
                 SyncAction.DismissIrohServicesTicketError ->

@@ -4,7 +4,6 @@
 		useAcerolaRelay: boolean;
 		useIrohPublicNetwork: boolean;
 		customRelayUrls: string[];
-		irohRelayUrls: string[];
 		hasIrohServicesTicket: boolean;
 	};
 
@@ -15,8 +14,6 @@
 			onToggleIrohPublicNetwork: (value: boolean) => void;
 			onAddCustomRelayUrl: (url: string) => void;
 			onRemoveCustomRelayUrl: (url: string) => void;
-			onAddIrohRelayUrl: (url: string) => void;
-			onRemoveIrohRelayUrl: (url: string) => void;
 			onSetIrohServicesTicket: (ticket: string) => Promise<void>;
 			onClearIrohServicesTicket: () => Promise<void>;
 		};
@@ -40,9 +37,7 @@
 	// já vem ligado por padrão), então não vale ocupar espaço da tela de Rede aberto.
 	let expanded = $state(false);
 	let customUrlDraft = $state('');
-	let irohUrlDraft = $state('');
 	let customUrlError = $state(false);
-	let irohUrlError = $state(false);
 	let ticketDraft = $state('');
 	let ticketError = $state(false);
 	let ticketSaving = $state(false);
@@ -53,15 +48,12 @@
 			useAcerolaRelay: false,
 			useIrohPublicNetwork: false,
 			customRelayUrls: [],
-			irohRelayUrls: [],
 			hasIrohServicesTicket: false
 		}
 	);
 
 	const activeSourceCount = $derived(
-		(safeData.useAcerolaRelay ? 1 : 0) +
-			safeData.customRelayUrls.length +
-			safeData.irohRelayUrls.length
+		(safeData.useAcerolaRelay ? 1 : 0) + safeData.customRelayUrls.length
 	);
 
 	// Espelha `RelaySettings::resolve` no backend: rede pública Iroh é exclusiva com as
@@ -95,18 +87,6 @@
 		customUrlError = false;
 		events.onAddCustomRelayUrl(trimmed);
 		customUrlDraft = '';
-	}
-
-	function submitIrohUrl() {
-		const trimmed = irohUrlDraft.trim();
-		if (!trimmed) return;
-		if (!isValidUrl(trimmed)) {
-			irohUrlError = true;
-			return;
-		}
-		irohUrlError = false;
-		events.onAddIrohRelayUrl(trimmed);
-		irohUrlDraft = '';
 	}
 
 	async function submitTicket() {
@@ -309,62 +289,6 @@
 			</AcerolaButton>
 		</div>
 		{#if customUrlError}
-			<p class="text-xs text-destructive">{m['pages.network.relay_settings.invalid_url']()}</p>
-		{/if}
-	</div>
-
-	<div class="space-y-2" class:opacity-50={safeData.useIrohPublicNetwork}>
-		<p class="text-xs font-bold tracking-widest text-muted-foreground uppercase">
-			{m['pages.network.relay_settings.iroh_relays.title']()}
-		</p>
-
-		{#each safeData.irohRelayUrls as url (url)}
-			<div
-				class="flex items-center justify-between gap-3 rounded-xl border border-border bg-background/50 p-3"
-			>
-				<span class="min-w-0 flex-1 truncate text-sm text-foreground">{url}</span>
-				<AcerolaButtonIcon
-					events={{ onClick: () => events.onRemoveIrohRelayUrl(url) }}
-					ui={{
-						variant: 'ghost',
-						class: 'size-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive',
-						disabled: safeData.useIrohPublicNetwork,
-						'aria-label': m['pages.network.relay_settings.iroh_relays.remove']()
-					}}
-				>
-					<Trash2Icon size={14} />
-				</AcerolaButtonIcon>
-			</div>
-		{:else}
-			<p class="text-xs text-muted-foreground">
-				{m['pages.network.relay_settings.iroh_relays.empty']()}
-			</p>
-		{/each}
-
-		<div class="flex items-center gap-2">
-			<AcerolaInput
-				state={{ value: irohUrlDraft }}
-				events={{
-					onValueChange: (value) => {
-						irohUrlDraft = value;
-						irohUrlError = false;
-					}
-				}}
-				ui={{
-					placeholder: m['pages.network.relay_settings.iroh_relays.add_placeholder'](),
-					class: 'flex-1',
-					disabled: safeData.useIrohPublicNetwork
-				}}
-			/>
-			<AcerolaButton
-				events={{ onClick: submitIrohUrl }}
-				ui={{ size: 'sm', disabled: !irohUrlDraft.trim() || safeData.useIrohPublicNetwork }}
-			>
-				<PlusIcon size={14} />
-				{m['pages.network.relay_settings.iroh_relays.add_button']()}
-			</AcerolaButton>
-		</div>
-		{#if irohUrlError}
 			<p class="text-xs text-destructive">{m['pages.network.relay_settings.invalid_url']()}</p>
 		{/if}
 	</div>

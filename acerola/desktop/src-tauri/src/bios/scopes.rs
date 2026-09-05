@@ -31,20 +31,13 @@ pub struct RelaySettings {
     /// as demais fontes: `iroh::RelayMode` só permite `Disabled | Default | Custom`, nunca
     /// uma combinação de `Default` com URLs específicas.
     pub use_iroh_public_network: bool,
-    /// Relay(s) próprio(s) do usuário (self-hosted).
+    /// Relay(s) próprio(s) do usuário (self-hosted, sem autenticação).
     pub custom_relay_urls: Vec<String>,
-    /// Relay(s) que falam o protocolo Iroh, mas não fazem parte da rede pública n0.
-    pub iroh_relay_urls: Vec<String>,
 }
 
 impl Default for RelaySettings {
     fn default() -> Self {
-        Self {
-            use_acerola_relay: true,
-            use_iroh_public_network: false,
-            custom_relay_urls: Vec::new(),
-            iroh_relay_urls: Vec::new(),
-        }
+        Self { use_acerola_relay: true, use_iroh_public_network: false, custom_relay_urls: Vec::new() }
     }
 }
 
@@ -70,7 +63,6 @@ impl RelaySettings {
             urls.push(ACEROLA_DEFAULT_RELAY_URL.to_string());
         }
         urls.extend(self.custom_relay_urls.iter().cloned());
-        urls.extend(self.iroh_relay_urls.iter().cloned());
 
         if urls.is_empty() {
             RelayModeConfig::MdnsOnly
@@ -81,16 +73,18 @@ impl RelaySettings {
 }
 
 /// Lê a configuração de relay combinável de `settings.json` (`relay_use_acerola`,
-/// `relay_use_iroh_public`, `relay_custom_urls`, `relay_iroh_urls`). Ausência total do
-/// arquivo/chaves cai no [`RelaySettings::default`] (relay do Acerola habilitado, sem mais
-/// nenhuma fonte). Só é lida na inicialização: trocar a configuração de relay em runtime não
-/// é suportado pela lib, só a troca de modo local/relay (já exposta via
-/// `switch_to_local`/`switch_to_relay`).
+/// `relay_use_iroh_public`, `relay_custom_urls`). Ausência total do arquivo/chaves cai no
+/// [`RelaySettings::default`] (relay do Acerola habilitado, sem mais nenhuma fonte). Só é lida
+/// na inicialização: trocar a configuração de relay em runtime não é suportado pela lib, só a
+/// troca de modo local/relay (já exposta via `switch_to_local`/`switch_to_relay`).
 ///
-/// Migração: se nenhuma das chaves novas estiver presente mas a chave legada `relay_url`
-/// (de antes desta feature, URL única) estiver, ela é migrada para dentro de
-/// `custom_relay_urls` — sem isso, quem já tinha configurado um relay próprio perderia essa
-/// escolha silenciosamente no primeiro boot após o update.
+/// Migração: se nenhuma das chaves novas estiver presente mas a chave legada `relay_url` (de
+/// antes desta feature, URL única) estiver, ela é migrada para dentro de `custom_relay_urls` —
+/// sem isso, quem já tinha configurado um relay próprio perderia essa escolha silenciosamente
+/// no primeiro boot após o update. `relay_iroh_urls` (lista separada "Relays Iroh", removida por
+/// ser funcionalmente idêntica a `relay_custom_urls` — as duas viravam o mesmo
+/// `RelayModeConfig::Custom`) é sempre mesclada em `custom_relay_urls` se presente, mesmo
+/// quando as chaves novas já existem.
 pub fn read_relay_settings(app_data_directory: &std::path::Path) -> RelaySettings {
     let settings_file_path = app_data_directory.join("settings.json");
     let Ok(file_content) = std::fs::read_to_string(&settings_file_path) else {
@@ -100,17 +94,28 @@ pub fn read_relay_settings(app_data_directory: &std::path::Path) -> RelaySetting
         return RelaySettings::default();
     };
 
+    let legacy_iroh_urls = read_string_array(&json_value, "relay_iroh_urls");
+
     if !has_any_relay_settings_key(&json_value) {
         if let Some(legacy_url) = read_legacy_relay_url(&json_value) {
             tracing::info!(
                 "[Bios::Scopes] Migrating legacy 'relay_url' override into 'relay_custom_urls'"
             );
-            return RelaySettings {
-                custom_relay_urls: vec![legacy_url],
-                ..RelaySettings::default()
-            };
+            let mut custom_relay_urls = vec![legacy_url];
+            custom_relay_urls.extend(legacy_iroh_urls);
+            return RelaySettings { custom_relay_urls, ..RelaySettings::default() };
         }
-        return RelaySettings::default();
+        if legacy_iroh_urls.is_empty() {
+            return RelaySettings::default();
+        }
+        return RelaySettings { custom_relay_urls: legacy_iroh_urls, ..RelaySettings::default() };
+    }
+
+    let mut custom_relay_urls = read_string_array(&json_value, "relay_custom_urls");
+    for url in legacy_iroh_urls {
+        if !custom_relay_urls.contains(&url) {
+            custom_relay_urls.push(url);
+        }
     }
 
     RelaySettings {
@@ -122,8 +127,7 @@ pub fn read_relay_settings(app_data_directory: &std::path::Path) -> RelaySetting
             .get("relay_use_iroh_public")
             .and_then(Value::as_bool)
             .unwrap_or(false),
-        custom_relay_urls: read_string_array(&json_value, "relay_custom_urls"),
-        iroh_relay_urls: read_string_array(&json_value, "relay_iroh_urls"),
+        custom_relay_urls,
     }
 }
 
@@ -264,8 +268,7 @@ mod tests {
             r#"{
                 "relay_use_acerola": false,
                 "relay_use_iroh_public": false,
-                "relay_custom_urls": ["https://relay-a.test.local", "  ", "https://relay-b.test.local"],
-                "relay_iroh_urls": ["https://iroh-relay.test.local"]
+                "relay_custom_urls": ["https://relay-a.test.local", "  ", "https://relay-b.test.local"]
             }"#,
         )
         .unwrap();
@@ -279,7 +282,72 @@ mod tests {
                     "https://relay-a.test.local".to_string(),
                     "https://relay-b.test.local".to_string()
                 ],
-                iroh_relay_urls: vec!["https://iroh-relay.test.local".to_string()],
+            }
+        );
+    }
+
+    /// `relay_iroh_urls` era uma lista separada ("Relays Iroh") funcionalmente idêntica a
+    /// `relay_custom_urls` (as duas viravam o mesmo `RelayModeConfig::Custom`) — removida da
+    /// UI, mas quem já tinha algo salvo ali não pode perder essa URL silenciosamente.
+    #[test]
+    fn test_read_relay_settings_merges_legacy_iroh_urls_into_custom_urls() {
+        let app_data_directory = tempfile::tempdir().unwrap();
+        std::fs::write(
+            app_data_directory.path().join("settings.json"),
+            r#"{
+                "relay_custom_urls": ["https://relay-a.test.local"],
+                "relay_iroh_urls": ["https://iroh-relay.test.local"]
+            }"#,
+        )
+        .unwrap();
+
+        assert_eq!(
+            read_relay_settings(app_data_directory.path()),
+            RelaySettings {
+                custom_relay_urls: vec![
+                    "https://relay-a.test.local".to_string(),
+                    "https://iroh-relay.test.local".to_string()
+                ],
+                ..RelaySettings::default()
+            }
+        );
+    }
+
+    #[test]
+    fn test_read_relay_settings_migrates_legacy_iroh_urls_only_when_no_other_key_present() {
+        let app_data_directory = tempfile::tempdir().unwrap();
+        std::fs::write(
+            app_data_directory.path().join("settings.json"),
+            r#"{"relay_iroh_urls": ["https://iroh-relay.test.local"]}"#,
+        )
+        .unwrap();
+
+        assert_eq!(
+            read_relay_settings(app_data_directory.path()),
+            RelaySettings {
+                custom_relay_urls: vec!["https://iroh-relay.test.local".to_string()],
+                ..RelaySettings::default()
+            }
+        );
+    }
+
+    #[test]
+    fn test_read_relay_settings_does_not_duplicate_url_present_in_both_lists() {
+        let app_data_directory = tempfile::tempdir().unwrap();
+        std::fs::write(
+            app_data_directory.path().join("settings.json"),
+            r#"{
+                "relay_custom_urls": ["https://relay-a.test.local"],
+                "relay_iroh_urls": ["https://relay-a.test.local"]
+            }"#,
+        )
+        .unwrap();
+
+        assert_eq!(
+            read_relay_settings(app_data_directory.path()),
+            RelaySettings {
+                custom_relay_urls: vec!["https://relay-a.test.local".to_string()],
+                ..RelaySettings::default()
             }
         );
     }
@@ -317,7 +385,6 @@ mod tests {
             use_acerola_relay: false,
             use_iroh_public_network: false,
             custom_relay_urls: vec![],
-            iroh_relay_urls: vec![],
         };
         assert_eq!(settings.resolve(None), RelayModeConfig::MdnsOnly);
     }
@@ -328,7 +395,6 @@ mod tests {
             use_acerola_relay: true,
             use_iroh_public_network: false,
             custom_relay_urls: vec!["https://relay-a.test.local".to_string()],
-            iroh_relay_urls: vec!["https://iroh-relay.test.local".to_string()],
         };
 
         assert_eq!(
@@ -336,7 +402,6 @@ mod tests {
             RelayModeConfig::Custom(vec![
                 acerola_p2p::api::transport::ACEROLA_DEFAULT_RELAY_URL.to_string(),
                 "https://relay-a.test.local".to_string(),
-                "https://iroh-relay.test.local".to_string(),
             ])
         );
     }
@@ -347,7 +412,6 @@ mod tests {
             use_acerola_relay: true,
             use_iroh_public_network: true,
             custom_relay_urls: vec!["https://relay-a.test.local".to_string()],
-            iroh_relay_urls: vec![],
         };
 
         assert_eq!(
@@ -366,7 +430,6 @@ mod tests {
             use_acerola_relay: true,
             use_iroh_public_network: true,
             custom_relay_urls: vec![],
-            iroh_relay_urls: vec![],
         };
 
         assert_eq!(
