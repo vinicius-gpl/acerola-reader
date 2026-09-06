@@ -981,6 +981,174 @@ describe('useNetworkSync', () => {
 		await pending;
 	});
 
+	/// Regressão (05/09/2026): antes desta correção, `filesError`/`comicError` correlacionavam
+	/// QUALQUER erro (inclusive os 5 pontos de falha por ITEM em `receive_files`/`receive_extras`
+	/// — blob ausente, fetch falhou, checksum não bate, pasta indisponível, persistência falhou)
+	/// com a mesma linha em andamento (`started`/`progress`) daquele peer/kind e marcava como
+	/// terminal — uma sincronização de 20 capítulos com 1 checksum mismatch no meio mostrava
+	/// "erro" na tela mesmo continuando (e completando) normalmente depois. `itemLevel: true` no
+	/// payload (ver `item_error_payload` no backend) é o sinal explícito pra nunca fazer isso.
+	it('an itemLevel filesError never touches the in-flight session row — it becomes its own permanent entry', async () => {
+		const { callbacks } = setupListeners();
+		invokeMock.mockResolvedValue([]);
+
+		const hook = await renderHook();
+		await hook.startListening();
+
+		callbacks.get(NETWORK_EVENTS.filesStarted)?.({ payload: 'peer-item' });
+		const startedId = hook.log[0].id;
+		expect(hook.log[0].status).toBe('started');
+
+		callbacks.get(NETWORK_EVENTS.filesError)?.({
+			payload: JSON.stringify({
+				peerId: 'peer-item',
+				message: 'checksum mismatch',
+				code: 'checksum_mismatch',
+				comicName: 'One Piece',
+				item: 'Ch. 3',
+				itemLevel: true
+			})
+		});
+
+		// A linha "started" continua exatamente como estava — o erro de item não a tocou.
+		const startedEntry = hook.log.find((entry) => entry.id === startedId);
+		expect(startedEntry).toMatchObject({ status: 'started', peerId: 'peer-item' });
+
+		// O erro de item virou sua PRÓPRIA linha, sem peerId (nunca correlacionável) mas com o
+		// comicName/mensagem formatada pro usuário identificar qual capítulo falhou.
+		const itemEntry = hook.log.find((entry) => entry.id !== startedId);
+		expect(itemEntry).toMatchObject({
+			kind: 'files',
+			status: 'error',
+			peerId: '',
+			comicName: 'One Piece'
+		});
+		expect(itemEntry?.message).toContain('One Piece');
+		expect(itemEntry?.message).toContain('Ch. 3');
+
+		expect(hook.log).toHaveLength(2);
+	});
+
+	it('an itemLevel filesError does not clear the syncing flag for that peer', async () => {
+		const { callbacks } = setupListeners();
+		invokeMock.mockResolvedValue([]);
+
+		const hook = await renderHook();
+		await hook.startListening();
+
+		let resolveSync: () => void = () => {};
+		invokeMock.mockImplementationOnce(
+			() =>
+				new Promise((resolve) => {
+					resolveSync = () => resolve(undefined);
+				})
+		);
+		const pending = hook.syncFiles('peer-item-2', []);
+		expect(hook.isSyncing('peer-item-2', 'files')).toBe(true);
+
+		callbacks.get(NETWORK_EVENTS.filesError)?.({
+			payload: JSON.stringify({
+				peerId: 'peer-item-2',
+				message: 'missing blob hash',
+				code: 'missing_blob_hash',
+				comicName: 'One Piece',
+				item: 'Ch. 5',
+				itemLevel: true
+			})
+		});
+
+		// Diferente de um erro de SESSÃO (ver teste `filesError clears the syncing flag...`
+		// acima), um erro de item não pode desbloquear o botão de sync — a sessão continua.
+		expect(hook.isSyncing('peer-item-2', 'files')).toBe(true);
+
+		resolveSync();
+		await pending;
+	});
+
+	it('an itemLevel comicError never resolves/rejects the syncComic() promise, only the terminal session error does', async () => {
+		const { callbacks } = setupListeners();
+		invokeMock.mockResolvedValueOnce(undefined);
+		const hook = await renderHook();
+		await hook.startListening();
+
+		const pending = hook.syncComic('peer-item-3', [9], 'One Piece', 'push');
+		expect(hook.isSyncing('peer-item-3', 'comic')).toBe(true);
+
+		callbacks.get(NETWORK_EVENTS.comicError)?.({
+			payload: JSON.stringify({
+				peerId: 'peer-item-3',
+				message: 'checksum mismatch',
+				code: 'checksum_mismatch',
+				comicName: 'One Piece',
+				item: 'Ch. 2',
+				itemLevel: true
+			})
+		});
+
+		// A sessão continua rodando — o erro de item não resolveu a promise nem liberou o botão.
+		expect(hook.isSyncing('peer-item-3', 'comic')).toBe(true);
+
+		callbacks.get(NETWORK_EVENTS.comicError)?.({
+			payload: JSON.stringify({ peerId: 'peer-item-3', message: 'peer disconnected' })
+		});
+
+		await expect(pending).rejects.toBe('peer disconnected');
+		expect(hook.isSyncing('peer-item-3', 'comic')).toBe(false);
+	});
+
+	it('activeSession is undefined when nothing is syncing', async () => {
+		setupListeners();
+		invokeMock.mockResolvedValue([]);
+		const hook = await renderHook();
+		await hook.startListening();
+
+		expect(hook.activeSession()).toBeUndefined();
+	});
+
+	it('activeSession reports the peer/kind of a session while it is started, and clears once it completes', async () => {
+		const { callbacks } = setupListeners();
+		invokeMock.mockResolvedValue([]);
+
+		const hook = await renderHook();
+		await hook.startListening();
+
+		callbacks.get(NETWORK_EVENTS.filesStarted)?.({ payload: 'peer-active' });
+		expect(hook.activeSession()).toEqual({ peerId: 'peer-active', kind: 'files' });
+
+		callbacks.get(NETWORK_EVENTS.filesComplete)?.({ payload: 'peer-active' });
+		expect(hook.activeSession()).toBeUndefined();
+	});
+
+	it('activeSession stays reported across progress ticks (which never touch its started status)', async () => {
+		const { callbacks } = setupListeners();
+		invokeMock.mockResolvedValue([]);
+
+		const hook = await renderHook();
+		await hook.startListening();
+
+		callbacks.get(NETWORK_EVENTS.comicStarted)?.({ payload: 'peer-active-2' });
+		callbacks.get(NETWORK_EVENTS.comicProgress)?.({ payload: 'One Piece - Ch. 5' });
+
+		expect(hook.activeSession()).toEqual({ peerId: 'peer-active-2', kind: 'comic' });
+	});
+
+	it('activeProgressMessage returns the most recent progress tick, and clears once resolved', async () => {
+		const { callbacks } = setupListeners();
+		invokeMock.mockResolvedValue([]);
+
+		const hook = await renderHook();
+		await hook.startListening();
+
+		expect(hook.activeProgressMessage()).toBeUndefined();
+
+		callbacks.get(NETWORK_EVENTS.filesStarted)?.({ payload: 'peer-progress' });
+		callbacks.get(NETWORK_EVENTS.filesProgress)?.({ payload: 'One Piece - Ch. 1' });
+		expect(hook.activeProgressMessage()).toBe('One Piece - Ch. 1');
+
+		callbacks.get(NETWORK_EVENTS.filesProgress)?.({ payload: 'One Piece - Ch. 2' });
+		expect(hook.activeProgressMessage()).toBe('One Piece - Ch. 2');
+	});
+
 	it('stopListening clears the in-flight timeout and entry-id maps', async () => {
 		setupListeners();
 		invokeMock.mockResolvedValue([]);
