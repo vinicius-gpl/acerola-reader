@@ -95,16 +95,31 @@
 		if (!entry || entry.id < 0 || entry.kind !== 'history' || entry.id === lastHandledSyncLogId)
 			return;
 
+		// Mesmo padrão da Home: um toast por sessão, criado em 'started' e substituído (mesmo
+		// `id`) em 'complete'/'error' em vez de empilhar um novo.
+		const toastId = `sync-history-${entry.peerId}`;
+
+		if (entry.status === 'started') {
+			lastHandledSyncLogId = entry.id;
+			toast.loading(
+				m['pages.network.transfers.history_started']({ peer: peers.peerLabel(entry.message) }),
+				{ id: toastId }
+			);
+			return;
+		}
+
 		if (entry.status === 'complete') {
 			lastHandledSyncLogId = entry.id;
-			toast.success(m['pages.history.sync.success']({ peer: peers.peerLabel(entry.message) }));
+			toast.success(m['pages.history.sync.success']({ peer: peers.peerLabel(entry.message) }), {
+				id: toastId
+			});
 			history.fetch();
 			return;
 		}
 
 		if (entry.status === 'error') {
 			lastHandledSyncLogId = entry.id;
-			toast.error(m['pages.history.sync.error']({ msg: entry.message }));
+			toast.error(m['pages.history.sync.error']({ msg: entry.message }), { id: toastId });
 			return;
 		}
 	});

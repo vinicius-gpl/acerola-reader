@@ -114,13 +114,29 @@
 		)
 			return;
 
+		// Um único toast por sessão (kind+peer), criado em 'started' e reaproveitado (mesmo
+		// `id`) em 'complete'/'error' — o svelte-sonner substitui o conteúdo do toast existente
+		// em vez de empilhar um novo, mesmo padrão do `toastAsync` já usado na tela do quadrinho.
+		const toastId = `sync-${entry.kind}-${entry.peerId}`;
+
+		if (entry.status === 'started') {
+			lastHandledSyncLogId = entry.id;
+			const peer = peers.peerLabel(entry.peerId);
+			if (entry.kind === 'comic') {
+				toast.loading(m['pages.network.transfers.comic_started']({ peer }), { id: toastId });
+			} else {
+				toast.loading(m['pages.network.transfers.files_started']({ peer }), { id: toastId });
+			}
+			return;
+		}
+
 		if (entry.status === 'complete') {
 			lastHandledSyncLogId = entry.id;
 			const peer = peers.peerLabel(entry.peerId);
 			if (entry.kind === 'comic') {
-				toast.success(m['pages.network.transfers.comic_complete']({ peer }));
+				toast.success(m['pages.network.transfers.comic_complete']({ peer }), { id: toastId });
 			} else {
-				toast.success(m['pages.network.transfers.files_complete']({ peer }));
+				toast.success(m['pages.network.transfers.files_complete']({ peer }), { id: toastId });
 			}
 			summary.fetch();
 			return;
@@ -130,9 +146,9 @@
 			lastHandledSyncLogId = entry.id;
 			const msg = entry.message;
 			if (entry.kind === 'comic') {
-				toast.error(m['pages.network.transfers.comic_error']({ msg }));
+				toast.error(m['pages.network.transfers.comic_error']({ msg }), { id: toastId });
 			} else {
-				toast.error(m['pages.network.transfers.files_error']({ msg }));
+				toast.error(m['pages.network.transfers.files_error']({ msg }), { id: toastId });
 			}
 			// `sync:files:error`/`sync:comic:error` também cobre sessão que terminou com
 			// capítulos faltando (`Ok(skipped) => ... Err(...)` em file_handler.rs/

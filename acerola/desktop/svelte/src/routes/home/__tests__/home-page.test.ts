@@ -45,7 +45,7 @@ vi.mock('@tauri-apps/plugin-store', () => ({ load: mockStoreLoad }));
 vi.mock('@tauri-apps/plugin-log', () => ({ error: vi.fn(), debug: vi.fn() }));
 
 vi.mock('svelte-sonner', () => ({
-	toast: { info: vi.fn(), success: vi.fn(), error: vi.fn() }
+	toast: { info: vi.fn(), loading: vi.fn(() => 'mock-toast-id'), success: vi.fn(), error: vi.fn() }
 }));
 
 function setupInvokeMock(overrides: Record<string, unknown> = {}, rejects: string[] = []) {
