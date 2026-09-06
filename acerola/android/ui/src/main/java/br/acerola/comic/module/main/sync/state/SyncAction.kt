@@ -51,8 +51,11 @@ sealed interface SyncAction {
         val comicName: String,
     ) : SyncAction
 
-    /** Todas as ações de relay abaixo só têm efeito no próximo início do app — a conexão P2P
-     *  atual continua usando o relay com o qual já subiu (ver [RelaySettingsUiState]). */
+    /** Todas as ações de relay abaixo persistem no DataStore E aplicam na hora
+     *  (`P2pUseCase.applyRelaySettings`, troca o modo de relay num `Endpoint` que continua
+     *  vivo, sem derrubar conexões) — ver [RelaySettingsUiState]. Um caso raro que a troca ao
+     *  vivo não resolve sozinha (conexão presa depois de uma troca de rede física do SO) tem
+     *  o botão manual [RestartP2p] como saída, que derruba e sobe o node inteiro de novo. */
     data class ToggleUseAcerolaRelay(
         val value: Boolean,
     ) : SyncAction
@@ -78,4 +81,9 @@ sealed interface SyncAction {
     data object ClearIrohServicesTicket : SyncAction
 
     data object DismissIrohServicesTicketError : SyncAction
+
+    /** Botão manual "Reiniciar" — desliga o node P2P atual e sobe um novo do zero (mesma
+     *  identidade/storage), estilo LocalSend. Escape hatch pra quando a troca ao vivo de relay
+     *  não é suficiente (ex: conexão presa depois de uma troca de rede física do SO). */
+    data object RestartP2p : SyncAction
 }

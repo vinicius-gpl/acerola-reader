@@ -102,6 +102,11 @@
     <string name="label_relay_settings_custom_relays_empty">Nenhum relay próprio adicionado.</string>
     <string name="action_relay_settings_custom_relay_remove">Remover relay próprio</string>
     <string name="error_relay_settings_invalid_url">Digite uma URL válida (ex.: https://relay.exemplo.com).</string>
+    <string name="title_relay_settings_restart">Reiniciar módulo P2P</string>
+    <string name="label_relay_settings_restart_desc">Desliga e religa a conexão P2P do zero — útil se a conexão ficou travada depois de trocar de rede ou de relay.</string>
+    <string name="action_relay_settings_restart">Reiniciar</string>
+    <string name="action_relay_settings_restarting">Reiniciando…</string>
+    <string name="error_relay_settings_restart_failed">Não foi possível reiniciar o módulo P2P.</string>
 
     <string name="title_sync_peers">Dispositivos pareados</string>
     <string name="label_sync_no_peers">Nenhum dispositivo pareado ainda. Toque em \"Adicionar dispositivo\" pra parear um.</string>

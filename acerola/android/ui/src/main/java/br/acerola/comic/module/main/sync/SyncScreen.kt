@@ -40,6 +40,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PersonRemove
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Wifi
@@ -505,6 +506,86 @@ private fun RelaySettingsCard(
             onAdd = { onAction(SyncAction.AddCustomRelayUrl(it)) },
             onRemove = { onAction(SyncAction.RemoveCustomRelayUrl(it)) },
         )
+
+        RestartSection(
+            restarting = relaySettings.restarting,
+            restartError = relaySettings.restartError,
+            onRestart = { onAction(SyncAction.RestartP2p) },
+        )
+    }
+}
+
+/** Botão manual "Reiniciar" (estilo LocalSend) — desliga o node P2P atual e sobe um novo do
+ *  zero, mesma identidade/storage/peers pareados. Escape hatch pra quando a troca ao vivo de
+ *  relay (switches acima) não é suficiente sozinha, ex: conexão presa depois de uma troca de
+ *  rede física do SO que [P2pService.notifyNetworkChange] não resolveu. */
+@Composable
+private fun RestartSection(
+    restarting: Boolean,
+    restartError: Boolean,
+    onRestart: () -> Unit,
+) {
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(ShapeTokens.Medium)
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                .padding(SpacingTokens.Medium),
+        verticalArrangement = Arrangement.spacedBy(SpacingTokens.Small),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(id = R.string.title_relay_settings_restart),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = stringResource(id = R.string.label_relay_settings_restart_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(modifier = Modifier.width(SpacingTokens.Small))
+            OutlinedButton(onClick = onRestart, enabled = !restarting) {
+                if (restarting) {
+                    CircularProgressIndicator(modifier = Modifier.size(SizeTokens.IconExtraSmall))
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = null,
+                        modifier = Modifier.size(SizeTokens.IconExtraSmall),
+                    )
+                }
+                Spacer(modifier = Modifier.width(SpacingTokens.ExtraSmall))
+                Text(
+                    text =
+                        stringResource(
+                            id =
+                                if (restarting) {
+                                    R.string.action_relay_settings_restarting
+                                } else {
+                                    R.string.action_relay_settings_restart
+                                },
+                        ),
+                )
+            }
+        }
+
+        if (restartError) {
+            Text(
+                text = stringResource(id = R.string.error_relay_settings_restart_failed),
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
     }
 }
 

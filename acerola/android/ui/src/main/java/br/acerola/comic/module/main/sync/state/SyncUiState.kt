@@ -75,6 +75,13 @@ data class RelaySettingsUiState(
      *  salvo — o valor em si nunca é exposto na UI (é uma credencial real, guardada no cofre
      *  criptografado do node, não no DataStore junto das demais preferências de relay). */
     val hasIrohServicesTicket: Boolean = false,
+    /** `true` enquanto `SyncAction.RestartP2p` está em andamento — desabilita o botão
+     *  "Reiniciar" pra evitar disparar dois restarts simultâneos (o segundo desligaria um node
+     *  que o primeiro acabou de subir). */
+    val restarting: Boolean = false,
+    /** `true` logo após um `RestartP2p` falhar — mensagem inline no card, mesmo padrão de
+     *  [SyncUiState.irohServicesTicketError]. */
+    val restartError: Boolean = false,
 )
 
 data class SyncResult(

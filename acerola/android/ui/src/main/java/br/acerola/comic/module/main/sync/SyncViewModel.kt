@@ -306,6 +306,8 @@ class SyncViewModel
                 SyncAction.ClearIrohServicesTicket -> clearIrohServicesTicket()
                 SyncAction.DismissIrohServicesTicketError ->
                     _uiState.update { it.copy(irohServicesTicketError = false) }
+
+                SyncAction.RestartP2p -> restartP2p()
             }
         }
 
@@ -360,6 +362,46 @@ class SyncViewModel
                     "Failed to apply relay settings live: ${error.message}",
                     LogSource.UI,
                 )
+            }
+        }
+
+        /** Botão manual "Reiniciar" — desliga o node P2P atual e sobe um novo do zero (mesma
+         *  identidade/storage/peers pareados, ver `P2PNode::restart` no Rust). Passa a config de
+         *  relay ATUAL da UI (mesma fonte de [applyCurrentRelaySettingsLive]), já que o node novo
+         *  precisa resolver o modo de relay do zero, sem um `Endpoint` anterior pra herdar de. */
+        private fun restartP2p() {
+            if (_uiState.value.relaySettings.restarting) return
+            _uiState.update { it.copy(relaySettings = it.relaySettings.copy(restarting = true, restartError = false)) }
+
+            viewModelScope.launch(Dispatchers.IO) {
+                val relaySettings = _uiState.value.relaySettings
+                val result =
+                    runCatching {
+                        p2pUseCase.restart(
+                            RelaySettings(
+                                useAcerolaRelay = relaySettings.useAcerolaRelay,
+                                useIrohPublicNetwork = relaySettings.useIrohPublicNetwork,
+                                customRelayUrls = relaySettings.customRelayUrls,
+                            ),
+                        )
+                    }
+
+                if (result.isSuccess) {
+                    refreshLocalInfo()
+                } else {
+                    AcerolaLogger.w(
+                        "SyncViewModel",
+                        "Failed to restart p2p node: ${result.exceptionOrNull()?.message}",
+                        LogSource.UI,
+                    )
+                }
+
+                _uiState.update {
+                    it.copy(
+                        relaySettings =
+                            it.relaySettings.copy(restarting = false, restartError = result.isFailure),
+                    )
+                }
             }
         }
 

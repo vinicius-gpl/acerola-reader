@@ -107,6 +107,11 @@ class P2pUseCase
             p2pService.applyRelaySettings(relaySettings)
         }
 
+        fun restart(relaySettings: RelaySettings) {
+            AcerolaLogger.i("P2pUseCase", "Restarting p2p node", LogSource.NETWORK)
+            p2pService.restart(relaySettings)
+        }
+
         fun removePairedPeer(id: String) {
             AcerolaLogger.i("P2pUseCase", "Removing paired peer: $id", LogSource.NETWORK)
             p2pService.removePairedPeer(id)
