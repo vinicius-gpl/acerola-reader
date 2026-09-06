@@ -24,7 +24,8 @@
 		onAddCustomRelayUrl: noop,
 		onRemoveCustomRelayUrl: noop,
 		onSetIrohServicesTicket: noopAsync,
-		onClearIrohServicesTicket: noopAsync
+		onClearIrohServicesTicket: noopAsync,
+		onRestart: noopAsync
 	};
 </script>
 

@@ -767,7 +767,14 @@
 				"invalid_url": "Digite uma URL válida (ex.: https://relay.exemplo.com).",
 				"summary_mdns_only": "Só rede local (mDNS) — nenhum relay ativo, só dispositivos na mesma rede conseguem conectar.",
 				"summary_iroh_public": "Usando a rede pública de relays do Iroh.",
-				"summary_active": "{count} fonte(s) de relay ativa(s)."
+				"summary_active": "{count} fonte(s) de relay ativa(s).",
+				"restart": {
+					"button": "Reiniciar módulo P2P",
+					"description": "Desliga e religa a conexão P2P do zero — útil se a conexão ficou travada depois de trocar de rede ou de relay.",
+					"restarting": "Reiniciando...",
+					"success": "Módulo P2P reiniciado.",
+					"error": "Não foi possível reiniciar o módulo P2P."
+				}
 			},
 			"pairing": {
 				"title": "Código de conexão",

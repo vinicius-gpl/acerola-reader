@@ -11,9 +11,11 @@ export function useRelaySettings() {
 		relayInfo = await invoke<RelayInfo>(NETWORK_COMMANDS.getRelayInfo);
 	}
 
-	/// Todas as mudanças abaixo persistem em `settings.json` E aplicam ao node P2P já vivo na
-	/// hora (`apply_relay_settings`, relê o disco/cofre e reconfigura o `Endpoint` via
-	/// `insert_relay`/`remove_relay`) — não precisa mais fechar/reabrir o app pra valer.
+	/// Todas as mudanças abaixo persistem em `settings.json` E aplicam na hora
+	/// (`apply_relay_settings`, relê o disco/cofre e REINICIA o módulo P2P inteiro com a config
+	/// nova — ver `NetworkServiceApi::restart` no backend, estilo LocalSend) — não precisa mais
+	/// fechar/reabrir o app pra valer. Um restart derruba conexões ativas por alguns segundos,
+	/// mas evita o estado confuso que mutar o `Endpoint` ao vivo podia deixar pra trás.
 
 	async function setUseAcerolaRelay(value: boolean) {
 		const store = await load(STORE_FILE);
@@ -75,8 +77,17 @@ export function useRelaySettings() {
 		await invoke(NETWORK_COMMANDS.applyRelaySettings);
 	}
 
+	/// Botão manual "Reiniciar" — mesma operação que qualquer mudança de fonte de relay já
+	/// dispara automaticamente (ver doc acima), exposta pro usuário forçar um reset mesmo sem
+	/// mudar nada (ex.: conexão presa depois de uma troca de rede física do SO, sem precisar
+	/// fechar e reabrir o app inteiro).
+	async function restartP2p() {
+		await invoke(NETWORK_COMMANDS.restartP2p);
+	}
+
 	return {
 		loadRelayInfo,
+		restartP2p,
 		setUseAcerolaRelay,
 		setUseIrohPublicNetwork,
 		addCustomRelayUrl,

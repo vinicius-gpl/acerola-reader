@@ -22,7 +22,8 @@ function events() {
 		onAddCustomRelayUrl: vi.fn(),
 		onRemoveCustomRelayUrl: vi.fn(),
 		onSetIrohServicesTicket: vi.fn().mockResolvedValue(undefined),
-		onClearIrohServicesTicket: vi.fn().mockResolvedValue(undefined)
+		onClearIrohServicesTicket: vi.fn().mockResolvedValue(undefined),
+		onRestart: vi.fn().mockResolvedValue(undefined)
 	};
 }
 
@@ -188,5 +189,32 @@ describe('AcerolaNetworkRelaySettingsCard', () => {
 		expect(
 			screen.getByPlaceholderText(/your-relay\.example\.com|seu-relay\.exemplo\.com/i)
 		).toBeDisabled();
+	});
+
+	it('restarts the p2p module', async () => {
+		const handlers = events();
+		render(AcerolaNetworkRelaySettingsCard, { props: { data: data(), events: handlers } });
+		await expandCard();
+
+		await fireEvent.click(
+			screen.getByRole('button', { name: /Restart P2P module|Reiniciar módulo P2P/i })
+		);
+
+		expect(handlers.onRestart).toHaveBeenCalled();
+	});
+
+	it('shows an error when restarting fails', async () => {
+		const handlers = events();
+		handlers.onRestart.mockRejectedValueOnce(new Error('restart failed'));
+		render(AcerolaNetworkRelaySettingsCard, { props: { data: data(), events: handlers } });
+		await expandCard();
+
+		await fireEvent.click(
+			screen.getByRole('button', { name: /Restart P2P module|Reiniciar módulo P2P/i })
+		);
+
+		expect(
+			await screen.findByText(/Couldn't restart the P2P module|Não foi possível reiniciar/i)
+		).toBeInTheDocument();
 	});
 });

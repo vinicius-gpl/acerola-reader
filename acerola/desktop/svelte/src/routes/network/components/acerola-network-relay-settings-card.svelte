@@ -16,6 +16,7 @@
 			onRemoveCustomRelayUrl: (url: string) => void;
 			onSetIrohServicesTicket: (ticket: string) => Promise<void>;
 			onClearIrohServicesTicket: () => Promise<void>;
+			onRestart: () => Promise<void>;
 		};
 	};
 </script>
@@ -24,12 +25,14 @@
 	import PlusIcon from '@lucide/svelte/icons/plus';
 	import Trash2Icon from '@lucide/svelte/icons/trash-2';
 	import WifiIcon from '@lucide/svelte/icons/wifi';
+	import RefreshCwIcon from '@lucide/svelte/icons/refresh-cw';
 	import AcerolaAccordionCard from '$lib/components/acerola-accordion-card/acerola-accordion-card.svelte';
 	import AcerolaSwitch from '$lib/components/acerola-switch/acerola-switch.svelte';
 	import AcerolaInput from '$lib/components/acerola-input/acerola-input.svelte';
 	import AcerolaButton from '$lib/components/acerola-button/acerola-button.svelte';
 	import AcerolaButtonIcon from '$lib/components/acerola-button/acerola-button-icon.svelte';
 	import { m } from '$lib/paraglide/messages';
+	import { cn } from '$lib/utils/cn.utils';
 
 	let { data, events }: NetworkRelaySettingsCardProps = $props();
 
@@ -41,6 +44,8 @@
 	let ticketDraft = $state('');
 	let ticketError = $state(false);
 	let ticketSaving = $state(false);
+	let restarting = $state(false);
+	let restartError = $state(false);
 
 	let safeData = $derived(
 		data ?? {
@@ -112,6 +117,19 @@
 			await events.onClearIrohServicesTicket();
 		} finally {
 			ticketSaving = false;
+		}
+	}
+
+	async function restart() {
+		if (restarting) return;
+		restarting = true;
+		restartError = false;
+		try {
+			await events.onRestart();
+		} catch {
+			restartError = true;
+		} finally {
+			restarting = false;
 		}
 	}
 </script>
@@ -291,5 +309,32 @@
 		{#if customUrlError}
 			<p class="text-xs text-destructive">{m['pages.network.relay_settings.invalid_url']()}</p>
 		{/if}
+	</div>
+
+	<div
+		class="flex items-center justify-between gap-4 rounded-xl border border-border bg-background/50 p-3"
+	>
+		<div class="min-w-0">
+			<p class="text-sm font-semibold text-foreground">
+				{m['pages.network.relay_settings.restart.button']()}
+			</p>
+			<p class="text-xs text-muted-foreground">
+				{m['pages.network.relay_settings.restart.description']()}
+			</p>
+			{#if restartError}
+				<p class="mt-1 text-xs text-destructive">
+					{m['pages.network.relay_settings.restart.error']()}
+				</p>
+			{/if}
+		</div>
+		<AcerolaButton
+			events={{ onClick: restart }}
+			ui={{ size: 'sm', variant: 'outline', disabled: restarting }}
+		>
+			<RefreshCwIcon size={14} class={cn(restarting && 'animate-spin')} />
+			{restarting
+				? m['pages.network.relay_settings.restart.restarting']()
+				: m['pages.network.relay_settings.restart.button']()}
+		</AcerolaButton>
 	</div>
 </AcerolaAccordionCard>

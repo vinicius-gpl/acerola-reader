@@ -182,7 +182,11 @@
 			onAddCustomRelayUrl: (url) => relay.addCustomRelayUrl(url),
 			onRemoveCustomRelayUrl: (url) => relay.removeCustomRelayUrl(url),
 			onSetIrohServicesTicket: (ticket) => relay.setIrohServicesTicket(ticket),
-			onClearIrohServicesTicket: () => relay.clearIrohServicesTicket()
+			onClearIrohServicesTicket: () => relay.clearIrohServicesTicket(),
+			onRestart: async () => {
+				await relay.restartP2p();
+				toast.success(m['pages.network.relay_settings.restart.success']());
+			}
 		}}
 	/>
 
