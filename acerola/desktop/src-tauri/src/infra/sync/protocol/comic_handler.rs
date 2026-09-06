@@ -825,9 +825,10 @@ mod tests {
 
         let sender_comic_dir = sender_dir.path().join("Test");
         tokio::fs::create_dir_all(&sender_comic_dir).await.unwrap();
-        for (id, chapter, content) in
-            [(1i64, "Cap 1", b"chapter one bytes".as_slice()), (2, "Cap 2", b"chapter two bytes".as_slice())]
-        {
+        for (id, chapter, content) in [
+            (1i64, "Cap 1", b"chapter one bytes".as_slice()),
+            (2, "Cap 2", b"chapter two bytes".as_slice()),
+        ] {
             let path = sender_comic_dir.join(format!("{chapter}.cbz"));
             tokio::fs::write(&path, content).await.unwrap();
             sqlx::query(
@@ -852,8 +853,10 @@ mod tests {
 
         let sender_root = sender_dir.path().to_path_buf();
         let receiver_root = receiver_dir.path().to_path_buf();
-        let outbound_service = FileSyncService::new(sender_pool.clone(), move || sender_root.clone());
-        let inbound_service = FileSyncService::new(receiver_pool.clone(), move || receiver_root.clone());
+        let outbound_service =
+            FileSyncService::new(sender_pool.clone(), move || sender_root.clone());
+        let inbound_service =
+            FileSyncService::new(receiver_pool.clone(), move || receiver_root.clone());
         let outbound_metadata = Arc::new(MetadataService::new(sender_pool.clone()));
         let inbound_metadata = Arc::new(MetadataService::new(receiver_pool.clone()));
 
@@ -895,8 +898,9 @@ mod tests {
             inbound.handle(&peer, Box::new(server_send), Box::new(server_recv)),
         );
 
-        outbound_result
-            .expect("outbound (quem envia) não deveria falhar — o problema é só do lado que recebe");
+        outbound_result.expect(
+            "outbound (quem envia) não deveria falhar — o problema é só do lado que recebe",
+        );
         assert!(
             inbound_result.is_err(),
             "sessão deveria terminar reportando skipped>0 (Err de PartialSync), não sucesso silencioso"
@@ -912,7 +916,9 @@ mod tests {
         let recorded = inbound_events.lock().unwrap();
         let item_error = recorded
             .iter()
-            .find(|(name, payload)| name == "sync:comic:error" && payload.contains("\"itemLevel\":true"))
+            .find(|(name, payload)| {
+                name == "sync:comic:error" && payload.contains("\"itemLevel\":true")
+            })
             .expect("deveria ter emitido um erro de ITEM pra Cap 1, não só o erro final de sessão");
         let payload: serde_json::Value = serde_json::from_str(&item_error.1).unwrap();
         assert_eq!(payload["item"], "Cap 1");
@@ -920,9 +926,140 @@ mod tests {
 
         let session_error = recorded
             .iter()
-            .find(|(name, payload)| name == "sync:comic:error" && payload.contains("\"partial_sync\""))
+            .find(|(name, payload)| {
+                name == "sync:comic:error" && payload.contains("\"partial_sync\"")
+            })
             .expect("deveria também ter emitido o erro de SESSÃO final reportando skipped=1");
         let session_payload: serde_json::Value = serde_json::from_str(&session_error.1).unwrap();
         assert_eq!(session_payload["comicName"], "Test");
+    }
+
+    /// Duplo de teste que mede quantos `fetch_reader` ficam em voo ao mesmo tempo (pico
+    /// observado) — a única forma de provar que `receive_files` roda fetches em paralelo de
+    /// verdade, não mais um capítulo por vez como antes desta mudança.
+    struct ConcurrencyTrackingTransfer {
+        latency: std::time::Duration,
+        fetch_delay: std::time::Duration,
+        in_flight: std::sync::atomic::AtomicUsize,
+        max_observed: std::sync::atomic::AtomicUsize,
+    }
+
+    impl ConcurrencyTrackingTransfer {
+        fn new(latency: std::time::Duration, fetch_delay: std::time::Duration) -> Self {
+            Self {
+                latency,
+                fetch_delay,
+                in_flight: std::sync::atomic::AtomicUsize::new(0),
+                max_observed: std::sync::atomic::AtomicUsize::new(0),
+            }
+        }
+
+        fn max_observed(&self) -> usize {
+            self.max_observed.load(std::sync::atomic::Ordering::SeqCst)
+        }
+    }
+
+    #[async_trait]
+    impl ChapterTransfer for ConcurrencyTrackingTransfer {
+        async fn publish(&self, _bytes: Vec<u8>) -> Result<String, P2pError> {
+            unimplemented!("este teste só exercita o lado receptor (fetch_reader)")
+        }
+
+        async fn fetch_reader(
+            &self, _blob_hash: &str, _peer: &PeerIdentity,
+        ) -> Result<Box<dyn AsyncRead + Send + Unpin>, P2pError> {
+            let current = self.in_flight.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+            self.max_observed.fetch_max(current, std::sync::atomic::Ordering::SeqCst);
+            tokio::time::sleep(self.fetch_delay).await;
+            self.in_flight.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+            Ok(Box::new(tokio::io::empty()))
+        }
+
+        async fn latency(&self, _peer: &PeerIdentity) -> Option<std::time::Duration> {
+            Some(self.latency)
+        }
+    }
+
+    /// Regressão central desta mudança: antes, `receive_files` lia um header, bloqueava no
+    /// fetch INTEIRO daquele capítulo, só então lia o próximo — pico de concorrência sempre 1,
+    /// não importava a latência. Com um RTT simulado de 500ms (> 200ms, teto de 6 concorrentes
+    /// via `chapter_fetch_concurrency`) e 6 capítulos esperados, se o fetch de verdade rodasse
+    /// em paralelo o pico observado precisa passar de 1 — provando que a leitura do PRÓXIMO
+    /// header não fica mais bloqueada atrás do fetch do capítulo anterior.
+    #[tokio::test]
+    async fn receive_files_fetches_chapters_concurrently_on_a_high_latency_connection() {
+        let pool = crate::tests::utils::setup_test_db::setup_test_db().await;
+        let dir = tempfile::tempdir().unwrap();
+        let comic_dir = dir.path().join("Test");
+        tokio::fs::create_dir_all(&comic_dir).await.unwrap();
+        crate::tests::utils::setup_test_db::insert_comic_directory(
+            &pool,
+            1,
+            "Test",
+            comic_dir.to_str().unwrap(),
+        )
+        .await;
+
+        let root = dir.path().to_path_buf();
+        let service = FileSyncService::new(pool.clone(), move || root.clone());
+        let (emit, _events) = mock_emitter();
+        let peer = PeerIdentity { id: "peer-concurrency".to_string(), device_id: None };
+
+        // Guardado como tipo concreto (não `Arc<dyn ChapterTransfer>`) só pra poder ler
+        // `max_observed()` depois — `receive_files` recebe uma referência via coerção implícita
+        // no próprio call site, não precisa de downcast nenhum.
+        let transfer = Arc::new(ConcurrencyTrackingTransfer::new(
+            std::time::Duration::from_millis(500),
+            std::time::Duration::from_millis(60),
+        ));
+
+        let (client_io, server_io) = tokio::io::duplex(64 * 1024);
+        let (_client_recv, client_send) = tokio::io::split(client_io);
+        let (server_recv, _server_send) = tokio::io::split(server_io);
+        let mut writer = framed_writer(Box::new(client_send));
+        let mut reader = framed_reader(Box::new(server_recv));
+
+        const CHAPTER_COUNT: usize = 6;
+        let writer_task = tokio::spawn(async move {
+            for i in 0..CHAPTER_COUNT {
+                write_json(
+                    &mut writer,
+                    &crate::infra::sync::messages::FileHeader {
+                        comic_name: "Test".to_string(),
+                        chapter: format!("Cap {i}"),
+                        file_name: format!("Cap {i}.cbz"),
+                        size: 10,
+                        checksum: None,
+                        blob_hash: Some(format!("hash-{i}")),
+                    },
+                )
+                .await
+                .unwrap();
+            }
+            // Dropar `writer` (fim do escopo desta task) fecha a metade de escrita do duplex —
+            // sem isso o `FramedReader` do lado receptor nunca veria EOF depois do último header.
+        });
+
+        let skipped = receive_files(
+            &mut reader,
+            CHAPTER_COUNT,
+            &service,
+            &emit,
+            "progress",
+            "error",
+            &peer,
+            &(Arc::clone(&transfer) as Arc<dyn ChapterTransfer>),
+        )
+        .await
+        .unwrap();
+        writer_task.await.unwrap();
+
+        assert_eq!(skipped, 0, "todos os 6 capítulos deveriam ter sido persistidos com sucesso");
+        let observed = transfer.max_observed();
+        assert!(
+            observed >= 2,
+            "esperava fetches sobrepostos (pico >= 2) com RTT alto, só observou pico de {observed} \
+             — receive_files voltou a processar um capítulo por vez"
+        );
     }
 }

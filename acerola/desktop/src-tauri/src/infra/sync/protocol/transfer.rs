@@ -1,9 +1,16 @@
-use std::sync::Arc;
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 
 use acerola_p2p::api::{error::P2pError, peer::PeerIdentity, protocol::EventEmitter};
 use async_trait::async_trait;
 use serde::de::DeserializeOwned;
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite};
+use tokio::{
+    io::{AsyncRead, AsyncReadExt, AsyncWrite},
+    sync::Semaphore,
+    task::JoinSet,
+};
 
 use crate::{
     core::services::{metadata::MetadataService, sync::file_sync::FileSyncService},
@@ -29,6 +36,12 @@ pub trait ChapterTransfer: Send + Sync {
     async fn fetch_reader(
         &self, blob_hash: &str, peer: &PeerIdentity,
     ) -> Result<Box<dyn AsyncRead + Send + Unpin>, P2pError>;
+
+    /// RTT medido com `peer` agora, usado só pra dimensionar quantos capítulos buscar em
+    /// paralelo em `receive_files` (ver doc lá) — `None` quando não há como medir (sem conexão
+    /// viva, ou implementação de teste que não simula rede de verdade) cai no paralelismo
+    /// mínimo, nunca em erro.
+    async fn latency(&self, peer: &PeerIdentity) -> Option<std::time::Duration>;
 }
 
 pub struct BlobChapterTransfer {
@@ -71,6 +84,10 @@ impl ChapterTransfer for BlobChapterTransfer {
         // propaga direto em vez de achatar em `StreamFailed(err.to_string())`.
         store.fetch(&hash, &addr).await?;
         store.get(&hash).await
+    }
+
+    async fn latency(&self, peer: &PeerIdentity) -> Option<std::time::Duration> {
+        self.context.latency(peer).await
     }
 }
 
@@ -325,6 +342,242 @@ pub async fn send_files(
     Ok(skipped)
 }
 
+/// Quantos capítulos buscar em paralelo, a partir do RTT medido AGORA com o peer (ver
+/// `ChapterTransfer::latency`) — um link lento (relay distante) precisa de vários fetches "em
+/// voo" ao mesmo tempo pra não ficar ocioso entre um round-trip e o próximo; um link local
+/// (mDNS/LAN) já satura com pouquíssimo paralelismo, e mais que isso só desperdiça memória.
+/// Teto fixo de 6 de propósito: uma rajada de fetches sem limite nenhum (`fetchCoversFor`, no
+/// frontend) foi exatamente o que deixou uma conexão real degradada a ponto de um sync de
+/// arquivos levar minutos, capítulo a capítulo — não faz sentido resolver "devagar demais"
+/// recriando "rápido demais a ponto de quebrar" pro mesmo peer. Sem medição (peer ainda não
+/// respondeu a nenhum ping, ou implementação de teste) cai no mais conservador dos três — não
+/// vale a pena arriscar paralelismo sobre uma conexão de saúde desconhecida.
+fn chapter_fetch_concurrency(latency: Option<std::time::Duration>) -> usize {
+    match latency {
+        Some(rtt) if rtt <= std::time::Duration::from_millis(20) => 2,
+        Some(rtt) if rtt <= std::time::Duration::from_millis(200) => 4,
+        Some(_) => 6,
+        None => 2,
+    }
+}
+
+/// Quantos permits tirar do pool (`Semaphore::forget_permits`) na primeira vez que um fetch
+/// estoura o timeout de inatividade numa sessão — corta pela metade, nunca abaixo de 1 (nunca
+/// desliga o paralelismo por completo, só reduz). Calculado a partir do N ORIGINAL
+/// (`initial_permits` em `receive_files`), não de `available_permits()` em tempo real: no
+/// momento do primeiro timeout a maioria do N original já está em uso por fetches em voo, então
+/// `available_permits()` reflete só a sobra e subestimaria o corte.
+fn permits_to_forget(initial_permits: usize) -> usize {
+    initial_permits.saturating_sub((initial_permits / 2).max(1))
+}
+
+/// Resultado de processar UM header já lido do fio — extraído de `receive_files` pra poder
+/// rodar como uma task independente (`tokio::spawn`), em paralelo com a leitura do PRÓXIMO
+/// header, em vez de bloquear o loop inteiro no fetch de um único capítulo por vez.
+enum ChapterOutcome {
+    Persisted,
+    /// `timed_out: true` só quando a causa específica de pular este item foi
+    /// `P2pError::Timeout` no fetch do blob — o único sinal que `receive_files` usa pra reduzir
+    /// o paralelismo pro resto da sessão (ver doc lá). Os outros motivos de skip (blob_hash
+    /// ausente, checksum, pasta indisponível, falha de persistência, falha de leitura local do
+    /// blob já fetchado) não indicam uma conexão degradada, só um item ruim isolado — não faz
+    /// sentido isso disparar o backoff.
+    Skipped {
+        timed_out: bool,
+    },
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn receive_one_chapter(
+    header: FileHeader, service: FileSyncService, emit: EventEmitter, progress_event: String,
+    error_event: String, peer: PeerIdentity, transfer: Arc<dyn ChapterTransfer>,
+) -> ChapterOutcome {
+    if header.size == 0 {
+        tracing::warn!(
+            comic_name = %header.comic_name,
+            chapter = %header.chapter,
+            "[FileSync] peer reported chapter as unavailable (size=0) — skipping"
+        );
+        return ChapterOutcome::Skipped { timed_out: false };
+    }
+
+    let Some(blob_hash) = header.blob_hash.as_deref() else {
+        tracing::warn!(
+            comic_name = %header.comic_name,
+            chapter = %header.chapter,
+            "[FileSync] header missing blob_hash — skipping"
+        );
+        (emit)(
+            &error_event,
+            item_error_payload(
+                &peer.id,
+                "missing blob hash",
+                Some(SyncErrorCode::MissingBlobHash),
+                &header.comic_name,
+                &header.chapter,
+            ),
+        );
+        return ChapterOutcome::Skipped { timed_out: false };
+    };
+
+    let mut blob_reader = match transfer.fetch_reader(blob_hash, &peer).await {
+        Ok(reader) => reader,
+        Err(err) => {
+            tracing::warn!(
+                comic_name = %header.comic_name,
+                chapter = %header.chapter,
+                error = %err,
+                "[FileSync] failed to fetch chapter blob — skipping"
+            );
+            let timed_out = matches!(err, P2pError::Timeout);
+            (emit)(
+                &error_event,
+                item_error_payload(
+                    &peer.id,
+                    &format!("blob fetch failed: {err}"),
+                    Some(classify_sync_error(&err).unwrap_or(SyncErrorCode::BlobFetchFailed)),
+                    &header.comic_name,
+                    &header.chapter,
+                ),
+            );
+            return ChapterOutcome::Skipped { timed_out };
+        },
+    };
+
+    // Antes usava `?` e abortava a sessão INTEIRA — diferente dos outros pontos de falha desta
+    // função, que já eram todos não-fatais. Essa leitura é local (`P2pBlobStore::get`, disco/
+    // cache já preenchido por `fetch` alguns milissegundos antes), não uma segunda rodada de
+    // rede: uma falha aqui não indica nada sobre a saúde da conexão nem do resto do header
+    // stream, então tratar como mais um item pulado (em vez de fatal) alinha esta última exceção
+    // com a filosofia já estabelecida no resto da função.
+    let mut bytes = Vec::new();
+    if let Err(err) = blob_reader.read_to_end(&mut bytes).await {
+        tracing::warn!(
+            comic_name = %header.comic_name,
+            chapter = %header.chapter,
+            error = %err,
+            "[FileSync] failed to read fetched chapter blob — skipping"
+        );
+        (emit)(
+            &error_event,
+            item_error_payload(
+                &peer.id,
+                &format!("failed to read chapter blob: {err}"),
+                None,
+                &header.comic_name,
+                &header.chapter,
+            ),
+        );
+        return ChapterOutcome::Skipped { timed_out: false };
+    }
+
+    let computed_checksum = {
+        use sha2::{Digest, Sha256};
+        format!("{:x}", Sha256::digest(&bytes))
+    };
+
+    if let Some(expected) = &header.checksum {
+        if expected != &computed_checksum {
+            tracing::warn!(
+                comic_name = %header.comic_name,
+                chapter = %header.chapter,
+                expected = %expected,
+                computed = %computed_checksum,
+                "[FileSync] checksum mismatch — skipping"
+            );
+            (emit)(
+                &error_event,
+                item_error_payload(
+                    &peer.id,
+                    "checksum mismatch",
+                    Some(SyncErrorCode::ChecksumMismatch),
+                    &header.comic_name,
+                    &header.chapter,
+                ),
+            );
+            return ChapterOutcome::Skipped { timed_out: false };
+        }
+    }
+
+    // Resolve a pasta do quadrinho ANTES de gravar o arquivo temporário — grava já no
+    // destino final (mesma pasta que `persist_received_chapter` vai usar pro rename),
+    // sem uma pasta de staging à parte que sobrava visível na biblioteca do usuário.
+    let comic_dir = match service.resolve_comic_dir(&header.comic_name).await {
+        Ok(comic) => std::path::PathBuf::from(comic.path),
+        Err(err) => {
+            tracing::warn!(
+                comic_name = %header.comic_name,
+                chapter = %header.chapter,
+                error = %err,
+                "[FileSync] failed to resolve comic directory — skipping"
+            );
+            (emit)(
+                &error_event,
+                item_error_payload(
+                    &peer.id,
+                    "failed to resolve comic directory",
+                    Some(SyncErrorCode::ComicDirectoryUnavailable),
+                    &header.comic_name,
+                    &header.chapter,
+                ),
+            );
+            return ChapterOutcome::Skipped { timed_out: false };
+        },
+    };
+    let temp_path = comic_dir.join(format!(".incoming-{}.tmp", rand::random::<u64>()));
+    if let Err(err) = tokio::fs::write(&temp_path, &bytes).await {
+        tracing::warn!(
+            comic_name = %header.comic_name,
+            chapter = %header.chapter,
+            error = %err,
+            "[FileSync] failed to write temp file for received chapter — skipping"
+        );
+        (emit)(
+            &error_event,
+            item_error_payload(
+                &peer.id,
+                &format!("failed to write temp file: {}", RpcError::from(err)),
+                Some(SyncErrorCode::PersistFailed),
+                &header.comic_name,
+                &header.chapter,
+            ),
+        );
+        return ChapterOutcome::Skipped { timed_out: false };
+    }
+
+    if let Err(err) = service
+        .persist_received_chapter(
+            &header.comic_name,
+            &header.chapter,
+            &header.file_name,
+            &temp_path,
+            computed_checksum,
+        )
+        .await
+    {
+        tracing::warn!(
+            comic_name = %header.comic_name,
+            chapter = %header.chapter,
+            error = %err,
+            "[FileSync] failed to persist received chapter — skipping"
+        );
+        (emit)(
+            &error_event,
+            item_error_payload(
+                &peer.id,
+                &format!("failed to persist chapter: {err}"),
+                Some(SyncErrorCode::PersistFailed),
+                &header.comic_name,
+                &header.chapter,
+            ),
+        );
+        return ChapterOutcome::Skipped { timed_out: false };
+    }
+
+    (emit)(&progress_event, format!("{} - {}", header.comic_name, header.chapter));
+    ChapterOutcome::Persisted
+}
+
 /// Recebe, em sequência, `expected_count` arquivos: cada `FileHeader` traz um `blob_hash` em
 /// vez de bytes crus no stream — busca via `ChapterTransfer::fetch_reader` (que já verifica
 /// integridade via BLAKE3 antes de devolver o leitor), grava num arquivo temporário e move pro
@@ -332,24 +585,39 @@ pub async fn send_files(
 /// do histórico/telemetria existente, redundante com a verificação do blob store mas barato o
 /// bastante pra manter).
 ///
-/// Descarta headers "indisponíveis" (`size: 0`), falhas de busca do blob ou mismatches de
-/// checksum sem abortar a sessão inteira — mas cada um desses casos agora loga via `tracing`
-/// (antes só emitia um evento pro frontend, invisível no log do backend) e é contado no
+/// Descarta headers "indisponíveis" (`size: 0`), falhas de busca/leitura do blob ou mismatches
+/// de checksum sem abortar a sessão inteira — cada caso loga via `tracing` e é contado no
 /// retorno (`usize` = quantos capítulos de `expected_count` NÃO foram persistidos). Bug
 /// reportado em 22/08/2026: um sync de 2 capítulos persistiu só 1, sem nenhum erro visível no
-/// log — porque essas 4 falhas de item nunca logavam nada, só emitiam evento pro frontend, e a
+/// log — porque essas falhas de item nunca logavam nada, só emitiam evento pro frontend, e a
 /// sessão inteira ainda era reportada como "completa" pro chamador (`ComicSyncOutbound`/
 /// `FileSyncOutbound`) mesmo com itens faltando.
 ///
 /// `#[allow(too_many_arguments)]`: dívida técnica pré-existente (já eram 8 parâmetros antes
 /// desta mudança) — agrupar em uma struct de contexto é um refactor maior, fora do escopo do
 /// bug que motivou esta função a mudar.
+///
+/// Cada header é lido em sequência do fio (é um stream ordenado só, não dá pra ler o header 2
+/// antes do 1) mas o FETCH do blob que ele referencia roda numa task própria, num pool de até
+/// `chapter_fetch_concurrency(...)` capítulos concorrentes — antes disso, o loop bloqueava no
+/// fetch inteiro de UM capítulo antes de sequer ler o próximo header, então qualquer lentidão
+/// por item (RTT alto, conexão degradada) virava tempo total de sessão 1:1, sem chance de
+/// sobrepor um fetch lento com o próximo enquanto ele ainda está em voo. Motivado por um sync
+/// real que levou minutos numa conexão de relay de ~1s de RTT, um capítulo por vez.
 #[allow(clippy::too_many_arguments)]
 pub async fn receive_files(
     reader: &mut FramedReader, expected_count: usize, service: &FileSyncService,
     emit: &EventEmitter, progress_event: &str, error_event: &str, peer: &PeerIdentity,
     transfer: &Arc<dyn ChapterTransfer>,
 ) -> Result<usize, P2pError> {
+    let initial_permits = chapter_fetch_concurrency(transfer.latency(peer).await);
+    let semaphore = Arc::new(Semaphore::new(initial_permits));
+    // `backed_off` garante que o corte de `permits_to_forget` só dispare uma vez por sessão —
+    // ver doc de `permits_to_forget` pro porquê do cálculo.
+    let backed_off = Arc::new(AtomicBool::new(false));
+    let permits_to_forget_on_timeout = permits_to_forget(initial_permits);
+
+    let mut tasks = JoinSet::new();
     let mut skipped = 0usize;
 
     for _ in 0..expected_count {
@@ -362,163 +630,57 @@ pub async fn receive_files(
             "[FileSync] header recebido pelo fio"
         );
 
-        if header.size == 0 {
-            tracing::warn!(
-                comic_name = %header.comic_name,
-                chapter = %header.chapter,
-                "[FileSync] peer reported chapter as unavailable (size=0) — skipping"
-            );
-            skipped += 1;
-            continue;
-        }
-
-        let Some(blob_hash) = header.blob_hash.as_deref() else {
-            tracing::warn!(
-                comic_name = %header.comic_name,
-                chapter = %header.chapter,
-                "[FileSync] header missing blob_hash — skipping"
-            );
-            skipped += 1;
-            (emit)(
-                error_event,
-                item_error_payload(
-                    &peer.id,
-                    "missing blob hash",
-                    Some(SyncErrorCode::MissingBlobHash),
-                    &header.comic_name,
-                    &header.chapter,
-                ),
-            );
-            continue;
-        };
-
-        let mut blob_reader = match transfer.fetch_reader(blob_hash, peer).await {
-            Ok(reader) => reader,
-            Err(err) => {
-                tracing::warn!(
-                    comic_name = %header.comic_name,
-                    chapter = %header.chapter,
-                    error = %err,
-                    "[FileSync] failed to fetch chapter blob — skipping"
-                );
-                skipped += 1;
-                (emit)(
-                    error_event,
-                    item_error_payload(
-                        &peer.id,
-                        &format!("blob fetch failed: {err}"),
-                        Some(classify_sync_error(&err).unwrap_or(SyncErrorCode::BlobFetchFailed)),
-                        &header.comic_name,
-                        &header.chapter,
-                    ),
-                );
-                continue;
-            },
-        };
-
-        let mut bytes = Vec::new();
-        blob_reader
-            .read_to_end(&mut bytes)
+        let permit = Arc::clone(&semaphore)
+            .acquire_owned()
             .await
-            .map_err(|err| P2pError::StreamFailed(err.to_string()))?;
+            .expect("semaphore is never closed while receive_files is running");
+        let semaphore_for_backoff = Arc::clone(&semaphore);
+        let backed_off = Arc::clone(&backed_off);
+        let task_service = service.clone();
+        let task_emit = Arc::clone(emit);
+        let task_progress_event = progress_event.to_string();
+        let task_error_event = error_event.to_string();
+        let task_peer = peer.clone();
+        let task_transfer = Arc::clone(transfer);
 
-        let computed_checksum = {
-            use sha2::{Digest, Sha256};
-            format!("{:x}", Sha256::digest(&bytes))
-        };
-
-        if let Some(expected) = &header.checksum {
-            if expected != &computed_checksum {
-                tracing::warn!(
-                    comic_name = %header.comic_name,
-                    chapter = %header.chapter,
-                    expected = %expected,
-                    computed = %computed_checksum,
-                    "[FileSync] checksum mismatch — skipping"
-                );
-                skipped += 1;
-                (emit)(
-                    error_event,
-                    item_error_payload(
-                        &peer.id,
-                        "checksum mismatch",
-                        Some(SyncErrorCode::ChecksumMismatch),
-                        &header.comic_name,
-                        &header.chapter,
-                    ),
-                );
-                continue;
-            }
-        }
-
-        // Resolve a pasta do quadrinho ANTES de gravar o arquivo temporário — grava já no
-        // destino final (mesma pasta que `persist_received_chapter` vai usar pro rename),
-        // sem uma pasta de staging à parte que sobrava visível na biblioteca do usuário.
-        let comic_dir = match service.resolve_comic_dir(&header.comic_name).await {
-            Ok(comic) => std::path::PathBuf::from(comic.path),
-            Err(err) => {
-                tracing::warn!(
-                    comic_name = %header.comic_name,
-                    chapter = %header.chapter,
-                    error = %err,
-                    "[FileSync] failed to resolve comic directory — skipping"
-                );
-                skipped += 1;
-                (emit)(
-                    error_event,
-                    item_error_payload(
-                        &peer.id,
-                        "failed to resolve comic directory",
-                        Some(SyncErrorCode::ComicDirectoryUnavailable),
-                        &header.comic_name,
-                        &header.chapter,
-                    ),
-                );
-                continue;
-            },
-        };
-        let temp_path = comic_dir.join(format!(".incoming-{}.tmp", rand::random::<u64>()));
-        tokio::fs::write(&temp_path, &bytes).await.map_err(RpcError::from)?;
-
-        // Não usa `?` — ao contrário dos 4 pontos de falha acima, esta chamada usava `?`
-        // até 05/09/2026 e propagava QUALQUER erro (inclusive uma corrida genuína de UNIQUE
-        // constraint no caminho de UPDATE, que não é engolida como o INSERT é em
-        // `FileSyncService::persist_received_chapter`) até `handle()`, abortando a sessão
-        // INTEIRA no meio — os capítulos restantes nunca chegavam a ser pedidos, e
-        // `classify_sync_error` não reconhece um `ComicError` (só variantes de `P2pError` de
-        // rede), então a UI mostrava a mensagem crua em inglês em vez de um `code` traduzível.
-        // Mesmo tratamento dos outros 4: loga, conta como pulado, emite evento, continua.
-        if let Err(err) = service
-            .persist_received_chapter(
-                &header.comic_name,
-                &header.chapter,
-                &header.file_name,
-                &temp_path,
-                computed_checksum,
+        tasks.spawn(async move {
+            let _permit = permit;
+            let outcome = receive_one_chapter(
+                header,
+                task_service,
+                task_emit,
+                task_progress_event,
+                task_error_event,
+                task_peer,
+                task_transfer,
             )
-            .await
-        {
-            tracing::warn!(
-                comic_name = %header.comic_name,
-                chapter = %header.chapter,
-                error = %err,
-                "[FileSync] failed to persist received chapter — skipping"
-            );
-            skipped += 1;
-            (emit)(
-                error_event,
-                item_error_payload(
-                    &peer.id,
-                    &format!("failed to persist chapter: {err}"),
-                    Some(SyncErrorCode::PersistFailed),
-                    &header.comic_name,
-                    &header.chapter,
-                ),
-            );
-            continue;
-        }
+            .await;
 
-        (emit)(progress_event, format!("{} - {}", header.comic_name, header.chapter));
+            if matches!(outcome, ChapterOutcome::Skipped { timed_out: true })
+                && backed_off
+                    .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+                    .is_ok()
+                && permits_to_forget_on_timeout > 0
+            {
+                semaphore_for_backoff.forget_permits(permits_to_forget_on_timeout);
+            }
+
+            outcome
+        });
+    }
+
+    while let Some(result) = tasks.join_next().await {
+        match result {
+            Ok(ChapterOutcome::Persisted) => {},
+            Ok(ChapterOutcome::Skipped { .. }) => skipped += 1,
+            // Só cai aqui se a própria task deu panic (bug real, não erro de rede/protocolo) —
+            // nenhum branch de `receive_one_chapter` propaga erro, só retorna o enum. Conta como
+            // pulado em vez de abortar o resto da sessão por causa de UM item.
+            Err(join_err) => {
+                tracing::error!(error = %join_err, "[FileSync] chapter fetch task panicked — skipping");
+                skipped += 1;
+            },
+        }
     }
 
     Ok(skipped)
@@ -767,6 +929,10 @@ pub async fn receive_extras(
 #[cfg(test)]
 pub struct InMemoryChapterTransfer {
     blobs: std::sync::Mutex<std::collections::HashMap<String, Vec<u8>>>,
+    /// `None` por padrão (mesmo sentido de "sem conexão real pra medir" da doc do trait) —
+    /// testes que exercitam o dimensionamento de paralelismo por latência usam
+    /// `set_latency` pra simular um RTT específico sem precisar de rede de verdade.
+    latency: std::sync::Mutex<Option<std::time::Duration>>,
 }
 
 #[cfg(test)]
@@ -774,8 +940,13 @@ impl InMemoryChapterTransfer {
     pub fn shared_pair() -> (Arc<dyn ChapterTransfer>, Arc<dyn ChapterTransfer>) {
         let shared = Arc::new(InMemoryChapterTransfer {
             blobs: std::sync::Mutex::new(std::collections::HashMap::new()),
+            latency: std::sync::Mutex::new(None),
         });
         (Arc::clone(&shared) as Arc<dyn ChapterTransfer>, shared as Arc<dyn ChapterTransfer>)
+    }
+
+    pub fn set_latency(&self, latency: std::time::Duration) {
+        *self.latency.lock().unwrap() = Some(latency);
     }
 }
 
@@ -806,5 +977,60 @@ impl ChapterTransfer for InMemoryChapterTransfer {
             let _ = writer.shutdown().await;
         });
         Ok(Box::new(reader))
+    }
+
+    async fn latency(&self, _peer: &PeerIdentity) -> Option<std::time::Duration> {
+        *self.latency.lock().unwrap()
+    }
+}
+
+#[cfg(test)]
+mod concurrency_tests {
+    use std::time::Duration;
+
+    use super::*;
+
+    #[test]
+    fn chapter_fetch_concurrency_scales_with_measured_latency() {
+        assert_eq!(chapter_fetch_concurrency(None), 2, "sem medição, fica no mais conservador");
+        assert_eq!(chapter_fetch_concurrency(Some(Duration::from_millis(0))), 2);
+        assert_eq!(
+            chapter_fetch_concurrency(Some(Duration::from_millis(20))),
+            2,
+            "limite exato do degrau baixo, ainda dentro dele"
+        );
+        assert_eq!(
+            chapter_fetch_concurrency(Some(Duration::from_millis(21))),
+            4,
+            "1ms acima do degrau baixo já sobe pro médio"
+        );
+        assert_eq!(
+            chapter_fetch_concurrency(Some(Duration::from_millis(200))),
+            4,
+            "limite exato do degrau médio, ainda dentro dele"
+        );
+        assert_eq!(
+            chapter_fetch_concurrency(Some(Duration::from_millis(201))),
+            6,
+            "1ms acima do degrau médio já sobe pro teto"
+        );
+        assert_eq!(
+            chapter_fetch_concurrency(Some(Duration::from_secs(2))),
+            6,
+            "RTT bem alto (relay ruim) nunca passa do teto de 6"
+        );
+    }
+
+    #[test]
+    fn permits_to_forget_halves_the_pool_but_never_below_one_permit_left() {
+        assert_eq!(permits_to_forget(6), 3, "6 -> mantém 3, esquece 3");
+        assert_eq!(permits_to_forget(4), 2, "4 -> mantém 2, esquece 2");
+        assert_eq!(permits_to_forget(2), 1, "2 -> mantém max(1,1)=1, esquece 1");
+        assert_eq!(permits_to_forget(1), 0, "1 -> mantém max(1,0)=1, não há o que esquecer");
+        assert_eq!(
+            permits_to_forget(0),
+            0,
+            "0 -> nunca deveria acontecer na prática, mas não deve estourar (saturating_sub)"
+        );
     }
 }
