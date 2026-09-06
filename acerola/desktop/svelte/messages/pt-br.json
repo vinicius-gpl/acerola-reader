@@ -790,6 +790,7 @@
 				"title": "Conectar a um dispositivo",
 				"placeholder": "Cole o código de conexão aqui",
 				"button": "Conectar",
+				"loading": "Conectando...",
 				"success": "Conectado!",
 				"error": "Não foi possível conectar. Confira se o código está certo e se o outro dispositivo está com o Acerola aberto.",
 				"invalid_code": "Código inválido. Confira se você copiou o código completo do outro dispositivo."
