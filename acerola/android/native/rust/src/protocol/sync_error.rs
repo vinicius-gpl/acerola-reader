@@ -12,6 +12,14 @@ pub(crate) enum SyncErrorCode {
     Busy,
     Timeout,
     ConnectionLost,
+    /// Diferente das outras três (causas de transporte/protocolo), esta não vem de
+    /// `classify_sync_error` — `receive_one_chapter`/`receive_one_extra` (`protocol/files/
+    /// exchange.rs`) anexam este código diretamente ao payload de `chapter_failed`/
+    /// `extra_failed` quando sabem, na hora, que a falha foi especificamente um checksum que
+    /// não bateu (não um erro de I/O): `write_chapter_chunk` não falhou em nenhum chunk, mas
+    /// `finalize_chapter_write`/`finalize_extra_write` (que só faz a comparação de checksum
+    /// nesse ponto, do lado Kotlin) retornou `false` mesmo assim.
+    ChecksumMismatch,
 }
 
 /// Classifica um `P2pError` (não seu texto) num `SyncErrorCode`. Só é confiável porque os

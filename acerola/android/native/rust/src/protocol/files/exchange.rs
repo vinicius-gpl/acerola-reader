@@ -15,7 +15,10 @@ use super::{
     },
     transfer::ChapterTransfer,
 };
-use crate::{callbacks::FileSyncProvider, protocol::ffi_blocking::run_blocking};
+use crate::{
+    callbacks::FileSyncProvider,
+    protocol::{ffi_blocking::run_blocking, sync_error::SyncErrorCode},
+};
 
 /// Valor do campo `error` em `SessionBusy` — mesmo literal usado pelo Desktop
 /// (`file_handler.rs`), é o que os dois lados usam para reconhecer essa mensagem específica
@@ -553,12 +556,20 @@ fn extra_complete_payload(peer: &PeerIdentity, header: &FileExtraHeader) -> Stri
         .to_string()
 }
 
-fn extra_failed_payload(peer: &PeerIdentity, header: &FileExtraHeader) -> String {
+/// Ver doc de `chapter_failed_payload` — mesma distinção I/O vs. checksum mismatch, aplicada a
+/// itens extra (capa/banner/`ComicInfo.xml`).
+fn extra_failed_payload(peer: &PeerIdentity, header: &FileExtraHeader, write_failed: bool) -> String {
+    let (reason, code) = if write_failed {
+        ("write or blob-fetch I/O failure", None)
+    } else {
+        ("checksum mismatch — file corrupted in transit", Some(SyncErrorCode::ChecksumMismatch))
+    };
     serde_json::json!({
         "peerId": peer.id,
         "comicName": header.comic_name,
         "kind": header.kind,
-        "reason": "checksum or I/O failure",
+        "reason": reason,
+        "code": code,
     })
     .to_string()
 }
@@ -594,7 +605,7 @@ async fn receive_one_extra(
         stats.failed_count += 1;
         emit(
             "sync:files:extra_failed",
-            extra_failed_payload(peer, header),
+            extra_failed_payload(peer, header, write_failed),
         );
     }
 
@@ -860,12 +871,25 @@ fn chapter_complete_payload(peer: &PeerIdentity, header: &FileHeader) -> String 
     serde_json::json!({ "peerId": peer.id, "comicName": header.comic_name, "chapter": header.chapter }).to_string()
 }
 
-fn chapter_failed_payload(peer: &PeerIdentity, header: &FileHeader) -> String {
+/// `write_failed`: `true` quando `write_chapter_chunk` (ou a busca do blob) falhou em algum
+/// chunk — falha de I/O/rede genérica. `false` significa que TODOS os chunks foram escritos
+/// sem erro, e ainda assim `finalize_chapter_write` retornou `false` — nesse ponto a única
+/// coisa que `finalizeChapterWrite` faz do lado Kotlin é reler o arquivo e comparar o hash
+/// contra `expected_checksum` (ver log estratégico 4/4 acima), então isso É especificamente um
+/// checksum mismatch, não uma falha de I/O qualquer — reportado com `code` reconhecível
+/// (`SyncErrorCode::ChecksumMismatch`) em vez do fallback genérico sem `code`.
+fn chapter_failed_payload(peer: &PeerIdentity, header: &FileHeader, write_failed: bool) -> String {
+    let (reason, code) = if write_failed {
+        ("write or blob-fetch I/O failure", None)
+    } else {
+        ("checksum mismatch — file corrupted in transit", Some(SyncErrorCode::ChecksumMismatch))
+    };
     serde_json::json!({
         "peerId": peer.id,
         "comicName": header.comic_name,
         "chapter": header.chapter,
-        "reason": "checksum or I/O failure",
+        "reason": reason,
+        "code": code,
     })
     .to_string()
 }
@@ -916,7 +940,7 @@ async fn receive_one_chapter(
         stats.failed_count += 1;
         emit(
             "sync:files:chapter_failed",
-            chapter_failed_payload(peer, header),
+            chapter_failed_payload(peer, header, write_failed),
         );
     }
 
@@ -1321,6 +1345,76 @@ mod tests {
     /// produção, precisa disso).
     fn test_transfer_pair() -> (Arc<dyn ChapterTransfer>, Arc<dyn ChapterTransfer>) {
         InMemoryChapterTransfer::shared_pair()
+    }
+
+    fn sample_header() -> FileHeader {
+        FileHeader {
+            comic_name: "One Piece".to_string(),
+            chapter: "Ch. 3".to_string(),
+            file_name: "Ch. 3.cbz".to_string(),
+            size: 10,
+            checksum: Some("abc".to_string()),
+            blob_hash: Some("hash".to_string()),
+        }
+    }
+
+    fn sample_extra_header() -> FileExtraHeader {
+        FileExtraHeader {
+            comic_name: "One Piece".to_string(),
+            kind: EXTRA_KIND_COVER.to_string(),
+            file_name: "cover.jpg".to_string(),
+            size: 10,
+            checksum: Some("abc".to_string()),
+            blob_hash: Some("hash".to_string()),
+        }
+    }
+
+    /// `write_failed: false` é o único caso em que `chapter_failed_payload` pode afirmar que a
+    /// causa foi especificamente um checksum mismatch (ver doc da função) — trava esse contrato
+    /// no nível mais baixo possível, sem precisar montar um round-trip completo só pra provar
+    /// uma checagem de `if`.
+    #[test]
+    fn chapter_failed_payload_reports_checksum_mismatch_code_when_write_did_not_fail() {
+        let peer = PeerIdentity { id: "peer-x".to_string(), device_id: None };
+        let payload = chapter_failed_payload(&peer, &sample_header(), false);
+        let parsed: serde_json::Value = serde_json::from_str(&payload).unwrap();
+
+        assert_eq!(parsed["code"], "checksum_mismatch");
+        assert!(parsed["reason"].as_str().unwrap().to_lowercase().contains("checksum"));
+    }
+
+    /// Contraprova: `write_failed: true` (falha de I/O ao escrever chunks, ou o fetch do blob
+    /// falhou) não pode ser confundido com um checksum mismatch — sem `code` reconhecido, cai no
+    /// fallback genérico do lado Kotlin (`SyncProtocolError.fromCode(null)`).
+    #[test]
+    fn chapter_failed_payload_reports_no_code_for_a_generic_io_failure() {
+        let peer = PeerIdentity { id: "peer-x".to_string(), device_id: None };
+        let payload = chapter_failed_payload(&peer, &sample_header(), true);
+        let parsed: serde_json::Value = serde_json::from_str(&payload).unwrap();
+
+        assert!(parsed["code"].is_null());
+        assert!(parsed["reason"].as_str().unwrap().to_lowercase().contains("i/o"));
+    }
+
+    /// Mesmo contrato de `chapter_failed_payload`, aplicado a itens extra.
+    #[test]
+    fn extra_failed_payload_reports_checksum_mismatch_code_when_write_did_not_fail() {
+        let peer = PeerIdentity { id: "peer-x".to_string(), device_id: None };
+        let payload = extra_failed_payload(&peer, &sample_extra_header(), false);
+        let parsed: serde_json::Value = serde_json::from_str(&payload).unwrap();
+
+        assert_eq!(parsed["code"], "checksum_mismatch");
+        assert!(parsed["reason"].as_str().unwrap().to_lowercase().contains("checksum"));
+    }
+
+    #[test]
+    fn extra_failed_payload_reports_no_code_for_a_generic_io_failure() {
+        let peer = PeerIdentity { id: "peer-x".to_string(), device_id: None };
+        let payload = extra_failed_payload(&peer, &sample_extra_header(), true);
+        let parsed: serde_json::Value = serde_json::from_str(&payload).unwrap();
+
+        assert!(parsed["code"].is_null());
+        assert!(parsed["reason"].as_str().unwrap().to_lowercase().contains("i/o"));
     }
 
     /// Provider que nunca é usado pra transferir nada — todos os métodos de dados retornam
