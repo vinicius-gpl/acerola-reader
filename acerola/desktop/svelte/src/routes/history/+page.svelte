@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { onDestroy, onMount } from 'svelte';
+	import { getContext, onDestroy, onMount } from 'svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { toast } from 'svelte-sonner';
 
@@ -22,12 +22,18 @@
 	import type { ReadingHistoryPayload } from '$lib/contracts/history/history.payloads';
 	import { useHistory } from '$lib/hooks/store/use-history.svelte';
 	import { usePeerConnection, shortId } from '$lib/hooks/store/use-peer-connection.svelte';
-	import { useNetworkSync } from '$lib/hooks/store/use-network-sync.svelte';
+	import type { useNetworkSync } from '$lib/hooks/store/use-network-sync.svelte';
+	import { CONTEXT_KEYS } from '$lib/constants/context-keys';
 
 	const history = useHistory();
 	const bookmarkStore = useBookmarks();
 	const peers = usePeerConnection();
-	const sync = useNetworkSync();
+	// Compartilhada com `+layout.svelte` (nunca desmonta) via contexto — não cria uma instância
+	// própria. Ver `CONTEXT_KEYS.networkSync` / `routes/network/+page.svelte` pro porquê: uma
+	// instância só-desta-página, desmontada ao navegar pra outra tela, rejeitava promises de
+	// sync em andamento (`sync.syncHistory`) com "sync cancelled: listener stopped" mesmo o
+	// sync de verdade continuando no backend.
+	const sync = getContext<ReturnType<typeof useNetworkSync>>(CONTEXT_KEYS.networkSync);
 
 	let syncMenuOpen = $state(false);
 	// Evita re-disparar `history.fetch()`/toast duas vezes pro mesmo evento — `sync.log[0]`
@@ -134,12 +140,10 @@
 	onMount(() => {
 		history.fetch();
 		peers.startListening();
-		sync.startListening();
 	});
 
 	onDestroy(() => {
 		peers.stopListening();
-		sync.stopListening();
 	});
 </script>
 

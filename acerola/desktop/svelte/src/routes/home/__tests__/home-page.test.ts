@@ -81,9 +81,37 @@ function summaryPayload(overrides: Partial<ComicSummaryPayload> = {}): ComicSumm
 	};
 }
 
+// `sync`/`p2pSync` agora vem do contexto compartilhado com `+layout.svelte` (ver
+// `CONTEXT_KEYS.networkSync`), não de uma instância própria da página — sem prover esse
+// contexto aqui, `getContext(...)` devolve `undefined` e o primeiro acesso a `sync.log`
+// (dentro do `$effect` da página) explode.
+function networkSyncStub() {
+	return {
+		log: [],
+		isSyncing: () => false,
+		lastSyncedAt: () => undefined,
+		activeSession: () => undefined,
+		activeProgressMessage: () => undefined,
+		syncHistory: vi.fn(),
+		syncFiles: vi.fn(),
+		syncComic: vi.fn(),
+		syncAll: vi.fn(),
+		startListening: vi.fn(),
+		stopListening: vi.fn()
+	};
+}
+
 function renderHomePage() {
 	const activeComic = new ActiveComicState();
-	return render(HomePage, { context: new Map([[CONTEXT_KEYS.activeComic, activeComic]]) });
+	// `Map<symbol, unknown>` explícito: sem isso, TS infere o tipo a partir da PRIMEIRA tupla
+	// (`ActiveComicState`) e rejeita a segunda entrada, cujo valor tem um shape diferente —
+	// os dois lados de `getContext<T>(...)` já fazem o cast pro tipo certo na leitura.
+	return render(HomePage, {
+		context: new Map<symbol, unknown>([
+			[CONTEXT_KEYS.activeComic, activeComic],
+			[CONTEXT_KEYS.networkSync, networkSyncStub()]
+		])
+	});
 }
 
 async function emitSummary(payload: ComicSummaryPayload) {

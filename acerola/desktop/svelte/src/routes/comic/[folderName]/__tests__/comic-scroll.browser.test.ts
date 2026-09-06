@@ -4,6 +4,7 @@ import ComicPage from '../+page.svelte';
 import { LIBRARY_EVENTS } from '$lib/contracts/library/chapter.events';
 import { LIBRARY_COMMANDS } from '$lib/contracts/library/chapter.commands';
 import { NETWORK_COMMANDS } from '$lib/contracts/network/network.commands';
+import { CONTEXT_KEYS } from '$lib/constants/context-keys';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 
@@ -250,8 +251,34 @@ describe('ComicPage Scroll Integration', () => {
 		});
 	}
 
+	// `p2pSync` agora vem do contexto compartilhado com `+layout.svelte` (ver
+	// `CONTEXT_KEYS.networkSync`), não de uma instância própria da página — sem prover esse
+	// contexto aqui, `getContext(...)` devolve `undefined` e o primeiro acesso a `p2pSync.log`
+	// (dentro do `$effect` da página) explode. Precisa ir sob `props` (não solto no nível
+	// raiz) porque, assim que `context` aparece no objeto de opções, `vitest-browser-svelte`
+	// para de tratar o objeto inteiro como props e passa a exigir esse formato.
 	async function renderLoadedComicPage() {
-		const view = await render(ComicPage, { data: loaderDataMock });
+		const view = await render(ComicPage, {
+			props: { data: loaderDataMock },
+			context: new Map([
+				[
+					CONTEXT_KEYS.networkSync,
+					{
+						log: [],
+						isSyncing: () => false,
+						lastSyncedAt: () => undefined,
+						activeSession: () => undefined,
+						activeProgressMessage: () => undefined,
+						syncHistory: vi.fn(),
+						syncFiles: vi.fn(),
+						syncComic: vi.fn(),
+						syncAll: vi.fn(),
+						startListening: vi.fn(),
+						stopListening: vi.fn()
+					}
+				]
+			])
+		});
 
 		await vi.waitFor(() => expect(rustEventEmitter).toBeDefined());
 		await waitForChapterFetch();

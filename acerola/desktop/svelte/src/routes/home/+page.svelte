@@ -15,8 +15,9 @@
 	import { useComicSelection } from '$lib/hooks/store/use-comic-selection.svelte';
 	import { useSelectFolder } from '$lib/hooks/store/use-select-folder.svelte';
 	import { usePeerConnection } from '$lib/hooks/store/use-peer-connection.svelte';
-	import { useNetworkSync } from '$lib/hooks/store/use-network-sync.svelte';
+	import type { useNetworkSync } from '$lib/hooks/store/use-network-sync.svelte';
 	import { useRemoteLibrary } from '$lib/hooks/store/use-remote-library.svelte';
+	import { CONTEXT_KEYS } from '$lib/constants/context-keys';
 	import MoreVertical from '@lucide/svelte/icons/more-vertical';
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import Check from '@lucide/svelte/icons/check';
@@ -32,7 +33,7 @@
 	import { useComicContext } from '$lib/state/comic-context.svelte';
 	import { resolveCover } from '$lib/utils/artwork.utils';
 	import { listen } from '@tauri-apps/api/event';
-	import { onDestroy, onMount } from 'svelte';
+	import { getContext, onDestroy, onMount } from 'svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { toast } from 'svelte-sonner';
 	import type {
@@ -49,7 +50,12 @@
 	const selection = useComicSelection();
 	const folderStore = useSelectFolder();
 	const peers = usePeerConnection();
-	const sync = useNetworkSync();
+	// Compartilhada com `+layout.svelte` (nunca desmonta) via contexto — não cria uma instância
+	// própria. Ver `CONTEXT_KEYS.networkSync` / `routes/network/+page.svelte` pro porquê: uma
+	// instância só-desta-página, desmontada ao navegar pra outra tela, rejeitava promises de
+	// sync em andamento com "sync cancelled: listener stopped" mesmo o sync de verdade
+	// continuando no backend.
+	const sync = getContext<ReturnType<typeof useNetworkSync>>(CONTEXT_KEYS.networkSync);
 	const remoteLibrary = useRemoteLibrary();
 
 	const refreshScanner = useLibraryScanner(
@@ -78,14 +84,12 @@
 		await summary.fetch();
 
 		peers.startListening();
-		sync.startListening();
 		remoteLibrary.startListening();
 	});
 
 	onDestroy(() => {
 		unlistenScan?.();
 		peers.stopListening();
-		sync.stopListening();
 		remoteLibrary.stopListening();
 	});
 

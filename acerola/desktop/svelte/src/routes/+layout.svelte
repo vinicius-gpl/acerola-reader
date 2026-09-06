@@ -44,8 +44,9 @@
 	import { usePeerConnection } from '$lib/hooks/store/use-peer-connection.svelte';
 	import { useOnboarding } from '$lib/hooks/onboarding/use-onboarding.svelte';
 	import { setComicContext } from '$lib/state/comic-context.svelte';
+	import { CONTEXT_KEYS } from '$lib/constants/context-keys';
 	import { getLocale, setLocale } from '$lib/paraglide/runtime';
-	import { onDestroy, onMount } from 'svelte';
+	import { onDestroy, onMount, setContext } from 'svelte';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { resolveCover } from '$lib/utils/artwork.utils';
@@ -81,14 +82,16 @@
 	const summary = useComicSummary();
 	const bookmarkStore = useBookmarks();
 	const onboarding = useOnboarding();
-	// Instância própria (não compartilhada com as páginas, que têm a sua) só pro indicador
-	// global do header abaixo — precisa estar viva independente de qual rota está montada, ao
-	// contrário de `home`/`network`/`comic`/`history`, que escutam/param de escutar a cada
-	// entrada/saída da tela. Ver `use-network-sync.svelte.ts::activeSession` pro porquê de "tem
-	// uma sessão com status 'started' no log" já ser o sinal certo de "sync rolando agora",
-	// sem precisar duplicar nenhum estado novo.
+	// Única instância de `useNetworkSync()` do app inteiro — precisa estar viva independente de
+	// qual rota está montada (pro indicador global do header abaixo, que lê `activeSession()`)
+	// e compartilhada via contexto com `routes/network/+page.svelte` (ver `CONTEXT_KEYS.networkSync`).
+	// Antes, a página de Rede criava sua PRÓPRIA instância e a desmontava (`stopListening()`) ao
+	// sair da tela — `syncComic()` só resolve via um listener daquela instância, então navegar
+	// pra outra tela com um sync ainda em andamento rejeitava a promise com "sync cancelled:
+	// listener stopped" mesmo o sync de verdade continuando (e terminando bem) no backend.
 	const headerSync = useNetworkSync();
 	const headerPeers = usePeerConnection();
+	setContext(CONTEXT_KEYS.networkSync, headerSync);
 
 	const incrementalScanner = useLibraryScanner(
 		DIRECTORY_SCAN_COMMANDS.incrementalScan,

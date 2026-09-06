@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { getContext, onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import { error } from '@tauri-apps/plugin-log';
 	import { invoke } from '@tauri-apps/api/core';
@@ -19,18 +19,24 @@
 	import AcerolaNetworkTransfersLog from './components/acerola-network-transfers-log.svelte';
 
 	import { usePeerConnection } from '$lib/hooks/store/use-peer-connection.svelte';
-	import { useNetworkSync } from '$lib/hooks/store/use-network-sync.svelte';
+	import type { useNetworkSync } from '$lib/hooks/store/use-network-sync.svelte';
 	import { useRemoteLibrary } from '$lib/hooks/store/use-remote-library.svelte';
 	import { useRelaySettings } from '$lib/hooks/preferences/use-relay-settings.svelte';
 	import { NETWORK_COMMANDS } from '$lib/contracts/network/network.commands';
 	import { NETWORK_EVENTS } from '$lib/contracts/network/network.events';
+	import { CONTEXT_KEYS } from '$lib/constants/context-keys';
 	import { shortId } from '$lib/utils/connection-code.utils';
 
 	import ShieldAlertIcon from '@lucide/svelte/icons/shield-alert';
 	import XIcon from '@lucide/svelte/icons/x';
 
 	const peers = usePeerConnection();
-	const sync = useNetworkSync();
+	// Compartilhada com `+layout.svelte` (nunca desmonta) via contexto — não cria uma instância
+	// própria. `syncComic()` só resolve via um listener da instância que o chamou; uma instância
+	// só-desta-página (desmontada ao navegar pra outra tela) rejeitava essa promise à força com
+	// "sync cancelled: listener stopped" mesmo o sync de verdade continuando no backend. Ver
+	// `CONTEXT_KEYS.networkSync`.
+	const sync = getContext<ReturnType<typeof useNetworkSync>>(CONTEXT_KEYS.networkSync);
 	const relay = useRelaySettings();
 	const remoteLibrary = useRemoteLibrary();
 
@@ -63,7 +69,6 @@
 			await Promise.all([
 				peers.loadLocalInfo(),
 				peers.startListening(),
-				sync.startListening(),
 				remoteLibrary.startListening(),
 				relay.loadRelayInfo()
 			]);
@@ -72,7 +77,6 @@
 		return () => {
 			unlistenKeyringWarning?.();
 			peers.stopListening();
-			sync.stopListening();
 			remoteLibrary.stopListening();
 		};
 	});
