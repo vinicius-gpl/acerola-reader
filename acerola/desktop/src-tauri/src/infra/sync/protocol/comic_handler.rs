@@ -790,4 +790,139 @@ mod tests {
             "inbound (sender) nunca deveria ter pedido 'Cap A' de volta"
         );
     }
+
+    /// Regressão (05/09/2026): antes desta correção, `receive_files` chamava
+    /// `persist_received_chapter(...).await?` sem capturar o erro — ao contrário dos outros 4
+    /// pontos de falha por item (blob ausente, fetch falhou, checksum não bate, pasta
+    /// indisponível), uma falha AQUI abortava a sessão INTEIRA via `?`, mesmo com outros
+    /// capítulos ainda na fila. Prova que a falha de "Cap 1" (destino em disco bloqueado por um
+    /// diretório, não um arquivo comum) não impede "Cap 2" de ser recebido normalmente logo em
+    /// seguida — e que o evento de item (`itemLevel: true`, `code: "persist_failed"`) e o de
+    /// sessão final (`code: "partial_sync"`) são emitidos separadamente, não um no lugar do
+    /// outro.
+    #[tokio::test]
+    async fn receive_files_skips_a_chapter_that_fails_to_persist_instead_of_aborting_the_session() {
+        let sender_pool = crate::tests::utils::setup_test_db::setup_test_db().await;
+        let receiver_pool = crate::tests::utils::setup_test_db::setup_test_db().await;
+
+        let sender_dir = tempfile::tempdir().unwrap();
+        let receiver_dir = tempfile::tempdir().unwrap();
+
+        crate::tests::utils::setup_test_db::insert_comic_directory(
+            &sender_pool,
+            1,
+            "Test",
+            sender_dir.path().join("Test").to_str().unwrap(),
+        )
+        .await;
+        crate::tests::utils::setup_test_db::insert_comic_directory(
+            &receiver_pool,
+            1,
+            "Test",
+            receiver_dir.path().join("Test").to_str().unwrap(),
+        )
+        .await;
+
+        let sender_comic_dir = sender_dir.path().join("Test");
+        tokio::fs::create_dir_all(&sender_comic_dir).await.unwrap();
+        for (id, chapter, content) in
+            [(1i64, "Cap 1", b"chapter one bytes".as_slice()), (2, "Cap 2", b"chapter two bytes".as_slice())]
+        {
+            let path = sender_comic_dir.join(format!("{chapter}.cbz"));
+            tokio::fs::write(&path, content).await.unwrap();
+            sqlx::query(
+                "INSERT INTO chapter_archive (id, chapter, path, chapter_sort, is_special, checksum, comic_directory_fk, last_modified) VALUES (?, ?, ?, '1', 0, ?, 1, 0)",
+            )
+            .bind(id)
+            .bind(chapter)
+            .bind(path.to_str().unwrap())
+            .bind(sha256_hex(content))
+            .execute(&sender_pool)
+            .await
+            .unwrap();
+        }
+
+        // Bloqueia o destino de "Cap 1" no receptor com um DIRETÓRIO no lugar exato onde
+        // `persist_received_chapter` tentaria fazer `rename` do arquivo recebido —
+        // `tokio::fs::rename` nunca sobrescreve um diretório com um arquivo (em nenhuma
+        // plataforma), então essa é a forma mais simples e determinística (sem depender de uma
+        // corrida real) de fazer a persistência de UM item específico falhar.
+        let receiver_comic_dir = receiver_dir.path().join("Test");
+        tokio::fs::create_dir_all(receiver_comic_dir.join("Cap 1.cbz")).await.unwrap();
+
+        let sender_root = sender_dir.path().to_path_buf();
+        let receiver_root = receiver_dir.path().to_path_buf();
+        let outbound_service = FileSyncService::new(sender_pool.clone(), move || sender_root.clone());
+        let inbound_service = FileSyncService::new(receiver_pool.clone(), move || receiver_root.clone());
+        let outbound_metadata = Arc::new(MetadataService::new(sender_pool.clone()));
+        let inbound_metadata = Arc::new(MetadataService::new(receiver_pool.clone()));
+
+        let outbound_guard = FileSyncSessionGuard::new();
+        let inbound_guard = FileSyncSessionGuard::new();
+        let registry = PendingComicSyncRegistry::new();
+        let (outbound_emit, _outbound_events) = mock_emitter();
+        let (inbound_emit, inbound_events) = mock_emitter();
+
+        let peer = PeerIdentity { id: "peer-partial-persist".to_string(), device_id: None };
+        registry.set(peer.id.clone(), "Test".to_string(), SyncDirection::Push);
+
+        let (outbound_transfer, inbound_transfer) = InMemoryChapterTransfer::shared_pair();
+
+        let outbound = ComicSyncOutbound::new(
+            outbound_emit,
+            outbound_service,
+            outbound_metadata,
+            SyncHistoryLogRepository::new(sender_pool.clone()),
+            outbound_guard,
+            registry,
+            outbound_transfer,
+        );
+        let inbound = ComicSyncInbound::new(
+            inbound_emit,
+            inbound_service,
+            inbound_metadata,
+            SyncHistoryLogRepository::new(receiver_pool.clone()),
+            inbound_guard,
+            inbound_transfer,
+        );
+
+        let (client_io, server_io) = tokio::io::duplex(64 * 1024);
+        let (client_recv, client_send) = tokio::io::split(client_io);
+        let (server_recv, server_send) = tokio::io::split(server_io);
+
+        let (outbound_result, inbound_result) = tokio::join!(
+            outbound.handle(&peer, Box::new(client_send), Box::new(client_recv)),
+            inbound.handle(&peer, Box::new(server_send), Box::new(server_recv)),
+        );
+
+        outbound_result
+            .expect("outbound (quem envia) não deveria falhar — o problema é só do lado que recebe");
+        assert!(
+            inbound_result.is_err(),
+            "sessão deveria terminar reportando skipped>0 (Err de PartialSync), não sucesso silencioso"
+        );
+
+        assert_eq!(
+            chapters_of(&receiver_pool).await,
+            vec!["Cap 2".to_string()],
+            "Cap 2 deveria ter sido recebido normalmente MESMO com Cap 1 falhando — a sessão não \
+             pode abortar no primeiro item com problema"
+        );
+
+        let recorded = inbound_events.lock().unwrap();
+        let item_error = recorded
+            .iter()
+            .find(|(name, payload)| name == "sync:comic:error" && payload.contains("\"itemLevel\":true"))
+            .expect("deveria ter emitido um erro de ITEM pra Cap 1, não só o erro final de sessão");
+        let payload: serde_json::Value = serde_json::from_str(&item_error.1).unwrap();
+        assert_eq!(payload["item"], "Cap 1");
+        assert_eq!(payload["code"], "persist_failed");
+
+        let session_error = recorded
+            .iter()
+            .find(|(name, payload)| name == "sync:comic:error" && payload.contains("\"partial_sync\""))
+            .expect("deveria também ter emitido o erro de SESSÃO final reportando skipped=1");
+        let session_payload: serde_json::Value = serde_json::from_str(&session_error.1).unwrap();
+        assert_eq!(session_payload["comicName"], "Test");
+    }
 }

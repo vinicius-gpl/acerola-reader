@@ -198,6 +198,34 @@ pub(super) fn sync_error_payload(
     .to_string()
 }
 
+/// Variante de `sync_error_payload` pros 5 pontos de falha POR ITEM em `receive_files`/
+/// `receive_extras` (blob não encontrado, fetch falhou, checksum não bate, pasta indisponível,
+/// persistência falhou) — todos não-fatais: o item é pulado (`skipped += 1`) e o loop continua
+/// pro próximo capítulo/extra, a sessão inteira não aborta.
+///
+/// Sem `"itemLevel": true` + `"item"` aqui, o frontend não tinha como distinguir esses eventos
+/// de um erro de sessão de verdade (`Err(error)` em `handle()`, ou `PartialSync`) — os dois
+/// carregam o mesmo `peerId`, então `use-network-sync.svelte.ts` correlacionava QUALQUER
+/// `sync:files:error`/`sync:comic:error` com a linha "started"/"progress" em andamento daquele
+/// peer e marcava como terminal — uma sessão de 20 capítulos com 1 checksum mismatch no meio
+/// mostrava "erro" na tela mesmo continuando (e completando) normalmente depois. Android já
+/// resolvia isso do lado dele com um sentinela equivalente (`comicName`/`chapter` vazios =
+/// falha de sessão inteira, ver `protocol::files::run_and_report` no crate nativo) — este helper
+/// traz o mesmo contrato pro Desktop, explícito em vez de inferido por um sentinela silencioso.
+pub(super) fn item_error_payload(
+    peer_id: &str, message: &str, code: Option<SyncErrorCode>, comic_name: &str, item: &str,
+) -> String {
+    serde_json::json!({
+        "peerId": peer_id,
+        "message": message,
+        "code": code,
+        "comicName": comic_name,
+        "item": item,
+        "itemLevel": true,
+    })
+    .to_string()
+}
+
 /// Escreve a mensagem de rejeição de sessão diretamente no stream, no lugar do manifesto —
 /// usado quando `FileSyncSessionGuard::try_acquire` já barrou a sessão em `handle()`, antes do
 /// resto do protocolo rodar. Recebe `send` cru (não um `FramedWriter` já montado) porque é
@@ -353,11 +381,12 @@ pub async fn receive_files(
             skipped += 1;
             (emit)(
                 error_event,
-                sync_error_payload(
+                item_error_payload(
                     &peer.id,
-                    &format!("missing blob hash: {} - {}", header.comic_name, header.chapter),
+                    "missing blob hash",
                     Some(SyncErrorCode::MissingBlobHash),
-                    None,
+                    &header.comic_name,
+                    &header.chapter,
                 ),
             );
             continue;
@@ -375,14 +404,12 @@ pub async fn receive_files(
                 skipped += 1;
                 (emit)(
                     error_event,
-                    sync_error_payload(
+                    item_error_payload(
                         &peer.id,
-                        &format!(
-                            "blob fetch failed: {} - {}: {err}",
-                            header.comic_name, header.chapter
-                        ),
+                        &format!("blob fetch failed: {err}"),
                         Some(classify_sync_error(&err).unwrap_or(SyncErrorCode::BlobFetchFailed)),
-                        None,
+                        &header.comic_name,
+                        &header.chapter,
                     ),
                 );
                 continue;
@@ -412,11 +439,12 @@ pub async fn receive_files(
                 skipped += 1;
                 (emit)(
                     error_event,
-                    sync_error_payload(
+                    item_error_payload(
                         &peer.id,
-                        &format!("checksum mismatch: {} - {}", header.comic_name, header.chapter),
+                        "checksum mismatch",
                         Some(SyncErrorCode::ChecksumMismatch),
-                        None,
+                        &header.comic_name,
+                        &header.chapter,
                     ),
                 );
                 continue;
@@ -438,14 +466,12 @@ pub async fn receive_files(
                 skipped += 1;
                 (emit)(
                     error_event,
-                    sync_error_payload(
+                    item_error_payload(
                         &peer.id,
-                        &format!(
-                            "failed to resolve comic directory: {} - {}",
-                            header.comic_name, header.chapter
-                        ),
+                        "failed to resolve comic directory",
                         Some(SyncErrorCode::ComicDirectoryUnavailable),
-                        None,
+                        &header.comic_name,
+                        &header.chapter,
                     ),
                 );
                 continue;
@@ -454,7 +480,15 @@ pub async fn receive_files(
         let temp_path = comic_dir.join(format!(".incoming-{}.tmp", rand::random::<u64>()));
         tokio::fs::write(&temp_path, &bytes).await.map_err(RpcError::from)?;
 
-        service
+        // Não usa `?` — ao contrário dos 4 pontos de falha acima, esta chamada usava `?`
+        // até 05/09/2026 e propagava QUALQUER erro (inclusive uma corrida genuína de UNIQUE
+        // constraint no caminho de UPDATE, que não é engolida como o INSERT é em
+        // `FileSyncService::persist_received_chapter`) até `handle()`, abortando a sessão
+        // INTEIRA no meio — os capítulos restantes nunca chegavam a ser pedidos, e
+        // `classify_sync_error` não reconhece um `ComicError` (só variantes de `P2pError` de
+        // rede), então a UI mostrava a mensagem crua em inglês em vez de um `code` traduzível.
+        // Mesmo tratamento dos outros 4: loga, conta como pulado, emite evento, continua.
+        if let Err(err) = service
             .persist_received_chapter(
                 &header.comic_name,
                 &header.chapter,
@@ -462,7 +496,27 @@ pub async fn receive_files(
                 &temp_path,
                 computed_checksum,
             )
-            .await?;
+            .await
+        {
+            tracing::warn!(
+                comic_name = %header.comic_name,
+                chapter = %header.chapter,
+                error = %err,
+                "[FileSync] failed to persist received chapter — skipping"
+            );
+            skipped += 1;
+            (emit)(
+                error_event,
+                item_error_payload(
+                    &peer.id,
+                    &format!("failed to persist chapter: {err}"),
+                    Some(SyncErrorCode::PersistFailed),
+                    &header.comic_name,
+                    &header.chapter,
+                ),
+            );
+            continue;
+        }
 
         (emit)(progress_event, format!("{} - {}", header.comic_name, header.chapter));
     }
@@ -566,11 +620,12 @@ pub async fn receive_extras(
             skipped += 1;
             (emit)(
                 error_event,
-                sync_error_payload(
+                item_error_payload(
                     &peer.id,
-                    &format!("missing blob hash: {} - {}", header.comic_name, header.kind),
+                    "missing blob hash",
                     Some(SyncErrorCode::MissingBlobHash),
-                    None,
+                    &header.comic_name,
+                    &header.kind,
                 ),
             );
             continue;
@@ -588,14 +643,12 @@ pub async fn receive_extras(
                 skipped += 1;
                 (emit)(
                     error_event,
-                    sync_error_payload(
+                    item_error_payload(
                         &peer.id,
-                        &format!(
-                            "blob fetch failed: {} - {}: {err}",
-                            header.comic_name, header.kind
-                        ),
+                        &format!("blob fetch failed: {err}"),
                         Some(classify_sync_error(&err).unwrap_or(SyncErrorCode::BlobFetchFailed)),
-                        None,
+                        &header.comic_name,
+                        &header.kind,
                     ),
                 );
                 continue;
@@ -625,11 +678,12 @@ pub async fn receive_extras(
                 skipped += 1;
                 (emit)(
                     error_event,
-                    sync_error_payload(
+                    item_error_payload(
                         &peer.id,
-                        &format!("checksum mismatch: {} - {}", header.comic_name, header.kind),
+                        "checksum mismatch",
                         Some(SyncErrorCode::ChecksumMismatch),
-                        None,
+                        &header.comic_name,
+                        &header.kind,
                     ),
                 );
                 continue;
@@ -648,14 +702,12 @@ pub async fn receive_extras(
                 skipped += 1;
                 (emit)(
                     error_event,
-                    sync_error_payload(
+                    item_error_payload(
                         &peer.id,
-                        &format!(
-                            "failed to resolve comic directory: {} - {}",
-                            header.comic_name, header.kind
-                        ),
+                        "failed to resolve comic directory",
                         Some(SyncErrorCode::ComicDirectoryUnavailable),
-                        None,
+                        &header.comic_name,
+                        &header.kind,
                     ),
                 );
                 continue;
@@ -680,14 +732,12 @@ pub async fn receive_extras(
                 skipped += 1;
                 (emit)(
                     error_event,
-                    sync_error_payload(
+                    item_error_payload(
                         &peer.id,
-                        &format!(
-                            "failed to persist extra: {} - {}",
-                            header.comic_name, header.kind
-                        ),
+                        &format!("failed to persist extra: {err}"),
                         Some(SyncErrorCode::PersistFailed),
-                        None,
+                        &header.comic_name,
+                        &header.kind,
                     ),
                 );
                 continue;
