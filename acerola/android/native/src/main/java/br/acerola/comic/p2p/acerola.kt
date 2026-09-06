@@ -1030,6 +1030,8 @@ internal open class UniffiVTableCallbackInterfaceSecureBlobStore(
 
 
 
+
+
 // A JNA Library to expose the extern-C FFI definitions.
 // This is an implementation detail which will be called internally by the public API.
 
@@ -1153,6 +1155,8 @@ internal interface UniffiLib : Library {
     fun uniffi_acerola_fn_method_p2pnode_notify_network_change(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
     fun uniffi_acerola_fn_method_p2pnode_remove_paired_peer(`ptr`: Pointer,`id`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): Unit
+    fun uniffi_acerola_fn_method_p2pnode_restart(`ptr`: Pointer,`relaySettings`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
     fun uniffi_acerola_fn_method_p2pnode_set_iroh_services_ticket(`ptr`: Pointer,`ticket`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
@@ -1360,6 +1364,8 @@ internal interface UniffiLib : Library {
     ): Short
     fun uniffi_acerola_checksum_method_p2pnode_remove_paired_peer(
     ): Short
+    fun uniffi_acerola_checksum_method_p2pnode_restart(
+    ): Short
     fun uniffi_acerola_checksum_method_p2pnode_set_iroh_services_ticket(
     ): Short
     fun uniffi_acerola_checksum_method_p2pnode_set_local_device_name(
@@ -1500,6 +1506,9 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_acerola_checksum_method_p2pnode_remove_paired_peer() != 11699.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_acerola_checksum_method_p2pnode_restart() != 33699.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_acerola_checksum_method_p2pnode_set_iroh_services_ticket() != 21627.toShort()) {
@@ -3788,6 +3797,18 @@ public interface P2pNodeInterface {
     fun `removePairedPeer`(`id`: kotlin.String)
     
     /**
+     * Reinicia o node por completo: desliga a instância atual e sobe uma nova com a mesma
+     * identidade/storage/handlers (reaproveitados via `context`), resolvendo `relay_settings`
+     * fresco — o Kotlin relê a config combinável do DataStore (`RelayPreference`) antes de
+     * chamar, mesmo padrão de `apply_relay_settings`. Estilo LocalSend: chamado tanto depois de
+     * qualquer troca de fonte de relay quanto pelo botão manual "Reiniciar" na tela de Rede.
+     * Espelha `NetworkServiceApi::restart` do Desktop (`core/services/network/mod.rs`). Mesmo
+     * risco de boot: se o rebuild falhar (`P2pNodeContext::build` dá `.expect(...)`), a chamada
+     * entra em pânico ao invés de devolver um erro tratável — igual `P2PNode::new` hoje.
+     */
+    fun `restart`(`relaySettings`: FfiRelaySettings)
+    
+    /**
      * Valida o formato antes de persistir. Só tem efeito no próximo início do app — a lib não
      * suporta trocar relay em runtime.
      */
@@ -4116,6 +4137,27 @@ open class P2pNode: Disposable, AutoCloseable, P2pNodeInterface {
     uniffiRustCall() { _status ->
     UniffiLib.INSTANCE.uniffi_acerola_fn_method_p2pnode_remove_paired_peer(
         it, FfiConverterString.lower(`id`),_status)
+}
+    }
+    
+    
+
+    
+    /**
+     * Reinicia o node por completo: desliga a instância atual e sobe uma nova com a mesma
+     * identidade/storage/handlers (reaproveitados via `context`), resolvendo `relay_settings`
+     * fresco — o Kotlin relê a config combinável do DataStore (`RelayPreference`) antes de
+     * chamar, mesmo padrão de `apply_relay_settings`. Estilo LocalSend: chamado tanto depois de
+     * qualquer troca de fonte de relay quanto pelo botão manual "Reiniciar" na tela de Rede.
+     * Espelha `NetworkServiceApi::restart` do Desktop (`core/services/network/mod.rs`). Mesmo
+     * risco de boot: se o rebuild falhar (`P2pNodeContext::build` dá `.expect(...)`), a chamada
+     * entra em pânico ao invés de devolver um erro tratável — igual `P2PNode::new` hoje.
+     */override fun `restart`(`relaySettings`: FfiRelaySettings)
+        = 
+    callWithPointer {
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_acerola_fn_method_p2pnode_restart(
+        it, FfiConverterTypeFfiRelaySettings.lower(`relaySettings`),_status)
 }
     }
     

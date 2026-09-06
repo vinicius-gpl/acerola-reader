@@ -7,11 +7,13 @@
 //!
 //! O node só existe DEPOIS que `AcerolaP2p::builder(...).build()` retorna, mas os handlers são
 //! passados PRO builder antes disso — não dá pra injetar `Arc<AcerolaP2p>` direto na construção
-//! deles. `BlobContext` resolve isso guardando um `Weak<AcerolaP2p>` preenchido uma única vez
-//! (`set_node`), logo depois do `.build()` em `api.rs`, antes de qualquer conexão poder disparar
-//! um handler (nenhuma existe até o node ser devolvido).
+//! deles. `BlobContext` resolve isso guardando um `Weak<AcerolaP2p>` (`set_node`), preenchido
+//! logo depois de cada `.build()` em `api.rs` — tanto no boot quanto em todo `P2PNode::restart`
+//! — antes de qualquer conexão poder disparar um handler. `RwLock` (não `OnceLock`) porque um
+//! restart chama `set_node` de novo: com `OnceLock` a segunda chamada seria um no-op silencioso
+//! e os handlers ficariam presos pro sempre no node antigo já desligado.
 
-use std::sync::{Arc, OnceLock, Weak};
+use std::sync::{Arc, RwLock, Weak};
 
 use acerola_p2p::api::{
     blobs::P2pBlobStore,
@@ -22,7 +24,7 @@ use acerola_p2p::api::{
 
 #[derive(Default)]
 pub(crate) struct BlobContext {
-    node: OnceLock<Weak<AcerolaP2p>>,
+    node: RwLock<Option<Weak<AcerolaP2p>>>,
 }
 
 impl BlobContext {
@@ -31,12 +33,17 @@ impl BlobContext {
     }
 
     pub(crate) fn set_node(&self, node: &Arc<AcerolaP2p>) {
-        let _ = self.node.set(Arc::downgrade(node));
+        *self
+            .node
+            .write()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(Arc::downgrade(node));
     }
 
     fn node(&self) -> Result<Arc<AcerolaP2p>, P2pError> {
         self.node
-            .get()
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .as_ref()
             .and_then(Weak::upgrade)
             .ok_or_else(|| P2pError::StreamFailed("p2p node not initialized yet".into()))
     }
