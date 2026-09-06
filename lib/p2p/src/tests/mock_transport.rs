@@ -7,6 +7,8 @@
 //! O `open_bi` também é suportado via `MockTransportHandle::expect_open`, permitindo
 //! pré-registrar streams que serão devolvidas ao chamador quando o transporte discar.
 
+use std::sync::atomic::{AtomicBool, Ordering};
+
 use async_trait::async_trait;
 use tokio::{
     io::{AsyncRead, AsyncWrite, DuplexStream},
@@ -69,6 +71,11 @@ pub struct MockTransport {
     inbound_rx: Mutex<mpsc::UnboundedReceiver<InjectedConnection>>,
     outbound_rx: Mutex<mpsc::UnboundedReceiver<OutboundConnection>>,
     latencies: Arc<Mutex<HashMap<PeerId, std::time::Duration>>>,
+    /// Compartilhado com `MockTransportHandle::was_shutdown_called` — prova que
+    /// `NetworkManager::run()` chama `transport.shutdown()` de verdade no `NetworkCommand::Shutdown`,
+    /// em vez de só sair do loop sem desligar o transporte por baixo (era exatamente esse o bug:
+    /// o `Endpoint` real do iroh nunca fechava, ver `IrohTransport::shutdown`).
+    shutdown_called: Arc<AtomicBool>,
 }
 
 /// A manivela para disparar streams pra dentro do ambiente mockado.
@@ -77,6 +84,7 @@ pub struct MockTransportHandle {
     #[allow(dead_code)]
     outbound_tx: mpsc::UnboundedSender<OutboundConnection>,
     latencies: Arc<Mutex<HashMap<PeerId, std::time::Duration>>>,
+    shutdown_called: Arc<AtomicBool>,
 }
 
 impl MockTransportHandle {
@@ -96,6 +104,12 @@ impl MockTransportHandle {
     pub async fn set_latency(&self, peer: PeerId, latency: std::time::Duration) {
         self.latencies.lock().await.insert(peer, latency);
     }
+
+    /// `true` se `MockTransport::shutdown()` já foi chamado ao menos uma vez.
+    #[allow(dead_code)]
+    pub fn was_shutdown_called(&self) -> bool {
+        self.shutdown_called.load(Ordering::SeqCst)
+    }
 }
 
 /// Construtor emparelhado que devolve tanto o Transporte Fictício (para injetar no Builder)
@@ -104,13 +118,15 @@ pub fn mock_transport() -> (MockTransport, MockTransportHandle) {
     let (inbound_tx, inbound_rx) = mpsc::unbounded_channel();
     let (outbound_tx, outbound_rx) = mpsc::unbounded_channel();
     let latencies = Arc::new(Mutex::new(HashMap::new()));
+    let shutdown_called = Arc::new(AtomicBool::new(false));
     (
         MockTransport {
             inbound_rx: Mutex::new(inbound_rx),
             outbound_rx: Mutex::new(outbound_rx),
             latencies: Arc::clone(&latencies),
+            shutdown_called: Arc::clone(&shutdown_called),
         },
-        MockTransportHandle { inbound_tx, outbound_tx, latencies },
+        MockTransportHandle { inbound_tx, outbound_tx, latencies, shutdown_called },
     )
 }
 
@@ -148,6 +164,7 @@ impl P2pTransport for MockTransport {
     }
 
     async fn shutdown(&self) -> Result<(), ConnectionError> {
+        self.shutdown_called.store(true, Ordering::SeqCst);
         Ok(())
     }
 }

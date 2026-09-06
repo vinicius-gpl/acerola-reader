@@ -164,6 +164,18 @@ impl NetworkManager {
                             self.handle_switch_guard(validator, mode).await;
                         }
                         Some(NetworkCommand::Shutdown) => {
+                            // Antes, este branch só saía do loop sem nunca desligar o
+                            // transporte por baixo — o `Endpoint` real do iroh (`IrohTransport`)
+                            // continuava vivo e escutando pra sempre, e a task separada de
+                            // accept-loop (`drive_incoming_connections`) também, porque nada
+                            // nunca chamava `endpoint.close()`. Um "reiniciar" que fizesse
+                            // shutdown+rebuild vazaria o socket UDP antigo. `transport.shutdown()`
+                            // fecha o endpoint de verdade; o próprio `drive_incoming_connections`
+                            // já sai sozinho quando isso acontece (`endpoint.accept()` retorna
+                            // `None`), sem precisar de nenhuma outra sinalização.
+                            if let Err(error) = self.transport.shutdown().await {
+                                tracing::warn!(?error, "failed to shut down transport cleanly");
+                            }
                             break;
                         }
                         None => {
@@ -470,6 +482,28 @@ mod tests {
 
         let result = tokio::time::timeout(Duration::from_millis(100), handle).await;
         assert!(result.is_ok());
+    }
+
+    /// Regressão: `NetworkCommand::Shutdown` só saía do `select!` loop sem nunca chamar
+    /// `transport.shutdown()` — em produção (`IrohTransport`) isso significava que o `Endpoint`
+    /// real nunca fechava (`lib/p2p/TODO.md`), deixando o socket UDP e a task de accept-loop
+    /// vivos pra sempre mesmo depois de um "shutdown" bem-sucedido. Prova que o transporte é
+    /// desligado de verdade, não só abandonado.
+    #[tokio::test]
+    async fn shutdown_command_shuts_down_the_transport() {
+        let (transport, transport_handle) = mock_transport();
+        let (manager, command_tx, _) =
+            NetworkManager::new(Arc::new(transport), open_validator(), no_op_emitter());
+
+        let handle = tokio::spawn(manager.run());
+        let _ = command_tx.send(NetworkCommand::Shutdown).await;
+
+        let result = tokio::time::timeout(Duration::from_millis(100), handle).await;
+        assert!(result.is_ok(), "shutdown should not hang");
+        assert!(
+            transport_handle.was_shutdown_called(),
+            "NetworkCommand::Shutdown deveria chamar transport.shutdown()"
+        );
     }
 
     #[tokio::test]
