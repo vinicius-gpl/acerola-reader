@@ -13,6 +13,7 @@
 	import AlertCircleIcon from '@lucide/svelte/icons/alert-circle';
 	import CheckIcon from '@lucide/svelte/icons/check';
 	import RefreshCwIcon from '@lucide/svelte/icons/refresh-cw';
+	import ArrowRightIcon from '@lucide/svelte/icons/arrow-right';
 	import { m } from '$lib/paraglide/messages';
 	import { autoAnimateList } from '$lib/utils/auto-animate.utils';
 
@@ -75,8 +76,10 @@
 						<AlertCircleIcon size={14} class="shrink-0 text-destructive" />
 					{:else if entry.status === 'complete'}
 						<CheckIcon size={14} class="shrink-0 text-chart-3" />
-					{:else}
+					{:else if entry.status === 'started'}
 						<RefreshCwIcon size={14} class="shrink-0 animate-spin text-muted-foreground" />
+					{:else}
+						<ArrowRightIcon size={14} class="shrink-0 text-muted-foreground" />
 					{/if}
 
 					<span class="flex-1 truncate text-foreground">{describeEntry(entry)}</span>
