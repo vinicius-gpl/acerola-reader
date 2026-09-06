@@ -1,9 +1,20 @@
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::{
+    collections::HashMap,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+    time::Duration,
+};
 
 use acerola_p2p::api::{error::P2pError, peer::PeerIdentity, protocol::EventEmitter};
 use futures::SinkExt;
 use serde::{de::DeserializeOwned, Serialize};
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite};
+use tokio::{
+    io::{AsyncRead, AsyncReadExt, AsyncWrite},
+    sync::Semaphore,
+    task::JoinSet,
+};
 use tokio_stream::StreamExt;
 use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
 
@@ -558,11 +569,18 @@ fn extra_complete_payload(peer: &PeerIdentity, header: &FileExtraHeader) -> Stri
 
 /// Ver doc de `chapter_failed_payload` — mesma distinção I/O vs. checksum mismatch, aplicada a
 /// itens extra (capa/banner/`ComicInfo.xml`).
-fn extra_failed_payload(peer: &PeerIdentity, header: &FileExtraHeader, write_failed: bool) -> String {
+fn extra_failed_payload(
+    peer: &PeerIdentity,
+    header: &FileExtraHeader,
+    write_failed: bool,
+) -> String {
     let (reason, code) = if write_failed {
         ("write or blob-fetch I/O failure", None)
     } else {
-        ("checksum mismatch — file corrupted in transit", Some(SyncErrorCode::ChecksumMismatch))
+        (
+            "checksum mismatch — file corrupted in transit",
+            Some(SyncErrorCode::ChecksumMismatch),
+        )
     };
     serde_json::json!({
         "peerId": peer.id,
@@ -765,10 +783,58 @@ async fn send_files(
     Ok(())
 }
 
+/// Quantos capítulos buscar em paralelo, a partir do RTT medido AGORA com o peer (ver
+/// `ChapterTransfer::latency`) — mesmo cálculo do Desktop
+/// (`infra/sync/protocol/transfer.rs::chapter_fetch_concurrency`, ver doc lá pro raciocínio
+/// completo): um link lento (relay distante) precisa de vários fetches em voo ao mesmo tempo
+/// pra não ficar ocioso entre um round-trip e o próximo; LAN/mDNS já satura com pouquíssimo
+/// paralelismo. Sem medição cai no mais conservador dos três.
+fn chapter_fetch_concurrency(latency: Option<Duration>) -> usize {
+    match latency {
+        Some(rtt) if rtt <= Duration::from_millis(20) => 2,
+        Some(rtt) if rtt <= Duration::from_millis(200) => 4,
+        Some(_) => 6,
+        None => 2,
+    }
+}
+
+/// Ver doc do equivalente no Desktop (`transfer.rs::permits_to_forget`) — mesmo cálculo: corta
+/// o pool pela metade na primeira vez que um fetch estoura timeout, nunca abaixo de 1.
+fn permits_to_forget(initial_permits: usize) -> usize {
+    initial_permits.saturating_sub((initial_permits / 2).max(1))
+}
+
+/// Resultado de processar UM header já lido do fio — extraído de `receive_files` pra poder
+/// rodar como uma task independente (`tasks.spawn`), em paralelo com a leitura do PRÓXIMO
+/// header, em vez de bloquear o loop inteiro no fetch+gravação de um único capítulo por vez.
+enum ChapterOutcome {
+    Received,
+    /// `timed_out: true` só quando a causa especificamente foi `P2pError::Timeout` na busca do
+    /// blob (`ChapterTransfer::fetch_reader`) — o único sinal que `receive_files` usa pra
+    /// reduzir o paralelismo pro resto da sessão. Espelha `ChapterOutcome::Skipped { timed_out }`
+    /// do Desktop.
+    Failed {
+        timed_out: bool,
+    },
+}
+
 /// Recebe exatamente `expected_count` capítulos (a mesma contagem que este lado pediu em
-/// `FileWantList`), cada um como um `FileHeader` seguido de `ChapterTransfer::fetch_reader` +
-/// escrita chunk a chunk. `size: 0` sinaliza "peer não tem mais esse capítulo" — sem blob a
-/// buscar.
+/// `FileWantList`). Cada header é lido em sequência do fio (só um stream ordenado, não dá pra
+/// ler o header 2 antes do 1), mas a busca+gravação do blob que ele referencia roda numa task
+/// própria, num pool de até `chapter_fetch_concurrency(...)` capítulos concorrentes — mesmo
+/// desenho do Desktop (`infra/sync/protocol/transfer.rs::receive_files`), motivado pelo mesmo
+/// problema real: um sync numa conexão de relay de RTT alto levando minutos, um capítulo por
+/// vez, porque o loop bloqueava no fetch inteiro de UM capítulo antes de sequer ler o próximo
+/// header.
+///
+/// Antes desta mudança, qualquer falha de `begin_chapter_write`/`receive_chapter_from_blob`/
+/// `finalize_chapter_write` (`?`) abortava a sessão INTEIRA. Agora toda falha por capítulo é
+/// não-fatal (`ChapterOutcome::Failed`, contada em `stats.failed_count` + evento
+/// `chapter_failed` por item) — mesma filosofia já usada pelo Desktop desde o bug de
+/// 22/08/2026. Necessário aqui especificamente por causa do paralelismo: abortar a sessão no
+/// primeiro erro deixaria as tasks IRMÃS, ainda em andamento, sem chance de rodar seu próprio
+/// `finalize_chapter_write`/`abort_chapter_write` — um `WriteHandle` (lado Kotlin) órfão no
+/// `ConcurrentHashMap`, com `OutputStream`/arquivo temporário nunca fechados.
 async fn receive_files(
     reader: &mut Recv,
     expected_count: usize,
@@ -778,6 +844,14 @@ async fn receive_files(
     stats: &mut FileSyncStats,
     transfer: &Arc<dyn ChapterTransfer>,
 ) -> Result<(), P2pError> {
+    let initial_permits = chapter_fetch_concurrency(transfer.latency(peer).await);
+    let semaphore = Arc::new(Semaphore::new(initial_permits));
+    // `backed_off` garante que o corte de `permits_to_forget` só dispare uma vez por sessão.
+    let backed_off = Arc::new(AtomicBool::new(false));
+    let permits_to_forget_on_timeout = permits_to_forget(initial_permits);
+
+    let mut tasks = JoinSet::new();
+
     for _ in 0..expected_count {
         let header: FileHeader = read_json(reader).await?;
 
@@ -793,17 +867,69 @@ async fn receive_files(
             "sync-files: header recebido do wire",
         );
 
-        receive_one_chapter(provider, emit, peer, &header, stats, transfer).await?;
+        let permit = Arc::clone(&semaphore)
+            .acquire_owned()
+            .await
+            .expect("semaphore is never closed while receive_files is running");
+        let semaphore_for_backoff = Arc::clone(&semaphore);
+        let backed_off = Arc::clone(&backed_off);
+        let task_provider = Arc::clone(provider);
+        let task_emit = Arc::clone(emit);
+        let task_peer = peer.clone();
+        let task_transfer = Arc::clone(transfer);
+
+        tasks.spawn(async move {
+            let _permit = permit;
+            let outcome =
+                receive_one_chapter(task_provider, task_emit, task_peer, header, task_transfer)
+                    .await;
+
+            if matches!(outcome, ChapterOutcome::Failed { timed_out: true })
+                && backed_off
+                    .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+                    .is_ok()
+                && permits_to_forget_on_timeout > 0
+            {
+                semaphore_for_backoff.forget_permits(permits_to_forget_on_timeout);
+            }
+
+            outcome
+        });
+    }
+
+    while let Some(result) = tasks.join_next().await {
+        match result {
+            Ok(ChapterOutcome::Received) => stats.received_count += 1,
+            Ok(ChapterOutcome::Failed { .. }) => stats.failed_count += 1,
+            // Só cai aqui se a própria task deu panic (bug real, não erro de rede/protocolo) —
+            // nenhum branch de `receive_one_chapter` propaga erro, só retorna o enum.
+            Err(join_err) => {
+                tracing::error!(
+                    error = %join_err,
+                    "sync-files: chapter fetch task panicked — contando como falha"
+                );
+                stats.failed_count += 1;
+            }
+        }
     }
 
     Ok(())
 }
 
+/// Resultado de `receive_chapter_from_blob` — `write_failed` mantém o sentido original (I/O
+/// genérico de escrita ou de busca do blob); `timed_out` sinaliza especificamente que a CAUSA
+/// foi `P2pError::Timeout` na busca (não em qualquer outra etapa), o único sinal que
+/// `receive_files` usa pra decidir o backoff de paralelismo.
+struct BlobFetchOutcome {
+    write_failed: bool,
+    timed_out: bool,
+}
+
 /// Busca o blob referenciado por `header.blob_hash` no peer (`ChapterTransfer::fetch_reader`) e
 /// grava o resultado chunk a chunk via `FileSyncProvider::write_chapter_chunk`, preservando os
 /// mesmos eventos de progresso de antes — só a origem dos bytes mudou (era o wire cru, agora é
-/// o `AsyncRead` devolvido pelo blob store após `fetch`). Retorna `true` se a busca ou alguma
-/// escrita falhou (`handle` inválido conta como falha imediata).
+/// o `AsyncRead` devolvido pelo blob store após `fetch`). `handle` inválido conta como falha
+/// imediata.
 async fn receive_chapter_from_blob(
     provider: &Arc<dyn FileSyncProvider>,
     handle: i64,
@@ -811,9 +937,12 @@ async fn receive_chapter_from_blob(
     emit: &EventEmitter,
     peer: &PeerIdentity,
     transfer: &Arc<dyn ChapterTransfer>,
-) -> Result<bool, P2pError> {
+) -> Result<BlobFetchOutcome, P2pError> {
     let Some(blob_hash) = header.blob_hash.as_deref() else {
-        return Ok(true);
+        return Ok(BlobFetchOutcome {
+            write_failed: true,
+            timed_out: false,
+        });
     };
 
     let mut blob_reader = match transfer.fetch_reader(blob_hash, peer).await {
@@ -826,7 +955,10 @@ async fn receive_chapter_from_blob(
                 error = %err,
                 "sync-files: falha ao buscar blob do peer",
             );
-            return Ok(true);
+            return Ok(BlobFetchOutcome {
+                write_failed: true,
+                timed_out: matches!(err, P2pError::Timeout),
+            });
         }
     };
 
@@ -864,7 +996,10 @@ async fn receive_chapter_from_blob(
         }
     }
 
-    Ok(write_failed)
+    Ok(BlobFetchOutcome {
+        write_failed,
+        timed_out: false,
+    })
 }
 
 fn chapter_complete_payload(peer: &PeerIdentity, header: &FileHeader) -> String {
@@ -882,7 +1017,10 @@ fn chapter_failed_payload(peer: &PeerIdentity, header: &FileHeader, write_failed
     let (reason, code) = if write_failed {
         ("write or blob-fetch I/O failure", None)
     } else {
-        ("checksum mismatch — file corrupted in transit", Some(SyncErrorCode::ChecksumMismatch))
+        (
+            "checksum mismatch — file corrupted in transit",
+            Some(SyncErrorCode::ChecksumMismatch),
+        )
     };
     serde_json::json!({
         "peerId": peer.id,
@@ -894,20 +1032,74 @@ fn chapter_failed_payload(peer: &PeerIdentity, header: &FileHeader, write_failed
     .to_string()
 }
 
+/// Processa UM header por completo (begin -> fetch/gravação -> finalize/abort), sempre
+/// retornando um outcome — nunca propaga erro (ver doc de `receive_files` pro porquê: com
+/// várias tasks em voo ao mesmo tempo, abortar a sessão inteira no primeiro erro deixaria as
+/// tasks irmãs sem chance de fechar seu próprio `WriteHandle` do lado Kotlin). Recebe tudo por
+/// valor (em vez de referência) pra poder rodar como task independente via `tasks.spawn`.
 async fn receive_one_chapter(
-    provider: &Arc<dyn FileSyncProvider>,
-    emit: &EventEmitter,
-    peer: &PeerIdentity,
-    header: &FileHeader,
-    stats: &mut FileSyncStats,
-    transfer: &Arc<dyn ChapterTransfer>,
-) -> Result<(), P2pError> {
-    let handle = begin_chapter_write(provider, header).await?;
-    let write_failed =
-        receive_chapter_from_blob(provider, handle, header, emit, peer, transfer).await?;
+    provider: Arc<dyn FileSyncProvider>,
+    emit: EventEmitter,
+    peer: PeerIdentity,
+    header: FileHeader,
+    transfer: Arc<dyn ChapterTransfer>,
+) -> ChapterOutcome {
+    let handle = match begin_chapter_write(&provider, &header).await {
+        Ok(handle) => handle,
+        Err(err) => {
+            tracing::error!(
+                comic = %header.comic_name,
+                chapter = %header.chapter,
+                error = %err,
+                "sync-files: begin_chapter_write falhou — pulando capítulo",
+            );
+            emit(
+                "sync:files:chapter_failed",
+                chapter_failed_payload(&peer, &header, true),
+            );
+            return ChapterOutcome::Failed { timed_out: false };
+        }
+    };
 
-    let succeeded = if !write_failed && handle >= 0 {
-        finalize_chapter_write(provider, handle).await?
+    let fetch_outcome = match receive_chapter_from_blob(
+        &provider, handle, &header, &emit, &peer, &transfer,
+    )
+    .await
+    {
+        Ok(outcome) => outcome,
+        Err(err) => {
+            tracing::error!(
+                comic = %header.comic_name,
+                chapter = %header.chapter,
+                error = %err,
+                "sync-files: falha de I/O ao buscar/gravar blob — pulando capítulo",
+            );
+            if handle >= 0 {
+                if let Err(abort_err) = abort_chapter_write(&provider, handle).await {
+                    tracing::warn!(error = %abort_err, "sync-files: abort_chapter_write falhou");
+                }
+            }
+            emit(
+                "sync:files:chapter_failed",
+                chapter_failed_payload(&peer, &header, true),
+            );
+            return ChapterOutcome::Failed { timed_out: false };
+        }
+    };
+
+    let succeeded = if !fetch_outcome.write_failed && handle >= 0 {
+        match finalize_chapter_write(&provider, handle).await {
+            Ok(succeeded) => succeeded,
+            Err(err) => {
+                tracing::error!(
+                    comic = %header.comic_name,
+                    chapter = %header.chapter,
+                    error = %err,
+                    "sync-files: finalize_chapter_write falhou — pulando capítulo",
+                );
+                false
+            }
+        }
     } else {
         false
     };
@@ -922,29 +1114,31 @@ async fn receive_one_chapter(
         comic = %header.comic_name,
         chapter = %header.chapter,
         expected_checksum = %header.checksum.as_deref().unwrap_or("<none>"),
-        write_failed,
+        write_failed = fetch_outcome.write_failed,
         succeeded,
         "sync-files: resultado da finalização (checksum verificado do lado Kotlin)",
     );
 
     if succeeded {
-        stats.received_count += 1;
         emit(
             "sync:files:chapter_complete",
-            chapter_complete_payload(peer, header),
+            chapter_complete_payload(&peer, &header),
         );
+        ChapterOutcome::Received
     } else {
         if handle >= 0 {
-            abort_chapter_write(provider, handle).await?;
+            if let Err(err) = abort_chapter_write(&provider, handle).await {
+                tracing::warn!(error = %err, "sync-files: abort_chapter_write falhou");
+            }
         }
-        stats.failed_count += 1;
         emit(
             "sync:files:chapter_failed",
-            chapter_failed_payload(peer, header, write_failed),
+            chapter_failed_payload(&peer, &header, fetch_outcome.write_failed),
         );
+        ChapterOutcome::Failed {
+            timed_out: fetch_outcome.timed_out,
+        }
     }
-
-    Ok(())
 }
 
 fn emit_progress(
@@ -1335,6 +1529,8 @@ mod tests {
         time::Duration,
     };
 
+    use async_trait::async_trait;
+
     use super::*;
     use crate::callbacks::FfiFileManifestEntry;
     use crate::protocol::files::transfer::InMemoryChapterTransfer;
@@ -1375,12 +1571,19 @@ mod tests {
     /// uma checagem de `if`.
     #[test]
     fn chapter_failed_payload_reports_checksum_mismatch_code_when_write_did_not_fail() {
-        let peer = PeerIdentity { id: "peer-x".to_string(), device_id: None };
+        let peer = PeerIdentity {
+            id: "peer-x".to_string(),
+            device_id: None,
+        };
         let payload = chapter_failed_payload(&peer, &sample_header(), false);
         let parsed: serde_json::Value = serde_json::from_str(&payload).unwrap();
 
         assert_eq!(parsed["code"], "checksum_mismatch");
-        assert!(parsed["reason"].as_str().unwrap().to_lowercase().contains("checksum"));
+        assert!(parsed["reason"]
+            .as_str()
+            .unwrap()
+            .to_lowercase()
+            .contains("checksum"));
     }
 
     /// Contraprova: `write_failed: true` (falha de I/O ao escrever chunks, ou o fetch do blob
@@ -1388,33 +1591,54 @@ mod tests {
     /// fallback genérico do lado Kotlin (`SyncProtocolError.fromCode(null)`).
     #[test]
     fn chapter_failed_payload_reports_no_code_for_a_generic_io_failure() {
-        let peer = PeerIdentity { id: "peer-x".to_string(), device_id: None };
+        let peer = PeerIdentity {
+            id: "peer-x".to_string(),
+            device_id: None,
+        };
         let payload = chapter_failed_payload(&peer, &sample_header(), true);
         let parsed: serde_json::Value = serde_json::from_str(&payload).unwrap();
 
         assert!(parsed["code"].is_null());
-        assert!(parsed["reason"].as_str().unwrap().to_lowercase().contains("i/o"));
+        assert!(parsed["reason"]
+            .as_str()
+            .unwrap()
+            .to_lowercase()
+            .contains("i/o"));
     }
 
     /// Mesmo contrato de `chapter_failed_payload`, aplicado a itens extra.
     #[test]
     fn extra_failed_payload_reports_checksum_mismatch_code_when_write_did_not_fail() {
-        let peer = PeerIdentity { id: "peer-x".to_string(), device_id: None };
+        let peer = PeerIdentity {
+            id: "peer-x".to_string(),
+            device_id: None,
+        };
         let payload = extra_failed_payload(&peer, &sample_extra_header(), false);
         let parsed: serde_json::Value = serde_json::from_str(&payload).unwrap();
 
         assert_eq!(parsed["code"], "checksum_mismatch");
-        assert!(parsed["reason"].as_str().unwrap().to_lowercase().contains("checksum"));
+        assert!(parsed["reason"]
+            .as_str()
+            .unwrap()
+            .to_lowercase()
+            .contains("checksum"));
     }
 
     #[test]
     fn extra_failed_payload_reports_no_code_for_a_generic_io_failure() {
-        let peer = PeerIdentity { id: "peer-x".to_string(), device_id: None };
+        let peer = PeerIdentity {
+            id: "peer-x".to_string(),
+            device_id: None,
+        };
         let payload = extra_failed_payload(&peer, &sample_extra_header(), true);
         let parsed: serde_json::Value = serde_json::from_str(&payload).unwrap();
 
         assert!(parsed["code"].is_null());
-        assert!(parsed["reason"].as_str().unwrap().to_lowercase().contains("i/o"));
+        assert!(parsed["reason"]
+            .as_str()
+            .unwrap()
+            .to_lowercase()
+            .contains("i/o"));
     }
 
     /// Provider que nunca é usado pra transferir nada — todos os métodos de dados retornam
@@ -1958,6 +2182,359 @@ mod tests {
         assert_eq!(
             received_from_a.bytes, outbound_payload,
             "bytes recebidos por B não batem byte-a-byte com o que A enviou"
+        );
+    }
+
+    /// Duplo de teste que mede quantos `fetch_reader` ficam em voo ao mesmo tempo (pico
+    /// observado) — a única forma de provar que `receive_files` roda fetches em paralelo de
+    /// verdade, não mais um capítulo por vez como antes desta mudança. Espelha
+    /// `ConcurrencyTrackingTransfer` do Desktop (`infra/sync/protocol/comic_handler.rs`).
+    struct ConcurrencyTrackingTransfer {
+        latency: Duration,
+        fetch_delay: Duration,
+        in_flight: AtomicUsize,
+        max_observed: AtomicUsize,
+    }
+
+    impl ConcurrencyTrackingTransfer {
+        fn new(latency: Duration, fetch_delay: Duration) -> Self {
+            Self {
+                latency,
+                fetch_delay,
+                in_flight: AtomicUsize::new(0),
+                max_observed: AtomicUsize::new(0),
+            }
+        }
+
+        fn max_observed(&self) -> usize {
+            self.max_observed.load(Ordering::SeqCst)
+        }
+    }
+
+    #[async_trait]
+    impl ChapterTransfer for ConcurrencyTrackingTransfer {
+        async fn publish(&self, _bytes: Vec<u8>) -> Result<String, P2pError> {
+            unimplemented!("este teste só exercita o lado receptor (fetch_reader)")
+        }
+
+        async fn fetch_reader(
+            &self,
+            _blob_hash: &str,
+            _peer: &PeerIdentity,
+        ) -> Result<Box<dyn AsyncRead + Send + Unpin>, P2pError> {
+            let current = self.in_flight.fetch_add(1, Ordering::SeqCst) + 1;
+            self.max_observed.fetch_max(current, Ordering::SeqCst);
+            tokio::time::sleep(self.fetch_delay).await;
+            self.in_flight.fetch_sub(1, Ordering::SeqCst);
+            Ok(Box::new(tokio::io::empty()))
+        }
+
+        async fn latency(&self, _peer: &PeerIdentity) -> Option<Duration> {
+            Some(self.latency)
+        }
+    }
+
+    /// Regressão central desta mudança: antes, `receive_files` lia um header, bloqueava no
+    /// fetch INTEIRO daquele capítulo, só então lia o próximo — pico de concorrência sempre 1,
+    /// não importava a latência. Com um RTT simulado de 500ms (> 200ms, teto de 6 concorrentes
+    /// via `chapter_fetch_concurrency`) e 6 capítulos esperados, se o fetch de verdade rodasse
+    /// em paralelo o pico observado precisa passar de 1 — provando que a leitura do PRÓXIMO
+    /// header não fica mais bloqueada atrás do fetch do capítulo anterior.
+    #[tokio::test]
+    async fn receive_files_fetches_chapters_concurrently_on_a_high_latency_connection() {
+        let provider: Arc<dyn FileSyncProvider> =
+            Arc::new(InMemoryFileSyncProvider::with_readable(vec![]));
+        let emit = no_op_emitter();
+        let peer = make_peer("peer-concurrency");
+
+        // Guardado como tipo concreto (não `Arc<dyn ChapterTransfer>`) só pra poder ler
+        // `max_observed()` depois — `receive_files` recebe uma referência via coerção implícita
+        // no próprio call site, não precisa de downcast nenhum.
+        let transfer = Arc::new(ConcurrencyTrackingTransfer::new(
+            Duration::from_millis(500),
+            Duration::from_millis(60),
+        ));
+
+        let (client_io, server_io) = tokio::io::duplex(64 * 1024);
+        let (_client_recv, client_send) = tokio::io::split(client_io);
+        let (server_recv, _server_send) = tokio::io::split(server_io);
+        let mut writer: Writer =
+            FramedWrite::new(Box::new(client_send), LengthDelimitedCodec::new());
+        let mut reader: Recv = FramedRead::new(Box::new(server_recv), LengthDelimitedCodec::new());
+
+        // `fetch_reader` devolve sempre um leitor vazio — o checksum esperado precisa bater com
+        // o hash de um buffer vazio (`InMemoryFileSyncProvider::finalize_chapter_write` recalcula
+        // de verdade), senão os 6 capítulos "concorrentes" viram falhas de checksum em vez de
+        // sucessos — o teste ainda mediria concorrência corretamente, mas `received_count`
+        // ficaria em 0, mascarando uma regressão real de integridade atrás de uma métrica
+        // sem relação (paralelismo != correção).
+        let empty_checksum = blake3::hash(&[]).to_hex().to_string();
+
+        const CHAPTER_COUNT: usize = 6;
+        let writer_task = tokio::spawn(async move {
+            for i in 0..CHAPTER_COUNT {
+                write_json(
+                    &mut writer,
+                    &FileHeader {
+                        comic_name: "Test".to_string(),
+                        chapter: format!("Cap {i}"),
+                        file_name: format!("Cap {i}.cbz"),
+                        size: 10,
+                        checksum: Some(empty_checksum.clone()),
+                        blob_hash: Some(format!("hash-{i}")),
+                    },
+                )
+                .await
+                .unwrap();
+            }
+            // Dropar `writer` (fim do escopo desta task) fecha a metade de escrita do duplex —
+            // sem isso o `FramedRead` do lado receptor nunca veria EOF depois do último header.
+        });
+
+        let mut stats = FileSyncStats::default();
+        receive_files(
+            &mut reader,
+            CHAPTER_COUNT,
+            &provider,
+            &emit,
+            &peer,
+            &mut stats,
+            &(Arc::clone(&transfer) as Arc<dyn ChapterTransfer>),
+        )
+        .await
+        .unwrap();
+        writer_task.await.unwrap();
+
+        assert_eq!(
+            stats.received_count, CHAPTER_COUNT as u32,
+            "todos os 6 capítulos deveriam ter sido persistidos com sucesso"
+        );
+        assert_eq!(stats.failed_count, 0);
+        let observed = transfer.max_observed();
+        assert!(
+            observed >= 2,
+            "esperava fetches sobrepostos (pico >= 2) com RTT alto, só observou pico de {observed} \
+             — receive_files voltou a processar um capítulo por vez"
+        );
+    }
+
+    /// Duplo de teste que injeta falhas específicas por `blob_hash` — permite misturar sucesso,
+    /// falha genérica de fetch e panic de task no MESMO lote concorrente. Só existe pra provar
+    /// o teste abaixo (`receive_files_isolates_failures_within_a_concurrent_batch...`); ao
+    /// contrário de `ConcurrencyTrackingTransfer`, não mede pico de concorrência, só decide o
+    /// resultado do fetch a partir do prefixo do hash.
+    struct FaultyTransfer {
+        blobs: HashMap<String, Vec<u8>>,
+    }
+
+    impl FaultyTransfer {
+        fn new(blobs: HashMap<String, Vec<u8>>) -> Self {
+            Self { blobs }
+        }
+    }
+
+    #[async_trait]
+    impl ChapterTransfer for FaultyTransfer {
+        async fn publish(&self, _bytes: Vec<u8>) -> Result<String, P2pError> {
+            unimplemented!("este teste só exercita o lado receptor (fetch_reader)")
+        }
+
+        async fn fetch_reader(
+            &self,
+            blob_hash: &str,
+            _peer: &PeerIdentity,
+        ) -> Result<Box<dyn AsyncRead + Send + Unpin>, P2pError> {
+            if blob_hash.starts_with("fail-") {
+                return Err(P2pError::StreamFailed("simulated fetch failure".into()));
+            }
+            if blob_hash.starts_with("panic-") {
+                panic!("simulated task panic for blob {blob_hash}");
+            }
+
+            let bytes = self.blobs.get(blob_hash).cloned().unwrap_or_default();
+            use tokio::io::AsyncWriteExt;
+            let (mut writer, reader) = tokio::io::duplex(bytes.len().max(1));
+            tokio::spawn(async move {
+                let _ = writer.write_all(&bytes).await;
+                let _ = writer.shutdown().await;
+            });
+            Ok(Box::new(reader))
+        }
+
+        async fn latency(&self, _peer: &PeerIdentity) -> Option<Duration> {
+            // Alto o bastante pra `chapter_fetch_concurrency` liberar o teto de 6 — todos os
+            // headers deste teste (5) cabem num único lote concorrente.
+            Some(Duration::from_millis(500))
+        }
+    }
+
+    /// Regressão do comportamento central desta mudança: ANTES, qualquer falha em
+    /// `begin_chapter_write`/`receive_chapter_from_blob`/`finalize_chapter_write` propagava via
+    /// `?` e abortava a sessão INTEIRA — um capítulo ruim no meio do lote derrubava todos os
+    /// outros, inclusive os que já tinham chegado. Agora cada capítulo é isolado
+    /// (`ChapterOutcome::Failed`), então um lote com sucesso + falha genérica de fetch +
+    /// checksum mismatch + `blob_hash` ausente + uma task que literalmente PANICOU precisa
+    /// terminar a sessão inteira com `Ok(())` e contagens corretas, sem nenhum efeito colateral
+    /// nos capítulos irmãos que estavam em voo ao mesmo tempo.
+    #[tokio::test]
+    async fn receive_files_isolates_failures_within_a_concurrent_batch_instead_of_aborting_the_session(
+    ) {
+        let ok_payload_1 = make_payload(64, 1);
+        let ok_payload_2 = make_payload(128, 2);
+        let wrong_payload = make_payload(32, 3);
+
+        let mut blobs = HashMap::new();
+        blobs.insert("ok-1".to_string(), ok_payload_1.clone());
+        blobs.insert("ok-2".to_string(), ok_payload_2.clone());
+        blobs.insert("mismatch-1".to_string(), wrong_payload);
+
+        let transfer: Arc<dyn ChapterTransfer> = Arc::new(FaultyTransfer::new(blobs));
+        let provider: Arc<dyn FileSyncProvider> =
+            Arc::new(InMemoryFileSyncProvider::with_readable(vec![]));
+
+        let emit_log: Arc<Mutex<Vec<(String, String)>>> = Arc::new(Mutex::new(Vec::new()));
+        let emit: EventEmitter = {
+            let emit_log = Arc::clone(&emit_log);
+            Arc::new(move |event: &str, payload: String| {
+                emit_log.lock().unwrap().push((event.to_string(), payload));
+            })
+        };
+        let peer = make_peer("peer-faulty");
+
+        let headers = vec![
+            FileHeader {
+                comic_name: "Test".to_string(),
+                chapter: "ok-1".to_string(),
+                file_name: "ok-1.cbz".to_string(),
+                size: 10,
+                checksum: Some(blake3::hash(&ok_payload_1).to_hex().to_string()),
+                blob_hash: Some("ok-1".to_string()),
+            },
+            FileHeader {
+                comic_name: "Test".to_string(),
+                chapter: "fetch-fails".to_string(),
+                file_name: "fetch-fails.cbz".to_string(),
+                size: 10,
+                checksum: None,
+                blob_hash: Some("fail-network".to_string()),
+            },
+            FileHeader {
+                comic_name: "Test".to_string(),
+                chapter: "checksum-mismatch".to_string(),
+                file_name: "checksum-mismatch.cbz".to_string(),
+                size: 10,
+                // Deliberadamente NÃO é o checksum de `wrong_payload` — força
+                // `finalize_chapter_write` a reportar mismatch em vez de sucesso.
+                checksum: Some(blake3::hash(b"not the real content").to_hex().to_string()),
+                blob_hash: Some("mismatch-1".to_string()),
+            },
+            FileHeader {
+                comic_name: "Test".to_string(),
+                chapter: "ok-2".to_string(),
+                file_name: "ok-2.cbz".to_string(),
+                size: 10,
+                checksum: Some(blake3::hash(&ok_payload_2).to_hex().to_string()),
+                blob_hash: Some("ok-2".to_string()),
+            },
+            FileHeader {
+                comic_name: "Test".to_string(),
+                chapter: "task-panics".to_string(),
+                file_name: "task-panics.cbz".to_string(),
+                size: 10,
+                checksum: None,
+                blob_hash: Some("panic-boom".to_string()),
+            },
+            FileHeader {
+                comic_name: "Test".to_string(),
+                chapter: "missing-blob-hash".to_string(),
+                file_name: "missing-blob-hash.cbz".to_string(),
+                size: 10,
+                checksum: None,
+                blob_hash: None,
+            },
+        ];
+        let header_count = headers.len();
+
+        let (client_io, server_io) = tokio::io::duplex(64 * 1024);
+        let (_client_recv, client_send) = tokio::io::split(client_io);
+        let (server_recv, _server_send) = tokio::io::split(server_io);
+        let mut writer: Writer =
+            FramedWrite::new(Box::new(client_send), LengthDelimitedCodec::new());
+        let mut reader: Recv = FramedRead::new(Box::new(server_recv), LengthDelimitedCodec::new());
+
+        let writer_task = tokio::spawn(async move {
+            for header in headers {
+                write_json(&mut writer, &header).await.unwrap();
+            }
+        });
+
+        let mut stats = FileSyncStats::default();
+        let result = receive_files(
+            &mut reader,
+            header_count,
+            &provider,
+            &emit,
+            &peer,
+            &mut stats,
+            &transfer,
+        )
+        .await;
+        writer_task.await.unwrap();
+
+        result.expect("uma falha isolada de capítulo não deve abortar a sessão inteira");
+        assert_eq!(
+            stats.received_count, 2,
+            "os 2 capítulos válidos deveriam ter sido persistidos mesmo com falhas ao lado"
+        );
+        assert_eq!(
+            stats.failed_count, 4,
+            "fetch genérico + checksum mismatch + panic da task + blob_hash ausente = 4 falhas isoladas"
+        );
+
+        let events = emit_log.lock().unwrap();
+        let failed_events = events
+            .iter()
+            .filter(|(name, _)| name == "sync:files:chapter_failed")
+            .count();
+        let complete_events = events
+            .iter()
+            .filter(|(name, _)| name == "sync:files:chapter_complete")
+            .count();
+        // Só 3, não 4: a task que PANICOU nunca chega a rodar o corpo de `receive_one_chapter`
+        // até o fim (é o `JoinSet` que captura o panic como `Err(join_err)` em `receive_files`),
+        // então não tem de onde emitir `chapter_failed` — só `tracing::error!` + contagem em
+        // `stats.failed_count`. Mesmo comportamento do Desktop (`transfer.rs::receive_files`)
+        // pro branch `Err(join_err)`: um panic é bug real, não falha de rede a nível de item.
+        assert_eq!(
+            failed_events, 3,
+            "fetch genérico + checksum mismatch + blob_hash ausente emitem chapter_failed; \
+             o panic da task não (só conta em stats.failed_count)"
+        );
+        assert_eq!(complete_events, 2);
+    }
+
+    /// O corte de paralelismo (`permits_to_forget`) só pode acontecer UMA vez por sessão, mesmo
+    /// que várias tasks concorrentes observem `timed_out: true` ao mesmo tempo — sem o
+    /// `compare_exchange`, um lote com vários timeouts simultâneos forjaria o pool várias vezes
+    /// (`forget_permits` é cumulativo, nunca devolve permits), reduzindo a concorrência muito
+    /// além do pretendido. Testado isolado da lógica real de `receive_files` (que depende do
+    /// scheduler de verdade pra ordem de execução das tasks, não determinística o bastante pra
+    /// um teste confiável) — só a mecânica do guard em si, copiada exatamente do call site.
+    #[test]
+    fn backoff_guard_only_fires_once_even_if_several_tasks_time_out_at_once() {
+        let backed_off = AtomicBool::new(false);
+        let mut fired = 0;
+        for _ in 0..5 {
+            if backed_off
+                .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+                .is_ok()
+            {
+                fired += 1;
+            }
+        }
+        assert_eq!(
+            fired, 1,
+            "o guard deveria permitir só UM disparo mesmo com vários timeouts concorrentes"
         );
     }
 
@@ -2520,6 +3097,62 @@ mod tests {
         assert!(
             !message.contains("missing field"),
             "não deveria mais tentar decodificar SessionBusy como ComicSyncScope: {message}"
+        );
+    }
+
+    /// Mesmos degraus e limites do equivalente no Desktop
+    /// (`infra/sync/protocol/transfer.rs::chapter_fetch_concurrency`) — os dois lados têm que
+    /// concordar no dimensionamento pra um sync entre plataformas diferentes se comportar de
+    /// forma previsível sob a mesma condição de rede.
+    #[test]
+    fn chapter_fetch_concurrency_scales_with_measured_latency() {
+        assert_eq!(
+            chapter_fetch_concurrency(None),
+            2,
+            "sem medição, fica no mais conservador"
+        );
+        assert_eq!(chapter_fetch_concurrency(Some(Duration::from_millis(0))), 2);
+        assert_eq!(
+            chapter_fetch_concurrency(Some(Duration::from_millis(20))),
+            2,
+            "limite exato do degrau baixo, ainda dentro dele"
+        );
+        assert_eq!(
+            chapter_fetch_concurrency(Some(Duration::from_millis(21))),
+            4,
+            "1ms acima do degrau baixo já sobe pro médio"
+        );
+        assert_eq!(
+            chapter_fetch_concurrency(Some(Duration::from_millis(200))),
+            4,
+            "limite exato do degrau médio, ainda dentro dele"
+        );
+        assert_eq!(
+            chapter_fetch_concurrency(Some(Duration::from_millis(201))),
+            6,
+            "1ms acima do degrau médio já sobe pro teto"
+        );
+        assert_eq!(
+            chapter_fetch_concurrency(Some(Duration::from_secs(2))),
+            6,
+            "RTT bem alto (relay ruim) nunca passa do teto de 6"
+        );
+    }
+
+    #[test]
+    fn permits_to_forget_halves_the_pool_but_never_below_one_permit_left() {
+        assert_eq!(permits_to_forget(6), 3, "6 -> mantém 3, esquece 3");
+        assert_eq!(permits_to_forget(4), 2, "4 -> mantém 2, esquece 2");
+        assert_eq!(permits_to_forget(2), 1, "2 -> mantém max(1,1)=1, esquece 1");
+        assert_eq!(
+            permits_to_forget(1),
+            0,
+            "1 -> mantém max(1,0)=1, não há o que esquecer"
+        );
+        assert_eq!(
+            permits_to_forget(0),
+            0,
+            "0 -> nunca deveria acontecer na prática, mas não deve estourar (saturating_sub)"
         );
     }
 }

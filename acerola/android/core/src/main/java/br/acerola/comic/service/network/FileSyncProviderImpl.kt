@@ -20,6 +20,8 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import p2p.FfiComicSummaryEntry
 import p2p.FfiExtraManifestEntry
 import p2p.FfiFileManifestEntry
@@ -81,6 +83,21 @@ class FileSyncProviderImpl
         private val readHandles = ConcurrentHashMap<Long, ReadHandle>()
         private val writeHandles = ConcurrentHashMap<Long, WriteHandle>()
         private val handleCounter = AtomicLong(1)
+
+        /**
+         * Serializa "resolve ou cria a pasta do quadrinho" entre chamadas concorrentes de
+         * `beginChapterWrite`/`beginExtraWrite` — agora que `receive_files` (lado Rust,
+         * `exchange.rs`) busca vários capítulos em paralelo, dois capítulos do MESMO quadrinho
+         * novo podiam chegar aqui ao mesmo tempo, ambos ver `getDirectoryByName == null` (o
+         * registro em DB só acontece depois, em `finalizeChapterWrite`) e cada um criar sua
+         * própria pasta SAF com o mesmo `comicName` — `DocumentsProvider` não garante
+         * unicidade de display name, só de URI/document ID, então isso rachava os capítulos
+         * do mesmo quadrinho em duas pastas físicas distintas. Diferente do Desktop
+         * (`resolve_comic_dir`/`create_synced_comic`), que resolve essa mesma corrida via
+         * `UniqueViolation` do banco, aqui quem precisa ser atômico é a criação do diretório
+         * SAF em si — daí o lock em vez de depender só da constraint do Room.
+         */
+        private val comicFolderLock = Mutex()
 
         @Volatile
         private var cachedLibraryRoot: DocumentFile? = null
@@ -197,12 +214,14 @@ class FileSyncProviderImpl
                 // ela não tinha nenhuma exclusão no DirectoryScanner (que desce recursivo em
                 // qualquer pasta sem manga direto nela), então um rescan completo podia
                 // redescobrir `synced/<comicName>/` como um segundo ComicDirectory fantasma.
-                val existingComic = comicDirectoryDao.getDirectoryByName(comicName)
                 val comicFolder =
-                    if (existingComic != null) {
-                        DocumentFile.fromTreeUri(context, Uri.parse(existingComic.path))
-                    } else {
-                        root.findFile(comicName) ?: root.createDirectory(comicName)
+                    comicFolderLock.withLock {
+                        val existingComic = comicDirectoryDao.getDirectoryByName(comicName)
+                        if (existingComic != null) {
+                            DocumentFile.fromTreeUri(context, Uri.parse(existingComic.path))
+                        } else {
+                            root.findFile(comicName) ?: root.createDirectory(comicName)
+                        }
                     }
                 if (comicFolder == null) return@runBlocking -1L
 
@@ -398,12 +417,14 @@ class FileSyncProviderImpl
             runBlocking {
                 val root = libraryRoot() ?: return@runBlocking -1L
 
-                val existingComic = comicDirectoryDao.getDirectoryByName(comicName)
                 val comicFolder =
-                    if (existingComic != null) {
-                        DocumentFile.fromTreeUri(context, Uri.parse(existingComic.path))
-                    } else {
-                        root.findFile(comicName) ?: root.createDirectory(comicName)
+                    comicFolderLock.withLock {
+                        val existingComic = comicDirectoryDao.getDirectoryByName(comicName)
+                        if (existingComic != null) {
+                            DocumentFile.fromTreeUri(context, Uri.parse(existingComic.path))
+                        } else {
+                            root.findFile(comicName) ?: root.createDirectory(comicName)
+                        }
                     }
                 if (comicFolder == null) return@runBlocking -1L
 

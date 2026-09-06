@@ -66,4 +66,14 @@ impl BlobContext {
             .map(|(_, addr, _)| addr)
             .ok_or_else(|| P2pError::StreamFailed(format!("no known address for peer {}", peer.id)))
     }
+
+    /// RTT medido com `peer` agora, usado só pra dimensionar paralelismo de fetch de blob (ver
+    /// `exchange.rs::receive_files`) — nunca crítico o bastante pra virar `Err`. `None` tanto
+    /// sem conexão viva quanto sem node (nesse caso o chamador já vai falhar logo depois em
+    /// `resolve_addr`/`blob_store`, então não vale a pena duplicar o erro aqui). Espelha
+    /// `BlobContext::latency` do Desktop (`infra/sync/blob_context.rs`) — mesmo contrato de
+    /// concorrência, plataformas diferentes.
+    pub(crate) async fn latency(&self, peer: &PeerIdentity) -> Option<std::time::Duration> {
+        self.node().ok()?.latency(peer).await
+    }
 }

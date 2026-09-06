@@ -27,6 +27,13 @@ pub(crate) trait ChapterTransfer: Send + Sync {
         blob_hash: &str,
         peer: &PeerIdentity,
     ) -> Result<Box<dyn AsyncRead + Send + Unpin>, P2pError>;
+
+    /// RTT medido com `peer` agora, usado só pra dimensionar quantos capítulos buscar em
+    /// paralelo em `exchange.rs::receive_files` (ver doc lá) — `None` quando não há como medir
+    /// (sem conexão viva, ou implementação de teste que não simula rede de verdade) cai no
+    /// paralelismo mínimo, nunca em erro. Espelha `ChapterTransfer::latency` do Desktop
+    /// (`infra/sync/protocol/transfer.rs`) — mesmo contrato, plataformas diferentes.
+    async fn latency(&self, peer: &PeerIdentity) -> Option<std::time::Duration>;
 }
 
 pub(crate) struct BlobChapterTransfer {
@@ -70,11 +77,19 @@ impl ChapterTransfer for BlobChapterTransfer {
         store.fetch(&hash, &addr).await?;
         store.get(&hash).await
     }
+
+    async fn latency(&self, peer: &PeerIdentity) -> Option<std::time::Duration> {
+        self.context.latency(peer).await
+    }
 }
 
 #[cfg(test)]
 pub(crate) struct InMemoryChapterTransfer {
     blobs: std::sync::Mutex<std::collections::HashMap<String, Vec<u8>>>,
+    /// `None` por padrão (mesmo sentido de "sem conexão real pra medir" da doc do trait) —
+    /// testes que exercitam o dimensionamento de paralelismo por latência usam `set_latency`
+    /// pra simular um RTT específico sem precisar de rede de verdade.
+    latency: std::sync::Mutex<Option<std::time::Duration>>,
 }
 
 #[cfg(test)]
@@ -85,11 +100,16 @@ impl InMemoryChapterTransfer {
     pub(crate) fn shared_pair() -> (Arc<dyn ChapterTransfer>, Arc<dyn ChapterTransfer>) {
         let shared = Arc::new(InMemoryChapterTransfer {
             blobs: std::sync::Mutex::new(std::collections::HashMap::new()),
+            latency: std::sync::Mutex::new(None),
         });
         (
             Arc::clone(&shared) as Arc<dyn ChapterTransfer>,
             shared as Arc<dyn ChapterTransfer>,
         )
+    }
+
+    pub(crate) fn set_latency(&self, latency: std::time::Duration) {
+        *self.latency.lock().unwrap() = Some(latency);
     }
 }
 
@@ -128,5 +148,9 @@ impl ChapterTransfer for InMemoryChapterTransfer {
             let _ = writer.shutdown().await;
         });
         Ok(Box::new(reader))
+    }
+
+    async fn latency(&self, _peer: &PeerIdentity) -> Option<std::time::Duration> {
+        *self.latency.lock().unwrap()
     }
 }
