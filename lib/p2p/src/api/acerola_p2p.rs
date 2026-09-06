@@ -34,6 +34,12 @@ pub struct AcerolaP2p {
     pub(super) device_info: Arc<RwLock<DeviceInfo>>,
     pub(super) local_id: PeerId,
     pub(super) transport: Arc<dyn P2pTransport>,
+    /// `JoinHandle` da task de `NetworkManager::run()` (`tokio::spawn` em `acerola_builder.rs`,
+    /// descartada até esta mudança) — guardada só pra `shutdown()` poder confirmar que o loop
+    /// terminou de verdade antes de devolver, em vez de mandar `NetworkCommand::Shutdown` e
+    /// torcer. `Mutex` (não `RwLock`) porque só é tomada (`.take()`) uma vez, nunca lida
+    /// concorrentemente; `tokio::sync` porque `.lock()` precisa atravessar o `.await` do join.
+    pub(super) run_handle: tokio::sync::Mutex<Option<tokio::task::JoinHandle<()>>>,
 }
 
 impl AcerolaP2p {
@@ -172,8 +178,32 @@ impl AcerolaP2p {
 
     /// Aciona a sequência final de drenagem forçando o cancelamento do background Event Loop
     /// e do serviço nativo na memória.
+    ///
+    /// Diferente de antes, só retorna depois que a task de `NetworkManager::run()` de fato
+    /// terminou (incluindo `transport.shutdown()`, que fecha o `Endpoint` real do iroh) — não
+    /// só depois que o comando foi enfileirado. Isso importa pra quem quer "reiniciar" o node
+    /// (shutdown + `builder().build()` de novo): sem essa garantia, o socket UDP antigo podia
+    /// ainda estar de pé quando o novo node tentasse bindar, ou continuar recebendo tráfego
+    /// que deveria ir pro node novo.
+    ///
+    /// Ignora erro de `send` (canal fechado significa que o manager já parou sozinho — não é
+    /// motivo pra desistir de confirmar o teardown) e é seguro chamar mais de uma vez: a
+    /// segunda chamada só encontra `run_handle` já vazio (`.take()` na primeira) e retorna
+    /// `Ok(())` imediatamente.
     pub async fn shutdown(&self) -> Result<(), ConnectionError> {
-        self.command_tx.send(NetworkCommand::Shutdown).await.map_err(|_| ConnectionError::Shutdown)
+        let _ = self.command_tx.send(NetworkCommand::Shutdown).await;
+
+        if let Some(handle) = self.run_handle.lock().await.take() {
+            // Diferente do `send` acima, isto NÃO é um erro esperado em uso normal: só falha se
+            // `NetworkManager::run()` entrou em pânico ou foi cancelada. Descartar em silêncio
+            // deixaria exatamente o tipo de falha que essa função existe pra detectar (task
+            // morreu sem de fato rodar `transport.shutdown()`) invisível pro chamador.
+            if let Err(error) = handle.await {
+                tracing::warn!(?error, "network manager task did not shut down cleanly");
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -230,6 +260,22 @@ mod tests {
     async fn shutdown_without_error() {
         let node = build_node().await;
         assert!(node.shutdown().await.is_ok());
+    }
+
+    /// `shutdown()` agora espera `run_handle` de verdade (`.take()`, ver doc do método) —
+    /// chamar de novo depois não pode travar nem falhar: a segunda chamada só encontra
+    /// `run_handle` já vazio e retorna `Ok(())` na hora. Regressão específica pra um cenário de
+    /// "reiniciar o node" onde o código de restart poderia, por segurança, chamar `shutdown()`
+    /// mais de uma vez antes de reconstruir.
+    #[tokio::test]
+    async fn shutdown_can_be_called_more_than_once_without_hanging() {
+        let node = build_node().await;
+        assert!(node.shutdown().await.is_ok());
+
+        let second =
+            tokio::time::timeout(std::time::Duration::from_millis(200), node.shutdown()).await;
+        assert!(second.is_ok(), "segundo shutdown não deveria travar");
+        assert!(second.unwrap().is_ok());
     }
 
     #[tokio::test]
