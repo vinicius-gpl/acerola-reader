@@ -17,17 +17,14 @@ import br.acerola.comic.module.main.sync.state.SyncAction
 import br.acerola.comic.module.main.sync.state.SyncResult
 import br.acerola.comic.module.main.sync.state.SyncUiState
 import br.acerola.comic.module.main.sync.state.TransferLogEntry
-import br.acerola.comic.service.P2pSyncForegroundService
 import br.acerola.comic.service.PeerAddress
 import br.acerola.comic.service.RelaySettings
 import br.acerola.comic.service.SyncDirection
 import br.acerola.comic.service.network.ComicSummary
 import br.acerola.comic.service.network.P2pEvent
 import br.acerola.comic.service.network.P2pEventBus
-import br.acerola.comic.ui.R
 import br.acerola.comic.usecase.network.P2pUseCase
 import br.acerola.comic.usecase.network.SyncHistoryLogUseCase
-import br.acerola.comic.util.notification.NotificationHelper
 import br.acerola.comic.util.p2p.PairingCode
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -37,9 +34,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -79,7 +74,6 @@ class SyncViewModel
         private val p2pUseCase: P2pUseCase,
         private val p2pEventBus: P2pEventBus,
         private val syncHistoryLogUseCase: SyncHistoryLogUseCase,
-        private val notificationHelper: NotificationHelper,
         @param:ApplicationContext private val context: Context,
     ) : ViewModel() {
         private val _uiState = MutableStateFlow(SyncUiState())
@@ -139,24 +133,14 @@ class SyncViewModel
                 _uiState.update { it.copy(localDeviceName = alias ?: Build.MODEL) }
             }
 
+            // Só pro estado de UI DESTA tela (log em memória, spinner dos botões) — a
+            // persistência/notificação/foreground service de uma sessão P2P saíram daqui pra
+            // `P2pSyncCoordinator` (singleton application-scoped, ver KDoc lá): como esta
+            // ViewModel é destruída ao sair da tela (`hiltViewModel()` escopada à
+            // `NavBackStackEntry`), ela não é o lugar certo pra um resultado que precisa
+            // sobreviver à navegação.
             viewModelScope.launch {
                 p2pEventBus.events.collect(::handleEvent)
-            }
-
-            // Liga o foreground service enquanto qualquer sync estiver em andamento, desliga
-            // assim que o último terminar — sem isso, uma transferência longa (minutos, capítulos
-            // grandes) roda sem NENHUMA isenção do Doze/App Standby (ver
-            // P2pSyncForegroundService). `distinctUntilChanged` garante que só reage à
-            // TRANSIÇÃO vazio<->não-vazio, não a toda mudança de `syncingKeys` (ex.: dois syncs
-            // simultâneos não disparam start() duas vezes).
-            viewModelScope.launch {
-                uiState.map { it.syncingKeys.isNotEmpty() }.distinctUntilChanged().collect { active ->
-                    if (active) {
-                        P2pSyncForegroundService.start(context)
-                    } else {
-                        P2pSyncForegroundService.stop(context)
-                    }
-                }
             }
         }
 
@@ -189,17 +173,20 @@ class SyncViewModel
             _uiState.update { it.copy(transferLog = entries, lastSyncedByPeer = lastSynced) }
         }
 
-        /** Records a session's terminal result — updates "last synced" only on success, but
-         *  [SyncUiState.lastSyncResultByPeer] always, so [SyncScreen] can surface a failure
-         *  inline on the peer row without digging through the aggregate log. */
-        private suspend fun recordSyncResult(
+        /** Grava o resultado terminal de uma sessão só no estado de UI DESTA tela — atualiza
+         *  "última sync" apenas em caso de sucesso, mas [SyncUiState.lastSyncResultByPeer]
+         *  sempre, pra [SyncScreen] mostrar uma falha inline na linha do peer sem precisar
+         *  vasculhar o log agregado. Persistir em disco agora é trabalho do
+         *  [P2pSyncCoordinator] (sobrevive a esta ViewModel ser destruída), não desta função —
+         *  gravar aqui também duplicaria a linha em [SyncHistoryLogUseCase] sempre que os dois
+         *  estiverem vivos ao mesmo tempo. */
+        private fun recordSyncResult(
             peerId: String,
             kind: String,
             status: String,
             message: String?,
             errorType: SyncProtocolError? = null,
         ) {
-            syncHistoryLogUseCase.record(peerId, kind, status, message)
             val now = System.currentTimeMillis()
             _uiState.update {
                 it.copy(
@@ -218,50 +205,6 @@ class SyncViewModel
                             ),
                 )
             }
-        }
-
-        /**
-         * Notificação de RESULTADO (auto-cancelável) de uma sessão de sync de arquivos — TODO.md:
-         * "Callback visual/notificação de sync global — hoje o resultado só aparece na aba de
-         * Rede". Reaproveita a mesma [NotificationHelper] já usada pelo worker de metadados
-         * (`showFinishedNotification`), em vez do canal ONGOING de [P2pSyncForegroundService]
-         * (que fica indeterminado e é ligado/desligado por [SyncUiState.syncingKeys], não é o
-         * lugar certo pra reportar um desfecho pontual).
-         */
-        private fun notifyFileSyncComplete(event: P2pEvent.FileSyncComplete) {
-            val content =
-                if (event.failedCount > 0) {
-                    context.getString(
-                        R.string.notification_sync_files_complete_content_with_failures,
-                        event.receivedCount,
-                        event.sentCount,
-                        event.failedCount,
-                    )
-                } else {
-                    context.getString(
-                        R.string.notification_sync_files_complete_content,
-                        event.receivedCount,
-                        event.sentCount,
-                    )
-                }
-            notificationHelper.showFinishedNotification(
-                title = context.getString(R.string.notification_sync_files_complete_title),
-                content = content,
-                notificationId = NotificationHelper.P2P_FILE_SYNC_RESULT_NOTIFICATION_ID,
-            )
-        }
-
-        /** Contraparte de [notifyFileSyncComplete] pro caso de falha de SESSÃO (o sentinela de
-         *  `comicName`/`chapter` vazios já é checado por quem chama, em [handleEvent]) — usa o
-         *  mesmo [SyncProtocolError] tipado já resolvido em [event], com [event.reason] cru
-         *  como fallback quando a causa não é reconhecida (mesmo padrão de `describeEntry` na
-         *  tela de Rede). */
-        private fun notifyFileSyncFailed(event: P2pEvent.FileSyncChapterFailed) {
-            notificationHelper.showFinishedNotification(
-                title = context.getString(R.string.notification_sync_files_error_title),
-                content = event.error?.uiMessage?.asString(context) ?: event.reason,
-                notificationId = NotificationHelper.P2P_FILE_SYNC_RESULT_NOTIFICATION_ID,
-            )
         }
 
         fun onAction(action: SyncAction) {
@@ -663,7 +606,6 @@ class SyncViewModel
                         // (`syncHistoryLogUseCase.record`, dentro de `recordSyncResult`).
                         recordSyncResult(event.peerId, SYNC_KIND_FILES, "error", event.reason, event.error)
                         refreshLocalInfo()
-                        notifyFileSyncFailed(event)
                     }
                     pushLog(
                         SYNC_KIND_FILES,
@@ -697,7 +639,6 @@ class SyncViewModel
                     recordSyncResult(event.peerId, SYNC_KIND_FILES, "complete", null)
                     pushLog(SYNC_KIND_FILES, "complete", LogState.SUCCESS)
                     refreshLocalInfo()
-                    notifyFileSyncComplete(event)
                 }
 
                 is P2pEvent.LibraryBrowseResult ->

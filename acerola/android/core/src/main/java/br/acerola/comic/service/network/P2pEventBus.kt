@@ -11,11 +11,18 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Event channel for the P2P node, listened to by any interested screen.
+ * Canal de eventos do node P2P, ouvido por qualquer tela interessada.
  *
- * Needs to be an application-scoped singleton (not owned by a ViewModel) so events like
- * "sync complete" or "peer trusted for the first time" aren't lost when no sync screen is
- * open at the moment they happen.
+ * Ser um singleton application-scoped (não pertencer a uma ViewModel) é necessário, mas NÃO
+ * suficiente pra evitar perder eventos enquanto nenhuma tela está aberta: `_events` tem
+ * `replay = 0`, então um valor emitido sem nenhum coletor inscrito é descartado pra sempre —
+ * `extraBufferCapacity` só amortece rajadas pra coletores JÁ inscritos, não alimenta
+ * retroativamente um que se inscreve depois. Quem de fato garante que "sync complete"/"peer
+ * trusted for the first time" sobrevivem a nenhuma tela de sync estar aberta é o
+ * [P2pSyncCoordinator], um coletor sempre ativo, instanciado uma única vez a partir de
+ * [br.acerola.comic.usecase.NetworkCaseModule] — nunca atrelado ao ciclo de vida de nenhuma
+ * ViewModel. ViewModels escopadas a tela também podem coletar [events] pro próprio estado
+ * local de UI, mas não podem ser a ÚNICA ouvinte de nada que precise sobreviver à navegação.
  */
 @Singleton
 class P2pEventBus
