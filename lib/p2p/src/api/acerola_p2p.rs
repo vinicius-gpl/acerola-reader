@@ -131,6 +131,15 @@ impl AcerolaP2p {
         self.transport.is_connected(peer).await
     }
 
+    /// RTT medido da conexão física viva com `peer`, ou `None` sem uma conexão pra medir —
+    /// mesmo valor que alimenta o evento periódico `network:latency` (`core/network/manager.rs`),
+    /// exposto sob demanda pra quem precisa de uma leitura fresca no início de uma transferência
+    /// (ex.: dimensionar quantos fetches de blob rodar em paralelo) sem esperar o próximo tick
+    /// do intervalo de 30s.
+    pub async fn latency(&self, peer: &PeerId) -> Option<std::time::Duration> {
+        self.transport.latency(peer).await
+    }
+
     /// Notifica o transporte de uma possível mudança de rede do SO — ver a doc em
     /// `P2pTransport::network_change` para o motivo de isso ser necessário no Android.
     pub async fn network_change(&self) {
