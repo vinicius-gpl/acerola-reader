@@ -40,10 +40,12 @@
 	import { useComicSummary } from '$lib/hooks/store/use-comic-summary.svelte';
 	import { useSelectFolder } from '$lib/hooks/store/use-select-folder.svelte';
 	import { useBookmarks } from '$lib/hooks/store/use-bookmarks.svelte';
+	import { useNetworkSync } from '$lib/hooks/store/use-network-sync.svelte';
+	import { usePeerConnection } from '$lib/hooks/store/use-peer-connection.svelte';
 	import { useOnboarding } from '$lib/hooks/onboarding/use-onboarding.svelte';
 	import { setComicContext } from '$lib/state/comic-context.svelte';
 	import { getLocale, setLocale } from '$lib/paraglide/runtime';
-	import { onMount } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { resolveCover } from '$lib/utils/artwork.utils';
@@ -66,6 +68,7 @@
 	import '$theme/layout.css';
 	import Search from '@lucide/svelte/icons/search';
 	import GlobeIcon from '@lucide/svelte/icons/globe';
+	import RefreshCwIcon from '@lucide/svelte/icons/refresh-cw';
 
 	setComicContext();
 
@@ -78,6 +81,14 @@
 	const summary = useComicSummary();
 	const bookmarkStore = useBookmarks();
 	const onboarding = useOnboarding();
+	// Instância própria (não compartilhada com as páginas, que têm a sua) só pro indicador
+	// global do header abaixo — precisa estar viva independente de qual rota está montada, ao
+	// contrário de `home`/`network`/`comic`/`history`, que escutam/param de escutar a cada
+	// entrada/saída da tela. Ver `use-network-sync.svelte.ts::activeSession` pro porquê de "tem
+	// uma sessão com status 'started' no log" já ser o sinal certo de "sync rolando agora",
+	// sem precisar duplicar nenhum estado novo.
+	const headerSync = useNetworkSync();
+	const headerPeers = usePeerConnection();
 
 	const incrementalScanner = useLibraryScanner(
 		DIRECTORY_SCAN_COMMANDS.incrementalScan,
@@ -111,6 +122,14 @@
 		if (folder.folderPath) {
 			incrementalScanner.start();
 		}
+
+		headerSync.startListening();
+		headerPeers.startListening();
+	});
+
+	onDestroy(() => {
+		headerSync.stopListening();
+		headerPeers.stopListening();
 	});
 
 	function minimize() {
@@ -236,6 +255,24 @@
 					<div class="mx-8 flex items-center gap-3">
 						{#if packageIdentity}
 							<span class="text-xs text-muted-foreground">{packageIdentity}</span>
+						{/if}
+
+						{#if headerSync.activeSession()}
+							{@const session = headerSync.activeSession()}
+							{@const progress = headerSync.activeProgressMessage()}
+							<button
+								type="button"
+								class="flex max-w-56 items-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
+								title={progress ?? m['layout.sync_indicator.tooltip']()}
+								onclick={() => goto('/network')}
+							>
+								<RefreshCwIcon size={14} class="shrink-0 animate-spin" />
+								<span class="truncate">
+									{m['layout.sync_indicator.syncing']({
+										peer: session ? headerPeers.peerLabel(session.peerId) : ''
+									})}
+								</span>
+							</button>
 						{/if}
 
 						<AcerolaModePicker />

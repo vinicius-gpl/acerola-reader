@@ -168,6 +168,10 @@
 			"navigation_group": "Navegação",
 			"library_group": "Biblioteca",
 			"no_results": "Nenhum quadrinho encontrado."
+		},
+		"sync_indicator": {
+			"syncing": "Sincronizando com {peer}",
+			"tooltip": "Ver detalhes na aba Rede"
 		}
 	},
 	"routes": {

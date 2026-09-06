@@ -168,6 +168,10 @@
 			"navigation_group": "Navigation",
 			"library_group": "Library",
 			"no_results": "No comics found."
+		},
+		"sync_indicator": {
+			"syncing": "Syncing with {peer}",
+			"tooltip": "View details in the Network tab"
 		}
 	},
 	"routes": {
