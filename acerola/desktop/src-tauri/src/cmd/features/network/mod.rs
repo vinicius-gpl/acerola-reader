@@ -116,15 +116,25 @@ pub async fn clear_iroh_services_ticket(
     service.clear_iroh_services_ticket().await
 }
 
-/// Relê `settings.json` + o ticket do cofre e aplica a config de relay resolvida ao node JÁ
-/// VIVO, sem precisar reiniciar o app — ver `NetworkServiceApi::apply_relay_settings`. O
-/// frontend chama isso depois de QUALQUER mudança nas fontes de relay (toggle do
-/// Acerola/Iroh, add/remove de URL própria, salvar/remover ticket).
+/// Relê `settings.json` + o ticket do cofre e reinicia o módulo P2P inteiro com a config de
+/// relay resolvida (ver `NetworkServiceApi::restart`), sem precisar reiniciar o app — o
+/// frontend chama isso depois de QUALQUER mudança nas fontes de relay (toggle do Acerola/Iroh,
+/// add/remove de URL própria, salvar/remover ticket).
 #[tauri::command]
 pub async fn apply_relay_settings(
     service: State<'_, Arc<dyn NetworkServiceApi>>,
 ) -> Result<(), String> {
     service.apply_relay_settings().await
+}
+
+/// Reinicia o módulo P2P por completo (desliga o node atual, sobe um novo com a mesma
+/// identidade/storage) sob demanda — botão "Reiniciar" na tela de Rede, estilo LocalSend. Mesma
+/// operação que [`apply_relay_settings`] já dispara automaticamente numa troca de relay; exposto
+/// separado pro usuário poder forçar um reset mesmo sem mudar nada (ex.: conexão presa depois de
+/// uma troca de rede física, sem precisar fechar e reabrir o app inteiro).
+#[tauri::command]
+pub async fn restart_p2p(service: State<'_, Arc<dyn NetworkServiceApi>>) -> Result<(), String> {
+    service.restart().await
 }
 
 #[tauri::command]

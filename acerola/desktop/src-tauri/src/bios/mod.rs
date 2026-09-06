@@ -50,6 +50,7 @@ pub fn build() -> tauri::Builder<tauri::Wry> {
         network_cmd::set_iroh_services_ticket,
         network_cmd::clear_iroh_services_ticket,
         network_cmd::apply_relay_settings,
+        network_cmd::restart_p2p,
         network_cmd::sync_history,
         network_cmd::sync_files,
         network_cmd::sync_all,

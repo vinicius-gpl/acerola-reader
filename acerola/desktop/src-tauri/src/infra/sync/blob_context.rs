@@ -7,11 +7,13 @@
 //!
 //! O node só existe DEPOIS que `AcerolaP2p::builder(...).build()` retorna, mas os handlers são
 //! passados PRO builder antes disso — não dá pra injetar `Arc<AcerolaP2p>` direto na construção
-//! deles. `BlobContext` resolve isso guardando um `Weak<AcerolaP2p>` preenchido uma única vez
-//! (`set_node`), logo depois do `.build()` em `bios/network.rs`, antes de qualquer conexão poder
-//! disparar um handler (nenhuma existe até o node ser devolvido).
+//! deles. `BlobContext` resolve isso guardando um `Weak<AcerolaP2p>` (`set_node`), logo depois do
+//! `.build()` em `bios/network.rs`, antes de qualquer conexão poder disparar um handler (nenhuma
+//! existe até o node ser devolvido) — e de novo a cada `NetworkService::restart()`, já que os
+//! mesmos handlers (registrados uma única vez, no primeiro boot) continuam vivos através de
+//! múltiplos nodes ao longo da vida do processo.
 
-use std::sync::{Arc, OnceLock, Weak};
+use std::sync::{Arc, RwLock, Weak};
 
 use acerola_p2p::api::{
     blobs::P2pBlobStore,
@@ -22,7 +24,7 @@ use acerola_p2p::api::{
 
 #[derive(Default)]
 pub struct BlobContext {
-    node: OnceLock<Weak<AcerolaP2p>>,
+    node: RwLock<Option<Weak<AcerolaP2p>>>,
 }
 
 impl BlobContext {
@@ -30,13 +32,21 @@ impl BlobContext {
         Arc::new(Self::default())
     }
 
+    /// Repointa pro node atual. Antes usava `OnceLock` (só aceitava um `set()` bem-sucedido pra
+    /// sempre) — um restart do módulo P2P (`NetworkService::restart`) chamando isso de novo
+    /// silenciosamente não teria efeito nenhum, deixando os handlers de sync-files/sync-comic
+    /// presos ao node ANTIGO (já desligado) até o fim do processo. `RwLock<Option<...>>` aceita
+    /// ser repontado quantas vezes for preciso.
     pub fn set_node(&self, node: &Arc<AcerolaP2p>) {
-        let _ = self.node.set(Arc::downgrade(node));
+        *self.node.write().unwrap_or_else(|poison| poison.into_inner()) =
+            Some(Arc::downgrade(node));
     }
 
     fn node(&self) -> Result<Arc<AcerolaP2p>, P2pError> {
         self.node
-            .get()
+            .read()
+            .unwrap_or_else(|poison| poison.into_inner())
+            .as_ref()
             .and_then(Weak::upgrade)
             .ok_or_else(|| P2pError::StreamFailed("p2p node not initialized yet".into()))
     }
