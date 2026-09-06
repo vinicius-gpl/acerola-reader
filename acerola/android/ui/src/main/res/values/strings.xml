@@ -66,6 +66,15 @@
     <string name="error_sync_connect_invalid_code">Código inválido. Confira se você copiou o código completo do outro dispositivo.</string>
     <string name="error_sync_connect_failed">Não foi possível conectar. Confira se o código está certo e se o outro dispositivo está com o Acerola aberto.</string>
     <string name="error_sync_scan_failed">Não foi possível abrir o leitor de QR Code. Tente novamente ou cole o código manualmente.</string>
+
+    <!-- Notificação de RESULTADO de uma sessão de sync de arquivos (ver TODO.md: "Callback
+         visual/notificação de sync global" — antes disso, o resultado só aparecia na aba de
+         Rede). Diferente da notificação ONGOING de P2pSyncForegroundService (indeterminada,
+         id próprio) — esta é auto-cancelável e mostra contagens/erro reais. -->
+    <string name="notification_sync_files_complete_title">Sincronização de arquivos concluída</string>
+    <string name="notification_sync_files_complete_content">%1$d recebido(s), %2$d enviado(s)</string>
+    <string name="notification_sync_files_complete_content_with_failures">%1$d recebido(s), %2$d enviado(s) — %3$d falharam</string>
+    <string name="notification_sync_files_error_title">Sincronização de arquivos falhou</string>
     <string name="error_sync_scan_empty">O QR Code escaneado não contém texto legível.</string>
 
     <!-- Sync screen - Relay settings card -->

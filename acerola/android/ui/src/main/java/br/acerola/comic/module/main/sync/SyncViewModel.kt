@@ -24,8 +24,10 @@ import br.acerola.comic.service.SyncDirection
 import br.acerola.comic.service.network.ComicSummary
 import br.acerola.comic.service.network.P2pEvent
 import br.acerola.comic.service.network.P2pEventBus
+import br.acerola.comic.ui.R
 import br.acerola.comic.usecase.network.P2pUseCase
 import br.acerola.comic.usecase.network.SyncHistoryLogUseCase
+import br.acerola.comic.util.notification.NotificationHelper
 import br.acerola.comic.util.p2p.PairingCode
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -77,6 +79,7 @@ class SyncViewModel
         private val p2pUseCase: P2pUseCase,
         private val p2pEventBus: P2pEventBus,
         private val syncHistoryLogUseCase: SyncHistoryLogUseCase,
+        private val notificationHelper: NotificationHelper,
         @param:ApplicationContext private val context: Context,
     ) : ViewModel() {
         private val _uiState = MutableStateFlow(SyncUiState())
@@ -215,6 +218,50 @@ class SyncViewModel
                             ),
                 )
             }
+        }
+
+        /**
+         * Notificação de RESULTADO (auto-cancelável) de uma sessão de sync de arquivos — TODO.md:
+         * "Callback visual/notificação de sync global — hoje o resultado só aparece na aba de
+         * Rede". Reaproveita a mesma [NotificationHelper] já usada pelo worker de metadados
+         * (`showFinishedNotification`), em vez do canal ONGOING de [P2pSyncForegroundService]
+         * (que fica indeterminado e é ligado/desligado por [SyncUiState.syncingKeys], não é o
+         * lugar certo pra reportar um desfecho pontual).
+         */
+        private fun notifyFileSyncComplete(event: P2pEvent.FileSyncComplete) {
+            val content =
+                if (event.failedCount > 0) {
+                    context.getString(
+                        R.string.notification_sync_files_complete_content_with_failures,
+                        event.receivedCount,
+                        event.sentCount,
+                        event.failedCount,
+                    )
+                } else {
+                    context.getString(
+                        R.string.notification_sync_files_complete_content,
+                        event.receivedCount,
+                        event.sentCount,
+                    )
+                }
+            notificationHelper.showFinishedNotification(
+                title = context.getString(R.string.notification_sync_files_complete_title),
+                content = content,
+                notificationId = NotificationHelper.P2P_FILE_SYNC_RESULT_NOTIFICATION_ID,
+            )
+        }
+
+        /** Contraparte de [notifyFileSyncComplete] pro caso de falha de SESSÃO (o sentinela de
+         *  `comicName`/`chapter` vazios já é checado por quem chama, em [handleEvent]) — usa o
+         *  mesmo [SyncProtocolError] tipado já resolvido em [event], com [event.reason] cru
+         *  como fallback quando a causa não é reconhecida (mesmo padrão de `describeEntry` na
+         *  tela de Rede). */
+        private fun notifyFileSyncFailed(event: P2pEvent.FileSyncChapterFailed) {
+            notificationHelper.showFinishedNotification(
+                title = context.getString(R.string.notification_sync_files_error_title),
+                content = event.error?.uiMessage?.asString(context) ?: event.reason,
+                notificationId = NotificationHelper.P2P_FILE_SYNC_RESULT_NOTIFICATION_ID,
+            )
         }
 
         fun onAction(action: SyncAction) {
@@ -574,6 +621,7 @@ class SyncViewModel
                         // (`syncHistoryLogUseCase.record`, dentro de `recordSyncResult`).
                         recordSyncResult(event.peerId, SYNC_KIND_FILES, "error", event.reason, event.error)
                         refreshLocalInfo()
+                        notifyFileSyncFailed(event)
                     }
                     pushLog(
                         SYNC_KIND_FILES,
@@ -583,11 +631,31 @@ class SyncViewModel
                         chapter = event.chapter,
                     )
                 }
+                // Contraparte de FileSyncChapterFailed pra itens extra (capa/banner/
+                // ComicInfo.xml) — reaproveita o mesmo status "chapterFailed" (nunca participa
+                // da transição started/progress/complete, ver isSessionStatus) pra cair na
+                // mesma entrada permanente no log, com `chapter` carregando o `kind` do extra
+                // (não existe um campo dedicado em TransferLogEntry, e não vale a pena um só
+                // pra isso). Antes desta mudança, sync:files:extra_failed caía como
+                // P2pEvent.Unknown e essas falhas eram completamente invisíveis.
+                is P2pEvent.FileSyncExtraFailed ->
+                    pushLog(
+                        SYNC_KIND_FILES,
+                        "chapterFailed",
+                        LogState.ERROR,
+                        comicName = event.comicName,
+                        chapter = event.kind,
+                    )
+                // Espelha FileSyncChapterComplete (também não logado individualmente) — o
+                // sucesso de cada item já fica implícito quando a sessão termina em
+                // FileSyncComplete; só a FALHA de um item precisa de uma linha própria.
+                is P2pEvent.FileSyncExtraComplete -> Unit
                 is P2pEvent.FileSyncComplete -> {
                     clearSyncing(event.peerId, SYNC_KIND_FILES)
                     recordSyncResult(event.peerId, SYNC_KIND_FILES, "complete", null)
                     pushLog(SYNC_KIND_FILES, "complete", LogState.SUCCESS)
                     refreshLocalInfo()
+                    notifyFileSyncComplete(event)
                 }
 
                 is P2pEvent.LibraryBrowseResult ->
