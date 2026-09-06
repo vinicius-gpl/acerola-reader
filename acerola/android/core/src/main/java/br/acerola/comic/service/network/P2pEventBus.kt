@@ -113,6 +113,27 @@ class P2pEventBus
                             )
                         }
 
+                    "sync:files:extra_complete" ->
+                        JSONObject(data).let {
+                            P2pEvent.FileSyncExtraComplete(
+                                peerId = it.getString("peerId"),
+                                comicName = it.getString("comicName"),
+                                kind = it.getString("kind"),
+                            )
+                        }
+
+                    "sync:files:extra_failed" ->
+                        JSONObject(data).let {
+                            val code = if (it.isNull("code")) null else it.getString("code")
+                            P2pEvent.FileSyncExtraFailed(
+                                peerId = it.getString("peerId"),
+                                comicName = it.getString("comicName"),
+                                kind = it.getString("kind"),
+                                reason = it.getString("reason"),
+                                error = SyncProtocolError.fromCode(code),
+                            )
+                        }
+
                     "sync:files:complete" ->
                         JSONObject(data).let {
                             P2pEvent.FileSyncComplete(

@@ -77,6 +77,27 @@ sealed interface P2pEvent {
         val error: SyncProtocolError? = null,
     ) : P2pEvent
 
+    /** Contraparte de [FileSyncChapterComplete] pra itens extra (capa/banner/`ComicInfo.xml`) —
+     *  `kind` é `"cover"`/`"banner"`/`"comic_info"` (ver `EXTRA_KIND_*` em
+     *  `protocol/files/model.rs`), não um nome de capítulo. */
+    data class FileSyncExtraComplete(
+        val peerId: String,
+        val comicName: String,
+        val kind: String,
+    ) : P2pEvent
+
+    /** Contraparte de [FileSyncChapterFailed] pra itens extra — mesmo contrato de `reason`/
+     *  `error` (ver doc lá: cru/em inglês só pro log, `error` já classificado por
+     *  `SyncProtocolError.fromCode`). Não existe sentinela de falha de SESSÃO aqui — isso só
+     *  acontece no canal de capítulo (`FileSyncChapterFailed` com `comicName`/`chapter` vazios). */
+    data class FileSyncExtraFailed(
+        val peerId: String,
+        val comicName: String,
+        val kind: String,
+        val reason: String,
+        val error: SyncProtocolError? = null,
+    ) : P2pEvent
+
     data class FileSyncComplete(
         val peerId: String,
         val receivedCount: Int,
