@@ -10,10 +10,10 @@
 	export type NetworkRelaySettingsCardProps = {
 		data: NetworkRelaySettingsCardData | undefined;
 		events: {
-			onToggleAcerolaRelay: (value: boolean) => void;
-			onToggleIrohPublicNetwork: (value: boolean) => void;
-			onAddCustomRelayUrl: (url: string) => void;
-			onRemoveCustomRelayUrl: (url: string) => void;
+			onToggleAcerolaRelay: (value: boolean) => Promise<void>;
+			onToggleIrohPublicNetwork: (value: boolean) => Promise<void>;
+			onAddCustomRelayUrl: (url: string) => Promise<void>;
+			onRemoveCustomRelayUrl: (url: string) => Promise<void>;
 			onSetIrohServicesTicket: (ticket: string) => Promise<void>;
 			onClearIrohServicesTicket: () => Promise<void>;
 			onRestart: () => Promise<void>;
@@ -44,8 +44,30 @@
 	let ticketDraft = $state('');
 	let ticketError = $state(false);
 	let ticketSaving = $state(false);
+
+	// Compartilhado por TODA ação que reinicia o node P2P por baixo (toggle de relay,
+	// add/remove de URL própria, botão manual) — as duas coisas que faltavam antes: (1)
+	// feedback visual de que uma restart está em andamento (os toggles não tinham NENHUM,
+	// diferente do botão manual, que já tinha `restarting`) e (2) trava contra reentrância —
+	// clique duplo no mesmo controle, ou mexer em outro enquanto uma restart anterior ainda
+	// não terminou, agora é ignorado em vez de disparar uma segunda reconstrução do node em
+	// paralelo (a causa raiz real: duas reconstruções concorrentes registravam a MESMA
+	// identidade no relay ao mesmo tempo, e o relay derrubava uma delas em silêncio).
 	let restarting = $state(false);
 	let restartError = $state(false);
+
+	async function runRestartingAction(action: () => Promise<void>) {
+		if (restarting) return;
+		restarting = true;
+		restartError = false;
+		try {
+			await action();
+		} catch {
+			restartError = true;
+		} finally {
+			restarting = false;
+		}
+	}
 
 	let safeData = $derived(
 		data ?? {
@@ -82,6 +104,14 @@
 		}
 	}
 
+	function toggleAcerolaRelay(value: boolean) {
+		runRestartingAction(() => events.onToggleAcerolaRelay(value));
+	}
+
+	function toggleIrohPublicNetwork(value: boolean) {
+		runRestartingAction(() => events.onToggleIrohPublicNetwork(value));
+	}
+
 	function submitCustomUrl() {
 		const trimmed = customUrlDraft.trim();
 		if (!trimmed) return;
@@ -90,8 +120,12 @@
 			return;
 		}
 		customUrlError = false;
-		events.onAddCustomRelayUrl(trimmed);
 		customUrlDraft = '';
+		runRestartingAction(() => events.onAddCustomRelayUrl(trimmed));
+	}
+
+	function removeCustomUrl(url: string) {
+		runRestartingAction(() => events.onRemoveCustomRelayUrl(url));
 	}
 
 	async function submitTicket() {
@@ -120,17 +154,8 @@
 		}
 	}
 
-	async function restart() {
-		if (restarting) return;
-		restarting = true;
-		restartError = false;
-		try {
-			await events.onRestart();
-		} catch {
-			restartError = true;
-		} finally {
-			restarting = false;
-		}
+	function restart() {
+		runRestartingAction(() => events.onRestart());
 	}
 </script>
 
@@ -156,8 +181,8 @@
 		</div>
 		<AcerolaSwitch
 			state={{ checked: safeData.useAcerolaRelay }}
-			events={{ onCheckedChange: events.onToggleAcerolaRelay }}
-			ui={{ disabled: safeData.useIrohPublicNetwork }}
+			events={{ onCheckedChange: toggleAcerolaRelay }}
+			ui={{ disabled: safeData.useIrohPublicNetwork || restarting }}
 		/>
 	</div>
 
@@ -172,8 +197,8 @@
 		</div>
 		<AcerolaSwitch
 			state={{ checked: safeData.useIrohPublicNetwork }}
-			events={{ onCheckedChange: events.onToggleIrohPublicNetwork }}
-			ui={{ disabled: !safeData.hasIrohServicesTicket }}
+			events={{ onCheckedChange: toggleIrohPublicNetwork }}
+			ui={{ disabled: !safeData.hasIrohServicesTicket || restarting }}
 		/>
 	</div>
 
@@ -266,11 +291,11 @@
 			>
 				<span class="min-w-0 flex-1 truncate text-sm text-foreground">{url}</span>
 				<AcerolaButtonIcon
-					events={{ onClick: () => events.onRemoveCustomRelayUrl(url) }}
+					events={{ onClick: () => removeCustomUrl(url) }}
 					ui={{
 						variant: 'ghost',
 						class: 'size-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive',
-						disabled: safeData.useIrohPublicNetwork,
+						disabled: safeData.useIrohPublicNetwork || restarting,
 						'aria-label': m['pages.network.relay_settings.custom_relays.remove']()
 					}}
 				>
@@ -295,12 +320,15 @@
 				ui={{
 					placeholder: m['pages.network.relay_settings.custom_relays.add_placeholder'](),
 					class: 'flex-1',
-					disabled: safeData.useIrohPublicNetwork
+					disabled: safeData.useIrohPublicNetwork || restarting
 				}}
 			/>
 			<AcerolaButton
 				events={{ onClick: submitCustomUrl }}
-				ui={{ size: 'sm', disabled: !customUrlDraft.trim() || safeData.useIrohPublicNetwork }}
+				ui={{
+					size: 'sm',
+					disabled: !customUrlDraft.trim() || safeData.useIrohPublicNetwork || restarting
+				}}
 			>
 				<PlusIcon size={14} />
 				{m['pages.network.relay_settings.custom_relays.add_button']()}

@@ -17,10 +17,10 @@ function data(overrides: Partial<NetworkRelaySettingsCardData> = {}): NetworkRel
 
 function events() {
 	return {
-		onToggleAcerolaRelay: vi.fn(),
-		onToggleIrohPublicNetwork: vi.fn(),
-		onAddCustomRelayUrl: vi.fn(),
-		onRemoveCustomRelayUrl: vi.fn(),
+		onToggleAcerolaRelay: vi.fn().mockResolvedValue(undefined),
+		onToggleIrohPublicNetwork: vi.fn().mockResolvedValue(undefined),
+		onAddCustomRelayUrl: vi.fn().mockResolvedValue(undefined),
+		onRemoveCustomRelayUrl: vi.fn().mockResolvedValue(undefined),
 		onSetIrohServicesTicket: vi.fn().mockResolvedValue(undefined),
 		onClearIrohServicesTicket: vi.fn().mockResolvedValue(undefined),
 		onRestart: vi.fn().mockResolvedValue(undefined)
@@ -85,6 +85,39 @@ describe('AcerolaNetworkRelaySettingsCard', () => {
 		await fireEvent.click(switches[1]);
 
 		expect(handlers.onToggleIrohPublicNetwork).toHaveBeenCalledWith(true);
+	});
+
+	it('disables the switches while a toggle is still applying and ignores a second click on it', async () => {
+		const handlers = events();
+		let resolveToggle: (() => void) | undefined;
+		handlers.onToggleAcerolaRelay.mockImplementation(
+			() =>
+				new Promise<void>((resolve) => {
+					resolveToggle = resolve;
+				})
+		);
+		render(AcerolaNetworkRelaySettingsCard, {
+			props: { data: data({ hasIrohServicesTicket: true }), events: handlers }
+		});
+		await expandCard();
+
+		const switches = screen.getAllByRole('switch');
+		await fireEvent.click(switches[0]);
+
+		expect(handlers.onToggleAcerolaRelay).toHaveBeenCalledTimes(1);
+		expect(switches[0]).toBeDisabled();
+		// switches[1] só ficaria habilitado aqui se não fosse pelo guard de `restarting`
+		// (ticket já configurado, então não é a razão de estar desabilitado).
+		expect(switches[1]).toBeDisabled();
+
+		// Um segundo clique enquanto a primeira mudança ainda não terminou (clique duplo, ou
+		// mexer em outra fonte de relay) não pode disparar uma segunda restart em paralelo —
+		// nem pelo atributo `disabled` (bloqueado nativamente), nem pela guarda em
+		// `runRestartingAction` se o clique chegasse a acontecer de outra forma.
+		await fireEvent.click(switches[0]);
+		expect(handlers.onToggleAcerolaRelay).toHaveBeenCalledTimes(1);
+
+		resolveToggle?.();
 	});
 
 	it('disables the iroh public network switch without a configured ticket', async () => {
