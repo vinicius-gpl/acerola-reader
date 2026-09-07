@@ -346,7 +346,13 @@ impl P2pTransport for IrohTransport {
     /// Warn: O endpoint é compartilhado em formato Arc no backend do crate `iroh`.
     /// Desligar essa faceta pode necessitar dropar todos os componentes de leitura remanescentes.
     async fn shutdown(&self) -> Result<(), ConnectionError> {
+        tracing::info!(
+            layer = "iroh_transport",
+            local_id = %self.local_id().id,
+            "shutting down endpoint"
+        );
         self.endpoint.close().await;
+        tracing::info!(layer = "iroh_transport", "endpoint closed");
         Ok(())
     }
 }

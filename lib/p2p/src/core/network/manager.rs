@@ -8,6 +8,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use tokio::sync::{mpsc, RwLock};
+use tokio_util::sync::CancellationToken;
 use tracing::Instrument;
 
 use crate::{
@@ -80,6 +81,14 @@ pub struct NetworkManager {
     handlers_outbound: HashMap<Vec<u8>, Arc<dyn ProtocolHandler>>,
     /// Canal de emissão de eventos assíncronos para a camada de aplicação/UI.
     emit: EventEmitter,
+    /// Cancelado quando `NetworkCommand::Shutdown` é processado — qualquer tentativa de
+    /// `connect()` ainda em retry (dial OU o retry de sessão inteira em `handle_connect_command`)
+    /// aborta na hora, de forma limpa, em vez de continuar rodando contra um transporte já
+    /// fechado e falhar aos poucos com erros de conexão confusos ("failed to initiate
+    /// connection" etc.). Achado ao vivo: depois de somar reconexão automática pós-restart
+    /// (`reconnect_known_peers`) com restarts em sequência rápida, tentativas da restart ANTERIOR
+    /// ficavam órfãs, rodando contra um node já desligado pela restart SEGUINTE.
+    cancellation: CancellationToken,
 }
 
 impl NetworkManager {
@@ -112,6 +121,7 @@ impl NetworkManager {
             validator: Arc::new(RwLock::new(validator)),
             storage,
             emit,
+            cancellation: CancellationToken::new(),
         };
 
         (manager, command_tx, state)
@@ -164,6 +174,21 @@ impl NetworkManager {
                             self.handle_switch_guard(validator, mode).await;
                         }
                         Some(NetworkCommand::Shutdown) => {
+                            // Sem isso, o caminho de SUCESSO do shutdown era 100% mudo em toda
+                            // a cadeia (`AcerolaP2p::shutdown` -> aqui -> `transport.shutdown()`)
+                            // — só falhas eram logadas. Quando algo dava errado DEPOIS de um
+                            // shutdown (ex: retentativa órfã de uma restart anterior), não
+                            // havia nenhuma linha confirmando que o shutdown em si tinha
+                            // acontecido, nem quando.
+                            tracing::info!("processing shutdown command");
+
+                            // Cancela ANTES de desligar o transporte: qualquer `connect()` em
+                            // retry (dial ou o retry de sessão inteira, ver
+                            // `handle_connect_command`) precisa parar de tentar imediatamente,
+                            // não continuar rodando contra um transporte que está prestes a
+                            // fechar.
+                            self.cancellation.cancel();
+
                             // Antes, este branch só saía do loop sem nunca desligar o
                             // transporte por baixo — o `Endpoint` real do iroh (`IrohTransport`)
                             // continuava vivo e escutando pra sempre, e a task separada de
@@ -173,8 +198,11 @@ impl NetworkManager {
                             // fecha o endpoint de verdade; o próprio `drive_incoming_connections`
                             // já sai sozinho quando isso acontece (`endpoint.accept()` retorna
                             // `None`), sem precisar de nenhuma outra sinalização.
-                            if let Err(error) = self.transport.shutdown().await {
-                                tracing::warn!(?error, "failed to shut down transport cleanly");
+                            match self.transport.shutdown().await {
+                                Ok(()) => tracing::info!("transport shut down cleanly"),
+                                Err(error) => {
+                                    tracing::warn!(?error, "failed to shut down transport cleanly")
+                                },
                             }
                             break;
                         }
@@ -270,6 +298,7 @@ impl NetworkManager {
         let handler = handler.clone();
         let transport = Arc::clone(&self.transport);
         let storage = self.storage.clone();
+        let cancellation = self.cancellation.clone();
 
         let span = tracing::info_span!(
             "outbound",
@@ -283,13 +312,23 @@ impl NetworkManager {
                 let mut backoff = std::time::Duration::from_millis(100);
 
                 for attempt in 1..=max_retries {
-                    let dial_result =
-                        match tokio::time::timeout(CONNECT_ATTEMPT_TIMEOUT, transport.open_bi(&alpn, &addr))
-                            .await
-                        {
-                            Ok(result) => result,
-                            Err(_elapsed) => Err(ConnectionError::Timeout),
-                        };
+                    // `biased` prioriza checar o cancelamento primeiro quando os dois lados já
+                    // estão prontos — sem isso, `select!` sorteia a ordem, e uma restart que
+                    // cancelou bem no instante em que o dial ia começar podia ainda deixar o
+                    // dial vencer a corrida por acaso.
+                    let dial_result = tokio::select! {
+                        biased;
+                        _ = cancellation.cancelled() => {
+                            tracing::debug!(attempt, "outbound connect abandoned: node is shutting down");
+                            return;
+                        }
+                        result = tokio::time::timeout(CONNECT_ATTEMPT_TIMEOUT, transport.open_bi(&alpn, &addr)) => {
+                            match result {
+                                Ok(result) => result,
+                                Err(_elapsed) => Err(ConnectionError::Timeout),
+                            }
+                        }
+                    };
 
                     match dial_result {
                         Ok((send, recv)) => {
@@ -301,30 +340,68 @@ impl NetworkManager {
                             state.write().await.connect(addr.id.clone(), addr.clone(), alpn.clone());
                             tracing::debug!("outbound connection established");
 
-                            if let Err(err) = handler.handle(&addr.id, send, recv).await {
-                                tracing::warn!(error = ?err, "outbound handler failed");
-                                // A conexão reaproveitada pode estar silenciosamente morta (ver
-                                // doc em `P2pTransport::invalidate`) — descarta do pool pra
-                                // próxima tentativa discar uma nova em vez de repetir a mesma
-                                // falha indefinidamente.
-                                transport.invalidate(&addr.id, &alpn).await;
-                            }
+                            let handler_result = handler.handle(&addr.id, send, recv).await;
 
                             tracing::debug!("outbound connection closed");
                             state.write().await.disconnect(&addr.id, &alpn);
-                            return;
-                        }
+
+                            match handler_result {
+                                Ok(()) => return,
+                                Err(err) => {
+                                    // SEMPRE loga o erro real, ANTES de qualquer decisão de
+                                    // retry — não é condicional a `err` ser retentável ou não.
+                                    // Um erro de conexão de verdade (auth negada, peer
+                                    // desconectado, checksum) que não é retentado tem que
+                                    // continuar visível igual sempre foi; só a DECISÃO de
+                                    // retentar é que passa a depender do tipo do erro, não se
+                                    // ele aparece no log ou não.
+                                    tracing::warn!(attempt, error = ?err, "outbound handler failed");
+
+                                    // A conexão reaproveitada pode estar silenciosamente morta
+                                    // (ver doc em `P2pTransport::invalidate`) — descarta do pool
+                                    // pra a próxima tentativa discar uma nova em vez de repetir
+                                    // a mesma falha indefinidamente.
+                                    transport.invalidate(&addr.id, &alpn).await;
+
+                                    // Só `Timeout` (leitura/handshake de protocolo já em
+                                    // andamento, não falha de dial) é transiente o bastante pra
+                                    // reaproveitar o MESMO orçamento de retry+backoff do dial —
+                                    // qualquer outro erro (auth negada, checksum, dado
+                                    // malformado) é permanente, e retentar só atrasaria o
+                                    // inevitável ou duplicaria efeito colateral. Achado ao vivo
+                                    // (Android): um frame timeout no meio de uma sessão hoje
+                                    // encerrava a sessão inteira sem tentar de novo, quando uma
+                                    // nova conexão + handshake resolve na maioria das vezes.
+                                    if !matches!(err, ConnectionError::Timeout) || attempt >= max_retries {
+                                        return;
+                                    }
+
+                                    tracing::warn!(
+                                        attempt,
+                                        "handler failure was a transient timeout, retrying the whole session..."
+                                    );
+                                }
+                            }
+                        },
                         Err(err) => {
                             tracing::warn!(
                                 attempt,
                                 error = ?err,
                                 "outbound connection attempt failed, retrying..."
                             );
-                            if attempt < max_retries {
-                                tokio::time::sleep(backoff).await;
-                                backoff = (backoff * 2).min(std::time::Duration::from_secs(5));
+                        },
+                    }
+
+                    if attempt < max_retries {
+                        tokio::select! {
+                            biased;
+                            _ = cancellation.cancelled() => {
+                                tracing::debug!("outbound retry backoff abandoned: node is shutting down");
+                                return;
                             }
+                            _ = tokio::time::sleep(backoff) => {}
                         }
+                        backoff = (backoff * 2).min(std::time::Duration::from_secs(5));
                     }
                 }
             }
@@ -351,7 +428,10 @@ async fn save_peer_if_present(
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Mutex;
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Mutex,
+    };
 
     use tokio::time::{sleep, Duration};
 
@@ -951,6 +1031,208 @@ mod tests {
             Arc::strong_count(&network_state),
             2,
             "Outbound retry task should have completed without an extra sleep after the 5th attempt"
+        );
+
+        let _ = command_sender.send(NetworkCommand::Shutdown).await;
+        let _ = manager_task_handle.await;
+    }
+
+    /// Regressão do achado ao vivo: reconexão automática pós-restart (`reconnect_known_peers`)
+    /// somada a restarts em sequência rápida deixava a retentativa da restart ANTERIOR rodando
+    /// órfã contra um transporte já fechado pela restart SEGUINTE — gerando erros de conexão
+    /// confusos ("failed to initiate connection") em vez de simplesmente parar. Prova que
+    /// `NetworkCommand::Shutdown` cancela qualquer retentativa de `connect()` ainda em voo, em
+    /// vez de deixá-la continuar até esgotar as 5 tentativas sozinha.
+    #[tokio::test(start_paused = true)]
+    async fn shutdown_cancels_in_flight_connect_retries_instead_of_letting_them_exhaust() {
+        let call_timestamps = Arc::new(tokio::sync::Mutex::new(Vec::new()));
+        let tracking_transport =
+            Arc::new(TrackingBackoffTransport { call_timestamps: Arc::clone(&call_timestamps) });
+
+        let (mut network_manager, command_sender, _network_state) =
+            NetworkManager::new(tracking_transport, open_validator(), no_op_emitter());
+        network_manager.register_outbound(b"acerola/test/1", Arc::new(NoopHandler));
+
+        let manager_task_handle = tokio::spawn(network_manager.run());
+
+        command_sender
+            .send(NetworkCommand::Connect {
+                addr: PeerAddr { id: make_peer("target-peer"), addrs: vec![] },
+                alpn: b"acerola/test/1".to_vec(),
+            })
+            .await
+            .unwrap();
+
+        // Deixa só a primeira tentativa acontecer (ela falha na hora, sem esperar nada — ver
+        // `TrackingBackoffTransport::open_bi`).
+        tokio::time::sleep(Duration::from_millis(10)).await;
+        assert_eq!(
+            call_timestamps.lock().await.len(),
+            1,
+            "a primeira tentativa deveria ter ocorrido antes do shutdown"
+        );
+
+        // Desliga ENQUANTO a malha de retry ainda está no backoff da 1ª tentativa, bem antes
+        // de esgotar as 5.
+        command_sender.send(NetworkCommand::Shutdown).await.unwrap();
+        manager_task_handle.await.unwrap();
+
+        // Avança bem além do tempo total que as 4 tentativas restantes (com backoff
+        // exponencial) levariam pra completar — se o cancelamento não estivesse funcionando,
+        // elas teriam acontecido dentro dessa janela.
+        tokio::time::sleep(Duration::from_secs(10)).await;
+
+        assert_eq!(
+            call_timestamps.lock().await.len(),
+            1,
+            "a retentativa deveria ter sido cancelada no shutdown, não continuar sozinha até \
+             esgotar as 5 tentativas"
+        );
+    }
+
+    struct CountingDialTransport {
+        dial_count: Arc<AtomicUsize>,
+    }
+
+    #[async_trait::async_trait]
+    impl P2pTransport for CountingDialTransport {
+        fn local_id(&self) -> PeerId {
+            make_peer("local")
+        }
+        fn local_addr(&self) -> Result<PeerAddr, ConnectionError> {
+            Ok(PeerAddr { id: self.local_id(), addrs: vec![] })
+        }
+        async fn accept(
+            &self,
+        ) -> Result<Box<dyn crate::core::transport::IncomingConnection>, ConnectionError> {
+            std::future::pending().await
+        }
+        async fn open_bi(
+            &self, _alpn: &[u8], _peer: &PeerAddr,
+        ) -> Result<
+            (Box<dyn tokio::io::AsyncWrite + Send + Unpin>, Box<dyn tokio::io::AsyncRead + Send + Unpin>),
+            ConnectionError,
+        > {
+            self.dial_count.fetch_add(1, Ordering::SeqCst);
+            let (writer, reader) = tokio::io::duplex(64);
+            Ok((Box::new(writer), Box::new(reader)))
+        }
+        async fn latency(&self, _peer: &PeerId) -> Option<Duration> {
+            None
+        }
+        async fn shutdown(&self) -> Result<(), ConnectionError> {
+            Ok(())
+        }
+    }
+
+    struct FailsOnceWithTimeoutThenSucceedsHandler {
+        call_count: Arc<AtomicUsize>,
+    }
+    #[async_trait::async_trait]
+    impl ProtocolHandler for FailsOnceWithTimeoutThenSucceedsHandler {
+        async fn handle(
+            &self, _peer: &PeerId, _send: Box<dyn tokio::io::AsyncWrite + Send + Unpin>,
+            _recv: Box<dyn tokio::io::AsyncRead + Send + Unpin>,
+        ) -> Result<(), ConnectionError> {
+            if self.call_count.fetch_add(1, Ordering::SeqCst) == 0 {
+                Err(ConnectionError::Timeout)
+            } else {
+                Ok(())
+            }
+        }
+    }
+
+    /// Regressão central do achado ao vivo (Android): um frame timeout no meio de uma sessão
+    /// (protocolo já dialed e rodando, não falha de dial) encerrava a sessão inteira sem
+    /// nenhuma tentativa nova — quando bastava discar de novo e rodar o handler outra vez pra
+    /// resolver na maioria das vezes. Prova que uma falha de handler classificada como
+    /// `ConnectionError::Timeout` dispara uma DISCAGEM NOVA (não reaproveita a conexão morta) e
+    /// roda o handler de novo, reaproveitando o mesmo orçamento de retry do dial.
+    #[tokio::test(start_paused = true)]
+    async fn handler_timeout_retries_the_whole_session_with_a_fresh_dial() {
+        let dial_count = Arc::new(AtomicUsize::new(0));
+        let transport =
+            Arc::new(CountingDialTransport { dial_count: Arc::clone(&dial_count) });
+        let handler_calls = Arc::new(AtomicUsize::new(0));
+        let handler = Arc::new(FailsOnceWithTimeoutThenSucceedsHandler {
+            call_count: Arc::clone(&handler_calls),
+        });
+
+        let (mut network_manager, command_sender, _network_state) =
+            NetworkManager::new(transport, open_validator(), no_op_emitter());
+        network_manager.register_outbound(b"acerola/test/1", handler);
+
+        let manager_task_handle = tokio::spawn(network_manager.run());
+
+        command_sender
+            .send(NetworkCommand::Connect {
+                addr: PeerAddr { id: make_peer("target"), addrs: vec![] },
+                alpn: b"acerola/test/1".to_vec(),
+            })
+            .await
+            .unwrap();
+
+        tokio::time::sleep(Duration::from_millis(500)).await;
+
+        assert_eq!(
+            dial_count.load(Ordering::SeqCst),
+            2,
+            "um timeout do handler deveria disparar uma NOVA discagem, não desistir na primeira"
+        );
+        assert_eq!(
+            handler_calls.load(Ordering::SeqCst),
+            2,
+            "o handler deveria ter rodado de novo na sessão reconectada"
+        );
+
+        let _ = command_sender.send(NetworkCommand::Shutdown).await;
+        let _ = manager_task_handle.await;
+    }
+
+    struct AlwaysFailsWithAuthDeniedHandler;
+    #[async_trait::async_trait]
+    impl ProtocolHandler for AlwaysFailsWithAuthDeniedHandler {
+        async fn handle(
+            &self, _peer: &PeerId, _send: Box<dyn tokio::io::AsyncWrite + Send + Unpin>,
+            _recv: Box<dyn tokio::io::AsyncRead + Send + Unpin>,
+        ) -> Result<(), ConnectionError> {
+            Err(ConnectionError::AuthDenied("permanent rejection".into()))
+        }
+    }
+
+    /// Contraparte do teste acima: uma falha de handler que NÃO é `Timeout` (aqui, `AuthDenied`
+    /// — rejeição permanente) é exatamente o tipo de erro que NÃO deve ser retentado — discar
+    /// de novo não mudaria o resultado, só atrasaria o inevitável. Prova que só UMA discagem
+    /// acontece, sem retry algum.
+    #[tokio::test(start_paused = true)]
+    async fn handler_non_timeout_failure_is_not_retried() {
+        let dial_count = Arc::new(AtomicUsize::new(0));
+        let transport =
+            Arc::new(CountingDialTransport { dial_count: Arc::clone(&dial_count) });
+
+        let (mut network_manager, command_sender, _network_state) =
+            NetworkManager::new(transport, open_validator(), no_op_emitter());
+        network_manager
+            .register_outbound(b"acerola/test/1", Arc::new(AlwaysFailsWithAuthDeniedHandler));
+
+        let manager_task_handle = tokio::spawn(network_manager.run());
+
+        command_sender
+            .send(NetworkCommand::Connect {
+                addr: PeerAddr { id: make_peer("target"), addrs: vec![] },
+                alpn: b"acerola/test/1".to_vec(),
+            })
+            .await
+            .unwrap();
+
+        // Tempo de sobra: se estivesse (erradamente) retentando, todas as 5 tentativas + backoff
+        // já teriam acontecido bem antes disso.
+        tokio::time::sleep(Duration::from_secs(5)).await;
+
+        assert_eq!(
+            dial_count.load(Ordering::SeqCst),
+            1,
+            "uma falha de handler que NÃO é Timeout não deveria disparar retry nenhum"
         );
 
         let _ = command_sender.send(NetworkCommand::Shutdown).await;
