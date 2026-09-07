@@ -198,6 +198,17 @@ impl P2pTransport for IrohTransport {
                 .map_err(|_| ConnectionError::PeerNotFound(peer.id.clone()))?
         };
 
+        // Soma o(s) relay(s) atualmente aplicados a este transporte como hint de dial, além de
+        // qualquer hint já cacheado no `PeerAddr` do peer (de um pareamento ou conexão anterior).
+        // Sem isso, trocar de relay (`apply_relay_mode`) deixa peers já pareados inalcançáveis pra
+        // sempre: o `EndpointAddr` cacheado carrega a URL do relay ANTIGO, e nenhum dos 3 modos
+        // fora `IrohDefault` tem discovery (ver `builder.rs::build_mode`) capaz de aprender que o
+        // peer também migrou pro relay novo. Quando os dois lados apontam pro MESMO relay (o caso
+        // comum ao configurar um relay próprio/custom compartilhado), usar nosso relay atual como
+        // hint já basta — o relay não exige aviso prévio, só que os dois endpoints estejam
+        // conectados nele no momento do dial.
+        let addr = augment_with_current_relays(addr, &*self.current_relay_urls.lock().await);
+
         // Sem relay algum configurado, um `EndpointAddr` cacheado de ANTES do usuário desligar o
         // relay pode carregar um IP público (ou hint de relay) que ainda resolve — descartar
         // essas pistas aqui garante que "só rede local" também vale pro lado que disca, não só
@@ -523,6 +534,16 @@ fn is_private_incoming(incoming_addr: &IncomingAddr) -> bool {
     }
 }
 
+/// Acrescenta ao `EndpointAddr` os relays atualmente aplicados a este transporte, preservando
+/// qualquer hint já presente (`BTreeSet` internamente — `with_relay_url` só soma, nunca substitui).
+/// Ver o comentário em `open_bi` para o porquê: é isso que permite reconectar com um peer já
+/// pareado depois de uma troca de relay, sem depender de discovery nenhum.
+fn augment_with_current_relays(
+    addr: EndpointAddr, current_relays: &std::collections::HashSet<iroh::RelayUrl>,
+) -> EndpointAddr {
+    current_relays.iter().fold(addr, |addr, relay_url| addr.with_relay_url(relay_url.clone()))
+}
+
 /// Filtra um `EndpointAddr` cacheado pra manter só endereços IP de rede local, descartando
 /// qualquer hint de relay — usado por `open_bi` quando não há relay configurado, pra um endereço
 /// direto salvo de ANTES do usuário desligar o relay (ou um IP público que já tenha sido válido
@@ -794,6 +815,67 @@ mod tests {
             url: "https://relay.example.com.".parse().unwrap(),
             endpoint_id: node_id,
         }));
+    }
+
+    #[test]
+    fn augment_with_current_relays_adds_new_url_and_keeps_stale_one() {
+        let node_id = iroh::SecretKey::generate().public();
+        let stale_relay: iroh::RelayUrl = "https://relay-old.test.local".parse().unwrap();
+        let current_relay: iroh::RelayUrl = "https://relay-new.test.local".parse().unwrap();
+
+        let addr = EndpointAddr::new(node_id).with_relay_url(stale_relay.clone());
+        let current: std::collections::HashSet<iroh::RelayUrl> =
+            [current_relay.clone()].into_iter().collect();
+
+        let augmented = augment_with_current_relays(addr, &current);
+
+        assert!(augmented.relay_urls().any(|u| *u == stale_relay));
+        assert!(augmented.relay_urls().any(|u| *u == current_relay));
+        assert_eq!(augmented.relay_urls().count(), 2);
+    }
+
+    #[test]
+    fn augment_with_current_relays_is_noop_when_nothing_currently_configured() {
+        let node_id = iroh::SecretKey::generate().public();
+        let addr = EndpointAddr::new(node_id);
+
+        let augmented = augment_with_current_relays(addr.clone(), &Default::default());
+
+        assert_eq!(augmented, addr);
+    }
+
+    /// Regressão da reclamação central: depois de trocar de relay (`apply_relay_mode`), um peer
+    /// já pareado cujo `PeerAddr` cacheado só carrega a URL do relay ANTIGO precisa continuar
+    /// discável — sem discovery (ver `builder.rs::build_mode`), o único jeito de aprender que o
+    /// peer também migrou é assumir que os dois lados apontam pro MESMO relay novo. Prova que o
+    /// conjunto de relays atuais que `open_bi` usa pra aumentar o `EndpointAddr` cacheado
+    /// (`current_relay_urls`) reflete a troca imediatamente, num transporte já vivo.
+    #[tokio::test]
+    async fn open_bi_would_augment_stale_cached_relay_hint_with_the_transport_current_relay() {
+        let transport = IrohTransportBuilder::default()
+            .relay_mode(RelayModeConfig::Custom(vec!["https://relay-a.test.local".to_string()]))
+            .build(vec![b"test/proto".to_vec()])
+            .await
+            .unwrap();
+
+        P2pTransport::apply_relay_mode(
+            &transport,
+            RelayModeConfig::Custom(vec!["https://relay-b.test.local".to_string()]),
+        )
+        .await
+        .unwrap();
+
+        let node_id = iroh::SecretKey::generate().public();
+        let stale_cached = EndpointAddr::new(node_id)
+            .with_relay_url("https://relay-a.test.local".parse().unwrap());
+
+        let addr =
+            augment_with_current_relays(stale_cached, &*transport.current_relay_urls.lock().await);
+
+        assert!(addr.relay_urls().any(|u| u.as_str().contains("relay-a")));
+        assert!(addr.relay_urls().any(|u| u.as_str().contains("relay-b")));
+
+        transport.shutdown().await.unwrap();
     }
 
     #[test]
