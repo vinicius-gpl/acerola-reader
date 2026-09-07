@@ -118,6 +118,96 @@ describe('useNetworkSync', () => {
 		});
 	});
 
+	it('refreshLog replaces persisted entries but preserves an in-flight live entry', async () => {
+		const { callbacks } = setupListeners();
+		invokeMock.mockResolvedValue([]);
+
+		const hook = await renderHook();
+		await hook.startListening();
+
+		// Sessão ao vivo ainda em andamento (id >= 0) — não pode sumir num refresh.
+		callbacks.get(NETWORK_EVENTS.historyStarted)?.({ payload: 'peer-live' });
+		const liveId = hook.log[0].id;
+
+		invokeMock.mockImplementation((command) => {
+			if (command === NETWORK_COMMANDS.getSyncHistoryLog) {
+				return Promise.resolve([
+					{
+						id: 9,
+						peerId: 'peer-persisted',
+						kind: 'files',
+						status: 'complete',
+						message: null,
+						createdAt: 5000
+					}
+				]);
+			}
+			return Promise.resolve(undefined);
+		});
+
+		await hook.refreshLog();
+
+		expect(hook.log).toHaveLength(2);
+		expect(hook.log.find((entry) => entry.id === liveId)).toMatchObject({
+			peerId: 'peer-live',
+			status: 'started'
+		});
+		expect(hook.log.find((entry) => entry.id === -9)).toMatchObject({
+			peerId: 'peer-persisted',
+			status: 'complete'
+		});
+	});
+
+	it('refreshLog propagates a backend failure to the caller', async () => {
+		setupListeners();
+		invokeMock.mockResolvedValue([]);
+		const hook = await renderHook();
+		await hook.startListening();
+
+		invokeMock.mockRejectedValueOnce(new Error('db locked'));
+
+		await expect(hook.refreshLog()).rejects.toThrow('db locked');
+	});
+
+	it('clearLog calls the backend command and empties the log', async () => {
+		setupListeners();
+		invokeMock.mockImplementation((command) => {
+			if (command === NETWORK_COMMANDS.getSyncHistoryLog) {
+				return Promise.resolve([
+					{
+						id: 1,
+						peerId: 'peer-1',
+						kind: 'history',
+						status: 'complete',
+						message: null,
+						createdAt: 1000
+					}
+				]);
+			}
+			return Promise.resolve(undefined);
+		});
+
+		const hook = await renderHook();
+		await hook.startListening();
+		expect(hook.log).toHaveLength(1);
+
+		await hook.clearLog();
+
+		expect(invokeMock).toHaveBeenCalledWith(NETWORK_COMMANDS.clearSyncHistoryLog);
+		expect(hook.log).toEqual([]);
+	});
+
+	it('clearLog propagates a backend failure without clearing the log', async () => {
+		setupListeners();
+		invokeMock.mockResolvedValue([]);
+		const hook = await renderHook();
+		await hook.startListening();
+
+		invokeMock.mockRejectedValueOnce(new Error('disk full'));
+
+		await expect(hook.clearLog()).rejects.toThrow('disk full');
+	});
+
 	it('registers listeners for every sync event and appends live entries', async () => {
 		const { callbacks, unlisteners } = setupListeners();
 		invokeMock.mockResolvedValue([]);

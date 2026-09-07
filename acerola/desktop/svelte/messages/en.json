@@ -744,7 +744,6 @@
 				"use_acerola_relay_desc": "Managed automatically ({url}).",
 				"use_iroh_public_network": "Use Iroh Services (own account)",
 				"use_iroh_public_network_desc": "Authenticated with your own account's ticket from services.iroh.computer — can't be combined with the sources below.",
-				"exclusive_note": "Disabled while Iroh Services is active.",
 				"use_iroh_public_network_disabled_hint": "Configure a ticket below to enable this source.",
 				"iroh_services_ticket": {
 					"label": "Iroh Services ticket",
@@ -762,6 +761,7 @@
 					"add_placeholder": "https://your-relay.example.com",
 					"add_button": "Add custom relay",
 					"empty": "No custom relay added.",
+					"count": "{count} configured",
 					"remove": "Remove custom relay"
 				},
 				"invalid_url": "Enter a valid URL (e.g. https://relay.example.com).",
@@ -831,7 +831,15 @@
 				"comic_started": "Syncing comic with {peer}...",
 				"comic_progress": "Transferring {item}...",
 				"comic_complete": "Comic synced with {peer}.",
-				"comic_error": "Failed to sync comic: {msg}"
+				"comic_error": "Failed to sync comic: {msg}",
+				"refresh": "Refresh",
+				"clear": {
+					"button": "Clear",
+					"title": "Clear transfer history?",
+					"desc": "Removes the entire persisted sync history. This can't be undone.",
+					"cancel": "Cancel",
+					"confirm": "Yes, clear everything"
+				}
 			},
 			"remote_library": {
 				"title": "Remote library",

@@ -283,6 +283,15 @@ pub async fn get_sync_history_log(
     repo.find_recent(SYNC_HISTORY_LOG_LIMIT).await.map_err(|error| error.to_string())
 }
 
+/// Apaga todo o histórico de sync persistido — botão "Limpar" na tela de Rede. Irreversível,
+/// a UI já confirma com o usuário antes de chamar.
+#[tauri::command]
+pub async fn clear_sync_history_log(
+    repo: State<'_, SyncHistoryLogRepository>,
+) -> Result<(), String> {
+    repo.delete_all().await.map_err(|error| error.to_string())
+}
+
 /// Se `true`, a chave mestra que criptografa identidade/peers/confiança caiu pro fallback
 /// em arquivo local por falta de um keyring do SO utilizável — ver
 /// `infra::security::get_or_create_master_key`. Consultado sob demanda (em vez de só

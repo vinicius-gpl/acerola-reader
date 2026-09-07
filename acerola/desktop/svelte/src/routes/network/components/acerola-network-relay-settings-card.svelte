@@ -22,17 +22,25 @@
 </script>
 
 <script lang="ts">
+	import { untrack } from 'svelte';
+	import { slide } from 'svelte/transition';
 	import PlusIcon from '@lucide/svelte/icons/plus';
 	import Trash2Icon from '@lucide/svelte/icons/trash-2';
 	import WifiIcon from '@lucide/svelte/icons/wifi';
+	import ServerIcon from '@lucide/svelte/icons/server';
+	import NetworkIcon from '@lucide/svelte/icons/network';
+	import GlobeIcon from '@lucide/svelte/icons/globe';
+	import CheckIcon from '@lucide/svelte/icons/check';
+	import KeyRoundIcon from '@lucide/svelte/icons/key-round';
 	import RefreshCwIcon from '@lucide/svelte/icons/refresh-cw';
 	import AcerolaAccordionCard from '$lib/components/acerola-accordion-card/acerola-accordion-card.svelte';
-	import AcerolaSwitch from '$lib/components/acerola-switch/acerola-switch.svelte';
 	import AcerolaInput from '$lib/components/acerola-input/acerola-input.svelte';
 	import AcerolaButton from '$lib/components/acerola-button/acerola-button.svelte';
 	import AcerolaButtonIcon from '$lib/components/acerola-button/acerola-button-icon.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { cn } from '$lib/utils/cn.utils';
+	import { autoAnimateList } from '$lib/utils/auto-animate.utils';
+	import { checkBadgePop } from '$lib/utils/check-badge-motion.utils';
 
 	let { data, events }: NetworkRelaySettingsCardProps = $props();
 
@@ -44,6 +52,14 @@
 	let ticketDraft = $state('');
 	let ticketError = $state(false);
 	let ticketSaving = $state(false);
+	// Cards de "relays próprios" e "ticket Iroh" escondem sua configuração por padrão (reduz
+	// texto sempre-visível) — expandem sob demanda ao clicar, num toggle independente de
+	// ativar/desativar a fonte em si (ver os 3 cards no template abaixo).
+	let customExpanded = $state(false);
+	// Pré-expandido quando ainda não há ticket salvo — sem isso, o usuário configurando pela
+	// primeira vez precisaria adivinhar que precisa clicar em algo pra ver o campo de colar o
+	// ticket (só é lido na primeira renderização, igual `expanded` acima).
+	let ticketExpanded = $state(untrack(() => !data?.hasIrohServicesTicket));
 
 	// Compartilhado por TODA ação que reinicia o node P2P por baixo (toggle de relay,
 	// add/remove de URL própria, botão manual) — as duas coisas que faltavam antes: (1)
@@ -94,6 +110,25 @@
 		}
 		return m['pages.network.relay_settings.summary_active']({ count: activeSourceCount });
 	});
+
+	// Subtítulo do card de relays próprios — dobra o texto de contagem no lugar de um parágrafo
+	// à parte, junto da lista em si (que só aparece expandida).
+	const customRelaysSubtitle = $derived(
+		safeData.customRelayUrls.length === 0
+			? m['pages.network.relay_settings.custom_relays.empty']()
+			: m['pages.network.relay_settings.custom_relays.count']({
+					count: safeData.customRelayUrls.length
+				})
+	);
+
+	// Subtítulo do card de rede pública Iroh — dobra o antigo parágrafo de "desabilitado até
+	// configurar um ticket" (`use_iroh_public_network_disabled_hint`) no lugar de um aviso à
+	// parte, já que ele só faz sentido exatamente quando não há ticket.
+	const irohSubtitle = $derived(
+		safeData.hasIrohServicesTicket
+			? m['pages.network.relay_settings.use_iroh_public_network_desc']()
+			: m['pages.network.relay_settings.use_iroh_public_network_disabled_hint']()
+	);
 
 	function isValidUrl(value: string): boolean {
 		try {
@@ -168,175 +203,256 @@
 		<WifiIcon size={20} />
 	{/snippet}
 
-	<div class="flex items-center justify-between gap-4">
-		<div class="min-w-0">
-			<p class="text-sm font-semibold text-foreground">
-				{m['pages.network.relay_settings.use_acerola_relay']()}
-			</p>
-			<p class="text-xs text-muted-foreground">
-				{m['pages.network.relay_settings.use_acerola_relay_desc']({
-					url: safeData.acerolaRelayUrl
-				})}
-			</p>
-		</div>
-		<AcerolaSwitch
-			state={{ checked: safeData.useAcerolaRelay }}
-			events={{ onCheckedChange: toggleAcerolaRelay }}
-			ui={{ disabled: safeData.useIrohPublicNetwork || restarting }}
-		/>
-	</div>
-
-	<div class="flex items-center justify-between gap-4">
-		<div class="min-w-0">
-			<p class="text-sm font-semibold text-foreground">
-				{m['pages.network.relay_settings.use_iroh_public_network']()}
-			</p>
-			<p class="text-xs text-muted-foreground">
-				{m['pages.network.relay_settings.use_iroh_public_network_desc']()}
-			</p>
-		</div>
-		<AcerolaSwitch
-			state={{ checked: safeData.useIrohPublicNetwork }}
-			events={{ onCheckedChange: toggleIrohPublicNetwork }}
-			ui={{ disabled: !safeData.hasIrohServicesTicket || restarting }}
-		/>
-	</div>
-
-	<!-- Sem isso, o switch cinza acima não explica por conta própria por que está travado — o
-	     usuário precisa saber que a solução é colar um ticket na seção logo abaixo. -->
-	{#if !safeData.hasIrohServicesTicket}
-		<p class="text-xs text-muted-foreground italic">
-			{m['pages.network.relay_settings.use_iroh_public_network_disabled_hint']()}
-		</p>
-	{/if}
-
-	{#if safeData.useIrohPublicNetwork}
-		<p class="text-xs text-muted-foreground italic">
-			{m['pages.network.relay_settings.exclusive_note']()}
-		</p>
-	{/if}
-
-	<div class="space-y-2 rounded-xl border border-border bg-background/50 p-3">
-		<p class="text-xs font-bold tracking-widest text-muted-foreground uppercase">
-			{m['pages.network.relay_settings.iroh_services_ticket.label']()}
-		</p>
-		<p class="text-xs text-muted-foreground">
-			{safeData.hasIrohServicesTicket
-				? m['pages.network.relay_settings.iroh_services_ticket.configured']()
-				: m['pages.network.relay_settings.iroh_services_ticket.not_configured']()}
-		</p>
-
-		<!-- Campo em linha própria, largura cheia — dividir a linha com o botão espremia o
-		     campo a ponto do placeholder (bem mais longo que qualquer URL de relay) quebrar
-		     em várias linhas. -->
-		<AcerolaInput
-			state={{ value: ticketDraft }}
-			events={{
-				onValueChange: (value) => {
-					ticketDraft = value;
-					ticketError = false;
-				}
-			}}
-			ui={{
-				type: 'password',
-				placeholder: m['pages.network.relay_settings.iroh_services_ticket.placeholder'](),
-				class: 'w-full',
-				disabled: ticketSaving
-			}}
-		/>
-
-		{#if ticketError}
-			<p class="text-xs text-destructive">
-				{m['pages.network.relay_settings.iroh_services_ticket.invalid']()}
-			</p>
-		{/if}
-
-		<div class="flex items-center justify-end gap-2">
-			{#if safeData.hasIrohServicesTicket}
-				<AcerolaButtonIcon
-					events={{ onClick: removeTicket }}
-					ui={{
-						variant: 'ghost',
-						class: 'size-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive',
-						disabled: ticketSaving,
-						'aria-label': m['pages.network.relay_settings.iroh_services_ticket.remove_button']()
-					}}
+	<div class="space-y-3">
+		<!-- Card 1: relay do Acerola — toggle puro, clicar na linha inteira liga/desliga. -->
+		<div
+			class={cn(
+				'overflow-hidden rounded-2xl border-2 transition-all duration-200',
+				safeData.useAcerolaRelay
+					? 'border-primary bg-primary/5 shadow-sm shadow-primary/10'
+					: 'border-border/60 bg-card hover:border-muted-foreground/50'
+			)}
+		>
+			<button
+				type="button"
+				onclick={() => toggleAcerolaRelay(!safeData.useAcerolaRelay)}
+				disabled={safeData.useIrohPublicNetwork || restarting}
+				class="flex w-full items-center gap-3 p-4 text-left enabled:cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+			>
+				<div
+					class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted text-foreground"
 				>
-					<Trash2Icon size={14} />
-				</AcerolaButtonIcon>
+					<ServerIcon size={18} />
+				</div>
+				<div class="min-w-0 flex-1">
+					<p class="text-sm font-semibold text-foreground">
+						{m['pages.network.relay_settings.use_acerola_relay']()}
+					</p>
+					<p class="truncate text-xs text-muted-foreground">
+						{m['pages.network.relay_settings.use_acerola_relay_desc']({
+							url: safeData.acerolaRelayUrl
+						})}
+					</p>
+				</div>
+				{#if safeData.useAcerolaRelay}
+					<div
+						use:checkBadgePop
+						class="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground"
+					>
+						<CheckIcon size={12} strokeWidth={3} />
+					</div>
+				{/if}
+			</button>
+		</div>
+
+		<!-- Card 2: relays próprios — a linha só expande/recolhe a lista, não é o que ativa a
+		     fonte (ativa sozinha ao ter pelo menos 1 URL, ver `activeSourceCount`). Continua
+		     clicável mesmo com a rede pública Iroh ativa (só as ações de dentro é que travam),
+		     pra sempre dar pra conferir o que já está configurado. -->
+		<div
+			class={cn(
+				'overflow-hidden rounded-2xl border-2 transition-all duration-200',
+				safeData.customRelayUrls.length > 0
+					? 'border-primary bg-primary/5 shadow-sm shadow-primary/10'
+					: 'border-border/60 bg-card hover:border-muted-foreground/50',
+				safeData.useIrohPublicNetwork && 'opacity-50'
+			)}
+		>
+			<button
+				type="button"
+				onclick={() => (customExpanded = !customExpanded)}
+				class="flex w-full cursor-pointer items-center gap-3 p-4 text-left"
+			>
+				<div
+					class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted text-foreground"
+				>
+					<NetworkIcon size={18} />
+				</div>
+				<div class="min-w-0 flex-1">
+					<p class="text-sm font-semibold text-foreground">
+						{m['pages.network.relay_settings.custom_relays.title']()}
+					</p>
+					<p class="truncate text-xs text-muted-foreground">{customRelaysSubtitle}</p>
+				</div>
+				{#if safeData.customRelayUrls.length > 0}
+					<div
+						use:checkBadgePop
+						class="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground"
+					>
+						<CheckIcon size={12} strokeWidth={3} />
+					</div>
+				{/if}
+			</button>
+
+			{#if customExpanded}
+				<div transition:slide={{ duration: 200 }} class="space-y-2 border-t border-border/60 p-3">
+					<div class="space-y-2" use:autoAnimateList>
+						{#each safeData.customRelayUrls as url (url)}
+							<div
+								class="flex items-center justify-between gap-3 rounded-xl border border-border bg-background/50 p-3"
+							>
+								<span class="min-w-0 flex-1 truncate text-sm text-foreground">{url}</span>
+								<AcerolaButtonIcon
+									events={{ onClick: () => removeCustomUrl(url) }}
+									ui={{
+										variant: 'ghost',
+										class:
+											'size-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive',
+										disabled: safeData.useIrohPublicNetwork || restarting,
+										'aria-label': m['pages.network.relay_settings.custom_relays.remove']()
+									}}
+								>
+									<Trash2Icon size={14} />
+								</AcerolaButtonIcon>
+							</div>
+						{/each}
+					</div>
+
+					<div class="flex items-center gap-2">
+						<AcerolaInput
+							state={{ value: customUrlDraft }}
+							events={{
+								onValueChange: (value) => {
+									customUrlDraft = value;
+									customUrlError = false;
+								}
+							}}
+							ui={{
+								placeholder: m['pages.network.relay_settings.custom_relays.add_placeholder'](),
+								class: 'flex-1',
+								disabled: safeData.useIrohPublicNetwork || restarting
+							}}
+						/>
+						<AcerolaButton
+							events={{ onClick: submitCustomUrl }}
+							ui={{
+								size: 'sm',
+								disabled: !customUrlDraft.trim() || safeData.useIrohPublicNetwork || restarting
+							}}
+						>
+							<PlusIcon size={14} />
+							{m['pages.network.relay_settings.custom_relays.add_button']()}
+						</AcerolaButton>
+					</div>
+					{#if customUrlError}
+						<p class="text-xs text-destructive">
+							{m['pages.network.relay_settings.invalid_url']()}
+						</p>
+					{/if}
+				</div>
 			{/if}
-			<AcerolaButton
-				events={{ onClick: submitTicket }}
-				ui={{ size: 'sm', disabled: !ticketDraft.trim() || ticketSaving }}
-			>
-				{safeData.hasIrohServicesTicket
-					? m['pages.network.relay_settings.iroh_services_ticket.replace_button']()
-					: m['pages.network.relay_settings.iroh_services_ticket.save_button']()}
-			</AcerolaButton>
 		</div>
 
-		<p class="text-xs text-muted-foreground italic">
-			{m['pages.network.relay_settings.iroh_services_ticket.help']()}
-		</p>
-	</div>
-
-	<div class="space-y-2" class:opacity-50={safeData.useIrohPublicNetwork}>
-		<p class="text-xs font-bold tracking-widest text-muted-foreground uppercase">
-			{m['pages.network.relay_settings.custom_relays.title']()}
-		</p>
-
-		{#each safeData.customRelayUrls as url (url)}
-			<div
-				class="flex items-center justify-between gap-3 rounded-xl border border-border bg-background/50 p-3"
+		<!-- Card 3: rede pública Iroh — a linha inteira liga/desliga (exclusivo com os outros
+		     dois, trava sem ticket configurado); gerenciar o ticket é uma ação à parte, dentro
+		     do card, pra não confundir "ativar a fonte" com "trocar a credencial". -->
+		<div
+			class={cn(
+				'overflow-hidden rounded-2xl border-2 transition-all duration-200',
+				safeData.useIrohPublicNetwork
+					? 'border-primary bg-primary/5 shadow-sm shadow-primary/10'
+					: 'border-border/60 bg-card hover:border-muted-foreground/50'
+			)}
+		>
+			<button
+				type="button"
+				onclick={() => toggleIrohPublicNetwork(!safeData.useIrohPublicNetwork)}
+				disabled={!safeData.hasIrohServicesTicket || restarting}
+				class="flex w-full items-center gap-3 p-4 text-left enabled:cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
 			>
-				<span class="min-w-0 flex-1 truncate text-sm text-foreground">{url}</span>
-				<AcerolaButtonIcon
-					events={{ onClick: () => removeCustomUrl(url) }}
-					ui={{
-						variant: 'ghost',
-						class: 'size-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive',
-						disabled: safeData.useIrohPublicNetwork || restarting,
-						'aria-label': m['pages.network.relay_settings.custom_relays.remove']()
-					}}
+				<div
+					class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted text-foreground"
 				>
-					<Trash2Icon size={14} />
-				</AcerolaButtonIcon>
-			</div>
-		{:else}
-			<p class="text-xs text-muted-foreground">
-				{m['pages.network.relay_settings.custom_relays.empty']()}
-			</p>
-		{/each}
+					<GlobeIcon size={18} />
+				</div>
+				<div class="min-w-0 flex-1">
+					<p class="text-sm font-semibold text-foreground">
+						{m['pages.network.relay_settings.use_iroh_public_network']()}
+					</p>
+					<p class="truncate text-xs text-muted-foreground">{irohSubtitle}</p>
+				</div>
+				{#if safeData.useIrohPublicNetwork}
+					<div
+						use:checkBadgePop
+						class="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground"
+					>
+						<CheckIcon size={12} strokeWidth={3} />
+					</div>
+				{/if}
+			</button>
 
-		<div class="flex items-center gap-2">
-			<AcerolaInput
-				state={{ value: customUrlDraft }}
-				events={{
-					onValueChange: (value) => {
-						customUrlDraft = value;
-						customUrlError = false;
-					}
-				}}
-				ui={{
-					placeholder: m['pages.network.relay_settings.custom_relays.add_placeholder'](),
-					class: 'flex-1',
-					disabled: safeData.useIrohPublicNetwork || restarting
-				}}
-			/>
-			<AcerolaButton
-				events={{ onClick: submitCustomUrl }}
-				ui={{
-					size: 'sm',
-					disabled: !customUrlDraft.trim() || safeData.useIrohPublicNetwork || restarting
-				}}
-			>
-				<PlusIcon size={14} />
-				{m['pages.network.relay_settings.custom_relays.add_button']()}
-			</AcerolaButton>
+			<div class="border-t border-border/60 p-3">
+				<button
+					type="button"
+					onclick={() => (ticketExpanded = !ticketExpanded)}
+					class="flex w-full cursor-pointer items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground"
+				>
+					<KeyRoundIcon size={12} />
+					{safeData.hasIrohServicesTicket
+						? m['pages.network.relay_settings.iroh_services_ticket.configured']()
+						: m['pages.network.relay_settings.iroh_services_ticket.not_configured']()}
+				</button>
+
+				{#if ticketExpanded}
+					<div transition:slide={{ duration: 200 }} class="mt-3 space-y-2">
+						<!-- Campo em linha própria, largura cheia — dividir a linha com o botão
+						     espremia o campo a ponto do placeholder (bem mais longo que qualquer
+						     URL de relay) quebrar em várias linhas. -->
+						<AcerolaInput
+							state={{ value: ticketDraft }}
+							events={{
+								onValueChange: (value) => {
+									ticketDraft = value;
+									ticketError = false;
+								}
+							}}
+							ui={{
+								type: 'password',
+								placeholder: m['pages.network.relay_settings.iroh_services_ticket.placeholder'](),
+								class: 'w-full',
+								disabled: ticketSaving
+							}}
+						/>
+
+						{#if ticketError}
+							<p class="text-xs text-destructive">
+								{m['pages.network.relay_settings.iroh_services_ticket.invalid']()}
+							</p>
+						{/if}
+
+						<div class="flex items-center justify-end gap-2">
+							{#if safeData.hasIrohServicesTicket}
+								<AcerolaButtonIcon
+									events={{ onClick: removeTicket }}
+									ui={{
+										variant: 'ghost',
+										class:
+											'size-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive',
+										disabled: ticketSaving,
+										'aria-label':
+											m['pages.network.relay_settings.iroh_services_ticket.remove_button']()
+									}}
+								>
+									<Trash2Icon size={14} />
+								</AcerolaButtonIcon>
+							{/if}
+							<AcerolaButton
+								events={{ onClick: submitTicket }}
+								ui={{ size: 'sm', disabled: !ticketDraft.trim() || ticketSaving }}
+							>
+								{safeData.hasIrohServicesTicket
+									? m['pages.network.relay_settings.iroh_services_ticket.replace_button']()
+									: m['pages.network.relay_settings.iroh_services_ticket.save_button']()}
+							</AcerolaButton>
+						</div>
+
+						<p class="text-xs text-muted-foreground italic">
+							{m['pages.network.relay_settings.iroh_services_ticket.help']()}
+						</p>
+					</div>
+				{/if}
+			</div>
 		</div>
-		{#if customUrlError}
-			<p class="text-xs text-destructive">{m['pages.network.relay_settings.invalid_url']()}</p>
-		{/if}
 	</div>
 
 	<div
@@ -346,9 +462,6 @@
 			<p class="text-sm font-semibold text-foreground">
 				{m['pages.network.relay_settings.restart.button']()}
 			</p>
-			<p class="text-xs text-muted-foreground">
-				{m['pages.network.relay_settings.restart.description']()}
-			</p>
 			{#if restartError}
 				<p class="mt-1 text-xs text-destructive">
 					{m['pages.network.relay_settings.restart.error']()}
@@ -357,7 +470,12 @@
 		</div>
 		<AcerolaButton
 			events={{ onClick: restart }}
-			ui={{ size: 'sm', variant: 'outline', disabled: restarting }}
+			ui={{
+				size: 'sm',
+				variant: 'outline',
+				disabled: restarting,
+				title: m['pages.network.relay_settings.restart.description']()
+			}}
 		>
 			<RefreshCwIcon size={14} class={cn(restarting && 'animate-spin')} />
 			{restarting

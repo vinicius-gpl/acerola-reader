@@ -58,6 +58,7 @@ pub fn build() -> tauri::Builder<tauri::Wry> {
         network_cmd::query_remote_library,
         network_cmd::query_remote_cover,
         network_cmd::get_sync_history_log,
+        network_cmd::clear_sync_history_log,
         network_cmd::get_security_status,
         reader_cmd::reader_open_chapter,
         reader_cmd::reader_load_page,

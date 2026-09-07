@@ -218,14 +218,25 @@
 	/>
 
 	<!-- Transferências -->
-	<section class="space-y-4">
-		<div
-			class="flex items-center gap-3 text-xs font-bold tracking-widest text-muted-foreground uppercase"
-		>
-			{m['pages.network.transfers.title']()}
-		</div>
-		<AcerolaNetworkTransfersLog data={{ entries: sync.log, peerLabel: peers.peerLabel }} />
-	</section>
+	<AcerolaNetworkTransfersLog
+		data={{ entries: sync.log, peerLabel: peers.peerLabel }}
+		events={{
+			onRefresh: async () => {
+				try {
+					await sync.refreshLog();
+				} catch (err) {
+					toast.error(String(err));
+				}
+			},
+			onClear: async () => {
+				try {
+					await sync.clearLog();
+				} catch (err) {
+					toast.error(String(err));
+				}
+			}
+		}}
+	/>
 </div>
 
 <!-- Buscar biblioteca remota -->

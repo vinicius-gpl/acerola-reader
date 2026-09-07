@@ -323,18 +323,40 @@ export function useNetworkSync() {
 		}
 	}
 
-	/// Carrega as sessões persistidas (mais recente primeiro) pra dar contexto histórico
-	/// assim que a tela abre — antes de qualquer evento ao vivo chegar. Falha em silêncio:
-	/// sem histórico persistido, a tela ainda funciona só com os eventos da sessão atual.
+	/// Rebusca as sessões persistidas e substitui só a parte do log que veio de lá (`id < 0`,
+	/// ver `fromPersisted`) — usado tanto no mount quanto pelo botão "Atualizar" da tela de
+	/// Rede. Preserva qualquer entrada AO VIVO ainda em `id >= 0` (sessão `started`/`progress`
+	/// desta execução do app): o repositório só guarda estados terminais
+	/// (`complete`/`error`, ver doc de `SyncHistoryLogEntry` no backend), então um refresh no
+	/// meio de uma sincronização não pode fazer a linha "sincronizando..." sumir da tela.
+	/// Propaga erro do `invoke` pro chamador decidir como mostrar (toast) — diferente do
+	/// carregamento inicial em `startListening`, que falha em silêncio.
+	async function refreshLog() {
+		const rows = await invoke<PersistedSyncLogEntry[]>(NETWORK_COMMANDS.getSyncHistoryLog);
+		if (disposed) return;
+		const liveEntries = log.filter((entry) => entry.id >= 0);
+		log = [...liveEntries, ...rows.map(fromPersisted)];
+	}
+
+	/// Carrega as sessões persistidas assim que a tela abre — antes de qualquer evento ao vivo
+	/// chegar. Falha em silêncio: sem histórico persistido, a tela ainda funciona só com os
+	/// eventos da sessão atual.
 	async function loadPersistedLog() {
 		try {
-			const rows = await invoke<PersistedSyncLogEntry[]>(NETWORK_COMMANDS.getSyncHistoryLog);
-			if (disposed) return;
-			log = rows.map(fromPersisted);
+			await refreshLog();
 		} catch (err) {
 			if (disposed) return;
 			error(`failed to load persisted sync history log: ${err}`);
 		}
+	}
+
+	/// Apaga de vez o histórico de transferências — tanto o persistido no SQLite
+	/// (`clear_sync_history_log`, irreversível) quanto a lista mostrada na tela. Propaga erro
+	/// do `invoke` pro chamador (mesmo padrão de `syncHistory`/`syncFiles`).
+	async function clearLog() {
+		await invoke(NETWORK_COMMANDS.clearSyncHistoryLog);
+		if (disposed) return;
+		log = [];
 	}
 
 	async function startListening() {
@@ -555,6 +577,8 @@ export function useNetworkSync() {
 		lastSyncedAt,
 		activeSession,
 		activeProgressMessage,
+		refreshLog,
+		clearLog,
 		get log() {
 			return log;
 		}
