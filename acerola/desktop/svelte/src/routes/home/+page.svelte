@@ -298,7 +298,7 @@
 	<div class="flex items-center justify-center p-8 text-muted-foreground">
 		{m['pages.home.loading']()}
 	</div>
-{:else if summary.comics && summary.comics.total > 0}
+{:else if summary.comics && (summary.comics.total > 0 || activeFiltersCount > 0)}
 	<div class="px-8 pt-8 pb-8">
 		<div class="mb-4 flex items-center justify-between">
 			{#if selection.isSelectionMode}

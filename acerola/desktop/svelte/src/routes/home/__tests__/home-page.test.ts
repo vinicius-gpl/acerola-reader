@@ -146,6 +146,25 @@ describe('home +page', () => {
 		expect(await screen.findByText(/nenhum quadrinho|no comics/i)).toBeInTheDocument();
 	});
 
+	it('keeps the filter button visible and shows the filtered-empty message when a filter zeroes the result', async () => {
+		const user = userEvent.setup();
+		renderHomePage();
+
+		await emitSummary(summaryPayload());
+		await screen.findByText('Acerola');
+
+		await user.click(screen.getByRole('button', { name: /filtrar e ordenar|^filter/i }));
+		await user.click(await screen.findByText(/mostrar ocultos|show hidden/i));
+		await user.click(screen.getByRole('button', { name: /^aplicar$|^apply$/i }));
+
+		await emitSummary(summaryPayload({ total: 0, comics: [] }));
+
+		expect(screen.getByRole('button', { name: /filtrar e ordenar|^filter/i })).toBeInTheDocument();
+		expect(
+			await screen.findByText(/nenhum quadrinho encontrado para o filtro|no results.*filter/i)
+		).toBeInTheDocument();
+	});
+
 	it('renders the comic grid once the summary event arrives', async () => {
 		renderHomePage();
 
