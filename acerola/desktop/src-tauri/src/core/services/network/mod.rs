@@ -15,6 +15,7 @@ use acerola_p2p::api::{
     AcerolaP2p,
 };
 use async_trait::async_trait;
+use tokio::sync::Mutex;
 
 use crate::infra::security::{p2p_storage::SecureP2pStorage, trusted_store::SecureTrustedStore};
 
@@ -107,6 +108,16 @@ pub struct NetworkService {
     /// Fornecido por `bios::network::setup_network` — ver doc de [`NodeBuilder`]. Chamado só
     /// por [`Self::restart`].
     rebuild_node: NodeBuilder,
+    /// Serializa [`Self::restart`] — sem isso, duas chamadas sobrepostas (ex.: dois toggles de
+    /// relay em sequência na tela de Rede, ou o toggle e o botão manual "Reiniciar" quase
+    /// juntos; Tauri não enfileira `invoke`s, cada um roda numa task própria) constroem DOIS
+    /// nodes em paralelo com a MESMA identidade persistida — os dois tentam se registrar ao
+    /// mesmo tempo no mesmo relay, que aceita só um e derruba o outro silenciosamente
+    /// ("Another endpoint connected with the same endpoint id", visto ao vivo). `tokio::sync`
+    /// (não `std::sync`) porque o lock precisa continuar seguro através de vários `.await`
+    /// (shutdown do node antigo + rebuild assíncrono), não só de uma seção crítica síncrona
+    /// como [`Self::node`].
+    restart_lock: Mutex<()>,
 }
 
 impl NetworkService {
@@ -115,7 +126,14 @@ impl NetworkService {
         trust_store: Arc<SecureTrustedStore>, app_data_directory: PathBuf,
         rebuild_node: NodeBuilder,
     ) -> Self {
-        Self { node: RwLock::new(node), storage, trust_store, app_data_directory, rebuild_node }
+        Self {
+            node: RwLock::new(node),
+            storage,
+            trust_store,
+            app_data_directory,
+            rebuild_node,
+            restart_lock: Mutex::new(()),
+        }
     }
 
     /// Clona o `Arc` atual e libera o lock na hora — cada chamador opera sobre o node que
@@ -235,6 +253,12 @@ impl NetworkServiceApi for NetworkService {
     }
 
     async fn restart(&self) -> Result<(), String> {
+        // Segura o lock pela operação INTEIRA (não só a troca do ponteiro no fim) — uma
+        // segunda chamada concorrente espera esta terminar de verdade (node antigo desligado +
+        // node novo já registrado no relay) antes de começar a sua. Ver doc de
+        // `Self::restart_lock` pro bug real que isso evita.
+        let _restart_guard = self.restart_lock.lock().await;
+
         let old_node = self.node();
         // Melhor esforço: mesmo se o shutdown do node antigo falhar/travar parcialmente, ainda
         // vale a pena tentar subir um node novo em vez de deixar o usuário sem rede nenhuma —
@@ -247,9 +271,38 @@ impl NetworkServiceApi for NetworkService {
         }
 
         let fresh_node = (self.rebuild_node)().await?;
-        *self.node.write().unwrap_or_else(|poisoned| poisoned.into_inner()) = fresh_node;
+        *self.node.write().unwrap_or_else(|poisoned| poisoned.into_inner()) = Arc::clone(&fresh_node);
 
         tracing::info!("[NetworkService] P2P node restarted");
+
+        // Sem isso, um restart devolvia o node num estado limpo — identidade e storage
+        // preservados, mas ZERO conexões ativas — e nada tentava falar de novo com nenhum peer
+        // pareado até o usuário disparar alguma ação manual (browse library, sync, etc). Achado
+        // ao vivo: trocar pra um relay que um peer pareado não compartilha corta o alcance por
+        // relay pra ele, e o usuário não tinha NENHUM sinal disso além de tentar algo manualmente
+        // e ver falhar. `reconnect_known_peers` só ENFILEIRA a tentativa (não espera confirmação
+        // — ver doc lá); best-effort: uma falha ao ler `paired_peers` não deve fazer o restart em
+        // si (já concluído com sucesso acima) parecer ter falhado.
+        //
+        // Sem teste dedicado pro branch `Err` abaixo: `SecureP2pStorage::load_peers` só lê um
+        // cache em memória (`peers_cache.read().await.clone()`) e não tem, hoje, nenhum jeito
+        // de falhar de verdade — o `Result` existe porque é o contrato da trait `P2PStorage`
+        // (implementações futuras, ou outra plataforma, podem genuinamente errar aqui), não
+        // porque este caminho é alcançável com o storage concreto atual. Tratado mesmo assim
+        // (sem `.unwrap()`/`.expect()`, por regra do CONTRIBUTING.md) por respeitar o contrato
+        // do tipo, não por cobertura de teste possível agora.
+        match self.storage.load_peers().await {
+            Ok(known_peers) => {
+                acerola_p2p::api::network::reconnect_known_peers(&fresh_node, known_peers).await;
+            },
+            Err(error) => {
+                tracing::warn!(
+                    ?error,
+                    "[NetworkService] failed to load paired peers for post-restart reconnect"
+                );
+            },
+        }
+
         Ok(())
     }
 }
@@ -337,6 +390,98 @@ mod tests {
         );
     }
 
+    /// Regressão de ponta a ponta do bug ao vivo: um restart (troca de relay, ou o botão manual)
+    /// devolvia um node com identidade/storage preservados mas ZERO conexões ativas — nada
+    /// tentava falar de novo com peers já pareados até o usuário disparar alguma ação manual
+    /// (browse library, sync, etc). Prova que `restart()` agora reconecta SOZINHO com um peer
+    /// real já pareado, sem nenhuma ação além da própria chamada de `restart()`.
+    #[tokio::test]
+    async fn restart_reconnects_to_previously_paired_peers_without_further_action() {
+        let (storage, trust, _dir) = open_storage();
+        let old_node = build_test_node().await;
+
+        let peer_node = build_test_node().await;
+        let peer_addr = peer_node.local_addr().unwrap();
+        let peer_id = PeerIdentity {
+            id: peer_node.local_id().to_string(),
+            device_id: peer_node.local_device_id().map(|s| s.to_string()),
+        };
+        storage.save_peer(&peer_addr).await.expect("seeding paired peer should succeed");
+
+        let rebuild_node: NodeBuilder = Arc::new(|| Box::pin(async { Ok(build_test_node().await) }));
+
+        let service =
+            NetworkService::new(old_node, Arc::clone(&storage), trust, std::env::temp_dir(), rebuild_node);
+
+        service.restart().await.expect("restart should succeed");
+
+        let mut reconnected = false;
+        for _ in 0..50 {
+            let paired = service.paired_peers().await.expect("paired_peers should succeed");
+            if paired.iter().any(|(addr, info)| addr.id == peer_id && info.is_some()) {
+                reconnected = true;
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        }
+
+        assert!(
+            reconnected,
+            "restart() deveria ter reconectado sozinho com o peer já pareado, sem ação manual \
+             do usuário"
+        );
+    }
+
+    /// Caminho triste: um peer pareado pode ter saído da rede entre sessões (desligou o app,
+    /// perdeu conexão) — isso não pode fazer `restart()` falhar nem impedir a reconexão com
+    /// OUTRO peer pareado que continua acessível. `reconnect_known_peers` é best-effort por
+    /// design (ver doc em `lib/p2p`), mas só um teste no nível de integração (storage real +
+    /// dois peers reais, um deles desligado) prova que a composição dos dois lados não quebra
+    /// esse contrato.
+    #[tokio::test]
+    async fn restart_still_succeeds_and_reconnects_reachable_peer_when_another_paired_peer_is_offline(
+    ) {
+        let (storage, trust, _dir) = open_storage();
+        let old_node = build_test_node().await;
+
+        let reachable_peer = build_test_node().await;
+        let reachable_addr = reachable_peer.local_addr().unwrap();
+        let reachable_id = PeerIdentity {
+            id: reachable_peer.local_id().to_string(),
+            device_id: reachable_peer.local_device_id().map(|s| s.to_string()),
+        };
+
+        let offline_peer = build_test_node().await;
+        let offline_addr = offline_peer.local_addr().unwrap();
+        offline_peer.shutdown().await.expect("shutdown should succeed");
+
+        storage.save_peer(&reachable_addr).await.expect("seeding reachable peer should succeed");
+        storage.save_peer(&offline_addr).await.expect("seeding offline peer should succeed");
+
+        let rebuild_node: NodeBuilder = Arc::new(|| Box::pin(async { Ok(build_test_node().await) }));
+
+        let service =
+            NetworkService::new(old_node, Arc::clone(&storage), trust, std::env::temp_dir(), rebuild_node);
+
+        service.restart().await.expect("restart should succeed mesmo com um peer pareado offline");
+
+        let mut reconnected = false;
+        for _ in 0..50 {
+            let paired = service.paired_peers().await.expect("paired_peers should succeed");
+            if paired.iter().any(|(addr, info)| addr.id == reachable_id && info.is_some()) {
+                reconnected = true;
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        }
+
+        assert!(
+            reconnected,
+            "um peer pareado offline no mesmo restart não pode impedir a reconexão com o peer \
+             que continua acessível"
+        );
+    }
+
     /// Se a closure de rebuild falhar, `restart()` propaga o erro em vez de mascarar um estado
     /// quebrado — o node antigo já foi desligado nesse ponto, então o usuário PRECISA saber que
     /// o restart não completou, não ver "sucesso" e descobrir só quando a rede não responder
@@ -353,5 +498,139 @@ mod tests {
 
         let result = service.restart().await;
         assert_eq!(result, Err("boom".to_string()));
+    }
+
+    /// Regressão do bug ao vivo: duas mudanças de relay disparadas em sequência (dois toggles,
+    /// ou o toggle e o botão manual "Reiniciar") cada uma chama `restart()` numa task própria —
+    /// Tauri não enfileira `invoke`s. Sem exclusão mútua, as duas reconstruções rodavam em
+    /// paralelo com a MESMA identidade persistida, e o relay via dois endpoints concorrentes
+    /// tentando se registrar com o mesmo id ("Another endpoint connected with the same
+    /// endpoint id" — a mensagem real vista em produção). Prova que `restart()` serializa: a
+    /// rebuild closure nunca observa mais de 1 execução concorrente, mesmo com duas chamadas
+    /// disparadas ao mesmo tempo via `tokio::join!`.
+    #[tokio::test]
+    async fn concurrent_restarts_are_serialized_instead_of_racing() {
+        let (storage, trust, _dir) = open_storage();
+        let old_node = build_test_node().await;
+
+        let concurrent = Arc::new(AtomicUsize::new(0));
+        let max_concurrent = Arc::new(AtomicUsize::new(0));
+        let rebuild_calls = Arc::new(AtomicUsize::new(0));
+
+        let concurrent_clone = Arc::clone(&concurrent);
+        let max_concurrent_clone = Arc::clone(&max_concurrent);
+        let rebuild_calls_clone = Arc::clone(&rebuild_calls);
+        let rebuild_node: NodeBuilder = Arc::new(move || {
+            let concurrent = Arc::clone(&concurrent_clone);
+            let max_concurrent = Arc::clone(&max_concurrent_clone);
+            let rebuild_calls = Arc::clone(&rebuild_calls_clone);
+            Box::pin(async move {
+                rebuild_calls.fetch_add(1, Ordering::SeqCst);
+                let now_in_flight = concurrent.fetch_add(1, Ordering::SeqCst) + 1;
+                max_concurrent.fetch_max(now_in_flight, Ordering::SeqCst);
+                // Espaço suficiente pra uma segunda chamada concorrente ENTRAR em `restart()`
+                // enquanto esta ainda constrói — se o lock não estiver protegendo a operação
+                // inteira, é aqui que as duas rebuilds se sobrepõem.
+                tokio::time::sleep(std::time::Duration::from_millis(30)).await;
+                concurrent.fetch_sub(1, Ordering::SeqCst);
+                Ok(build_test_node().await)
+            })
+        });
+
+        let service = Arc::new(NetworkService::new(
+            old_node,
+            storage,
+            trust,
+            std::env::temp_dir(),
+            rebuild_node,
+        ));
+
+        let service_a = Arc::clone(&service);
+        let service_b = Arc::clone(&service);
+        let (result_a, result_b) = tokio::join!(
+            async move { service_a.restart().await },
+            async move { service_b.restart().await }
+        );
+
+        result_a.expect("primeira chamada de restart deveria ter sucesso");
+        result_b.expect("segunda chamada de restart deveria ter sucesso, não ser descartada");
+
+        assert_eq!(
+            rebuild_calls.load(Ordering::SeqCst),
+            2,
+            "as duas chamadas deveriam ter reconstruído o node, nenhuma foi ignorada"
+        );
+        assert_eq!(
+            max_concurrent.load(Ordering::SeqCst),
+            1,
+            "as duas rebuilds rodaram ao mesmo tempo — restart() não está serializando"
+        );
+    }
+
+    /// Interação entre os dois fixes recentes (mutex serializando `restart()` +
+    /// `reconnect_known_peers` disparado no fim dele): a reconexão que a PRIMEIRA chamada
+    /// dispara roda contra o node que ELA construiu, mas se uma SEGUNDA chamada concorrente
+    /// entrar logo em seguida (esperando a primeira liberar o lock), o node da primeira já foi
+    /// desligado por essa segunda chamada antes de qualquer retry em background da reconexão
+    /// terminar. Isso não pode gerar pânico nem deixar o peer pareado sem NENHUMA tentativa de
+    /// reconexão no final — a reconexão disparada pela chamada que efetivamente venceu por
+    /// último (a mais recente a terminar) é a que precisa ter acontecido de verdade.
+    #[tokio::test]
+    async fn concurrent_restarts_with_a_paired_peer_do_not_panic_and_still_reconnect() {
+        let (storage, trust, _dir) = open_storage();
+        let old_node = build_test_node().await;
+
+        let peer_node = build_test_node().await;
+        let peer_addr = peer_node.local_addr().unwrap();
+        let peer_id = PeerIdentity {
+            id: peer_node.local_id().to_string(),
+            device_id: peer_node.local_device_id().map(|s| s.to_string()),
+        };
+        storage.save_peer(&peer_addr).await.expect("seeding paired peer should succeed");
+
+        let rebuild_node: NodeBuilder = Arc::new(|| {
+            Box::pin(async {
+                // Mesmo espaçamento de `concurrent_restarts_are_serialized_instead_of_racing`
+                // — garante que a segunda chamada de fato espera a primeira estar em pleno
+                // rebuild antes de tentar entrar, exercitando a transição de node ANTES da
+                // reconexão da primeira chamada ter qualquer chance de resolver.
+                tokio::time::sleep(std::time::Duration::from_millis(30)).await;
+                Ok(build_test_node().await)
+            })
+        });
+
+        let service = Arc::new(NetworkService::new(
+            old_node,
+            Arc::clone(&storage),
+            trust,
+            std::env::temp_dir(),
+            rebuild_node,
+        ));
+
+        let service_a = Arc::clone(&service);
+        let service_b = Arc::clone(&service);
+        let (result_a, result_b) = tokio::join!(
+            async move { service_a.restart().await },
+            async move { service_b.restart().await }
+        );
+
+        result_a.expect("primeira chamada de restart deveria ter sucesso");
+        result_b.expect("segunda chamada de restart deveria ter sucesso");
+
+        let mut reconnected = false;
+        for _ in 0..50 {
+            let paired = service.paired_peers().await.expect("paired_peers should succeed");
+            if paired.iter().any(|(addr, info)| addr.id == peer_id && info.is_some()) {
+                reconnected = true;
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        }
+
+        assert!(
+            reconnected,
+            "depois de dois restarts concorrentes, o node final ainda deveria ter reconectado \
+             com o peer pareado — sem pânico nem perda silenciosa da tentativa de reconexão"
+        );
     }
 }
