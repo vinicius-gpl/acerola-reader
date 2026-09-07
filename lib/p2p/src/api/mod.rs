@@ -36,7 +36,10 @@ pub mod protocol {
 
 /// Enums descritivos de tipologias do protocolo.
 pub mod network {
-    pub use crate::core::network::state::NetworkMode;
+    pub use crate::core::network::{
+        reconnect::{reconnect_known_peers, RECONNECT_PROBE_ALPN},
+        state::NetworkMode,
+    };
 }
 
 /// Builder de transports
