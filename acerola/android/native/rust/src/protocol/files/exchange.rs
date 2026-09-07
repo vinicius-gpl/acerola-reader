@@ -8,14 +8,12 @@ use std::{
 };
 
 use acerola_p2p::api::{error::P2pError, peer::PeerIdentity, protocol::EventEmitter};
-use futures::SinkExt;
 use serde::{de::DeserializeOwned, Serialize};
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite},
     sync::Semaphore,
     task::JoinSet,
 };
-use tokio_stream::StreamExt;
 use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
 
 use super::{
@@ -40,31 +38,20 @@ const FRAME_READ_TIMEOUT: Duration = Duration::from_secs(30);
 const CHUNK_SIZE: usize = 64 * 1024;
 const PROGRESS_EVERY_BYTES: u64 = 1024 * 1024;
 
-pub(super) type Recv = FramedRead<Box<dyn AsyncRead + Send + Unpin>, LengthDelimitedCodec>;
-pub(super) type Writer = FramedWrite<Box<dyn AsyncWrite + Send + Unpin>, LengthDelimitedCodec>;
+pub(super) use crate::protocol::framing::{Recv, Writer};
 
-/// Escreve uma mensagem de controle como frame JSON solto (sem tag de enum) — mesmo
-/// formato que o Desktop usa em `infra/sync/framing.rs::write_json`.
+/// Fina camada sobre `framing::write_json` — só existe pra manter o nome já usado em todo o
+/// resto deste arquivo sem precisar tocar cada call site depois da consolidação (ver
+/// `protocol::framing`, que antes era reimplementado igual aqui, em `history`, `library_browse`
+/// e `cover_browse`).
 async fn write_json<T: Serialize>(send: &mut Writer, value: &T) -> Result<(), P2pError> {
-    let bytes = serde_json::to_vec(value).map_err(|err| {
-        P2pError::StreamFailed(format!("failed to encode file sync message: {err}"))
-    })?;
-    send.send(bytes.into())
-        .await
-        .map_err(|err| P2pError::StreamFailed(format!("failed to write file sync message: {err}")))
+    crate::protocol::framing::write_json(send, value).await
 }
 
+/// Idem, sobre `framing::read_json` — `FRAME_READ_TIMEOUT` continua sendo A CONFIGURAÇÃO deste
+/// protocolo especificamente, só a mecânica de ler/classificar o frame é compartilhada agora.
 async fn read_json<T: DeserializeOwned>(recv: &mut Recv) -> Result<T, P2pError> {
-    let frame = tokio::time::timeout(FRAME_READ_TIMEOUT, recv.next())
-        .await
-        .map_err(|_| P2pError::StreamFailed("timed out reading file sync message".into()))?
-        .ok_or_else(|| P2pError::StreamFailed("stream closed before file sync message".into()))?
-        .map_err(|err| {
-            P2pError::StreamFailed(format!("failed to read file sync message: {err}"))
-        })?;
-
-    serde_json::from_slice(&frame)
-        .map_err(|err| P2pError::StreamFailed(format!("failed to decode file sync message: {err}")))
+    crate::protocol::framing::read_json(recv, FRAME_READ_TIMEOUT).await
 }
 
 /// Escreve a mensagem de rejeição de sessão diretamente no stream, no lugar do manifesto —
