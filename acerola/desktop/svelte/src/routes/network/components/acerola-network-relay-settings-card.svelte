@@ -34,6 +34,7 @@
 	import KeyRoundIcon from '@lucide/svelte/icons/key-round';
 	import RefreshCwIcon from '@lucide/svelte/icons/refresh-cw';
 	import AcerolaAccordionCard from '$lib/components/acerola-accordion-card/acerola-accordion-card.svelte';
+	import AcerolaToggleCard from '$lib/components/acerola-toggle-card/acerola-toggle-card.svelte';
 	import AcerolaInput from '$lib/components/acerola-input/acerola-input.svelte';
 	import AcerolaButton from '$lib/components/acerola-button/acerola-button.svelte';
 	import AcerolaButtonIcon from '$lib/components/acerola-button/acerola-button-icon.svelte';
@@ -205,143 +206,95 @@
 
 	<div class="space-y-3">
 		<!-- Card 1: relay do Acerola — toggle puro, clicar na linha inteira liga/desliga. -->
-		<div
-			class={cn(
-				'overflow-hidden rounded-2xl border-2 transition-all duration-200',
-				safeData.useAcerolaRelay
-					? 'border-primary bg-primary/5 shadow-sm shadow-primary/10'
-					: 'border-border/60 bg-card hover:border-muted-foreground/50'
-			)}
+		<AcerolaToggleCard
+			data={{
+				title: m['pages.network.relay_settings.use_acerola_relay'](),
+				subtitle: m['pages.network.relay_settings.use_acerola_relay_desc']({
+					url: safeData.acerolaRelayUrl
+				})
+			}}
+			state={{ active: safeData.useAcerolaRelay }}
+			events={{ onClick: () => toggleAcerolaRelay(!safeData.useAcerolaRelay) }}
+			ui={{ disabled: safeData.useIrohPublicNetwork || restarting }}
 		>
-			<button
-				type="button"
-				onclick={() => toggleAcerolaRelay(!safeData.useAcerolaRelay)}
-				disabled={safeData.useIrohPublicNetwork || restarting}
-				class="flex w-full items-center gap-3 p-4 text-left enabled:cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-			>
-				<div
-					class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted text-foreground"
-				>
-					<ServerIcon size={18} />
-				</div>
-				<div class="min-w-0 flex-1">
-					<p class="text-sm font-semibold text-foreground">
-						{m['pages.network.relay_settings.use_acerola_relay']()}
-					</p>
-					<p class="truncate text-xs text-muted-foreground">
-						{m['pages.network.relay_settings.use_acerola_relay_desc']({
-							url: safeData.acerolaRelayUrl
-						})}
-					</p>
-				</div>
-				{#if safeData.useAcerolaRelay}
-					<div
-						use:checkBadgePop
-						class="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground"
-					>
-						<CheckIcon size={12} strokeWidth={3} />
-					</div>
-				{/if}
-			</button>
-		</div>
+			{#snippet icon()}
+				<ServerIcon size={18} />
+			{/snippet}
+		</AcerolaToggleCard>
 
 		<!-- Card 2: relays próprios — a linha só expande/recolhe a lista, não é o que ativa a
 		     fonte (ativa sozinha ao ter pelo menos 1 URL, ver `activeSourceCount`). Continua
 		     clicável mesmo com a rede pública Iroh ativa (só as ações de dentro é que travam),
 		     pra sempre dar pra conferir o que já está configurado. -->
-		<div
-			class={cn(
-				'overflow-hidden rounded-2xl border-2 transition-all duration-200',
-				safeData.customRelayUrls.length > 0
-					? 'border-primary bg-primary/5 shadow-sm shadow-primary/10'
-					: 'border-border/60 bg-card hover:border-muted-foreground/50',
-				safeData.useIrohPublicNetwork && 'opacity-50'
-			)}
+		<AcerolaToggleCard
+			data={{
+				title: m['pages.network.relay_settings.custom_relays.title'](),
+				subtitle: customRelaysSubtitle
+			}}
+			state={{ active: safeData.customRelayUrls.length > 0, expanded: customExpanded }}
+			events={{ onClick: () => (customExpanded = !customExpanded) }}
+			ui={{ class: safeData.useIrohPublicNetwork ? 'opacity-50' : undefined }}
 		>
-			<button
-				type="button"
-				onclick={() => (customExpanded = !customExpanded)}
-				class="flex w-full cursor-pointer items-center gap-3 p-4 text-left"
-			>
-				<div
-					class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted text-foreground"
-				>
-					<NetworkIcon size={18} />
-				</div>
-				<div class="min-w-0 flex-1">
-					<p class="text-sm font-semibold text-foreground">
-						{m['pages.network.relay_settings.custom_relays.title']()}
-					</p>
-					<p class="truncate text-xs text-muted-foreground">{customRelaysSubtitle}</p>
-				</div>
-				{#if safeData.customRelayUrls.length > 0}
-					<div
-						use:checkBadgePop
-						class="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground"
-					>
-						<CheckIcon size={12} strokeWidth={3} />
-					</div>
-				{/if}
-			</button>
+			{#snippet icon()}
+				<NetworkIcon size={18} />
+			{/snippet}
 
-			{#if customExpanded}
-				<div transition:slide={{ duration: 200 }} class="space-y-2 border-t border-border/60 p-3">
-					<div class="space-y-2" use:autoAnimateList>
-						{#each safeData.customRelayUrls as url (url)}
-							<div
-								class="flex items-center justify-between gap-3 rounded-xl border border-border bg-background/50 p-3"
-							>
-								<span class="min-w-0 flex-1 truncate text-sm text-foreground">{url}</span>
-								<AcerolaButtonIcon
-									events={{ onClick: () => removeCustomUrl(url) }}
-									ui={{
-										variant: 'ghost',
-										class:
-											'size-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive',
-										disabled: safeData.useIrohPublicNetwork || restarting,
-										'aria-label': m['pages.network.relay_settings.custom_relays.remove']()
-									}}
-								>
-									<Trash2Icon size={14} />
-								</AcerolaButtonIcon>
-							</div>
-						{/each}
-					</div>
-
-					<div class="flex items-center gap-2">
-						<AcerolaInput
-							state={{ value: customUrlDraft }}
-							events={{
-								onValueChange: (value) => {
-									customUrlDraft = value;
-									customUrlError = false;
-								}
-							}}
-							ui={{
-								placeholder: m['pages.network.relay_settings.custom_relays.add_placeholder'](),
-								class: 'flex-1',
-								disabled: safeData.useIrohPublicNetwork || restarting
-							}}
-						/>
-						<AcerolaButton
-							events={{ onClick: submitCustomUrl }}
-							ui={{
-								size: 'sm',
-								disabled: !customUrlDraft.trim() || safeData.useIrohPublicNetwork || restarting
-							}}
+			{#snippet children()}
+				<div class="space-y-2" use:autoAnimateList>
+					{#each safeData.customRelayUrls as url (url)}
+						<div
+							class="flex items-center justify-between gap-3 rounded-xl border border-border bg-background/50 p-3"
 						>
-							<PlusIcon size={14} />
-							{m['pages.network.relay_settings.custom_relays.add_button']()}
-						</AcerolaButton>
-					</div>
-					{#if customUrlError}
-						<p class="text-xs text-destructive">
-							{m['pages.network.relay_settings.invalid_url']()}
-						</p>
-					{/if}
+							<span class="min-w-0 flex-1 truncate text-sm text-foreground">{url}</span>
+							<AcerolaButtonIcon
+								events={{ onClick: () => removeCustomUrl(url) }}
+								ui={{
+									variant: 'ghost',
+									class:
+										'size-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive',
+									disabled: safeData.useIrohPublicNetwork || restarting,
+									'aria-label': m['pages.network.relay_settings.custom_relays.remove']()
+								}}
+							>
+								<Trash2Icon size={14} />
+							</AcerolaButtonIcon>
+						</div>
+					{/each}
 				</div>
-			{/if}
-		</div>
+
+				<div class="flex items-center gap-2">
+					<AcerolaInput
+						state={{ value: customUrlDraft }}
+						events={{
+							onValueChange: (value) => {
+								customUrlDraft = value;
+								customUrlError = false;
+							}
+						}}
+						ui={{
+							placeholder: m['pages.network.relay_settings.custom_relays.add_placeholder'](),
+							class: 'flex-1',
+							disabled: safeData.useIrohPublicNetwork || restarting
+						}}
+					/>
+					<AcerolaButton
+						events={{ onClick: submitCustomUrl }}
+						ui={{
+							size: 'sm',
+							disabled: !customUrlDraft.trim() || safeData.useIrohPublicNetwork || restarting
+						}}
+					>
+						<PlusIcon size={14} />
+						{m['pages.network.relay_settings.custom_relays.add_button']()}
+					</AcerolaButton>
+				</div>
+				{#if customUrlError}
+					<p class="text-xs text-destructive">
+						{m['pages.network.relay_settings.invalid_url']()}
+					</p>
+				{/if}
+			{/snippet}
+		</AcerolaToggleCard>
 
 		<!-- Card 3: rede pública Iroh — a linha inteira liga/desliga (exclusivo com os outros
 		     dois, trava sem ticket configurado); gerenciar o ticket é uma ação à parte, dentro

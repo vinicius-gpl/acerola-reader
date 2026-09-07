@@ -37,6 +37,9 @@ describe('AcerolaBookmarkManager', () => {
 		const user = userEvent.setup();
 		render(AcerolaBookmarkManager);
 
+		// Formulário de criação fica atrás de um card colapsado por padrão.
+		await user.click(screen.getByRole('button', { name: /Add Bookmark|Adicionar Marcador/i }));
+
 		const nameInput = await screen.findByLabelText(/nome|name/i);
 		await user.type(nameInput, 'Favoritos');
 		await user.click(screen.getByRole('button', { name: /criar|create/i }));

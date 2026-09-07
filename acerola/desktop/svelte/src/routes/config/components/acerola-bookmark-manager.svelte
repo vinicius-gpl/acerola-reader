@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
+	import AcerolaToggleCard from '$lib/components/acerola-toggle-card/acerola-toggle-card.svelte';
 	import { useBookmarks } from '$lib/hooks/store/use-bookmarks.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { autoAnimateList } from '$lib/utils/auto-animate.utils';
@@ -10,6 +11,11 @@
 	import PlusIcon from '@lucide/svelte/icons/plus';
 
 	const bookmarkStore = useBookmarks();
+
+	// A criação de marcador fica atrás de uma "gaveta" colapsada por padrão — 19 opções de cor
+	// sempre visíveis eram o maior peso de texto/UI da tela de Config antes de existir aqui. A
+	// lista de marcadores já criados continua sempre visível logo abaixo, sem precisar expandir.
+	let createExpanded = $state(false);
 
 	const CATEGORY_COLORS = [
 		0xfff44336, 0xffe91e63, 0xff9c27b0, 0xff673ab7, 0xff3f51b5, 0xff2196f3, 0xff03a9f4, 0xff00bcd4,
@@ -30,56 +36,68 @@
 		<div class="rounded-2xl border border-border/40 bg-card/50 p-6 backdrop-blur-sm">
 			<p class="mb-4 text-sm text-muted-foreground">{m['pages.config.bookmarks.desc']()}</p>
 
-			<div class="mb-6 space-y-6">
-				<!-- Row 1: Name and Button -->
-				<div class="flex items-end gap-4">
-					<div class="flex-1 space-y-1">
-						<label for="bookmarkName" class="text-xs font-semibold"
-							>{m['pages.config.bookmarks.name']()}</label
-						>
-						<Input
-							id="bookmarkName"
-							placeholder={m['pages.config.bookmarks.name']()}
-							bind:value={newBookmarkName}
-							class="h-10 bg-background text-foreground"
-						/>
-					</div>
-					<Button
-						disabled={!newBookmarkName.trim() || bookmarkStore.isLoading}
-						onclick={async () => {
-							await bookmarkStore.createBookmark(newBookmarkName, newBookmarkColor);
-							newBookmarkName = '';
-						}}
-						class="h-10 gap-2 px-6"
-					>
-						<PlusIcon size={16} />
-						{m['pages.config.bookmarks.create']()}
-					</Button>
-				</div>
+			<div class="mb-6">
+				<AcerolaToggleCard
+					data={{ title: m['pages.config.bookmarks.add']() }}
+					state={{ active: false, expanded: createExpanded }}
+					events={{ onClick: () => (createExpanded = !createExpanded) }}
+				>
+					{#snippet icon()}
+						<PlusIcon size={18} />
+					{/snippet}
 
-				<!-- Row 2: Colors -->
-				<div class="space-y-2">
-					<span class="block text-xs font-semibold">{m['pages.config.bookmarks.color']()}</span>
-					<div class="flex flex-wrap gap-2">
-						{#each CATEGORY_COLORS as hexColor}
-							{@const hexLabel = '#' + (hexColor & 0xffffff).toString(16).padStart(6, '0')}
-							<button
-								type="button"
-								class="relative h-8 w-8 cursor-pointer rounded-full transition-transform hover:scale-110"
-								style="background-color: {hexLabel}"
-								onclick={() => (newBookmarkColor = hexColor)}
-								aria-label={m['pages.config.bookmarks.color_option']({ hex: hexLabel })}
-								aria-pressed={newBookmarkColor === hexColor}
+					{#snippet children()}
+						<!-- Row 1: Name and Button -->
+						<div class="flex items-end gap-4">
+							<div class="flex-1 space-y-1">
+								<label for="bookmarkName" class="text-xs font-semibold"
+									>{m['pages.config.bookmarks.name']()}</label
+								>
+								<Input
+									id="bookmarkName"
+									placeholder={m['pages.config.bookmarks.name']()}
+									bind:value={newBookmarkName}
+									class="h-10 bg-background text-foreground"
+								/>
+							</div>
+							<Button
+								disabled={!newBookmarkName.trim() || bookmarkStore.isLoading}
+								onclick={async () => {
+									await bookmarkStore.createBookmark(newBookmarkName, newBookmarkColor);
+									newBookmarkName = '';
+								}}
+								class="h-10 gap-2 px-6"
 							>
-								{#if newBookmarkColor === hexColor}
-									<div
-										class="absolute inset-0 rounded-full border-2 border-primary ring-2 ring-background"
-									></div>
-								{/if}
-							</button>
-						{/each}
-					</div>
-				</div>
+								<PlusIcon size={16} />
+								{m['pages.config.bookmarks.create']()}
+							</Button>
+						</div>
+
+						<!-- Row 2: Colors -->
+						<div class="space-y-2">
+							<span class="block text-xs font-semibold">{m['pages.config.bookmarks.color']()}</span>
+							<div class="flex flex-wrap gap-2">
+								{#each CATEGORY_COLORS as hexColor}
+									{@const hexLabel = '#' + (hexColor & 0xffffff).toString(16).padStart(6, '0')}
+									<button
+										type="button"
+										class="relative h-8 w-8 cursor-pointer rounded-full transition-transform hover:scale-110"
+										style="background-color: {hexLabel}"
+										onclick={() => (newBookmarkColor = hexColor)}
+										aria-label={m['pages.config.bookmarks.color_option']({ hex: hexLabel })}
+										aria-pressed={newBookmarkColor === hexColor}
+									>
+										{#if newBookmarkColor === hexColor}
+											<div
+												class="absolute inset-0 rounded-full border-2 border-primary ring-2 ring-background"
+											></div>
+										{/if}
+									</button>
+								{/each}
+							</div>
+						</div>
+					{/snippet}
+				</AcerolaToggleCard>
 			</div>
 
 			<div class="space-y-2" use:autoAnimateList>
