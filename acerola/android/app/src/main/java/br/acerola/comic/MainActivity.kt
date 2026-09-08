@@ -81,9 +81,6 @@ class MainActivity(
                 onNavigateToTemplates = {
                     navController.navigate(context.getString(Destination.PATTERN.route))
                 },
-                onNavigateToSync = {
-                    navController.navigate(context.getString(Destination.SYNC.route))
-                },
             )
         }
         defaultComposable(context, Destination.PATTERN) {
@@ -92,9 +89,7 @@ class MainActivity(
             )
         }
         defaultComposable(context, Destination.SYNC) {
-            Main.Sync.Template.Screen(
-                onBack = { navController.popBackStack() },
-            )
+            Main.Sync.Template.Screen()
         }
     }
 
@@ -114,7 +109,6 @@ class MainActivity(
                 getString(R.string.navigation_launcher),
                 getString(Destination.TUTORIAL.route),
                 getString(Destination.PATTERN.route),
-                getString(Destination.SYNC.route),
             )
         if (currentRoute !in hiddenRoutes) {
             Acerola.Component.BottomBar(navController, hazeState)
@@ -130,7 +124,6 @@ class MainActivity(
                 getString(R.string.navigation_launcher),
                 getString(Destination.TUTORIAL.route),
                 getString(Destination.PATTERN.route),
-                getString(Destination.SYNC.route),
             )
         if (currentRoute !in hiddenRoutes) {
             Acerola.Component.SideBar(navController)

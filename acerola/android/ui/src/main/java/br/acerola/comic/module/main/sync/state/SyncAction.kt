@@ -86,4 +86,12 @@ sealed interface SyncAction {
      *  identidade/storage), estilo LocalSend. Escape hatch pra quando a troca ao vivo de relay
      *  não é suficiente (ex: conexão presa depois de uma troca de rede física do SO). */
     data object RestartP2p : SyncAction
+
+    /** Rebusca o histórico persistido — mesmo botão "Atualizar" do log de Transferências no
+     *  Desktop. Preserva qualquer sessão ao vivo em andamento (ver [SyncViewModel]). */
+    data object RefreshTransferLog : SyncAction
+
+    /** Apaga de vez o histórico de transferências persistido — mesmo botão "Limpar" do
+     *  Desktop, irreversível (a UI já confirma com o usuário antes de chamar). */
+    data object ClearTransferLog : SyncAction
 }

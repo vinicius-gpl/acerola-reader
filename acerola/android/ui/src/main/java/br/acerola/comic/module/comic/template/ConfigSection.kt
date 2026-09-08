@@ -107,14 +107,17 @@ fun Comic.Template.configSection(
         }
     }
 
-    // NOTE: Arquivos Locais
+    // NOTE: Arquivos Locais — fica sempre aberta (flat), mesmo mix de UI/UX já usado na tela
+    // de Rede e no Config principal: "Sincronização" (metadados, arquivos e dispositivos) é a
+    // parte mais usada dessa tela, não vale esconder atrás de um clique.
     scope.item {
         Acerola.Component.AccordionCard(
             title = stringResource(id = R.string.title_text_archive_configs_in_app),
             icon = Icons.Default.Folder,
             accentColor = MaterialTheme.colorScheme.tertiary,
-            expanded = "files" in expandedCategories,
-            onToggleExpanded = { onToggleCategory("files") },
+            expanded = true,
+            onToggleExpanded = {},
+            collapsible = false,
             modifier = categoryModifier,
         ) {
             Comic.Component.SyncMangaArchive(
@@ -135,14 +138,16 @@ fun Comic.Template.configSection(
         }
     }
 
-    // NOTE: Metadados Externos
+    // NOTE: Metadados Externos — fica sempre aberta (flat), mesmo raciocínio do "Arquivos
+    // Locais" acima.
     scope.item {
         Acerola.Component.AccordionCard(
             title = stringResource(id = R.string.title_sync_external_metadata),
             icon = Icons.Default.Public,
             accentColor = MaterialTheme.colorScheme.primary,
-            expanded = "metadata" in expandedCategories,
-            onToggleExpanded = { onToggleCategory("metadata") },
+            expanded = true,
+            onToggleExpanded = {},
+            collapsible = false,
             modifier = categoryModifier,
         ) {
             Comic.Component.ComicExternalSyncToggle(
@@ -202,14 +207,16 @@ fun Comic.Template.configSection(
         }
     }
 
-    // NOTE: Sincronização entre Dispositivos (acerola/sync-comic/1)
+    // NOTE: Sincronização entre Dispositivos (acerola/sync-comic/1) — fica sempre aberta
+    // (flat), mesmo raciocínio das duas seções acima.
     scope.item {
         Acerola.Component.AccordionCard(
             title = stringResource(id = R.string.title_config_sync_devices),
             icon = Icons.Default.Sync,
             accentColor = MaterialTheme.colorScheme.secondary,
-            expanded = "sync_devices" in expandedCategories,
-            onToggleExpanded = { onToggleCategory("sync_devices") },
+            expanded = true,
+            onToggleExpanded = {},
+            collapsible = false,
             modifier = categoryModifier,
         ) {
             var showPeerPicker by remember { mutableStateOf(false) }

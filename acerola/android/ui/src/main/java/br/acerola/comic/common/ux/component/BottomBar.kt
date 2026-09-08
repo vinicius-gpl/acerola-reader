@@ -46,6 +46,7 @@ private val navDestinations =
     listOf(
         Destination.HOME,
         Destination.HISTORY,
+        Destination.SYNC,
         Destination.CONFIG,
     )
 

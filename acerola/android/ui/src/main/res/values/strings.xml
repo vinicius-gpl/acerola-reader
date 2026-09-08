@@ -136,6 +136,11 @@
 
     <string name="title_sync_activity_log">Transferências</string>
     <string name="label_sync_activity_log_empty">Nenhuma transferência em andamento.</string>
+    <string name="action_sync_activity_log_refresh">Atualizar</string>
+    <string name="action_sync_activity_log_clear">Limpar</string>
+    <string name="title_sync_activity_log_clear_confirm">Limpar histórico de transferências?</string>
+    <string name="description_sync_activity_log_clear_confirm">Remove todo o histórico de sincronizações persistido. Essa ação não pode ser desfeita.</string>
+    <string name="action_sync_activity_log_clear_confirm">Sim, limpar tudo</string>
 
     <string name="log_sync_history_started">Sincronizando histórico…</string>
     <string name="log_sync_history_complete">Histórico sincronizado.</string>

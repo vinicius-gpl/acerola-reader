@@ -60,10 +60,16 @@ fun Acerola.Component.AccordionCard(
     // a borda do card e o fundo do ícone. Papéis do MaterialTheme em vez de hex fixos porque
     // são os únicos tons garantidos por todos os temas do app (Catppuccin, Dracula, Nord...).
     accentColor: Color = MaterialTheme.colorScheme.outline,
+    // `false` renderiza a seção sempre aberta, sem chevron nem clique no cabeçalho — pra
+    // misturar, numa mesma tela, seções que valem a pena ver de cara com outras densas o
+    // bastante pra ficarem escondidas por padrão (mesmo mix já usado na tela de Rede do
+    // desktop, ver `ui.collapsible` em `acerola-accordion-card.svelte`).
+    collapsible: Boolean = true,
     icon: @Composable (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val chevronRotation by animateFloatAsState(targetValue = if (expanded) 90f else 0f, label = "accordion_chevron_rotation")
+    val headerModifier = if (collapsible) Modifier.clickable(onClick = onToggleExpanded) else Modifier
 
     Surface(
         shape = AccordionShape,
@@ -79,7 +85,7 @@ fun Acerola.Component.AccordionCard(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .clickable(onClick = onToggleExpanded)
+                        .then(headerModifier)
                         .padding(SpacingTokens.ExtraLarge),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -118,20 +124,22 @@ fun Acerola.Component.AccordionCard(
                     }
                 }
 
-                Spacer(modifier = Modifier.width(SpacingTokens.Small))
+                if (collapsible) {
+                    Spacer(modifier = Modifier.width(SpacingTokens.Small))
 
-                Icon(
-                    imageVector = Icons.Default.ChevronRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier =
-                        Modifier
-                            .size(SizeTokens.IconMedium)
-                            .graphicsLayer { rotationZ = chevronRotation },
-                )
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier =
+                            Modifier
+                                .size(SizeTokens.IconMedium)
+                                .graphicsLayer { rotationZ = chevronRotation },
+                    )
+                }
             }
 
-            if (expanded) {
+            if (!collapsible || expanded) {
                 HorizontalDivider(
                     modifier =
                         Modifier
@@ -158,6 +166,7 @@ fun Acerola.Component.AccordionCard(
     modifier: Modifier = Modifier,
     description: String? = null,
     accentColor: Color = MaterialTheme.colorScheme.outline,
+    collapsible: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Acerola.Component.AccordionCard(
@@ -167,6 +176,7 @@ fun Acerola.Component.AccordionCard(
         modifier = modifier,
         description = description,
         accentColor = accentColor,
+        collapsible = collapsible,
         icon = {
             Icon(
                 imageVector = icon,
