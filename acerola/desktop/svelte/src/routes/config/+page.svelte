@@ -158,14 +158,14 @@
 		}
 	}
 
-	// Cor de borda no hover de cada categoria — combina com a cor do ícone (mesma paleta
-	// chart-N), reforçando a identidade visual de cada card no hover.
+	// Cor de borda no hover de cada categoria colapsável — combina com a cor do ícone (mesma
+	// paleta chart-N), reforçando a identidade visual de cada card no hover. Aparência e
+	// Marcadores não entram aqui: ficam sempre abertas (`ui.collapsible: false`), sem clique
+	// nenhum pra destacar no hover.
 	const CATEGORY_HOVER_BORDER: Record<string, string> = {
 		files: 'hover:border-chart-5/60',
 		library: 'hover:border-chart-3/60',
-		appearance: 'hover:border-chart-1/60',
-		metadata: 'hover:border-chart-4/60',
-		bookmarks: 'hover:border-chart-2/60'
+		metadata: 'hover:border-chart-4/60'
 	};
 </script>
 
@@ -337,15 +337,17 @@
 			{/snippet}
 		</AcerolaAccordionCard>
 
-		<!-- Aparência -->
+		<!-- Aparência — fica sempre aberta (flat): é uma seção curta e visual (grid de temas),
+		     vale mais a pena ver de cara do que esconder atrás de um clique. Mesmo espírito da
+		     tela de Rede, onde nem toda seção precisa colapsar. -->
 		<AcerolaAccordionCard
 			data={{
 				title: m['pages.config.components.theme_piker'](),
 				description: m['pages.config.categories.appearance.desc']()
 			}}
-			state={{ expanded: expandedCategories.has('appearance') }}
-			events={{ onToggle: () => toggleCategory('appearance') }}
-			ui={{ class: CATEGORY_HOVER_BORDER.appearance }}
+			state={{ expanded: true }}
+			events={{ onToggle: () => {} }}
+			ui={{ collapsible: false }}
 		>
 			{#snippet icon()}
 				<PaletteIcon class="text-chart-1" size={24} />
@@ -512,15 +514,17 @@
 			{/snippet}
 		</AcerolaAccordionCard>
 
-		<!-- Marcadores -->
+		<!-- Marcadores — fica sempre aberta (flat): é a tela de gerenciamento mais usada aqui, e
+		     o formulário de criar marcador já colapsa por conta própria lá dentro (ver
+		     acerola-bookmark-manager.svelte), então abrir de cara não sobrecarrega a tela. -->
 		<AcerolaAccordionCard
 			data={{
 				title: m['pages.config.bookmarks.title'](),
 				description: m['pages.config.categories.bookmarks.desc']()
 			}}
-			state={{ expanded: expandedCategories.has('bookmarks') }}
-			events={{ onToggle: () => toggleCategory('bookmarks') }}
-			ui={{ class: CATEGORY_HOVER_BORDER.bookmarks }}
+			state={{ expanded: true }}
+			events={{ onToggle: () => {} }}
+			ui={{ collapsible: false }}
 		>
 			{#snippet icon()}
 				<BookmarkIcon class="text-chart-2" size={24} />

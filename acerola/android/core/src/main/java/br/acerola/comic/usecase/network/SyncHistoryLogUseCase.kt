@@ -26,4 +26,6 @@ class SyncHistoryLogUseCase
         }
 
         suspend fun findRecent(limit: Int): List<SyncHistoryLog> = dao.findRecent(limit)
+
+        suspend fun clearAll() = dao.deleteAll()
     }

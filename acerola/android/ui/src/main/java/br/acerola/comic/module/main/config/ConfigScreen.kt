@@ -15,7 +15,6 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.rounded.Bookmark
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -41,7 +40,6 @@ import br.acerola.comic.common.state.LocalSnackbarHostState
 import br.acerola.comic.common.state.SyncActionVisualState
 import br.acerola.comic.common.ux.Acerola
 import br.acerola.comic.common.ux.component.AccordionCard
-import br.acerola.comic.common.ux.component.HeroButton
 import br.acerola.comic.common.ux.component.SnackbarVariant
 import br.acerola.comic.common.ux.component.showSnackbar
 import br.acerola.comic.common.ux.theme.AcerolaTheme
@@ -81,7 +79,6 @@ fun Main.Config.Template.Screen(
     comicDexViewModel: ComicMetadataViewModel = hiltViewModel(),
     themeViewModel: ThemeViewModel = hiltViewModel(),
     onNavigateToTemplates: () -> Unit,
-    onNavigateToSync: () -> Unit,
 ) {
     val context = LocalContext.current
     val snackbarHostState = LocalSnackbarHostState.current
@@ -210,7 +207,6 @@ fun Main.Config.Template.Screen(
             is ConfigAction.CreateCategory -> comicDexViewModel.createCategory(action.name, action.color)
             is ConfigAction.DeleteCategory -> comicDexViewModel.deleteCategory(action.id)
             ConfigAction.NavigateToTemplateConfig -> onNavigateToTemplates()
-            ConfigAction.NavigateToSync -> onNavigateToSync()
         }
     }
 
@@ -274,13 +270,15 @@ fun Main.Config.Template.Screen(
                     )
                 }
 
-                // NOTE: Aparência
+                // NOTE: Aparência — fica sempre aberta (flat): mesmo mix já usado na tela de
+                // Rede do desktop, nem toda seção precisa de um clique pra ver o conteúdo.
                 Acerola.Component.AccordionCard(
                     title = stringResource(id = R.string.title_settings_appearance),
                     icon = Icons.Default.Palette,
                     accentColor = MaterialTheme.colorScheme.tertiary,
-                    expanded = "appearance" in expandedCategories,
-                    onToggleExpanded = { toggleCategory("appearance") },
+                    expanded = true,
+                    onToggleExpanded = {},
+                    collapsible = false,
                     modifier = categoryModifier,
                 ) {
                     Main.Config.Component.ThemeSettings(
@@ -289,13 +287,15 @@ fun Main.Config.Template.Screen(
                     )
                 }
 
-                // NOTE: Categorias
+                // NOTE: Categorias — fica sempre aberta (flat), mesmo raciocínio do card
+                // Marcadores no desktop.
                 Acerola.Component.AccordionCard(
                     title = stringResource(id = R.string.title_config_categories),
                     icon = Icons.Rounded.Bookmark,
                     accentColor = MaterialTheme.colorScheme.primary,
-                    expanded = "categories" in expandedCategories,
-                    onToggleExpanded = { toggleCategory("categories") },
+                    expanded = true,
+                    onToggleExpanded = {},
+                    collapsible = false,
                     modifier = categoryModifier,
                 ) {
                     Main.Config.Component.GlobalCategoryManager(
@@ -327,25 +327,6 @@ fun Main.Config.Template.Screen(
                     Main.Config.Component.SyncAnilistData(
                         onRescan = { onAction(ConfigAction.SyncAnilistMetadata) },
                         state = getSyncActionVisualState(ConfigAction.SyncAnilistMetadata),
-                    )
-                }
-
-                // NOTE: Sincronização P2P
-                Acerola.Component.AccordionCard(
-                    title = stringResource(id = R.string.label_sync_activity),
-                    icon = Icons.Default.Sync,
-                    accentColor = MaterialTheme.colorScheme.tertiary,
-                    expanded = "p2p" in expandedCategories,
-                    onToggleExpanded = { toggleCategory("p2p") },
-                    modifier = categoryModifier,
-                ) {
-                    Acerola.Component.HeroButton(
-                        title = stringResource(id = R.string.label_sync_activity),
-                        description = stringResource(id = R.string.description_sync_activity),
-                        icon = Icons.Default.Sync,
-                        iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        iconBackground = MaterialTheme.colorScheme.primaryContainer,
-                        onClick = { onAction(ConfigAction.NavigateToSync) },
                     )
                 }
 

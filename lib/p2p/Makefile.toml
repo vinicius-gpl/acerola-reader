@@ -18,7 +18,7 @@ args = [
 description = "Quickly check if the library compiles (including test code)"
 workspace = false
 command = "cargo"
-args = ["check", "--tests"]
+args = ["check", "--tests", "--all-features"]
 
 [tasks.build]
 description = "Build the library in debug mode"
@@ -42,19 +42,19 @@ args = ["clippy", "--all-targets", "--all-features", "--", "-D", "warnings"]
 description = "Run all tests using nextest"
 workspace = false
 command = "cargo"
-args = ["nextest", "run"]
+args = ["nextest", "run", "--all-features"]
 
 [tasks.test-verbose]
 description = "Run all tests using nextest with verbose output"
 workspace = false
 command = "cargo"
-args = ["nextest", "run", "--no-capture"]
+args = ["nextest", "run", "--all-features", "--no-capture"]
 
 [tasks.test-ci]
 description = "Run tests in CI profile (longer timeouts, no fail-fast)"
 workspace = false
 command = "cargo"
-args = ["nextest", "run", "--profile", "ci"]
+args = ["nextest", "run", "--all-features", "--profile", "ci"]
 
 [tasks.test-stress]
 description = "Run transport stress and validation tests with output"

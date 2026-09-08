@@ -1,7 +1,10 @@
 use sqlx::SqlitePool;
 
 use crate::{
-    data::{models::sync::SyncHistoryLogEntry, repositories::Repository},
+    data::{
+        models::sync::SyncHistoryLogEntry,
+        repositories::{Entity, Repository},
+    },
     infra::error::DbError,
 };
 
@@ -35,6 +38,15 @@ impl SyncHistoryLogRepository {
         .await?;
 
         Ok(rows)
+    }
+
+    /// Apaga todo o histórico de sync persistido — usado pelo botão "Limpar" da tela de Rede.
+    /// Não afeta o log ao vivo em memória do frontend (sessão atual), só o que sobrevive a
+    /// restart.
+    pub async fn delete_all(&self) -> Result<(), DbError> {
+        let table = SyncHistoryLogEntry::table_name();
+        sqlx::query(&format!("DELETE FROM {}", table)).execute(&self.pool).await?;
+        Ok(())
     }
 }
 
@@ -84,5 +96,25 @@ mod tests {
 
         let recent = repo.find_recent(3).await.unwrap();
         assert_eq!(recent.len(), 3);
+    }
+
+    #[tokio::test]
+    async fn delete_all_removes_every_persisted_row() {
+        let pool = setup_test_db_with_comic().await;
+        let repo = SyncHistoryLogRepository::new(pool);
+
+        repo.base
+            .insert(&SyncHistoryLogEntry::new("peer-a", "history", "complete", None))
+            .await
+            .unwrap();
+        repo.base
+            .insert(&SyncHistoryLogEntry::new("peer-a", "files", "error", Some("boom")))
+            .await
+            .unwrap();
+
+        repo.delete_all().await.unwrap();
+
+        let recent = repo.find_recent(10).await.unwrap();
+        assert!(recent.is_empty());
     }
 }

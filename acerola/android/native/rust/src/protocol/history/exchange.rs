@@ -5,9 +5,7 @@ use std::{
 };
 
 use acerola_p2p::api::{error::P2pError, peer::PeerIdentity, protocol::EventEmitter};
-use futures::SinkExt;
 use tokio::io::{AsyncRead, AsyncWrite};
-use tokio_stream::StreamExt;
 use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
 
 use super::model::{HistoryManifest, HistorySyncStats};
@@ -15,30 +13,19 @@ use crate::{callbacks::HistorySyncProvider, protocol::ffi_blocking::run_blocking
 
 const MANIFEST_READ_TIMEOUT: Duration = Duration::from_secs(15);
 
-pub(super) type Recv = FramedRead<Box<dyn AsyncRead + Send + Unpin>, LengthDelimitedCodec>;
-pub(super) type Writer = FramedWrite<Box<dyn AsyncWrite + Send + Unpin>, LengthDelimitedCodec>;
+pub(super) use crate::protocol::framing::{Recv, Writer};
 
+/// Fina camada sobre `framing::write_json`/`read_json` — ver comentário equivalente em
+/// `protocol/files/exchange.rs`.
 pub(super) async fn write_manifest(
     send: &mut Writer,
     manifest: &HistoryManifest,
 ) -> Result<(), P2pError> {
-    let bytes = serde_json::to_vec(manifest).map_err(|err| {
-        P2pError::StreamFailed(format!("failed to encode history manifest: {err}"))
-    })?;
-    send.send(bytes.into())
-        .await
-        .map_err(|err| P2pError::StreamFailed(format!("failed to write history manifest: {err}")))
+    crate::protocol::framing::write_json(send, manifest).await
 }
 
 pub(super) async fn read_manifest(recv: &mut Recv) -> Result<HistoryManifest, P2pError> {
-    let frame = tokio::time::timeout(MANIFEST_READ_TIMEOUT, recv.next())
-        .await
-        .map_err(|_| P2pError::StreamFailed("timed out reading history manifest".into()))?
-        .ok_or_else(|| P2pError::StreamFailed("stream closed before history manifest".into()))?
-        .map_err(|err| P2pError::StreamFailed(format!("failed to read history manifest: {err}")))?;
-
-    serde_json::from_slice(&frame)
-        .map_err(|err| P2pError::StreamFailed(format!("failed to decode history manifest: {err}")))
+    crate::protocol::framing::read_json(recv, MANIFEST_READ_TIMEOUT).await
 }
 
 /// Monta o manifesto local a partir do `provider` (Room, via Kotlin). As duas chamadas FFI

@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/svelte';
+import userEvent from '@testing-library/user-event';
 import AcerolaNetworkTransfersLog from './acerola-network-transfers-log.svelte';
 import type { TransferLogEntry } from '$lib/hooks/store/use-network-sync.svelte';
 
@@ -64,5 +65,60 @@ describe('AcerolaNetworkTransfersLog', () => {
 		});
 
 		expect(screen.getByText('raw-fallback-text')).toBeInTheDocument();
+	});
+
+	it('calls onRefresh when the refresh button is clicked', async () => {
+		const user = userEvent.setup();
+		const onRefresh = vi.fn();
+		render(AcerolaNetworkTransfersLog, {
+			props: {
+				data: { entries: [], peerLabel: (id: string) => id },
+				events: { onRefresh, onClear: vi.fn() }
+			}
+		});
+
+		await user.click(screen.getByRole('button', { name: /Refresh|Atualizar/i }));
+
+		expect(onRefresh).toHaveBeenCalled();
+	});
+
+	it('hides the clear button when there are no entries', () => {
+		render(AcerolaNetworkTransfersLog, {
+			props: {
+				data: { entries: [], peerLabel: (id: string) => id },
+				events: { onRefresh: vi.fn(), onClear: vi.fn() }
+			}
+		});
+
+		expect(screen.queryByRole('button', { name: /Clear|Limpar/i })).not.toBeInTheDocument();
+	});
+
+	it('calls onClear only after confirming the destructive dialog', async () => {
+		const user = userEvent.setup();
+		const onClear = vi.fn();
+		render(AcerolaNetworkTransfersLog, {
+			props: {
+				data: {
+					entries: [entry()],
+					peerLabel: () => 'Meu Notebook'
+				},
+				events: { onRefresh: vi.fn(), onClear }
+			}
+		});
+
+		// bits-ui AlertDialog.Trigger envolve o elemento filho em seu próprio <button>, então dois
+		// botões com o mesmo nome acessível existem — o gatilho externo é o índice 0 (mesmo padrão
+		// de `routes/history/__tests__/history.test.ts`).
+		const clearButtons = screen.getAllByRole('button', { name: /Clear|Limpar/i });
+		await user.click(clearButtons[0]);
+
+		expect(onClear).not.toHaveBeenCalled();
+
+		const confirmButton = await screen.findByRole('button', {
+			name: /Yes, clear everything|Sim, limpar tudo/i
+		});
+		await user.click(confirmButton);
+
+		expect(onClear).toHaveBeenCalled();
 	});
 });

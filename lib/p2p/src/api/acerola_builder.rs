@@ -250,13 +250,14 @@ impl<TB: TransportP2pBuilder> AcerolaP2pBuilder<TB> {
             manager.register_outbound(&alpn, handler);
         });
 
-        tokio::spawn(manager.run());
+        let run_handle = tokio::spawn(manager.run());
         Ok(AcerolaP2p {
             command_tx,
             local_id,
             state,
             device_info,
             transport: transport as Arc<dyn P2pTransport>,
+            run_handle: tokio::sync::Mutex::new(Some(run_handle)),
         })
     }
 }

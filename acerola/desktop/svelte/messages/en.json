@@ -168,6 +168,10 @@
 			"navigation_group": "Navigation",
 			"library_group": "Library",
 			"no_results": "No comics found."
+		},
+		"sync_indicator": {
+			"syncing": "Syncing with {peer}",
+			"tooltip": "View details in the Network tab"
 		}
 	},
 	"routes": {
@@ -740,7 +744,6 @@
 				"use_acerola_relay_desc": "Managed automatically ({url}).",
 				"use_iroh_public_network": "Use Iroh Services (own account)",
 				"use_iroh_public_network_desc": "Authenticated with your own account's ticket from services.iroh.computer — can't be combined with the sources below.",
-				"exclusive_note": "Disabled while Iroh Services is active.",
 				"use_iroh_public_network_disabled_hint": "Configure a ticket below to enable this source.",
 				"iroh_services_ticket": {
 					"label": "Iroh Services ticket",
@@ -758,12 +761,20 @@
 					"add_placeholder": "https://your-relay.example.com",
 					"add_button": "Add custom relay",
 					"empty": "No custom relay added.",
+					"count": "{count} configured",
 					"remove": "Remove custom relay"
 				},
 				"invalid_url": "Enter a valid URL (e.g. https://relay.example.com).",
 				"summary_mdns_only": "Local network only (mDNS) — no relay active, only devices on the same network can connect.",
 				"summary_iroh_public": "Using Iroh's public relay network.",
-				"summary_active": "{count} relay source(s) active."
+				"summary_active": "{count} relay source(s) active.",
+				"restart": {
+					"button": "Restart P2P module",
+					"description": "Shuts down and relaunches the P2P connection from scratch — useful if the connection got stuck after switching networks or relays.",
+					"restarting": "Restarting...",
+					"success": "P2P module restarted.",
+					"error": "Couldn't restart the P2P module."
+				}
 			},
 			"pairing": {
 				"title": "Connection code",
@@ -779,6 +790,7 @@
 				"title": "Connect to a device",
 				"placeholder": "Paste the connection code here",
 				"button": "Connect",
+				"loading": "Connecting...",
 				"success": "Connected!",
 				"error": "Couldn't connect. Make sure the code is correct and the other device has Acerola open.",
 				"invalid_code": "Invalid code. Make sure you copied the full code from the other device."
@@ -819,7 +831,15 @@
 				"comic_started": "Syncing comic with {peer}...",
 				"comic_progress": "Transferring {item}...",
 				"comic_complete": "Comic synced with {peer}.",
-				"comic_error": "Failed to sync comic: {msg}"
+				"comic_error": "Failed to sync comic: {msg}",
+				"refresh": "Refresh",
+				"clear": {
+					"button": "Clear",
+					"title": "Clear transfer history?",
+					"desc": "Removes the entire persisted sync history. This can't be undone.",
+					"cancel": "Cancel",
+					"confirm": "Yes, clear everything"
+				}
 			},
 			"remote_library": {
 				"title": "Remote library",

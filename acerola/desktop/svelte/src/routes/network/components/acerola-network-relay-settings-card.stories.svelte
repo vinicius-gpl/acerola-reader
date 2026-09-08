@@ -16,15 +16,15 @@
 		}
 	});
 
-	const noop = () => {};
 	const noopAsync = async () => {};
 	const events = {
-		onToggleAcerolaRelay: noop,
-		onToggleIrohPublicNetwork: noop,
-		onAddCustomRelayUrl: noop,
-		onRemoveCustomRelayUrl: noop,
+		onToggleAcerolaRelay: noopAsync,
+		onToggleIrohPublicNetwork: noopAsync,
+		onAddCustomRelayUrl: noopAsync,
+		onRemoveCustomRelayUrl: noopAsync,
 		onSetIrohServicesTicket: noopAsync,
-		onClearIrohServicesTicket: noopAsync
+		onClearIrohServicesTicket: noopAsync,
+		onRestart: noopAsync
 	};
 </script>
 

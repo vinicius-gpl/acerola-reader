@@ -2,4 +2,18 @@
     <string name="app_name">core</string>
     <string name="p2p_sync_notification_title">Sincronizando com dispositivo</string>
     <string name="p2p_sync_notification_description">Transferência P2P em andamento — mantendo a conexão ativa em segundo plano.</string>
+
+    <!-- Notificação de RESULTADO (auto-cancelável) de uma sessão de sync — disparada por
+         P2pSyncCoordinator, singleton independente de qualquer tela (ver TODO.md: "Callback
+         visual/notificação de sync global"). Diferente da notificação ONGOING de
+         P2pSyncForegroundService acima (indeterminada, id próprio). -->
+    <string name="notification_sync_files_complete_title">Sincronização de arquivos concluída</string>
+    <string name="notification_sync_files_complete_content">%1$d recebido(s), %2$d enviado(s)</string>
+    <string name="notification_sync_files_complete_content_with_failures">%1$d recebido(s), %2$d enviado(s) — %3$d falharam</string>
+    <string name="notification_sync_files_error_title">Sincronização de arquivos falhou</string>
+
+    <!-- Contraparte de notification_sync_files_* para a sessão de sync-history. -->
+    <string name="notification_sync_history_complete_title">Sincronização de histórico concluída</string>
+    <string name="notification_sync_history_complete_content">%1$d progresso(s) e %2$d leitura(s) aplicados</string>
+    <string name="notification_sync_history_error_title">Sincronização de histórico falhou</string>
 </resources>

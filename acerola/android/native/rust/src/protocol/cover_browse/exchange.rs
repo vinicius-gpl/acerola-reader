@@ -1,10 +1,7 @@
 use std::{sync::Arc, time::Duration};
 
 use acerola_p2p::api::{error::P2pError, peer::PeerIdentity};
-use futures::SinkExt;
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite};
-use tokio_stream::StreamExt;
-use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
+use tokio::io::AsyncReadExt;
 
 use super::model::{
     CoverRequest, CoverResponse, STATUS_CHANGED, STATUS_NOT_MODIFIED, STATUS_UNAVAILABLE,
@@ -16,27 +13,16 @@ use crate::{
 
 const FRAME_READ_TIMEOUT: Duration = Duration::from_secs(15);
 
-type Recv = FramedRead<Box<dyn AsyncRead + Send + Unpin>, LengthDelimitedCodec>;
-type Writer = FramedWrite<Box<dyn AsyncWrite + Send + Unpin>, LengthDelimitedCodec>;
+use crate::protocol::framing::{Recv, Writer};
 
+/// Fina camada sobre `framing::write_json`/`read_json` — ver comentário equivalente em
+/// `protocol/files/exchange.rs`.
 async fn write_json<T: serde::Serialize>(writer: &mut Writer, value: &T) -> Result<(), P2pError> {
-    let bytes = serde_json::to_vec(value)
-        .map_err(|err| P2pError::StreamFailed(format!("failed to encode cover message: {err}")))?;
-    writer
-        .send(bytes.into())
-        .await
-        .map_err(|err| P2pError::StreamFailed(format!("failed to write cover message: {err}")))
+    crate::protocol::framing::write_json(writer, value).await
 }
 
 async fn read_json<T: serde::de::DeserializeOwned>(reader: &mut Recv) -> Result<T, P2pError> {
-    let frame = tokio::time::timeout(FRAME_READ_TIMEOUT, reader.next())
-        .await
-        .map_err(|_| P2pError::StreamFailed("timed out reading cover message".into()))?
-        .ok_or_else(|| P2pError::StreamFailed("stream closed before cover message".into()))?
-        .map_err(|err| P2pError::StreamFailed(format!("failed to read cover message: {err}")))?;
-
-    serde_json::from_slice(&frame)
-        .map_err(|err| P2pError::StreamFailed(format!("failed to decode cover message: {err}")))
+    crate::protocol::framing::read_json(reader, FRAME_READ_TIMEOUT).await
 }
 
 /// Papel inbound: lê `CoverRequest`, resolve a capa local (`CoverBrowseProvider::get_local_cover`)
@@ -147,6 +133,9 @@ pub(super) async fn run_outbound(
 
 #[cfg(test)]
 mod tests {
+    use tokio::io::{AsyncRead, AsyncWrite};
+    use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
+
     use super::*;
     use crate::{callbacks::FfiCoverEntry, protocol::files::transfer::InMemoryChapterTransfer};
 

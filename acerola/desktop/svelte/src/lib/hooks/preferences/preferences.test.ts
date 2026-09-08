@@ -402,4 +402,20 @@ describe('useRelaySettings', () => {
 		expect(invokeMock).toHaveBeenCalledWith(NETWORK_COMMANDS.clearIrohServicesTicket);
 		expect(hook.relayInfo?.hasIrohServicesTicket).toBe(false);
 	});
+
+	it('restartP2p calls the restart_p2p command', async () => {
+		invokeMock.mockResolvedValue(undefined);
+		const hook = await renderHook(useRelaySettings);
+
+		await hook.restartP2p();
+
+		expect(invokeMock).toHaveBeenCalledWith(NETWORK_COMMANDS.restartP2p);
+	});
+
+	it('restartP2p propagates a backend error', async () => {
+		invokeMock.mockRejectedValueOnce(new Error('restart failed'));
+		const hook = await renderHook(useRelaySettings);
+
+		await expect(hook.restartP2p()).rejects.toThrow('restart failed');
+	});
 });

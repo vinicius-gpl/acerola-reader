@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/svelte';
 import { userEvent } from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { CONTEXT_KEYS } from '$lib/constants/context-keys';
 import HistoryPage from '../+page.svelte';
 
 vi.mock('$app/navigation', () => ({
@@ -84,6 +85,33 @@ function setupInvokeMock(overrides: Record<string, unknown> = {}) {
 	);
 }
 
+// `sync` agora vem do contexto compartilhado com `+layout.svelte` (ver
+// `CONTEXT_KEYS.networkSync`), não de uma instância própria da página — sem prover esse
+// contexto aqui, `getContext(...)` devolve `undefined` e o primeiro acesso a `sync.log`
+// (dentro do `$effect` da página) explode.
+function renderHistoryPage() {
+	return render(HistoryPage, {
+		context: new Map([
+			[
+				CONTEXT_KEYS.networkSync,
+				{
+					log: [],
+					isSyncing: () => false,
+					lastSyncedAt: () => undefined,
+					activeSession: () => undefined,
+					activeProgressMessage: () => undefined,
+					syncHistory: vi.fn(),
+					syncFiles: vi.fn(),
+					syncComic: vi.fn(),
+					syncAll: vi.fn(),
+					startListening: vi.fn(),
+					stopListening: vi.fn()
+				}
+			]
+		])
+	});
+}
+
 describe('HistoryPage', () => {
 	beforeEach(() => {
 		vi.resetAllMocks();
@@ -94,7 +122,7 @@ describe('HistoryPage', () => {
 	it('renders empty state when there is no history', async () => {
 		// Renderiza o empty state quando não houver histórico
 		setupInvokeMock({ history_get_all: [] });
-		render(HistoryPage);
+		renderHistoryPage();
 
 		await waitFor(() => {
 			expect(mockInvoke).toHaveBeenCalledWith('history_get_all', undefined);
@@ -106,7 +134,7 @@ describe('HistoryPage', () => {
 	it('renders history items successfully', async () => {
 		// Renderiza os itens de histórico com sucesso
 		setupInvokeMock({ history_get_all: mockHistoryData });
-		render(HistoryPage);
+		renderHistoryPage();
 
 		await waitFor(() => {
 			expect(screen.getByText('Comic 1')).toBeInTheDocument();
@@ -118,7 +146,7 @@ describe('HistoryPage', () => {
 		// Limpa o histórico ao clicar no botão de limpar
 		const user = userEvent.setup();
 		setupInvokeMock({ history_get_all: mockHistoryData });
-		render(HistoryPage);
+		renderHistoryPage();
 
 		await waitFor(() => {
 			expect(screen.getByText('Comic 1')).toBeInTheDocument();

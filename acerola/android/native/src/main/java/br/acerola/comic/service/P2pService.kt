@@ -318,6 +318,18 @@ class P2pService(
         }
     }
 
+    /** Desliga o node P2P atual e sobe um novo com a mesma identidade/storage/handlers —
+     *  estilo LocalSend. Diferente de [applyRelaySettings] (troca só o modo de relay num
+     *  `Endpoint` que continua vivo), isto derruba TODAS as conexões ativas por alguns
+     *  segundos; existe pro botão manual "Reiniciar" da tela de Rede, pra destravar uma
+     *  conexão presa depois de uma troca de rede física do SO que o [notifyNetworkChange]
+     *  sozinho não resolveu. `p2pNode` continua sendo o MESMO objeto FFI depois — o Rust troca
+     *  o node por baixo (`P2PNode::restart`, `RwLock` interno), não recria o handle. */
+    fun restart(relaySettings: RelaySettings) {
+        Log.d("P2pService", "Restarting p2p node")
+        p2pNode.restart(relaySettings.toFfi())
+    }
+
     fun shutdown() {
         runCatching { connectivityManager.unregisterNetworkCallback(networkCallback) }
         p2pNode.destroy()

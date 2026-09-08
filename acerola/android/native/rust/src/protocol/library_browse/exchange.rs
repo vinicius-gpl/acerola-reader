@@ -3,7 +3,6 @@ use std::{sync::Arc, time::Duration};
 use acerola_p2p::api::error::P2pError;
 use futures::SinkExt;
 use tokio::io::{AsyncRead, AsyncWrite};
-use tokio_stream::StreamExt;
 use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
 
 use super::model::{ComicSummaryEntry, LibrarySummary};
@@ -11,8 +10,7 @@ use crate::{callbacks::FileSyncProvider, protocol::ffi_blocking::run_blocking};
 
 const RESPONSE_READ_TIMEOUT: Duration = Duration::from_secs(15);
 
-type Recv = FramedRead<Box<dyn AsyncRead + Send + Unpin>, LengthDelimitedCodec>;
-type Writer = FramedWrite<Box<dyn AsyncWrite + Send + Unpin>, LengthDelimitedCodec>;
+use crate::protocol::framing::{Recv, Writer};
 
 /// Usa `get_library_summary()` (consulta só de Room/SQLite, sem SAF) em vez de
 /// `get_file_manifest()` — este último faz um `DocumentFile.exists()` por capítulo (uma
@@ -52,13 +50,7 @@ pub(super) async fn run_inbound(
     let summary = build_summary(provider).await?;
 
     let mut writer: Writer = FramedWrite::new(send, LengthDelimitedCodec::new());
-    let bytes = serde_json::to_vec(&summary).map_err(|err| {
-        P2pError::StreamFailed(format!("failed to encode library summary: {err}"))
-    })?;
-    writer
-        .send(bytes.into())
-        .await
-        .map_err(|err| P2pError::StreamFailed(format!("failed to write library summary: {err}")))
+    crate::protocol::framing::write_json(&mut writer, &summary).await
 }
 
 /// Papel outbound: escreve um marcador mínimo (`{}`) antes de esperar a resposta — sem essa
@@ -75,14 +67,7 @@ pub(super) async fn run_outbound(
     })?;
 
     let mut reader: Recv = FramedRead::new(recv, LengthDelimitedCodec::new());
-    let frame = tokio::time::timeout(RESPONSE_READ_TIMEOUT, reader.next())
-        .await
-        .map_err(|_| P2pError::StreamFailed("timed out reading library summary".into()))?
-        .ok_or_else(|| P2pError::StreamFailed("stream closed before library summary".into()))?
-        .map_err(|err| P2pError::StreamFailed(format!("failed to read library summary: {err}")))?;
-
-    serde_json::from_slice(&frame)
-        .map_err(|err| P2pError::StreamFailed(format!("failed to decode library summary: {err}")))
+    crate::protocol::framing::read_json(&mut reader, RESPONSE_READ_TIMEOUT).await
 }
 
 #[cfg(test)]

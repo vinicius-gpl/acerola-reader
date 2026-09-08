@@ -1,5 +1,5 @@
 use acerola_p2p::api::AcerolaP2p;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use tokio::runtime::Runtime;
 
 #[cfg(target_os = "android")]
@@ -74,10 +74,163 @@ pub struct FfiConnectedPeer {
     pub device_name: Option<String>,
 }
 
+/// Ingredientes estáveis (identidade, storage, handlers) pra montar um `AcerolaP2p` — extraído
+/// do corpo de `P2PNode::new` pra poder ser chamado de novo em `P2PNode::restart` sem duplicar a
+/// cadeia inteira do builder. Nenhum campo é consumido em `build()` (tudo `Arc`/`String`
+/// clonável), então o mesmo `P2pNodeContext` sobrevive a quantos restarts forem necessários —
+/// espelha `P2pNodeContext` do Desktop (`bios/network.rs`).
+#[cfg(target_os = "android")]
+struct P2pNodeContext {
+    emit: acerola_p2p::api::protocol::EventEmitter,
+    trust_store: Arc<SecureTrustedStore>,
+    storage: Arc<SecureP2pStorage>,
+    history_provider: Arc<dyn HistorySyncProvider>,
+    file_provider: Arc<dyn FileSyncProvider>,
+    cover_provider: Arc<dyn CoverBrowseProvider>,
+    file_sync_guard: Arc<FileSyncSessionGuard>,
+    pending_comic_scope: PendingComicScope,
+    pending_cover_scope: Arc<PendingCoverRequestRegistry>,
+    chapter_transfer: Arc<dyn ChapterTransfer>,
+    blob_context: Arc<crate::protocol::blob_context::BlobContext>,
+    device_name: String,
+    device_version: String,
+}
+
+/// Lê o ticket da Iroh Services logando qualquer falha real de backend — usado no boot
+/// (`P2PNode::new`), em `restart()` e em `apply_relay_settings()`. Sem isso, uma falha de
+/// leitura do cofre (não "sem ticket", mas um erro de fato) virava "sem ticket" em silêncio
+/// nesses dois últimos, escondendo exatamente o tipo de problema que essa robustez deveria
+/// deixar visível — só o construtor logava antes.
+#[cfg(target_os = "android")]
+fn load_iroh_services_ticket_logged(storage: &SecureP2pStorage) -> Option<String> {
+    storage.load_iroh_services_ticket().unwrap_or_else(|error| {
+        tracing::warn!(layer = "relay", error = %error, "failed to load Iroh Services ticket");
+        None
+    })
+}
+
+#[cfg(target_os = "android")]
+impl P2pNodeContext {
+    async fn build(&self, relay_mode: RelayModeConfig) -> Arc<AcerolaP2p> {
+        let transport = IrohTransportBuilder::default()
+            .relay_mode(relay_mode)
+            .blobs(IrohBlobsConfig::mem());
+
+        let device =
+            DefaultDeviceInfoProvider::new(self.device_name.clone(), self.device_version.clone())
+                .provide()
+                .expect("Failed to read device info");
+
+        let acerola_node = AcerolaP2p::builder(Arc::clone(&self.emit), transport, device)
+            .guard(
+                TofuGuard::new(Arc::clone(&self.trust_store)
+                    as Arc<dyn acerola_p2p::api::guard::TrustedPeerStore>)
+                .into_validator(),
+            )
+            .storage(SharedSecureP2pStorage(Arc::clone(&self.storage)))
+            .inbound(
+                HISTORY_SYNC_ALPN,
+                Arc::new(HistorySyncInbound::new(
+                    Arc::clone(&self.emit),
+                    Arc::clone(&self.history_provider),
+                )),
+            )
+            .outbound(
+                HISTORY_SYNC_ALPN,
+                Arc::new(HistorySyncOutbound::new(
+                    Arc::clone(&self.emit),
+                    Arc::clone(&self.history_provider),
+                )),
+            )
+            .inbound(
+                FILE_SYNC_ALPN,
+                Arc::new(FileSyncInbound::new(
+                    Arc::clone(&self.emit),
+                    Arc::clone(&self.file_provider),
+                    Arc::clone(&self.file_sync_guard),
+                    Arc::clone(&self.chapter_transfer),
+                )),
+            )
+            .outbound(
+                FILE_SYNC_ALPN,
+                Arc::new(FileSyncOutbound::new(
+                    Arc::clone(&self.emit),
+                    Arc::clone(&self.file_provider),
+                    Arc::clone(&self.file_sync_guard),
+                    Arc::clone(&self.chapter_transfer),
+                )),
+            )
+            // `acerola/sync-comic/1` reaproveita o MESMO `file_sync_guard` do
+            // `sync-files` normal (ver `protocol::files::run_and_report_scoped`) —
+            // as duas ALPNs nunca rodam sessão simultânea pro mesmo peer.
+            .inbound(
+                COMIC_SYNC_ALPN,
+                Arc::new(ComicSyncInbound::new(
+                    Arc::clone(&self.emit),
+                    Arc::clone(&self.file_provider),
+                    Arc::clone(&self.file_sync_guard),
+                    Arc::clone(&self.chapter_transfer),
+                )),
+            )
+            .outbound(
+                COMIC_SYNC_ALPN,
+                Arc::new(ComicSyncOutbound::new(
+                    Arc::clone(&self.emit),
+                    Arc::clone(&self.file_provider),
+                    Arc::clone(&self.file_sync_guard),
+                    Arc::clone(&self.chapter_transfer),
+                    Arc::clone(&self.pending_comic_scope),
+                )),
+            )
+            .inbound(
+                LIBRARY_BROWSE_ALPN,
+                Arc::new(LibraryBrowseInbound::new(Arc::clone(&self.file_provider))),
+            )
+            .outbound(
+                LIBRARY_BROWSE_ALPN,
+                Arc::new(LibraryBrowseOutbound::new(Arc::clone(&self.emit))),
+            )
+            .inbound(
+                COVER_BROWSE_ALPN,
+                Arc::new(CoverBrowseInbound::new(
+                    Arc::clone(&self.cover_provider),
+                    Arc::clone(&self.chapter_transfer),
+                )),
+            )
+            .outbound(
+                COVER_BROWSE_ALPN,
+                Arc::new(CoverBrowseOutbound::new(
+                    Arc::clone(&self.emit),
+                    Arc::clone(&self.cover_provider),
+                    Arc::clone(&self.chapter_transfer),
+                    Arc::clone(&self.pending_cover_scope),
+                )),
+            )
+            .build()
+            .await
+            .expect("Failed to start P2P node");
+
+        let node = Arc::new(acerola_node);
+        self.blob_context.set_node(&node);
+        node
+    }
+}
+
 #[derive(uniffi::Object)]
 pub struct P2PNode {
-    node: Arc<AcerolaP2p>,
+    /// `RwLock` (não `Mutex`/campo simples) porque `restart()` precisa TROCAR o `Arc<AcerolaP2p>`
+    /// vivo por um novo sem invalidar o handle UniFFI que o Kotlin já segura — o objeto `P2PNode`
+    /// em si nunca é reconstruído do lado Kotlin, só o node por baixo dele. `std::sync::RwLock`,
+    /// não `tokio::sync::RwLock`: os métodos que leem isto são síncronos (chamados direto da
+    /// fronteira FFI), então um `tokio::RwLock` exigiria `blocking_read()` — pânico garantido
+    /// rodando dentro do `TOKIO_RUNTIME` (ver `blocking_read` doc). Mesma escolha do Desktop
+    /// (`NetworkService.node`, `core/services/network/mod.rs`).
+    node: RwLock<Arc<AcerolaP2p>>,
     runtime: Arc<Runtime>,
+    /// Ingredientes reaproveitados por `restart()` pra remontar o node do zero — ver
+    /// `P2pNodeContext`.
+    #[cfg(target_os = "android")]
+    context: Arc<P2pNodeContext>,
     #[cfg(target_os = "android")]
     trust_store: Arc<SecureTrustedStore>,
     #[cfg(target_os = "android")]
@@ -92,6 +245,22 @@ pub struct P2PNode {
     /// biblioteca remota, em sequência rápida, pro mesmo peer).
     #[cfg(target_os = "android")]
     pending_cover_scope: Arc<PendingCoverRequestRegistry>,
+}
+
+// Fora do `impl` anotado com `#[uniffi::export]` de propósito: a macro escaneia TODO método
+// dentro de um bloco exportado (público ou não) e tenta gerar bindings pra ele — `Arc<AcerolaP2p>`
+// não tem `FfiConverter` (nunca deveria cruzar a fronteira FFI cru), então um `fn node(&self)`
+// privado dentro do bloco exportado quebra a macro em tempo de compilação.
+#[cfg(target_os = "android")]
+impl P2PNode {
+    fn node(&self) -> Arc<AcerolaP2p> {
+        Arc::clone(
+            &self
+                .node
+                .read()
+                .unwrap_or_else(|poisoned| poisoned.into_inner()),
+        )
+    }
 }
 
 #[uniffi::export]
@@ -136,163 +305,69 @@ impl P2PNode {
         // configuração de rede) — vem do MESMO cofre da identidade, não do DataStore. Falha
         // real de backend não deveria travar a inicialização do resto da rede P2P por causa
         // só da rede pública do Iroh, então também vira "sem ticket" aqui, com log.
-        let iroh_services_ticket = storage.load_iroh_services_ticket().unwrap_or_else(|error| {
-            tracing::warn!(layer = "relay", error = %error, "failed to load Iroh Services ticket");
-            None
-        });
+        let iroh_services_ticket = load_iroh_services_ticket_logged(&storage);
 
         let pending_comic_scope: PendingComicScope = Arc::new(Mutex::new(HashMap::new()));
         let pending_cover_scope = PendingCoverRequestRegistry::new();
 
         // Handlers de `sync-files`/`sync-comic` são registrados no builder ANTES do node
         // existir, mas precisam de `node.blobs()`/`node.known_peers()` pra publicar/buscar
-        // blobs — `BlobContext` guarda um `Weak<AcerolaP2p>` preenchido só depois de `.build()`
-        // (ver `protocol::blob_context`).
+        // blobs — `BlobContext` guarda um `Weak<AcerolaP2p>` preenchido só depois de cada
+        // `.build()` (ver `protocol::blob_context`).
         let blob_context = crate::protocol::blob_context::BlobContext::new();
         let chapter_transfer: Arc<dyn ChapterTransfer> =
             Arc::new(BlobChapterTransfer::new(Arc::clone(&blob_context)));
+        let file_sync_guard = Arc::new(FileSyncSessionGuard::default());
+
+        // MITIGAÇÃO TEMPORÁRIA: `IrohBlobsConfig::fs(blobs_dir)` trava dentro de
+        // `FsStore::load_with_opts` (iroh-blobs) — nunca testado com store em disco na lib, só
+        // em memória. Travava `runtime.block_on` na THREAD PRINCIPAL do Android (ANR). `.mem()`
+        // não persiste blobs entre reinícios, mas destrava o app imediatamente enquanto o hang
+        // do FsStore é isolado/corrigido. `blobs_dir` fica sem uso até essa mitigação sair.
+        let _ = &blobs_dir;
+
+        let context = Arc::new(P2pNodeContext {
+            emit: Arc::clone(&emit),
+            trust_store: Arc::clone(&trust_store),
+            storage: Arc::clone(&storage),
+            history_provider,
+            file_provider,
+            cover_provider,
+            file_sync_guard,
+            pending_comic_scope: Arc::clone(&pending_comic_scope),
+            pending_cover_scope: Arc::clone(&pending_cover_scope),
+            chapter_transfer,
+            blob_context,
+            device_name,
+            device_version,
+        });
+
+        // Log redigido de propósito: `IrohDefault` carrega o ticket da conta do usuário (uma
+        // credencial real) como dado da variante — nunca deve ir pro Debug cru do enum. Só o
+        // nome da fonte resolvida importa aqui pra diagnóstico (paridade com
+        // `[Bios::Network] Using relay mode` do Desktop).
+        let resolved_relay_mode = relay_settings.resolve(iroh_services_ticket.as_deref());
+        let relay_mode_label = match &resolved_relay_mode {
+            RelayModeConfig::MdnsOnly => "mdns_only",
+            RelayModeConfig::Custom(_) => "custom",
+            RelayModeConfig::AcerolaOwn => "acerola_own",
+            RelayModeConfig::IrohDefault(_) => "iroh_default",
+        };
+        tracing::info!(
+            layer = "relay",
+            mode = relay_mode_label,
+            "resolved relay mode for P2P transport"
+        );
 
         let node = {
-            let trust_store = Arc::clone(&trust_store);
-            let storage_for_builder = Arc::clone(&storage);
-            let emit_for_handlers = Arc::clone(&emit);
-            let file_sync_guard = Arc::new(FileSyncSessionGuard::default());
-            let pending_comic_scope = Arc::clone(&pending_comic_scope);
-            let pending_cover_scope = Arc::clone(&pending_cover_scope);
-            let chapter_transfer = Arc::clone(&chapter_transfer);
-            let cover_provider = Arc::clone(&cover_provider);
-            let blob_context = Arc::clone(&blob_context);
-            runtime.block_on(async move {
-                // MITIGAÇÃO TEMPORÁRIA: `IrohBlobsConfig::fs(blobs_dir)` trava dentro de
-                // `FsStore::load_with_opts` (iroh-blobs) — nunca testado com store em disco na
-                // lib, só em memória. Travava `runtime.block_on` na THREAD PRINCIPAL do Android
-                // (ANR). `.mem()` não persiste blobs entre reinícios, mas destrava o app
-                // imediatamente enquanto o hang do FsStore é isolado/corrigido.
-                let _ = &blobs_dir;
-                let resolved_relay_mode = relay_settings.resolve(iroh_services_ticket.as_deref());
-                // Log redigido de propósito: `IrohDefault` carrega o ticket da conta do usuário
-                // (uma credencial real) como dado da variante — nunca deve ir pro Debug cru do
-                // enum. Só o nome da fonte resolvida importa aqui pra diagnóstico (paridade com
-                // `[Bios::Network] Using relay mode` do Desktop).
-                let relay_mode_label = match &resolved_relay_mode {
-                    RelayModeConfig::MdnsOnly => "mdns_only",
-                    RelayModeConfig::Custom(_) => "custom",
-                    RelayModeConfig::AcerolaOwn => "acerola_own",
-                    RelayModeConfig::IrohDefault(_) => "iroh_default",
-                };
-                tracing::info!(
-                    layer = "relay",
-                    mode = relay_mode_label,
-                    "resolved relay mode for P2P transport"
-                );
-
-                let transport = IrohTransportBuilder::default()
-                    .relay_mode(resolved_relay_mode)
-                    .blobs(IrohBlobsConfig::mem());
-
-                let device = DefaultDeviceInfoProvider::new(device_name, device_version)
-                    .provide()
-                    .expect("Failed to read device info");
-
-                let acerola_node = AcerolaP2p::builder(emit, transport, device)
-                    .guard(
-                        TofuGuard::new(
-                            trust_store as Arc<dyn acerola_p2p::api::guard::TrustedPeerStore>,
-                        )
-                        .into_validator(),
-                    )
-                    .storage(SharedSecureP2pStorage(storage_for_builder))
-                    .inbound(
-                        HISTORY_SYNC_ALPN,
-                        Arc::new(HistorySyncInbound::new(
-                            Arc::clone(&emit_for_handlers),
-                            Arc::clone(&history_provider),
-                        )),
-                    )
-                    .outbound(
-                        HISTORY_SYNC_ALPN,
-                        Arc::new(HistorySyncOutbound::new(
-                            Arc::clone(&emit_for_handlers),
-                            history_provider,
-                        )),
-                    )
-                    .inbound(
-                        FILE_SYNC_ALPN,
-                        Arc::new(FileSyncInbound::new(
-                            Arc::clone(&emit_for_handlers),
-                            Arc::clone(&file_provider),
-                            Arc::clone(&file_sync_guard),
-                            Arc::clone(&chapter_transfer),
-                        )),
-                    )
-                    .outbound(
-                        FILE_SYNC_ALPN,
-                        Arc::new(FileSyncOutbound::new(
-                            Arc::clone(&emit_for_handlers),
-                            Arc::clone(&file_provider),
-                            Arc::clone(&file_sync_guard),
-                            Arc::clone(&chapter_transfer),
-                        )),
-                    )
-                    // `acerola/sync-comic/1` reaproveita o MESMO `file_sync_guard` do
-                    // `sync-files` normal (ver `protocol::files::run_and_report_scoped`) —
-                    // as duas ALPNs nunca rodam sessão simultânea pro mesmo peer.
-                    .inbound(
-                        COMIC_SYNC_ALPN,
-                        Arc::new(ComicSyncInbound::new(
-                            Arc::clone(&emit_for_handlers),
-                            Arc::clone(&file_provider),
-                            Arc::clone(&file_sync_guard),
-                            Arc::clone(&chapter_transfer),
-                        )),
-                    )
-                    .outbound(
-                        COMIC_SYNC_ALPN,
-                        Arc::new(ComicSyncOutbound::new(
-                            Arc::clone(&emit_for_handlers),
-                            Arc::clone(&file_provider),
-                            file_sync_guard,
-                            Arc::clone(&chapter_transfer),
-                            pending_comic_scope,
-                        )),
-                    )
-                    .inbound(
-                        LIBRARY_BROWSE_ALPN,
-                        Arc::new(LibraryBrowseInbound::new(file_provider)),
-                    )
-                    .outbound(
-                        LIBRARY_BROWSE_ALPN,
-                        Arc::new(LibraryBrowseOutbound::new(Arc::clone(&emit_for_handlers))),
-                    )
-                    .inbound(
-                        COVER_BROWSE_ALPN,
-                        Arc::new(CoverBrowseInbound::new(
-                            Arc::clone(&cover_provider),
-                            Arc::clone(&chapter_transfer),
-                        )),
-                    )
-                    .outbound(
-                        COVER_BROWSE_ALPN,
-                        Arc::new(CoverBrowseOutbound::new(
-                            emit_for_handlers,
-                            cover_provider,
-                            chapter_transfer,
-                            pending_cover_scope,
-                        )),
-                    )
-                    .build()
-                    .await
-                    .expect("Failed to start P2P node");
-
-                let node = Arc::new(acerola_node);
-                blob_context.set_node(&node);
-                node
-            })
+            let context = Arc::clone(&context);
+            runtime.block_on(async move { context.build(resolved_relay_mode).await })
         };
 
         Self {
-            node,
+            node: RwLock::new(node),
             runtime,
+            context,
             trust_store,
             storage,
             pending_comic_scope,
@@ -300,15 +375,50 @@ impl P2PNode {
         }
     }
 
+    /// Reinicia o node por completo: desliga a instância atual e sobe uma nova com a mesma
+    /// identidade/storage/handlers (reaproveitados via `context`), resolvendo `relay_settings`
+    /// fresco — o Kotlin relê a config combinável do DataStore (`RelayPreference`) antes de
+    /// chamar, mesmo padrão de `apply_relay_settings`. Estilo LocalSend: chamado tanto depois de
+    /// qualquer troca de fonte de relay quanto pelo botão manual "Reiniciar" na tela de Rede.
+    /// Espelha `NetworkServiceApi::restart` do Desktop (`core/services/network/mod.rs`). Mesmo
+    /// risco de boot: se o rebuild falhar (`P2pNodeContext::build` dá `.expect(...)`), a chamada
+    /// entra em pânico ao invés de devolver um erro tratável — igual `P2PNode::new` hoje.
+    pub fn restart(&self, relay_settings: FfiRelaySettings) {
+        let old_node = self.node();
+        self.runtime.block_on(async move {
+            if let Err(error) = old_node.shutdown().await {
+                tracing::warn!(?error, "failed to shut down old p2p node before restart");
+            }
+        });
+
+        let iroh_services_ticket = load_iroh_services_ticket_logged(&self.storage);
+        let resolved_relay_mode = relay_settings.resolve(iroh_services_ticket.as_deref());
+
+        let context = Arc::clone(&self.context);
+        let fresh_node = self
+            .runtime
+            .block_on(async move { context.build(resolved_relay_mode).await });
+
+        *self
+            .node
+            .write()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = fresh_node;
+
+        tracing::info!("[P2PNode] restarted");
+    }
+
     pub fn get_local_id(&self) -> String {
-        self.node.local_id().to_string()
+        self.node().local_id().to_string()
     }
 
     pub fn get_local_addr(&self) -> FfiPeerAddr {
         // Recalculado ao vivo pelo transporte a cada chamada (ver doc de
         // `AcerolaP2p::local_addr`) — só falha se a serialização do `EndpointAddr` quebrar,
         // o que não acontece na prática (nenhum campo custom, é tudo serde padrão do iroh).
-        let addr = self.node.local_addr().expect("local_addr should always serialize");
+        let addr = self
+            .node()
+            .local_addr()
+            .expect("local_addr should always serialize");
         FfiPeerAddr {
             id: addr.id.id.clone(),
             device_id: addr.id.device_id.clone(),
@@ -324,7 +434,7 @@ impl P2PNode {
     /// deve chamar isto a cada `onAvailable`/`onLost`/`onCapabilitiesChanged` do
     /// `NetworkCallback` (ver `P2pService`).
     pub fn notify_network_change(&self) {
-        let node = Arc::clone(&self.node);
+        let node = self.node();
         self.runtime.spawn(async move {
             node.network_change().await;
         });
@@ -338,14 +448,14 @@ impl P2PNode {
     /// lado Kotlin (DataStore), que relê o apelido salvo pra passar como `device_name` no
     /// próximo `P2PNode::new`.
     pub fn set_local_device_name(&self, name: String) {
-        let node = Arc::clone(&self.node);
+        let node = self.node();
         self.runtime.spawn(async move {
             node.set_local_device_name(name).await;
         });
     }
 
     pub fn connect(&self, peer_addr: FfiPeerAddr, alpn: Vec<u8>) {
-        let node = Arc::clone(&self.node);
+        let node = self.node();
         let addr = PeerAddr {
             id: PeerIdentity {
                 id: peer_addr.id,
@@ -401,14 +511,14 @@ impl P2PNode {
     }
 
     pub fn shutdown(&self) {
-        let node = Arc::clone(&self.node);
+        let node = self.node();
         self.runtime.block_on(async move {
             let _ = node.shutdown().await;
         });
     }
 
     pub fn switch_to_local(&self) {
-        let node = Arc::clone(&self.node);
+        let node = self.node();
         let trust_store = Arc::clone(&self.trust_store);
         self.runtime.spawn(async move {
             let guard =
@@ -419,7 +529,7 @@ impl P2PNode {
     }
 
     pub fn switch_to_relay(&self) {
-        let node = Arc::clone(&self.node);
+        let node = self.node();
         let trust_store = Arc::clone(&self.trust_store);
         self.runtime.spawn(async move {
             let guard =
@@ -430,14 +540,15 @@ impl P2PNode {
     }
 
     pub fn get_mode(&self) -> FfiNetworkMode {
+        let node = self.node();
         self.runtime
-            .block_on(async { self.node.mode().await.into() })
+            .block_on(async move { node.mode().await.into() })
     }
 
     pub fn get_connected_peers(&self) -> HashMap<String, Vec<Vec<u8>>> {
-        self.runtime.block_on(async {
-            self.node
-                .connected_peers()
+        let node = self.node();
+        self.runtime.block_on(async move {
+            node.connected_peers()
                 .await
                 .into_iter()
                 .map(|(peer, alpns)| (peer.id.clone(), alpns.into_iter().collect()))
@@ -452,7 +563,7 @@ impl P2PNode {
     /// pareados" na UI.
     pub fn get_paired_peers(&self) -> Vec<FfiPairedPeer> {
         let storage = Arc::clone(&self.storage);
-        let node = Arc::clone(&self.node);
+        let node = self.node();
         self.runtime.block_on(async move {
             let device_names: HashMap<String, String> = node
                 .known_peers()
@@ -490,9 +601,9 @@ impl P2PNode {
     }
 
     pub fn get_connected_peers_with_info(&self) -> Vec<FfiConnectedPeer> {
-        self.runtime.block_on(async {
-            self.node
-                .connected_peers_with_info()
+        let node = self.node();
+        self.runtime.block_on(async move {
+            node.connected_peers_with_info()
                 .await
                 .into_iter()
                 .map(|(peer, alpns, device)| FfiConnectedPeer {
@@ -545,9 +656,9 @@ impl P2PNode {
         &self,
         relay_settings: FfiRelaySettings,
     ) -> Result<(), RelayTicketError> {
-        let iroh_services_ticket = self.storage.load_iroh_services_ticket().ok().flatten();
+        let iroh_services_ticket = load_iroh_services_ticket_logged(&self.storage);
         let config = relay_settings.resolve(iroh_services_ticket.as_deref());
-        let node = Arc::clone(&self.node);
+        let node = self.node();
 
         self.runtime
             .block_on(async move { node.apply_relay_mode(config).await })

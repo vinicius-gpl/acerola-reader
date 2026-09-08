@@ -15,8 +15,9 @@
 	import { useComicSelection } from '$lib/hooks/store/use-comic-selection.svelte';
 	import { useSelectFolder } from '$lib/hooks/store/use-select-folder.svelte';
 	import { usePeerConnection } from '$lib/hooks/store/use-peer-connection.svelte';
-	import { useNetworkSync } from '$lib/hooks/store/use-network-sync.svelte';
+	import type { useNetworkSync } from '$lib/hooks/store/use-network-sync.svelte';
 	import { useRemoteLibrary } from '$lib/hooks/store/use-remote-library.svelte';
+	import { CONTEXT_KEYS } from '$lib/constants/context-keys';
 	import MoreVertical from '@lucide/svelte/icons/more-vertical';
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import Check from '@lucide/svelte/icons/check';
@@ -32,7 +33,7 @@
 	import { useComicContext } from '$lib/state/comic-context.svelte';
 	import { resolveCover } from '$lib/utils/artwork.utils';
 	import { listen } from '@tauri-apps/api/event';
-	import { onDestroy, onMount } from 'svelte';
+	import { getContext, onDestroy, onMount } from 'svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { toast } from 'svelte-sonner';
 	import type {
@@ -49,7 +50,12 @@
 	const selection = useComicSelection();
 	const folderStore = useSelectFolder();
 	const peers = usePeerConnection();
-	const sync = useNetworkSync();
+	// Compartilhada com `+layout.svelte` (nunca desmonta) via contexto — não cria uma instância
+	// própria. Ver `CONTEXT_KEYS.networkSync` / `routes/network/+page.svelte` pro porquê: uma
+	// instância só-desta-página, desmontada ao navegar pra outra tela, rejeitava promises de
+	// sync em andamento com "sync cancelled: listener stopped" mesmo o sync de verdade
+	// continuando no backend.
+	const sync = getContext<ReturnType<typeof useNetworkSync>>(CONTEXT_KEYS.networkSync);
 	const remoteLibrary = useRemoteLibrary();
 
 	const refreshScanner = useLibraryScanner(
@@ -78,14 +84,12 @@
 		await summary.fetch();
 
 		peers.startListening();
-		sync.startListening();
 		remoteLibrary.startListening();
 	});
 
 	onDestroy(() => {
 		unlistenScan?.();
 		peers.stopListening();
-		sync.stopListening();
 		remoteLibrary.stopListening();
 	});
 
@@ -110,13 +114,29 @@
 		)
 			return;
 
+		// Um único toast por sessão (kind+peer), criado em 'started' e reaproveitado (mesmo
+		// `id`) em 'complete'/'error' — o svelte-sonner substitui o conteúdo do toast existente
+		// em vez de empilhar um novo, mesmo padrão do `toastAsync` já usado na tela do quadrinho.
+		const toastId = `sync-${entry.kind}-${entry.peerId}`;
+
+		if (entry.status === 'started') {
+			lastHandledSyncLogId = entry.id;
+			const peer = peers.peerLabel(entry.peerId);
+			if (entry.kind === 'comic') {
+				toast.loading(m['pages.network.transfers.comic_started']({ peer }), { id: toastId });
+			} else {
+				toast.loading(m['pages.network.transfers.files_started']({ peer }), { id: toastId });
+			}
+			return;
+		}
+
 		if (entry.status === 'complete') {
 			lastHandledSyncLogId = entry.id;
 			const peer = peers.peerLabel(entry.peerId);
 			if (entry.kind === 'comic') {
-				toast.success(m['pages.network.transfers.comic_complete']({ peer }));
+				toast.success(m['pages.network.transfers.comic_complete']({ peer }), { id: toastId });
 			} else {
-				toast.success(m['pages.network.transfers.files_complete']({ peer }));
+				toast.success(m['pages.network.transfers.files_complete']({ peer }), { id: toastId });
 			}
 			summary.fetch();
 			return;
@@ -126,9 +146,9 @@
 			lastHandledSyncLogId = entry.id;
 			const msg = entry.message;
 			if (entry.kind === 'comic') {
-				toast.error(m['pages.network.transfers.comic_error']({ msg }));
+				toast.error(m['pages.network.transfers.comic_error']({ msg }), { id: toastId });
 			} else {
-				toast.error(m['pages.network.transfers.files_error']({ msg }));
+				toast.error(m['pages.network.transfers.files_error']({ msg }), { id: toastId });
 			}
 			// `sync:files:error`/`sync:comic:error` também cobre sessão que terminou com
 			// capítulos faltando (`Ok(skipped) => ... Err(...)` em file_handler.rs/
@@ -278,7 +298,7 @@
 	<div class="flex items-center justify-center p-8 text-muted-foreground">
 		{m['pages.home.loading']()}
 	</div>
-{:else if summary.comics && summary.comics.total > 0}
+{:else if summary.comics && (summary.comics.total > 0 || activeFiltersCount > 0)}
 	<div class="px-8 pt-8 pb-8">
 		<div class="mb-4 flex items-center justify-between">
 			{#if selection.isSelectionMode}

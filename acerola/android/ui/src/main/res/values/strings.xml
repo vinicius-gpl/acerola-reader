@@ -66,6 +66,9 @@
     <string name="error_sync_connect_invalid_code">Código inválido. Confira se você copiou o código completo do outro dispositivo.</string>
     <string name="error_sync_connect_failed">Não foi possível conectar. Confira se o código está certo e se o outro dispositivo está com o Acerola aberto.</string>
     <string name="error_sync_scan_failed">Não foi possível abrir o leitor de QR Code. Tente novamente ou cole o código manualmente.</string>
+
+    <!-- Notificações de RESULTADO de sessão P2P moveram pra core/res (P2pSyncCoordinator é
+         quem dispara agora, não mais esta ViewModel — ver core/src/main/res/values/strings.xml). -->
     <string name="error_sync_scan_empty">O QR Code escaneado não contém texto legível.</string>
 
     <!-- Sync screen - Relay settings card -->
@@ -93,6 +96,11 @@
     <string name="label_relay_settings_custom_relays_empty">Nenhum relay próprio adicionado.</string>
     <string name="action_relay_settings_custom_relay_remove">Remover relay próprio</string>
     <string name="error_relay_settings_invalid_url">Digite uma URL válida (ex.: https://relay.exemplo.com).</string>
+    <string name="title_relay_settings_restart">Reiniciar módulo P2P</string>
+    <string name="label_relay_settings_restart_desc">Desliga e religa a conexão P2P do zero — útil se a conexão ficou travada depois de trocar de rede ou de relay.</string>
+    <string name="action_relay_settings_restart">Reiniciar</string>
+    <string name="action_relay_settings_restarting">Reiniciando…</string>
+    <string name="error_relay_settings_restart_failed">Não foi possível reiniciar o módulo P2P.</string>
 
     <string name="title_sync_peers">Dispositivos pareados</string>
     <string name="label_sync_no_peers">Nenhum dispositivo pareado ainda. Toque em \"Adicionar dispositivo\" pra parear um.</string>
@@ -128,6 +136,11 @@
 
     <string name="title_sync_activity_log">Transferências</string>
     <string name="label_sync_activity_log_empty">Nenhuma transferência em andamento.</string>
+    <string name="action_sync_activity_log_refresh">Atualizar</string>
+    <string name="action_sync_activity_log_clear">Limpar</string>
+    <string name="title_sync_activity_log_clear_confirm">Limpar histórico de transferências?</string>
+    <string name="description_sync_activity_log_clear_confirm">Remove todo o histórico de sincronizações persistido. Essa ação não pode ser desfeita.</string>
+    <string name="action_sync_activity_log_clear_confirm">Sim, limpar tudo</string>
 
     <string name="log_sync_history_started">Sincronizando histórico…</string>
     <string name="log_sync_history_complete">Histórico sincronizado.</string>
@@ -210,6 +223,18 @@
     <!-- Components -->
     <string name="message_image_parameter_required_smart_card">A image não pode ser nula para CardType.IMAGE</string>
     <string name="message_path_not_found">Pasta não encontrada.</string>
+
+    <!-- Comic Preferences: categorias (mesmo agrupamento Leitura/Sincronização/Avançado do desktop) -->
+    <string name="title_comic_preferences_reading">Leitura</string>
+    <string name="description_comic_preferences_reading">Exibição de volume, categoria</string>
+    <string name="title_comic_preferences_sync">Sincronização</string>
+    <string name="description_comic_preferences_sync">Metadados, arquivos e dispositivos</string>
+    <string name="title_comic_preferences_advanced">Avançado</string>
+    <string name="description_comic_preferences_advanced">Zona de risco</string>
+    <string name="label_comic_preferences_section_metadata">Metadados</string>
+    <string name="label_comic_preferences_section_files">Arquivos</string>
+    <string name="label_comic_preferences_section_devices">Dispositivos Pareados</string>
+    <string name="label_comic_preferences_section_danger_zone">Zona de Risco</string>
 
     <!-- Settings Section -->
     <string name="title_settings_display_config">Configurações de Exibição</string>

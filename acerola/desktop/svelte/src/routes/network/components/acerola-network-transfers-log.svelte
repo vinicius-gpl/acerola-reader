@@ -6,6 +6,10 @@
 			entries: TransferLogEntry[];
 			peerLabel: (peerId: string) => string;
 		};
+		events?: {
+			onRefresh?: () => void;
+			onClear?: () => void;
+		};
 	};
 </script>
 
@@ -13,10 +17,14 @@
 	import AlertCircleIcon from '@lucide/svelte/icons/alert-circle';
 	import CheckIcon from '@lucide/svelte/icons/check';
 	import RefreshCwIcon from '@lucide/svelte/icons/refresh-cw';
+	import ArrowRightIcon from '@lucide/svelte/icons/arrow-right';
+	import Trash2Icon from '@lucide/svelte/icons/trash-2';
 	import { m } from '$lib/paraglide/messages';
 	import { autoAnimateList } from '$lib/utils/auto-animate.utils';
+	import AcerolaButtonIcon from '$lib/components/acerola-button/acerola-button-icon.svelte';
+	import AcerolaAlertDialog from '$lib/components/acerola-alert-dialog/acerola-alert-dialog.svelte';
 
-	let { data }: NetworkTransfersLogProps = $props();
+	let { data, events }: NetworkTransfersLogProps = $props();
 
 	// No teardown da story (Storybook + vitest browser mode), o efeito reativo deste
 	// template roda mais uma vez com `data` já undefined antes do componente ser
@@ -63,6 +71,47 @@
 </script>
 
 <div class="rounded-2xl border border-border/40 bg-card/50 p-4 backdrop-blur-sm">
+	<div class="mb-3 flex items-center justify-between gap-3">
+		<p class="text-xs font-bold tracking-widest text-muted-foreground uppercase">
+			{m['pages.network.transfers.title']()}
+		</p>
+		<div class="flex items-center gap-1">
+			<AcerolaButtonIcon
+				events={{ onClick: () => events?.onRefresh?.() }}
+				ui={{
+					variant: 'ghost',
+					class: 'size-8 text-muted-foreground hover:bg-muted hover:text-foreground',
+					'aria-label': m['pages.network.transfers.refresh']()
+				}}
+			>
+				<RefreshCwIcon size={14} />
+			</AcerolaButtonIcon>
+
+			{#if entries.length > 0}
+				<AcerolaAlertDialog
+					data={{
+						title: m['pages.network.transfers.clear.title'](),
+						description: m['pages.network.transfers.clear.desc'](),
+						cancelText: m['pages.network.transfers.clear.cancel'](),
+						actionText: m['pages.network.transfers.clear.confirm']()
+					}}
+					ui={{ variant: 'destructive' }}
+					events={{ onAction: () => events?.onClear?.() }}
+				>
+					<AcerolaButtonIcon
+						ui={{
+							variant: 'ghost',
+							class: 'size-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive',
+							'aria-label': m['pages.network.transfers.clear.button']()
+						}}
+					>
+						<Trash2Icon size={14} />
+					</AcerolaButtonIcon>
+				</AcerolaAlertDialog>
+			{/if}
+		</div>
+	</div>
+
 	{#if entries.length === 0}
 		<p class="p-4 text-center text-sm text-muted-foreground">
 			{m['pages.network.transfers.empty']()}
@@ -75,8 +124,10 @@
 						<AlertCircleIcon size={14} class="shrink-0 text-destructive" />
 					{:else if entry.status === 'complete'}
 						<CheckIcon size={14} class="shrink-0 text-chart-3" />
-					{:else}
+					{:else if entry.status === 'started'}
 						<RefreshCwIcon size={14} class="shrink-0 animate-spin text-muted-foreground" />
+					{:else}
+						<ArrowRightIcon size={14} class="shrink-0 text-muted-foreground" />
 					{/if}
 
 					<span class="flex-1 truncate text-foreground">{describeEntry(entry)}</span>

@@ -10,13 +10,13 @@
 </script>
 
 <script lang="ts">
-	import { toast } from 'svelte-sonner';
 	import PlugIcon from '@lucide/svelte/icons/plug';
 	import AlertCircleIcon from '@lucide/svelte/icons/alert-circle';
 	import AcerolaButton from '$lib/components/acerola-button/acerola-button.svelte';
 	import AcerolaInput from '$lib/components/acerola-input/acerola-input.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { InvalidConnectionCodeError } from '$lib/utils/connection-code.utils';
+	import { toastAsync } from '$lib/utils/toast-async.utils';
 
 	let { data, events }: NetworkConnectCardProps = $props();
 
@@ -26,9 +26,15 @@
 	async function handleConnect() {
 		connectError = undefined;
 		try {
-			await events.onConnect(pasteValue);
+			await toastAsync(() => events.onConnect(pasteValue), {
+				loading: m['pages.network.connect.loading'](),
+				success: m['pages.network.connect.success'](),
+				error: (err) =>
+					err instanceof InvalidConnectionCodeError
+						? m['pages.network.connect.invalid_code']()
+						: m['pages.network.connect.error']()
+			});
 			pasteValue = '';
-			toast.success(m['pages.network.connect.success']());
 		} catch (err) {
 			connectError =
 				err instanceof InvalidConnectionCodeError

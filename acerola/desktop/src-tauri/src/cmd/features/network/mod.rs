@@ -116,15 +116,25 @@ pub async fn clear_iroh_services_ticket(
     service.clear_iroh_services_ticket().await
 }
 
-/// Relê `settings.json` + o ticket do cofre e aplica a config de relay resolvida ao node JÁ
-/// VIVO, sem precisar reiniciar o app — ver `NetworkServiceApi::apply_relay_settings`. O
-/// frontend chama isso depois de QUALQUER mudança nas fontes de relay (toggle do
-/// Acerola/Iroh, add/remove de URL própria, salvar/remover ticket).
+/// Relê `settings.json` + o ticket do cofre e reinicia o módulo P2P inteiro com a config de
+/// relay resolvida (ver `NetworkServiceApi::restart`), sem precisar reiniciar o app — o
+/// frontend chama isso depois de QUALQUER mudança nas fontes de relay (toggle do Acerola/Iroh,
+/// add/remove de URL própria, salvar/remover ticket).
 #[tauri::command]
 pub async fn apply_relay_settings(
     service: State<'_, Arc<dyn NetworkServiceApi>>,
 ) -> Result<(), String> {
     service.apply_relay_settings().await
+}
+
+/// Reinicia o módulo P2P por completo (desliga o node atual, sobe um novo com a mesma
+/// identidade/storage) sob demanda — botão "Reiniciar" na tela de Rede, estilo LocalSend. Mesma
+/// operação que [`apply_relay_settings`] já dispara automaticamente numa troca de relay; exposto
+/// separado pro usuário poder forçar um reset mesmo sem mudar nada (ex.: conexão presa depois de
+/// uma troca de rede física, sem precisar fechar e reabrir o app inteiro).
+#[tauri::command]
+pub async fn restart_p2p(service: State<'_, Arc<dyn NetworkServiceApi>>) -> Result<(), String> {
+    service.restart().await
 }
 
 #[tauri::command]
@@ -271,6 +281,15 @@ pub async fn get_sync_history_log(
     repo: State<'_, SyncHistoryLogRepository>,
 ) -> Result<Vec<SyncHistoryLogEntry>, String> {
     repo.find_recent(SYNC_HISTORY_LOG_LIMIT).await.map_err(|error| error.to_string())
+}
+
+/// Apaga todo o histórico de sync persistido — botão "Limpar" na tela de Rede. Irreversível,
+/// a UI já confirma com o usuário antes de chamar.
+#[tauri::command]
+pub async fn clear_sync_history_log(
+    repo: State<'_, SyncHistoryLogRepository>,
+) -> Result<(), String> {
+    repo.delete_all().await.map_err(|error| error.to_string())
 }
 
 /// Se `true`, a chave mestra que criptografa identidade/peers/confiança caiu pro fallback

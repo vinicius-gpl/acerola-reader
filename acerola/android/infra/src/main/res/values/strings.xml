@@ -25,6 +25,7 @@
     <string name="error_sync_session_busy">Já existe uma sincronização em andamento com esse dispositivo.</string>
     <string name="error_sync_timeout">A sincronização demorou demais e foi cancelada — o dispositivo pode ter ficado offline.</string>
     <string name="error_sync_connection_lost">A conexão com o dispositivo caiu durante a sincronização. Tente novamente.</string>
+    <string name="error_sync_checksum_mismatch">O arquivo recebido não bateu com o checksum esperado — pode ter sido corrompido na transferência.</string>
     <string name="error_server">Erro no servidor (Código: %1$d).</string>
     <string name="error_unauthorized">Acesso não autorizado.</string>
     <string name="error_http">Erro HTTP (Código: %1$d).</string>

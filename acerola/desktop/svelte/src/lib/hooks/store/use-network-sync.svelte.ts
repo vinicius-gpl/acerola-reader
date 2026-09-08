@@ -155,6 +155,17 @@ export function useNetworkSync() {
 		message: string;
 		comicName?: string;
 		code?: string;
+		/** `true` pros 5 pontos de falha POR ITEM em `receive_files`/`receive_extras` (blob
+		 *  ausente, fetch falhou, checksum não bate, pasta indisponível, persistência falhou) —
+		 *  ver `item_error_payload` no backend. Esses eventos NUNCA devem tocar/terminar a linha
+		 *  de status da sessão em andamento (`started`/`progress`), só aparecer como sua própria
+		 *  entrada permanente no log — sem essa distinção, um único checksum mismatch no meio de
+		 *  uma sincronização de 20 capítulos marcava a sessão inteira como "erro" na tela, mesmo
+		 *  ela continuando (e completando) normalmente logo em seguida. */
+		itemLevel?: boolean;
+		/** Só presente quando `itemLevel` é `true` — o capítulo ou o `kind` de extra
+		 *  (`cover`/`banner`/`comic_info`) que falhou, ver `item_error_payload`. */
+		item?: string;
 	} {
 		try {
 			const parsed = JSON.parse(payload);
@@ -173,13 +184,27 @@ export function useNetworkSync() {
 					peerId: parsed.peerId,
 					message: parsed.message,
 					comicName: parsed.comicName,
-					code: typeof parsed.code === 'string' ? parsed.code : undefined
+					code: typeof parsed.code === 'string' ? parsed.code : undefined,
+					itemLevel: parsed.itemLevel === true,
+					item: typeof parsed.item === 'string' ? parsed.item : undefined
 				};
 			}
 		} catch {
 			// payload antigo/inesperado sem JSON — trata como mensagem crua.
 		}
 		return { message: payload };
+	}
+
+	/// Formata uma entrada de log pra um erro de item (`comicName`/`item` presentes) — sem os
+	/// dois (evento antigo/desconhecido sem esses campos), cai de volta na mensagem traduzida
+	/// crua.
+	function formatItemError(
+		comicName: string | undefined,
+		item: string | undefined,
+		message: string
+	): string {
+		const label = [comicName, item].filter(Boolean).join(' - ');
+		return label ? `${label}: ${message}` : message;
 	}
 
 	/// Extrai `{peerId, comicName}` do payload de `sync:comic:complete` — só esse evento carrega
@@ -298,18 +323,40 @@ export function useNetworkSync() {
 		}
 	}
 
-	/// Carrega as sessões persistidas (mais recente primeiro) pra dar contexto histórico
-	/// assim que a tela abre — antes de qualquer evento ao vivo chegar. Falha em silêncio:
-	/// sem histórico persistido, a tela ainda funciona só com os eventos da sessão atual.
+	/// Rebusca as sessões persistidas e substitui só a parte do log que veio de lá (`id < 0`,
+	/// ver `fromPersisted`) — usado tanto no mount quanto pelo botão "Atualizar" da tela de
+	/// Rede. Preserva qualquer entrada AO VIVO ainda em `id >= 0` (sessão `started`/`progress`
+	/// desta execução do app): o repositório só guarda estados terminais
+	/// (`complete`/`error`, ver doc de `SyncHistoryLogEntry` no backend), então um refresh no
+	/// meio de uma sincronização não pode fazer a linha "sincronizando..." sumir da tela.
+	/// Propaga erro do `invoke` pro chamador decidir como mostrar (toast) — diferente do
+	/// carregamento inicial em `startListening`, que falha em silêncio.
+	async function refreshLog() {
+		const rows = await invoke<PersistedSyncLogEntry[]>(NETWORK_COMMANDS.getSyncHistoryLog);
+		if (disposed) return;
+		const liveEntries = log.filter((entry) => entry.id >= 0);
+		log = [...liveEntries, ...rows.map(fromPersisted)];
+	}
+
+	/// Carrega as sessões persistidas assim que a tela abre — antes de qualquer evento ao vivo
+	/// chegar. Falha em silêncio: sem histórico persistido, a tela ainda funciona só com os
+	/// eventos da sessão atual.
 	async function loadPersistedLog() {
 		try {
-			const rows = await invoke<PersistedSyncLogEntry[]>(NETWORK_COMMANDS.getSyncHistoryLog);
-			if (disposed) return;
-			log = rows.map(fromPersisted);
+			await refreshLog();
 		} catch (err) {
 			if (disposed) return;
 			error(`failed to load persisted sync history log: ${err}`);
 		}
+	}
+
+	/// Apaga de vez o histórico de transferências — tanto o persistido no SQLite
+	/// (`clear_sync_history_log`, irreversível) quanto a lista mostrada na tela. Propaga erro
+	/// do `invoke` pro chamador (mesmo padrão de `syncHistory`/`syncFiles`).
+	async function clearLog() {
+		await invoke(NETWORK_COMMANDS.clearSyncHistoryLog);
+		if (disposed) return;
+		log = [];
 	}
 
 	async function startListening() {
@@ -339,7 +386,25 @@ export function useNetworkSync() {
 				push(event.payload, 'files', 'complete', event.payload);
 			}),
 			await listen<string>(NETWORK_EVENTS.filesError, (event) => {
-				const { peerId, message, code } = parseErrorPayload(event.payload);
+				const parsed = parseErrorPayload(event.payload);
+				if (parsed.itemLevel) {
+					// `peerId: ''` de propósito — mesmo truque que `progress` já usa pra nunca
+					// correlacionar com `inFlightEntryId` e clobberar a linha da sessão em
+					// andamento (ver doc de `itemLevel` em `parseErrorPayload`).
+					push(
+						'',
+						'files',
+						'error',
+						formatItemError(
+							parsed.comicName,
+							parsed.item,
+							translateSyncMessage(parsed.code, parsed.message)
+						),
+						parsed.comicName
+					);
+					return;
+				}
+				const { peerId, message, code } = parsed;
 				if (peerId) clearSyncing(peerId, 'files');
 				push(peerId ?? '', 'files', 'error', translateSyncMessage(code, message));
 			}),
@@ -356,7 +421,26 @@ export function useNetworkSync() {
 				settlePending(syncKey(peerId, 'comic'), true, peerId);
 			}),
 			await listen<string>(NETWORK_EVENTS.comicError, (event) => {
-				const { peerId, message, comicName, code } = parseErrorPayload(event.payload);
+				const parsed = parseErrorPayload(event.payload);
+				if (parsed.itemLevel) {
+					// Mesmo raciocínio de `filesError` acima — um capítulo/extra que falhou
+					// dentro de um `sync-comic` não pode ser confundido com o erro final da
+					// sessão, nem resolver a promise de `syncComic()` (que só se importa com o
+					// desfecho de verdade da sessão inteira).
+					push(
+						'',
+						'comic',
+						'error',
+						formatItemError(
+							parsed.comicName,
+							parsed.item,
+							translateSyncMessage(parsed.code, parsed.message)
+						),
+						parsed.comicName
+					);
+					return;
+				}
+				const { peerId, message, comicName, code } = parsed;
 				const translated = translateSyncMessage(code, message);
 				if (peerId) clearSyncing(peerId, 'comic');
 				push(peerId ?? '', 'comic', 'error', translated, comicName);
@@ -460,6 +544,28 @@ export function useNetworkSync() {
 		return log.find((entry) => entry.peerId === peerId && entry.status === 'complete')?.timestamp;
 	}
 
+	/// Sessão ao vivo mais recente ainda em andamento (`status: 'started'`), de QUALQUER peer —
+	/// usado pelo indicador global no header (`+layout.svelte`), que precisa saber "tem alguma
+	/// sincronização rolando agora" sem depender de nenhuma tela específica estar montada. Uma
+	/// linha só sai de `'started'` quando o evento `complete`/`error` chega e a transiciona pro
+	/// mesmo lugar (`updateInFlightEntry`) — nunca fica presa em `'progress'` porque eventos de
+	/// progresso não têm peer id pra correlacionar com ela (ver doc de `inFlightEntryId`), então
+	/// checar só `'started'` já cobre a sessão inteira, do início ao fim.
+	function activeSession(): { peerId: string; kind: SyncKind } | undefined {
+		const entry = log.find((row) => row.status === 'started');
+		return entry ? { peerId: entry.peerId, kind: entry.kind } : undefined;
+	}
+
+	/// Texto do progresso mais recente (`"{comicName} - {chapter}"`, ver `send_files`/
+	/// `receive_files` no backend) de QUALQUER sessão — como esses eventos não carregam peer id,
+	/// não dá pra saber com certeza a qual sessão pertencem se houver mais de uma rodando ao
+	/// mesmo tempo (`syncAll`, por exemplo); mesma limitação de protocolo já documentada em
+	/// `inFlightEntryId`, não uma piora introduzida aqui. Complementa `activeSession()`, não
+	/// substitui: `activeSession()` já é `undefined` sozinho quando não há nada rodando.
+	function activeProgressMessage(): string | undefined {
+		return log.find((row) => row.status === 'progress')?.message;
+	}
+
 	return {
 		startListening,
 		stopListening,
@@ -469,6 +575,10 @@ export function useNetworkSync() {
 		syncComic,
 		isSyncing,
 		lastSyncedAt,
+		activeSession,
+		activeProgressMessage,
+		refreshLog,
+		clearLog,
 		get log() {
 			return log;
 		}

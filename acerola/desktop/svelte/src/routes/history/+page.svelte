@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { onDestroy, onMount } from 'svelte';
+	import { getContext, onDestroy, onMount } from 'svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { toast } from 'svelte-sonner';
 
@@ -22,12 +22,18 @@
 	import type { ReadingHistoryPayload } from '$lib/contracts/history/history.payloads';
 	import { useHistory } from '$lib/hooks/store/use-history.svelte';
 	import { usePeerConnection, shortId } from '$lib/hooks/store/use-peer-connection.svelte';
-	import { useNetworkSync } from '$lib/hooks/store/use-network-sync.svelte';
+	import type { useNetworkSync } from '$lib/hooks/store/use-network-sync.svelte';
+	import { CONTEXT_KEYS } from '$lib/constants/context-keys';
 
 	const history = useHistory();
 	const bookmarkStore = useBookmarks();
 	const peers = usePeerConnection();
-	const sync = useNetworkSync();
+	// Compartilhada com `+layout.svelte` (nunca desmonta) via contexto — não cria uma instância
+	// própria. Ver `CONTEXT_KEYS.networkSync` / `routes/network/+page.svelte` pro porquê: uma
+	// instância só-desta-página, desmontada ao navegar pra outra tela, rejeitava promises de
+	// sync em andamento (`sync.syncHistory`) com "sync cancelled: listener stopped" mesmo o
+	// sync de verdade continuando no backend.
+	const sync = getContext<ReturnType<typeof useNetworkSync>>(CONTEXT_KEYS.networkSync);
 
 	let syncMenuOpen = $state(false);
 	// Evita re-disparar `history.fetch()`/toast duas vezes pro mesmo evento — `sync.log[0]`
@@ -89,16 +95,31 @@
 		if (!entry || entry.id < 0 || entry.kind !== 'history' || entry.id === lastHandledSyncLogId)
 			return;
 
+		// Mesmo padrão da Home: um toast por sessão, criado em 'started' e substituído (mesmo
+		// `id`) em 'complete'/'error' em vez de empilhar um novo.
+		const toastId = `sync-history-${entry.peerId}`;
+
+		if (entry.status === 'started') {
+			lastHandledSyncLogId = entry.id;
+			toast.loading(
+				m['pages.network.transfers.history_started']({ peer: peers.peerLabel(entry.message) }),
+				{ id: toastId }
+			);
+			return;
+		}
+
 		if (entry.status === 'complete') {
 			lastHandledSyncLogId = entry.id;
-			toast.success(m['pages.history.sync.success']({ peer: peers.peerLabel(entry.message) }));
+			toast.success(m['pages.history.sync.success']({ peer: peers.peerLabel(entry.message) }), {
+				id: toastId
+			});
 			history.fetch();
 			return;
 		}
 
 		if (entry.status === 'error') {
 			lastHandledSyncLogId = entry.id;
-			toast.error(m['pages.history.sync.error']({ msg: entry.message }));
+			toast.error(m['pages.history.sync.error']({ msg: entry.message }), { id: toastId });
 			return;
 		}
 	});
@@ -134,12 +155,10 @@
 	onMount(() => {
 		history.fetch();
 		peers.startListening();
-		sync.startListening();
 	});
 
 	onDestroy(() => {
 		peers.stopListening();
-		sync.stopListening();
 	});
 </script>
 

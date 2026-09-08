@@ -168,6 +168,10 @@
 			"navigation_group": "Navegação",
 			"library_group": "Biblioteca",
 			"no_results": "Nenhum quadrinho encontrado."
+		},
+		"sync_indicator": {
+			"syncing": "Sincronizando com {peer}",
+			"tooltip": "Ver detalhes na aba Rede"
 		}
 	},
 	"routes": {
@@ -740,7 +744,6 @@
 				"use_acerola_relay_desc": "Gerenciado automaticamente ({url}).",
 				"use_iroh_public_network": "Usar a Iroh Services (conta própria)",
 				"use_iroh_public_network_desc": "Autenticado com o ticket da sua própria conta em services.iroh.computer — não pode ser combinada com as fontes abaixo.",
-				"exclusive_note": "Desabilitado enquanto a Iroh Services estiver ativa.",
 				"use_iroh_public_network_disabled_hint": "Configure um ticket abaixo para ativar essa fonte.",
 				"iroh_services_ticket": {
 					"label": "Ticket da Iroh Services",
@@ -758,12 +761,20 @@
 					"add_placeholder": "https://seu-relay.exemplo.com",
 					"add_button": "Adicionar relay próprio",
 					"empty": "Nenhum relay próprio adicionado.",
+					"count": "{count} configurado(s)",
 					"remove": "Remover relay próprio"
 				},
 				"invalid_url": "Digite uma URL válida (ex.: https://relay.exemplo.com).",
 				"summary_mdns_only": "Só rede local (mDNS) — nenhum relay ativo, só dispositivos na mesma rede conseguem conectar.",
 				"summary_iroh_public": "Usando a rede pública de relays do Iroh.",
-				"summary_active": "{count} fonte(s) de relay ativa(s)."
+				"summary_active": "{count} fonte(s) de relay ativa(s).",
+				"restart": {
+					"button": "Reiniciar módulo P2P",
+					"description": "Desliga e religa a conexão P2P do zero — útil se a conexão ficou travada depois de trocar de rede ou de relay.",
+					"restarting": "Reiniciando...",
+					"success": "Módulo P2P reiniciado.",
+					"error": "Não foi possível reiniciar o módulo P2P."
+				}
 			},
 			"pairing": {
 				"title": "Código de conexão",
@@ -779,6 +790,7 @@
 				"title": "Conectar a um dispositivo",
 				"placeholder": "Cole o código de conexão aqui",
 				"button": "Conectar",
+				"loading": "Conectando...",
 				"success": "Conectado!",
 				"error": "Não foi possível conectar. Confira se o código está certo e se o outro dispositivo está com o Acerola aberto.",
 				"invalid_code": "Código inválido. Confira se você copiou o código completo do outro dispositivo."
@@ -819,7 +831,15 @@
 				"comic_started": "Sincronizando quadrinho com {peer}...",
 				"comic_progress": "Transferindo {item}...",
 				"comic_complete": "Quadrinho sincronizado com {peer}.",
-				"comic_error": "Erro ao sincronizar quadrinho: {msg}"
+				"comic_error": "Erro ao sincronizar quadrinho: {msg}",
+				"refresh": "Atualizar",
+				"clear": {
+					"button": "Limpar",
+					"title": "Limpar histórico de transferências?",
+					"desc": "Remove todo o histórico de sincronizações persistido. Essa ação não pode ser desfeita.",
+					"cancel": "Cancelar",
+					"confirm": "Sim, limpar tudo"
+				}
 			},
 			"remote_library": {
 				"title": "Biblioteca remota",
