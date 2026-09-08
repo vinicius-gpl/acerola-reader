@@ -168,6 +168,10 @@
 			"navigation_group": "Navegação",
 			"library_group": "Biblioteca",
 			"no_results": "Nenhum quadrinho encontrado."
+		},
+		"sync_indicator": {
+			"syncing": "Sincronizando com {peer}",
+			"tooltip": "Ver detalhes na aba Rede"
 		}
 	},
 	"routes": {
@@ -723,9 +727,6 @@
 				"title": "Este dispositivo",
 				"mode_local": "Rede local",
 				"mode_relay": "Relay",
-				"relay_label": "Relay",
-				"relay_default": "padrão",
-				"relay_custom": "customizado",
 				"copy_id": "Copiar ID",
 				"rename": {
 					"action": "Renomear dispositivo",
@@ -734,6 +735,45 @@
 					"cancel": "Cancelar",
 					"success": "Nome do dispositivo atualizado!",
 					"error": "Não foi possível renomear o dispositivo: {msg}"
+				}
+			},
+			"relay_settings": {
+				"title": "Conexão",
+				"description": "Escolha como este dispositivo alcança outros fora da sua rede local.",
+				"use_acerola_relay": "Usar o relay do Acerola",
+				"use_acerola_relay_desc": "Gerenciado automaticamente ({url}).",
+				"use_iroh_public_network": "Usar a Iroh Services (conta própria)",
+				"use_iroh_public_network_desc": "Autenticado com o ticket da sua própria conta em services.iroh.computer — não pode ser combinada com as fontes abaixo.",
+				"use_iroh_public_network_disabled_hint": "Configure um ticket abaixo para ativar essa fonte.",
+				"iroh_services_ticket": {
+					"label": "Ticket da Iroh Services",
+					"configured": "Ticket configurado.",
+					"not_configured": "Nenhum ticket configurado ainda.",
+					"placeholder": "Cole aqui o ticket gerado em services.iroh.computer",
+					"save_button": "Salvar ticket",
+					"replace_button": "Trocar ticket",
+					"remove_button": "Remover ticket",
+					"invalid": "Ticket inválido. Confira se você copiou o texto completo.",
+					"help": "Crie uma conta gratuita em services.iroh.computer, gere um ticket no seu projeto e cole aqui — a credencial fica só neste dispositivo, nunca é enviada pro relay."
+				},
+				"custom_relays": {
+					"title": "Seus relays próprios",
+					"add_placeholder": "https://seu-relay.exemplo.com",
+					"add_button": "Adicionar relay próprio",
+					"empty": "Nenhum relay próprio adicionado.",
+					"count": "{count} configurado(s)",
+					"remove": "Remover relay próprio"
+				},
+				"invalid_url": "Digite uma URL válida (ex.: https://relay.exemplo.com).",
+				"summary_mdns_only": "Só rede local (mDNS) — nenhum relay ativo, só dispositivos na mesma rede conseguem conectar.",
+				"summary_iroh_public": "Usando a rede pública de relays do Iroh.",
+				"summary_active": "{count} fonte(s) de relay ativa(s).",
+				"restart": {
+					"button": "Reiniciar módulo P2P",
+					"description": "Desliga e religa a conexão P2P do zero — útil se a conexão ficou travada depois de trocar de rede ou de relay.",
+					"restarting": "Reiniciando...",
+					"success": "Módulo P2P reiniciado.",
+					"error": "Não foi possível reiniciar o módulo P2P."
 				}
 			},
 			"pairing": {
@@ -750,6 +790,7 @@
 				"title": "Conectar a um dispositivo",
 				"placeholder": "Cole o código de conexão aqui",
 				"button": "Conectar",
+				"loading": "Conectando...",
 				"success": "Conectado!",
 				"error": "Não foi possível conectar. Confira se o código está certo e se o outro dispositivo está com o Acerola aberto.",
 				"invalid_code": "Código inválido. Confira se você copiou o código completo do outro dispositivo."
@@ -790,7 +831,15 @@
 				"comic_started": "Sincronizando quadrinho com {peer}...",
 				"comic_progress": "Transferindo {item}...",
 				"comic_complete": "Quadrinho sincronizado com {peer}.",
-				"comic_error": "Erro ao sincronizar quadrinho: {msg}"
+				"comic_error": "Erro ao sincronizar quadrinho: {msg}",
+				"refresh": "Atualizar",
+				"clear": {
+					"button": "Limpar",
+					"title": "Limpar histórico de transferências?",
+					"desc": "Remove todo o histórico de sincronizações persistido. Essa ação não pode ser desfeita.",
+					"cancel": "Cancelar",
+					"confirm": "Sim, limpar tudo"
+				}
 			},
 			"remote_library": {
 				"title": "Biblioteca remota",

@@ -134,9 +134,33 @@ function chapterPayload(overrides: Partial<ChapterPayload> = {}): ChapterPayload
 function renderComicPage(data: { comic: ComicSummaryItemPayload | null }) {
 	const activeComic = new ActiveComicState();
 
+	// `p2pSync` agora vem do contexto compartilhado com `+layout.svelte` (ver
+	// `CONTEXT_KEYS.networkSync`), não de uma instância própria da página — sem prover esse
+	// contexto aqui, `getContext(...)` devolve `undefined` e o primeiro acesso a
+	// `p2pSync.log` (dentro do `$effect` da página) explode. `Map<symbol, unknown>` explícito:
+	// sem isso, TS infere o tipo a partir da PRIMEIRA tupla (`ActiveComicState`) e rejeita a
+	// segunda entrada — os dois lados de `getContext<T>(...)` já fazem o cast na leitura.
 	return render(ComicPage, {
 		props: { data: { ...data, initialVolumeViewMode: undefined } },
-		context: new Map([[CONTEXT_KEYS.activeComic, activeComic]])
+		context: new Map<symbol, unknown>([
+			[CONTEXT_KEYS.activeComic, activeComic],
+			[
+				CONTEXT_KEYS.networkSync,
+				{
+					log: [],
+					isSyncing: () => false,
+					lastSyncedAt: () => undefined,
+					activeSession: () => undefined,
+					activeProgressMessage: () => undefined,
+					syncHistory: vi.fn(),
+					syncFiles: vi.fn(),
+					syncComic: vi.fn(),
+					syncAll: vi.fn(),
+					startListening: vi.fn(),
+					stopListening: vi.fn()
+				}
+			]
+		])
 	});
 }
 

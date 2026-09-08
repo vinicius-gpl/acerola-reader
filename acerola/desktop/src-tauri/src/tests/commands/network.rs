@@ -33,6 +33,7 @@ struct MockNetworkState {
     paired_peers: Vec<(PeerAddr, Option<DeviceInfo>)>,
     last_connection: Option<(String, Vec<u8>)>,
     failure: Option<String>,
+    iroh_services_ticket: Option<String>,
 }
 
 impl MockNetworkService {
@@ -46,6 +47,7 @@ impl MockNetworkService {
                 paired_peers: Vec::new(),
                 last_connection: None,
                 failure: None,
+                iroh_services_ticket: None,
             })),
         }
     }
@@ -173,6 +175,36 @@ impl NetworkServiceApi for MockNetworkService {
         let mut state = self.state.lock().expect("network mock mutex should not be poisoned");
         Self::take_failure(&mut state)
     }
+
+    async fn has_iroh_services_ticket(&self) -> Result<bool, String> {
+        let mut state = self.state.lock().expect("network mock mutex should not be poisoned");
+        Self::take_failure(&mut state)?;
+        Ok(state.iroh_services_ticket.is_some())
+    }
+
+    async fn set_iroh_services_ticket(&self, ticket: String) -> Result<(), String> {
+        let mut state = self.state.lock().expect("network mock mutex should not be poisoned");
+        Self::take_failure(&mut state)?;
+        state.iroh_services_ticket = Some(ticket);
+        Ok(())
+    }
+
+    async fn clear_iroh_services_ticket(&self) -> Result<(), String> {
+        let mut state = self.state.lock().expect("network mock mutex should not be poisoned");
+        Self::take_failure(&mut state)?;
+        state.iroh_services_ticket = None;
+        Ok(())
+    }
+
+    async fn apply_relay_settings(&self) -> Result<(), String> {
+        let mut state = self.state.lock().expect("network mock mutex should not be poisoned");
+        Self::take_failure(&mut state)
+    }
+
+    async fn restart(&self) -> Result<(), String> {
+        let mut state = self.state.lock().expect("network mock mutex should not be poisoned");
+        Self::take_failure(&mut state)
+    }
 }
 
 fn mock_network_service() -> Arc<MockNetworkService> {
@@ -196,6 +228,7 @@ fn build_network_app(
             network_cmd::connect_to_peer,
             network_cmd::get_paired_peers,
             network_cmd::remove_paired_peer,
+            network_cmd::restart_p2p,
         ],
     ))
 }
@@ -270,6 +303,32 @@ async fn test_switch_to_local_serializes_service_error() -> Result<()> {
     let error = invoke_err(&webview, "switch_to_local", json!({}))?;
 
     assert_eq!(error, json!("local failure"));
+
+    Ok(())
+}
+
+/// `restart_p2p` (botão "Reiniciar" na tela de Rede, estilo LocalSend) delega inteiro pra
+/// `NetworkServiceApi::restart` — o comando em si não tem lógica própria além de repassar o
+/// resultado, então o teste só prova que a chamada chega até o service.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_restart_p2p_calls_the_service() -> Result<()> {
+    let service = mock_network_service();
+    let (_app, webview) = build_network_app(service)?;
+
+    let _: Value = invoke_ok(&webview, "restart_p2p", json!({}))?;
+
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_restart_p2p_serializes_service_error() -> Result<()> {
+    let service = mock_network_service();
+    service.fail_next("restart failure");
+    let (_app, webview) = build_network_app(service)?;
+
+    let error = invoke_err(&webview, "restart_p2p", json!({}))?;
+
+    assert_eq!(error, json!("restart failure"));
 
     Ok(())
 }

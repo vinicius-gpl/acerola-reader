@@ -3,7 +3,7 @@ use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager, Runtime, State};
 
 use crate::{
-    bios::{network::DEFAULT_RELAY_URL, scopes::read_relay_url_override},
+    bios::scopes::read_relay_settings,
     cmd::events::network::{DeviceInfoPayload, NetworkStatusPayload, PairedPeerPayload, RelayInfo},
     core::services::network::NetworkServiceApi,
     data::{models::sync::SyncHistoryLogEntry, repositories::sync::SyncHistoryLogRepository},
@@ -86,16 +86,55 @@ pub async fn set_local_device_name(
     service.set_local_device_name(trimmed.to_string()).await
 }
 
-/// Retorna o relay padrão do Acerola e o que está ativo de fato (que pode ter sido
-/// sobrescrito nas configurações avançadas). Trocar `relay_url` só tem efeito no próximo
-/// início do app, já que a lib não suporta trocar a URL do relay em runtime.
+/// Retorna a configuração de relay combinável atual (relay do Acerola / próprio(s) /
+/// Iroh / rede pública Iroh), lida de `settings.json`.
 #[tauri::command]
-pub async fn get_relay_info<R: Runtime>(app: AppHandle<R>) -> Result<RelayInfo, String> {
+pub async fn get_relay_info<R: Runtime>(
+    app: AppHandle<R>, service: State<'_, Arc<dyn NetworkServiceApi>>,
+) -> Result<RelayInfo, String> {
     let app_data_directory = app.path().app_data_dir().map_err(|error| error.to_string())?;
-    let active_relay = read_relay_url_override(&app_data_directory)
-        .unwrap_or_else(|| DEFAULT_RELAY_URL.to_string());
+    let has_ticket = service.has_iroh_services_ticket().await?;
+    Ok(RelayInfo::new(read_relay_settings(&app_data_directory), has_ticket))
+}
 
-    Ok(RelayInfo { default_relay: DEFAULT_RELAY_URL.to_string(), active_relay })
+/// Salva o ticket da conta do usuário em `services.iroh.computer` (colado por ele na tela de
+/// configuração de rede) no cofre criptografado — nunca em `settings.json`. Valida o formato
+/// antes de persistir. Não aplica sozinho a config nova — o frontend chama
+/// [`apply_relay_settings`] logo em seguida, mesmo fluxo de qualquer outra mudança de relay.
+#[tauri::command]
+pub async fn set_iroh_services_ticket(
+    service: State<'_, Arc<dyn NetworkServiceApi>>, ticket: String,
+) -> Result<(), String> {
+    service.set_iroh_services_ticket(ticket).await
+}
+
+/// Remove o ticket salvo — usado quando o usuário desliga a fonte ou substitui por um novo.
+#[tauri::command]
+pub async fn clear_iroh_services_ticket(
+    service: State<'_, Arc<dyn NetworkServiceApi>>,
+) -> Result<(), String> {
+    service.clear_iroh_services_ticket().await
+}
+
+/// Relê `settings.json` + o ticket do cofre e reinicia o módulo P2P inteiro com a config de
+/// relay resolvida (ver `NetworkServiceApi::restart`), sem precisar reiniciar o app — o
+/// frontend chama isso depois de QUALQUER mudança nas fontes de relay (toggle do Acerola/Iroh,
+/// add/remove de URL própria, salvar/remover ticket).
+#[tauri::command]
+pub async fn apply_relay_settings(
+    service: State<'_, Arc<dyn NetworkServiceApi>>,
+) -> Result<(), String> {
+    service.apply_relay_settings().await
+}
+
+/// Reinicia o módulo P2P por completo (desliga o node atual, sobe um novo com a mesma
+/// identidade/storage) sob demanda — botão "Reiniciar" na tela de Rede, estilo LocalSend. Mesma
+/// operação que [`apply_relay_settings`] já dispara automaticamente numa troca de relay; exposto
+/// separado pro usuário poder forçar um reset mesmo sem mudar nada (ex.: conexão presa depois de
+/// uma troca de rede física, sem precisar fechar e reabrir o app inteiro).
+#[tauri::command]
+pub async fn restart_p2p(service: State<'_, Arc<dyn NetworkServiceApi>>) -> Result<(), String> {
+    service.restart().await
 }
 
 #[tauri::command]
@@ -242,6 +281,15 @@ pub async fn get_sync_history_log(
     repo: State<'_, SyncHistoryLogRepository>,
 ) -> Result<Vec<SyncHistoryLogEntry>, String> {
     repo.find_recent(SYNC_HISTORY_LOG_LIMIT).await.map_err(|error| error.to_string())
+}
+
+/// Apaga todo o histórico de sync persistido — botão "Limpar" na tela de Rede. Irreversível,
+/// a UI já confirma com o usuário antes de chamar.
+#[tauri::command]
+pub async fn clear_sync_history_log(
+    repo: State<'_, SyncHistoryLogRepository>,
+) -> Result<(), String> {
+    repo.delete_all().await.map_err(|error| error.to_string())
 }
 
 /// Se `true`, a chave mestra que criptografa identidade/peers/confiança caiu pro fallback

@@ -13,4 +13,8 @@ interface SyncHistoryLogDao {
     /** Mais recentes primeiro — usado pra popular o log de atividade ao abrir a tela de sync. */
     @Query("SELECT * FROM sync_history_log ORDER BY created_at DESC, id DESC LIMIT :limit")
     suspend fun findRecent(limit: Int): List<SyncHistoryLog>
+
+    /** Botão "Limpar" da tela de Rede — mesma operação do Desktop (`SyncHistoryLogRepository::delete_all`). */
+    @Query("DELETE FROM sync_history_log")
+    suspend fun deleteAll()
 }

@@ -4,10 +4,12 @@ import android.content.Context
 import br.acerola.comic.config.preference.DeviceAliasPreference
 import br.acerola.comic.config.preference.RelayPreference
 import br.acerola.comic.service.P2pService
+import br.acerola.comic.service.RelaySettings
 import br.acerola.comic.service.network.CoverBrowseProviderImpl
 import br.acerola.comic.service.network.FileSyncProviderImpl
 import br.acerola.comic.service.network.HistorySyncProviderImpl
 import br.acerola.comic.service.network.P2pEventBus
+import br.acerola.comic.service.network.P2pSyncCoordinator
 import br.acerola.comic.service.network.SecureBlobStoreImpl
 import br.acerola.comic.usecase.network.P2pUseCase
 import dagger.Module
@@ -31,16 +33,29 @@ object NetworkCaseModule {
         historyProvider: HistorySyncProviderImpl,
         fileProvider: FileSyncProviderImpl,
         coverProvider: CoverBrowseProviderImpl,
+        // Não usado no corpo da função — só aqui pra forçar o Dagger a instanciar esse
+        // singleton (e começar a coletar o eventBus) assim que o subsistema P2P nasce, em vez
+        // de nunca ser criado (nada mais injeta um P2pSyncCoordinator diretamente). Ver
+        // KDoc da classe pra entender por que essa coleta não pode depender de nenhuma
+        // ViewModel estar viva.
+        @Suppress("UNUSED_PARAMETER") syncCoordinator: P2pSyncCoordinator,
     ): P2pService {
         // Read once at startup (no runtime hot-swap) — changing the relay requires restarting the app.
-        val relayUrlOverride = runBlocking { RelayPreference.relayUrlOverrideFlow(context).first() }
+        val relaySettings =
+            runBlocking { RelayPreference.currentRelaySettings(context) }.let {
+                RelaySettings(
+                    useAcerolaRelay = it.useAcerolaRelay,
+                    useIrohPublicNetwork = it.useIrohPublicNetwork,
+                    customRelayUrls = it.customRelayUrls,
+                )
+            }
         // Renaming the device afterwards doesn't need a restart (see
         // `P2pService.setLocalDeviceName`) — this initial read only seeds the very first
         // `DeviceInfo` the node boots with, matching whatever was last saved.
         val deviceNameOverride = runBlocking { DeviceAliasPreference.deviceAliasFlow(context).first() }
         return P2pService(
             context,
-            relayUrlOverride,
+            relaySettings,
             deviceNameOverride,
             secureStore,
             historyProvider,

@@ -10,5 +10,8 @@ export const STORE_KEYS = {
 	onboardingCompleted: 'onboarding_completed',
 	metadataLanguage: 'metadata_language',
 	relayUrl: 'relay_url',
+	relayUseAcerola: 'relay_use_acerola',
+	relayUseIrohPublic: 'relay_use_iroh_public',
+	relayCustomUrls: 'relay_custom_urls',
 	deviceAlias: 'device_alias'
 } as const;

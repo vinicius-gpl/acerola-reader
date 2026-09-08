@@ -24,25 +24,21 @@
 				data={{
 					deviceName: 'Meu Notebook',
 					localId: 'abcdefghijklmnopqrstuvwxyz012345',
-					mode: 'local',
-					activeRelay: null,
-					isRelayOverridden: false
+					mode: 'local'
 				}}
 			/>
 		</div>
 	{/snippet}
 </Story>
 
-<Story name="Relay Mode (Custom)" asChild>
+<Story name="Relay Mode" asChild>
 	{#snippet children()}
 		<div class="max-w-md bg-surface p-8">
 			<AcerolaNetworkMyDeviceCard
 				data={{
 					deviceName: 'Meu Notebook',
 					localId: 'abcdefghijklmnopqrstuvwxyz012345',
-					mode: 'relay',
-					activeRelay: 'relay.acerola.app',
-					isRelayOverridden: true
+					mode: 'relay'
 				}}
 			/>
 		</div>
@@ -56,9 +52,7 @@
 				data={{
 					deviceName: 'Meu Notebook',
 					localId: 'abcdefghijklmnopqrstuvwxyz012345',
-					mode: 'local',
-					activeRelay: null,
-					isRelayOverridden: false
+					mode: 'local'
 				}}
 				events={{ onRenameDevice: async () => {} }}
 			/>
@@ -73,9 +67,7 @@
 				data={{
 					deviceName: null,
 					localId: null,
-					mode: undefined,
-					activeRelay: null,
-					isRelayOverridden: false
+					mode: undefined
 				}}
 			/>
 		</div>

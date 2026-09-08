@@ -11,36 +11,101 @@ export function useRelaySettings() {
 		relayInfo = await invoke<RelayInfo>(NETWORK_COMMANDS.getRelayInfo);
 	}
 
-	/// Salva o override. Só tem efeito no próximo início do app — a conexão P2P atual
-	/// continua usando o relay com o qual já subiu.
-	async function setRelayUrl(value: string) {
+	/// Todas as mudanças abaixo persistem em `settings.json` E aplicam na hora
+	/// (`apply_relay_settings`, relê o disco/cofre e REINICIA o módulo P2P inteiro com a config
+	/// nova — ver `NetworkServiceApi::restart` no backend, estilo LocalSend) — não precisa mais
+	/// fechar/reabrir o app pra valer. Um restart derruba conexões ativas por alguns segundos,
+	/// mas evita o estado confuso que mutar o `Endpoint` ao vivo podia deixar pra trás.
+
+	async function setUseAcerolaRelay(value: boolean) {
 		const store = await load(STORE_FILE);
-		const trimmed = value.trim();
-
-		if (!trimmed || (relayInfo && trimmed === relayInfo.defaultRelay)) {
-			await store.delete(STORE_KEYS.relayUrl);
-		} else {
-			await store.set(STORE_KEYS.relayUrl, trimmed);
-		}
-
+		await store.set(STORE_KEYS.relayUseAcerola, value);
 		await store.save();
+
+		if (relayInfo) relayInfo = { ...relayInfo, useAcerolaRelay: value };
+		await invoke(NETWORK_COMMANDS.applyRelaySettings);
 	}
 
-	async function resetRelayUrl() {
+	async function setUseIrohPublicNetwork(value: boolean) {
 		const store = await load(STORE_FILE);
-		await store.delete(STORE_KEYS.relayUrl);
+		await store.set(STORE_KEYS.relayUseIrohPublic, value);
 		await store.save();
+
+		if (relayInfo) relayInfo = { ...relayInfo, useIrohPublicNetwork: value };
+		await invoke(NETWORK_COMMANDS.applyRelaySettings);
+	}
+
+	/// Diferente das demais fontes: o ticket não vai pro `settings.json` (tauri-plugin-store),
+	/// vai pro cofre criptografado do backend (mesma proteção da identidade P2P) — por isso
+	/// passa pelo comando Tauri, não pelo `store` direto. O valor em si nunca volta pro
+	/// frontend; só `hasIrohServicesTicket` é atualizado depois de salvar/limpar com sucesso.
+	/// Propaga o erro do backend (ex: ticket malformado) pro chamador tratar (toast).
+	async function setIrohServicesTicket(ticket: string) {
+		await invoke(NETWORK_COMMANDS.setIrohServicesTicket, { ticket });
+		if (relayInfo) relayInfo = { ...relayInfo, hasIrohServicesTicket: true };
+		await invoke(NETWORK_COMMANDS.applyRelaySettings);
+	}
+
+	async function clearIrohServicesTicket() {
+		await invoke(NETWORK_COMMANDS.clearIrohServicesTicket);
+		if (relayInfo) relayInfo = { ...relayInfo, hasIrohServicesTicket: false };
+		await invoke(NETWORK_COMMANDS.applyRelaySettings);
+	}
+
+	async function addCustomRelayUrl(url: string) {
+		const trimmed = url.trim();
+		if (!trimmed || !relayInfo || relayInfo.customRelayUrls.includes(trimmed)) return;
+
+		const next = [...relayInfo.customRelayUrls, trimmed];
+		const store = await load(STORE_FILE);
+		await store.set(STORE_KEYS.relayCustomUrls, next);
+		await store.save();
+
+		relayInfo = { ...relayInfo, customRelayUrls: next };
+		await invoke(NETWORK_COMMANDS.applyRelaySettings);
+	}
+
+	async function removeCustomRelayUrl(url: string) {
+		if (!relayInfo) return;
+
+		const next = relayInfo.customRelayUrls.filter((existing) => existing !== url);
+		const store = await load(STORE_FILE);
+		await store.set(STORE_KEYS.relayCustomUrls, next);
+		await store.save();
+
+		relayInfo = { ...relayInfo, customRelayUrls: next };
+		await invoke(NETWORK_COMMANDS.applyRelaySettings);
+	}
+
+	/// Botão manual "Reiniciar" — mesma operação que qualquer mudança de fonte de relay já
+	/// dispara automaticamente (ver doc acima), exposta pro usuário forçar um reset mesmo sem
+	/// mudar nada (ex.: conexão presa depois de uma troca de rede física do SO, sem precisar
+	/// fechar e reabrir o app inteiro).
+	async function restartP2p() {
+		await invoke(NETWORK_COMMANDS.restartP2p);
 	}
 
 	return {
 		loadRelayInfo,
-		setRelayUrl,
-		resetRelayUrl,
+		restartP2p,
+		setUseAcerolaRelay,
+		setUseIrohPublicNetwork,
+		addCustomRelayUrl,
+		removeCustomRelayUrl,
+		setIrohServicesTicket,
+		clearIrohServicesTicket,
 		get relayInfo() {
 			return relayInfo;
 		},
-		get isOverridden() {
-			return !!relayInfo && relayInfo.activeRelay !== relayInfo.defaultRelay;
+		/// Nenhuma fonte de relay ativa — estado natural de "tudo desligado", não um modo
+		/// escolhido explicitamente (espelha `RelaySettings::resolve` no backend).
+		get isMdnsOnly() {
+			return (
+				!!relayInfo &&
+				!relayInfo.useAcerolaRelay &&
+				!relayInfo.useIrohPublicNetwork &&
+				relayInfo.customRelayUrls.length === 0
+			);
 		}
 	};
 }

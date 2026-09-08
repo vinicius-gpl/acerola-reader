@@ -9,6 +9,10 @@ export const NETWORK_COMMANDS = {
 	getPairedPeers: 'get_paired_peers',
 	removePairedPeer: 'remove_paired_peer',
 	getRelayInfo: 'get_relay_info',
+	setIrohServicesTicket: 'set_iroh_services_ticket',
+	clearIrohServicesTicket: 'clear_iroh_services_ticket',
+	applyRelaySettings: 'apply_relay_settings',
+	restartP2p: 'restart_p2p',
 	connectToPeer: 'connect_to_peer',
 	syncHistory: 'sync_history',
 	syncFiles: 'sync_files',
@@ -17,5 +21,6 @@ export const NETWORK_COMMANDS = {
 	queryRemoteLibrary: 'query_remote_library',
 	queryRemoteCover: 'query_remote_cover',
 	getSyncHistoryLog: 'get_sync_history_log',
+	clearSyncHistoryLog: 'clear_sync_history_log',
 	getSecurityStatus: 'get_security_status'
 } as const;

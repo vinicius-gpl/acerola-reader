@@ -51,10 +51,10 @@
 	import AcerolaHeroButton from '$lib/components/acerola-hero-button/acerola-hero-button.svelte';
 	import AcerolaSelect from '$lib/components/acerola-select/acerola-select.svelte';
 	import AcerolaToggleGroup from '$lib/components/acerola-toggle-group/acerola-toggle-group.svelte';
+	import AcerolaToggleCard from '$lib/components/acerola-toggle-card/acerola-toggle-card.svelte';
 	import AcerolaAlertDialog from '$lib/components/acerola-alert-dialog/acerola-alert-dialog.svelte';
 	import AcerolaButtonIcon from '$lib/components/acerola-button/acerola-button-icon.svelte';
 	import AcerolaPopover from '$lib/components/acerola-popover/acerola-popover.svelte';
-	import AcerolaSwitch from '$lib/components/acerola-switch/acerola-switch.svelte';
 	import { buttonVariants } from '$lib/components/ui/button';
 	import { ToggleGroupItem } from '$lib/components/ui/toggle-group/index';
 	import { m } from '$lib/paraglide/messages';
@@ -85,9 +85,12 @@
 	let showDeepRescanDialog = $state(false);
 	let showPeerMenu = $state(false);
 
-	// 3 categorias (Leitura / Sincronização / Avançado) em vez das 6 abas de antes, todas
-	// colapsadas por padrão e expandindo inline na própria lista — sem navegar pra outra
-	// tela, mesmo padrão usado em config/. Mais de uma pode ficar aberta ao mesmo tempo.
+	// 3 categorias (Leitura / Sincronização / Avançado) em vez das 6 abas de antes, expandindo
+	// inline na própria lista — sem navegar pra outra tela. Mais de uma pode ficar aberta ao
+	// mesmo tempo. Sincronização fica sempre aberta (flat, `ui.collapsible: false` abaixo) — é a
+	// categoria mais usada (metadados, arquivos e dispositivos pareados), então não vale esconder
+	// atrás de um clique; Leitura e Avançado continuam colapsadas por padrão. Mesmo mix de
+	// UI/UX já usado no root de config/ (Aparência/Marcadores flat, o resto colapsado).
 	const expandedCategories = new SvelteSet<string>();
 
 	function toggleCategory(id: string) {
@@ -98,11 +101,11 @@
 		}
 	}
 
-	// Cor de borda no hover de cada categoria — combina com a cor do ícone (mesma paleta
-	// chart-N), reforçando a identidade visual de cada card no hover.
+	// Cor de borda no hover de cada categoria colapsável — combina com a cor do ícone (mesma
+	// paleta chart-N), reforçando a identidade visual de cada card no hover. Sincronização não
+	// entra aqui: fica sempre aberta, sem clique nenhum pra destacar no hover.
 	const CATEGORY_HOVER_BORDER: Record<string, string> = {
 		reading: 'hover:border-chart-2/60',
-		sync: 'hover:border-chart-1/60',
 		advanced: 'hover:border-chart-3/60'
 	};
 </script>
@@ -197,15 +200,16 @@
 		{/snippet}
 	</AcerolaAccordionCard>
 
-	<!-- Sincronização -->
+	<!-- Sincronização — fica sempre aberta (flat): metadados, arquivos e dispositivos pareados
+	     são a parte mais usada dessa tela, não vale esconder atrás de um clique. -->
 	<AcerolaAccordionCard
 		data={{
 			title: m['pages.comic.preferences.categories.sync.title'](),
 			description: m['pages.comic.preferences.categories.sync.desc']()
 		}}
-		state={{ expanded: expandedCategories.has('sync') }}
-		events={{ onToggle: () => toggleCategory('sync') }}
-		ui={{ class: CATEGORY_HOVER_BORDER.sync }}
+		state={{ expanded: true }}
+		events={{ onToggle: () => {} }}
+		ui={{ collapsible: false }}
 	>
 		{#snippet icon()}
 			<CloudSync class="text-chart-1" size={24} />
@@ -221,81 +225,83 @@
 				</div>
 
 				<div class="grid gap-4">
-					<AcerolaHeroButton
+					<!-- Toggle + revela os botões de sync junto, num card só — mesmo formato do card
+					     "Rede pública Iroh" da tela de Rede. -->
+					<AcerolaToggleCard
 						data={{
 							title: m['pages.comic.preferences.external_sync.title'](),
-							description: m['pages.comic.preferences.external_sync.desc']()
+							subtitle: m['pages.comic.preferences.external_sync.desc']()
+						}}
+						state={{
+							active: preferences.externalSyncEnabled,
+							expanded: preferences.externalSyncEnabled
+						}}
+						events={{
+							onClick: () => events.onExternalSyncChange(!preferences.externalSyncEnabled)
 						}}
 					>
 						{#snippet icon()}
-							<Link class="text-chart-1" size={24} />
+							<Link size={18} />
 						{/snippet}
 
-						{#snippet action()}
-							<AcerolaSwitch
-								state={{ checked: preferences.externalSyncEnabled }}
-								events={{ onCheckedChange: events.onExternalSyncChange }}
-							/>
+						{#snippet children()}
+							<AcerolaHeroButton
+								data={{
+									title: m['pages.config.metadata.mangadex.title'](),
+									description: m['pages.config.metadata.mangadex.desc']()
+								}}
+								events={{
+									onClick: preferences.metadataSyncing ? undefined : events.onSyncMangadex
+								}}
+							>
+								{#snippet icon()}
+									<span style="all: unset; display: inline-flex;">
+										<MangaDexIcon class="h-6 w-6 rounded-lg" />
+									</span>
+								{/snippet}
+
+								{#snippet action()}
+									<AcerolaButtonIcon
+										ui={{
+											class:
+												'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground',
+											disabled: preferences.metadataSyncing
+										}}
+									>
+										<RefreshCw class={preferences.metadataSyncing ? 'animate-spin' : ''} />
+									</AcerolaButtonIcon>
+								{/snippet}
+							</AcerolaHeroButton>
+
+							<AcerolaHeroButton
+								data={{
+									title: m['pages.config.metadata.anilist.title'](),
+									description: m['pages.config.metadata.anilist.desc']()
+								}}
+								events={{
+									onClick: preferences.metadataSyncing ? undefined : events.onSyncAnilist
+								}}
+							>
+								{#snippet icon()}
+									<span style="all: unset; display: inline-flex;">
+										<AniListIcon class="h-6 w-6 rounded-lg" />
+									</span>
+								{/snippet}
+
+								{#snippet action()}
+									<AcerolaButtonIcon
+										ui={{
+											class:
+												'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground',
+											disabled: preferences.metadataSyncing
+										}}
+									>
+										<RefreshCw class={preferences.metadataSyncing ? 'animate-spin' : ''} />
+									</AcerolaButtonIcon>
+								{/snippet}
+							</AcerolaHeroButton>
 						{/snippet}
-					</AcerolaHeroButton>
-
-					{#if preferences.externalSyncEnabled}
-						<AcerolaHeroButton
-							data={{
-								title: m['pages.config.metadata.mangadex.title'](),
-								description: m['pages.config.metadata.mangadex.desc']()
-							}}
-							events={{
-								onClick: preferences.metadataSyncing ? undefined : events.onSyncMangadex
-							}}
-						>
-							{#snippet icon()}
-								<span style="all: unset; display: inline-flex;">
-									<MangaDexIcon class="h-6 w-6 rounded-lg" />
-								</span>
-							{/snippet}
-
-							{#snippet action()}
-								<AcerolaButtonIcon
-									ui={{
-										class:
-											'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground',
-										disabled: preferences.metadataSyncing
-									}}
-								>
-									<RefreshCw class={preferences.metadataSyncing ? 'animate-spin' : ''} />
-								</AcerolaButtonIcon>
-							{/snippet}
-						</AcerolaHeroButton>
-
-						<AcerolaHeroButton
-							data={{
-								title: m['pages.config.metadata.anilist.title'](),
-								description: m['pages.config.metadata.anilist.desc']()
-							}}
-							events={{
-								onClick: preferences.metadataSyncing ? undefined : events.onSyncAnilist
-							}}
-						>
-							{#snippet icon()}
-								<span style="all: unset; display: inline-flex;">
-									<AniListIcon class="h-6 w-6 rounded-lg" />
-								</span>
-							{/snippet}
-
-							{#snippet action()}
-								<AcerolaButtonIcon
-									ui={{
-										class:
-											'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground',
-										disabled: preferences.metadataSyncing
-									}}
-								>
-									<RefreshCw class={preferences.metadataSyncing ? 'animate-spin' : ''} />
-								</AcerolaButtonIcon>
-							{/snippet}
-						</AcerolaHeroButton>
-					{/if}
+					</AcerolaToggleCard>
 
 					<AcerolaHeroButton
 						data={{

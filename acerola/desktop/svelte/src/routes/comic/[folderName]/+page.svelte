@@ -13,7 +13,8 @@
 	import { useChapterSelection } from '$lib/hooks/store/use-chapter-selection.svelte';
 	import { useHistory } from '$lib/hooks/store/use-history.svelte';
 	import { usePeerConnection } from '$lib/hooks/store/use-peer-connection.svelte';
-	import { useNetworkSync, type SyncDirection } from '$lib/hooks/store/use-network-sync.svelte';
+	import type { useNetworkSync, SyncDirection } from '$lib/hooks/store/use-network-sync.svelte';
+	import { CONTEXT_KEYS } from '$lib/constants/context-keys';
 
 	import { useComicContext } from '$lib/state/comic-context.svelte';
 	import { useMetadataSync } from '$lib/hooks/store/use-metadata-sync.svelte';
@@ -30,7 +31,7 @@
 	import ArrowUpDown from '@lucide/svelte/icons/arrow-up-down';
 	import Check from '@lucide/svelte/icons/check';
 
-	import { onMount, untrack } from 'svelte';
+	import { getContext, onMount, untrack } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import { m } from '$lib/paraglide/messages';
 	import { extractErrorMessage } from '$lib/utils/error.utils';
@@ -61,7 +62,12 @@
 	const chapterSelection = useChapterSelection();
 	const historyActions = useHistory();
 	const peers = usePeerConnection();
-	const p2pSync = useNetworkSync();
+	// Compartilhada com `+layout.svelte` (nunca desmonta) via contexto — não cria uma instância
+	// própria. Ver `CONTEXT_KEYS.networkSync` / `routes/network/+page.svelte` pro porquê: uma
+	// instância só-desta-página, desmontada ao navegar pra outra tela, rejeitava promises de
+	// sync em andamento (`p2pSync.syncComic`) com "sync cancelled: listener stopped" mesmo o
+	// sync de verdade continuando no backend.
+	const p2pSync = getContext<ReturnType<typeof useNetworkSync>>(CONTEXT_KEYS.networkSync);
 
 	let expandedVolumeId = $state<string | null>(null);
 	let currentBookmarkId = $state<number | null>(null);
@@ -376,14 +382,12 @@
 			await Promise.all([
 				volumeViewPreference.loadVolumeViewMode(),
 				bookmarkStore.loadBookmarks(),
-				peers.startListening(),
-				p2pSync.startListening()
+				peers.startListening()
 			]);
 		})();
 
 		return () => {
 			peers.stopListening();
-			p2pSync.stopListening();
 		};
 	});
 
@@ -713,7 +717,7 @@
 									align: 'end',
 									side: 'bottom',
 									sideOffset: 8,
-									contentClass: 'w-48 p-2 rounded-xl'
+									contentClass: 'w-64 overflow-hidden rounded-xl p-2'
 								}}
 							>
 								{#snippet trigger()}
@@ -738,7 +742,8 @@
 										{:else}
 											<div class="w-4"></div>
 										{/if}
-										{m['pages.comic.sort.number.asc']()}
+										<span class="min-w-0 flex-1 truncate">{m['pages.comic.sort.number.asc']()}</span
+										>
 									</AcerolaButton>
 									<AcerolaButton
 										ui={{ variant: 'ghost', class: 'w-full justify-start rounded-lg' }}
@@ -754,7 +759,9 @@
 										{:else}
 											<div class="w-4"></div>
 										{/if}
-										{m['pages.comic.sort.number.desc']()}
+										<span class="min-w-0 flex-1 truncate"
+											>{m['pages.comic.sort.number.desc']()}</span
+										>
 									</AcerolaButton>
 									<AcerolaButton
 										ui={{ variant: 'ghost', class: 'w-full justify-start rounded-lg' }}
@@ -770,7 +777,9 @@
 										{:else}
 											<div class="w-4"></div>
 										{/if}
-										{m['pages.comic.sort.modified.desc']()}
+										<span class="min-w-0 flex-1 truncate"
+											>{m['pages.comic.sort.modified.desc']()}</span
+										>
 									</AcerolaButton>
 									<AcerolaButton
 										ui={{ variant: 'ghost', class: 'w-full justify-start rounded-lg' }}
@@ -786,7 +795,9 @@
 										{:else}
 											<div class="w-4"></div>
 										{/if}
-										{m['pages.comic.sort.modified.asc']()}
+										<span class="min-w-0 flex-1 truncate"
+											>{m['pages.comic.sort.modified.asc']()}</span
+										>
 									</AcerolaButton>
 								{/snippet}
 							</AcerolaPopover>

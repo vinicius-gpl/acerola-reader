@@ -1,6 +1,8 @@
 import { render, screen } from '@testing-library/svelte';
 import { userEvent } from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { BOOKMARKS_COMMANDS } from '$lib/contracts/bookmarks/bookmarks.commands';
+import { _resetBookmarksState } from '$lib/hooks/store/use-bookmarks.svelte';
 import ConfigPage from '../+page.svelte';
 
 const { mockGoto } = vi.hoisted(() => ({ mockGoto: vi.fn() }));
@@ -40,7 +42,19 @@ vi.mock('@tauri-apps/plugin-store', () => ({
 describe('config +page (accordion)', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
-		mockInvoke.mockResolvedValue(undefined);
+		_resetBookmarksState();
+		// Marcadores agora fica sempre aberta (flat) — `AcerolaBookmarkManager` monta de cara
+		// (não só depois de expandir uma categoria) e chama `loadBookmarks()` no `onMount`, então
+		// precisa de uma resposta em formato de lista aqui, senão `bookmarks` vira `undefined`.
+		mockInvoke.mockImplementation((cmd: string) => {
+			if (
+				cmd === BOOKMARKS_COMMANDS.getCategories ||
+				cmd === BOOKMARKS_COMMANDS.getAllComicCategories
+			) {
+				return Promise.resolve([]);
+			}
+			return Promise.resolve(undefined);
+		});
 		mockListen.mockResolvedValue(vi.fn());
 		mockStoreLoad.mockResolvedValue({
 			get: vi.fn().mockResolvedValue(undefined),
@@ -49,7 +63,10 @@ describe('config +page (accordion)', () => {
 		});
 	});
 
-	it('renders every category row collapsed by default', () => {
+	// Aparência e Marcadores ficam sempre abertas (flat, sem clique) — só Arquivos/Biblioteca/
+	// Metadados colapsam por padrão. Mesmo mix de UI/UX da tela de Rede (nem toda seção precisa
+	// de um clique pra ver o conteúdo).
+	it('renders the flat categories already open and the collapsible ones collapsed by default', () => {
 		render(ConfigPage);
 
 		expect(screen.getByText(/^configuração dos arquivos$/i)).toBeInTheDocument();
@@ -58,38 +75,41 @@ describe('config +page (accordion)', () => {
 		expect(screen.getByText(/^configuração de metadados$/i)).toBeInTheDocument();
 		expect(screen.getByText(/^marcadores$/i)).toBeInTheDocument();
 
-		expect(screen.queryByText(/catppuccin/i)).not.toBeInTheDocument();
+		// Aparência é flat — o grid de temas já vem visível, sem precisar clicar.
+		expect(screen.getByText(/catppuccin/i)).toBeInTheDocument();
+		// Biblioteca continua colapsável — conteúdo escondido até clicar.
+		expect(screen.queryByText(/^templates de nomenclatura$/i)).not.toBeInTheDocument();
 	});
 
-	it('expands a category inline instead of navigating', async () => {
+	it('expands a collapsible category inline instead of navigating', async () => {
 		const user = userEvent.setup();
 		render(ConfigPage);
 
-		await user.click(screen.getByText(/^aparência$/i));
+		await user.click(screen.getByText(/^configuração de metadados$/i));
 
-		expect(await screen.findByText(/catppuccin/i)).toBeInTheDocument();
+		expect(await screen.findByText(/sincronização com mangadex/i)).toBeInTheDocument();
 		expect(mockGoto).not.toHaveBeenCalled();
 
 		// aria-expanded no cabeçalho muda de forma síncrona — a remoção do conteúdo em si passa
 		// por transition:slide, cujo outro pode não completar em jsdom (sem layout real), então
 		// o sinal confiável aqui é o atributo, não o conteúdo.
-		await user.click(screen.getByText(/^aparência$/i));
+		await user.click(screen.getByText(/^configuração de metadados$/i));
 
-		expect(screen.getByText(/^aparência$/i).closest('button')).toHaveAttribute(
+		expect(screen.getByText(/^configuração de metadados$/i).closest('button')).toHaveAttribute(
 			'aria-expanded',
 			'false'
 		);
 	});
 
-	it('keeps more than one category expanded at the same time', async () => {
+	it('keeps a flat section visible alongside an expanded collapsible category', async () => {
 		const user = userEvent.setup();
 		render(ConfigPage);
 
-		await user.click(screen.getByText(/^aparência$/i));
 		await user.click(screen.getByText(/^biblioteca$/i));
 
-		expect(await screen.findByText(/catppuccin/i)).toBeInTheDocument();
-		expect(screen.getByText(/^templates de nomenclatura$/i)).toBeInTheDocument();
+		// Aparência (flat) nunca deixou de estar visível; Biblioteca (colapsável) agora também está.
+		expect(screen.getByText(/catppuccin/i)).toBeInTheDocument();
+		expect(await screen.findByText(/^templates de nomenclatura$/i)).toBeInTheDocument();
 	});
 
 	it('still navigates to the templates route from within library', async () => {

@@ -1,6 +1,9 @@
 #[path = "lib/mode.rs"]
 pub(crate) mod mode;
 
+#[path = "lib/relay_settings.rs"]
+pub(crate) mod relay_settings;
+
 #[path = "lib/singleton.rs"]
 pub(crate) mod singleton;
 

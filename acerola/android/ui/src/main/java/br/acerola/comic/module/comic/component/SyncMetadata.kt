@@ -44,33 +44,69 @@ fun Comic.Component.SyncMetadata(
     comicInfoState: SyncActionVisualState = SyncActionVisualState.IDLE,
     modifier: Modifier = Modifier,
 ) {
-    val syncSource = remoteInfo?.syncSource
-
     Column(modifier = modifier) {
         if (externalSyncEnabled) {
-            MangadexSection(
-                isActive = syncSource == MetadataSource.MANGADEX,
-                onSyncInfo = onSyncMangadexInfo,
-                infoState = mangadexInfoState,
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            AnilistSection(
-                isActive = syncSource == MetadataSource.ANILIST,
-                onSyncInfo = onSyncAnilistInfo,
-                infoState = anilistInfoState,
+            Comic.Component.ExternalMetadataSync(
+                remoteInfo = remoteInfo,
+                onSyncMangadexInfo = onSyncMangadexInfo,
+                onSyncAnilistInfo = onSyncAnilistInfo,
+                mangadexInfoState = mangadexInfoState,
+                anilistInfoState = anilistInfoState,
             )
 
             Spacer(modifier = Modifier.height(8.dp))
         }
 
-        ComicInfoSection(
-            isActive = syncSource == MetadataSource.COMIC_INFO,
-            onSyncInfo = onSyncComicInfo,
-            infoState = comicInfoState,
+        Comic.Component.ComicInfoSync(
+            remoteInfo = remoteInfo,
+            onSyncComicInfo = onSyncComicInfo,
+            comicInfoState = comicInfoState,
         )
     }
+}
+
+// Mangadex+AniList isolados do ComicInfo (que não depende de sync externa) — usados dentro do
+// `content` expansível do ToggleCard de sync externa em ConfigSection.kt, mesmo agrupamento do
+// `AcerolaToggleCard` do desktop (acerola-comic-preferences.svelte).
+@Composable
+fun Comic.Component.ExternalMetadataSync(
+    remoteInfo: ComicMetadataDto?,
+    onSyncMangadexInfo: () -> Unit,
+    onSyncAnilistInfo: () -> Unit,
+    mangadexInfoState: SyncActionVisualState = SyncActionVisualState.IDLE,
+    anilistInfoState: SyncActionVisualState = SyncActionVisualState.IDLE,
+    modifier: Modifier = Modifier,
+) {
+    val syncSource = remoteInfo?.syncSource
+
+    Column(modifier = modifier) {
+        MangadexSection(
+            isActive = syncSource == MetadataSource.MANGADEX,
+            onSyncInfo = onSyncMangadexInfo,
+            infoState = mangadexInfoState,
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        AnilistSection(
+            isActive = syncSource == MetadataSource.ANILIST,
+            onSyncInfo = onSyncAnilistInfo,
+            infoState = anilistInfoState,
+        )
+    }
+}
+
+@Composable
+fun Comic.Component.ComicInfoSync(
+    remoteInfo: ComicMetadataDto?,
+    onSyncComicInfo: () -> Unit,
+    comicInfoState: SyncActionVisualState = SyncActionVisualState.IDLE,
+) {
+    ComicInfoSection(
+        isActive = remoteInfo?.syncSource == MetadataSource.COMIC_INFO,
+        onSyncInfo = onSyncComicInfo,
+        infoState = comicInfoState,
+    )
 }
 
 @Composable

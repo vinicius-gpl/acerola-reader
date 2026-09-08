@@ -168,6 +168,10 @@
 			"navigation_group": "Navigation",
 			"library_group": "Library",
 			"no_results": "No comics found."
+		},
+		"sync_indicator": {
+			"syncing": "Syncing with {peer}",
+			"tooltip": "View details in the Network tab"
 		}
 	},
 	"routes": {
@@ -723,9 +727,6 @@
 				"title": "This device",
 				"mode_local": "Local network",
 				"mode_relay": "Relay",
-				"relay_label": "Relay",
-				"relay_default": "default",
-				"relay_custom": "custom",
 				"copy_id": "Copy ID",
 				"rename": {
 					"action": "Rename device",
@@ -734,6 +735,45 @@
 					"cancel": "Cancel",
 					"success": "Device name updated!",
 					"error": "Couldn't rename the device: {msg}"
+				}
+			},
+			"relay_settings": {
+				"title": "Connection",
+				"description": "Choose how this device reaches others outside your local network.",
+				"use_acerola_relay": "Use Acerola's relay",
+				"use_acerola_relay_desc": "Managed automatically ({url}).",
+				"use_iroh_public_network": "Use Iroh Services (own account)",
+				"use_iroh_public_network_desc": "Authenticated with your own account's ticket from services.iroh.computer — can't be combined with the sources below.",
+				"use_iroh_public_network_disabled_hint": "Configure a ticket below to enable this source.",
+				"iroh_services_ticket": {
+					"label": "Iroh Services ticket",
+					"configured": "Ticket configured.",
+					"not_configured": "No ticket configured yet.",
+					"placeholder": "Paste the ticket generated at services.iroh.computer",
+					"save_button": "Save ticket",
+					"replace_button": "Replace ticket",
+					"remove_button": "Remove ticket",
+					"invalid": "Invalid ticket. Check that you copied the full text.",
+					"help": "Create a free account at services.iroh.computer, generate a ticket in your project, and paste it here — the credential stays on this device only, it's never sent to the relay."
+				},
+				"custom_relays": {
+					"title": "Your own relays",
+					"add_placeholder": "https://your-relay.example.com",
+					"add_button": "Add custom relay",
+					"empty": "No custom relay added.",
+					"count": "{count} configured",
+					"remove": "Remove custom relay"
+				},
+				"invalid_url": "Enter a valid URL (e.g. https://relay.example.com).",
+				"summary_mdns_only": "Local network only (mDNS) — no relay active, only devices on the same network can connect.",
+				"summary_iroh_public": "Using Iroh's public relay network.",
+				"summary_active": "{count} relay source(s) active.",
+				"restart": {
+					"button": "Restart P2P module",
+					"description": "Shuts down and relaunches the P2P connection from scratch — useful if the connection got stuck after switching networks or relays.",
+					"restarting": "Restarting...",
+					"success": "P2P module restarted.",
+					"error": "Couldn't restart the P2P module."
 				}
 			},
 			"pairing": {
@@ -750,6 +790,7 @@
 				"title": "Connect to a device",
 				"placeholder": "Paste the connection code here",
 				"button": "Connect",
+				"loading": "Connecting...",
 				"success": "Connected!",
 				"error": "Couldn't connect. Make sure the code is correct and the other device has Acerola open.",
 				"invalid_code": "Invalid code. Make sure you copied the full code from the other device."
@@ -790,7 +831,15 @@
 				"comic_started": "Syncing comic with {peer}...",
 				"comic_progress": "Transferring {item}...",
 				"comic_complete": "Comic synced with {peer}.",
-				"comic_error": "Failed to sync comic: {msg}"
+				"comic_error": "Failed to sync comic: {msg}",
+				"refresh": "Refresh",
+				"clear": {
+					"button": "Clear",
+					"title": "Clear transfer history?",
+					"desc": "Removes the entire persisted sync history. This can't be undone.",
+					"cancel": "Cancel",
+					"confirm": "Yes, clear everything"
+				}
 			},
 			"remote_library": {
 				"title": "Remote library",

@@ -40,10 +40,13 @@
 	import { useComicSummary } from '$lib/hooks/store/use-comic-summary.svelte';
 	import { useSelectFolder } from '$lib/hooks/store/use-select-folder.svelte';
 	import { useBookmarks } from '$lib/hooks/store/use-bookmarks.svelte';
+	import { useNetworkSync } from '$lib/hooks/store/use-network-sync.svelte';
+	import { usePeerConnection } from '$lib/hooks/store/use-peer-connection.svelte';
 	import { useOnboarding } from '$lib/hooks/onboarding/use-onboarding.svelte';
 	import { setComicContext } from '$lib/state/comic-context.svelte';
+	import { CONTEXT_KEYS } from '$lib/constants/context-keys';
 	import { getLocale, setLocale } from '$lib/paraglide/runtime';
-	import { onMount } from 'svelte';
+	import { onDestroy, onMount, setContext } from 'svelte';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { resolveCover } from '$lib/utils/artwork.utils';
@@ -66,6 +69,7 @@
 	import '$theme/layout.css';
 	import Search from '@lucide/svelte/icons/search';
 	import GlobeIcon from '@lucide/svelte/icons/globe';
+	import RefreshCwIcon from '@lucide/svelte/icons/refresh-cw';
 
 	setComicContext();
 
@@ -78,6 +82,16 @@
 	const summary = useComicSummary();
 	const bookmarkStore = useBookmarks();
 	const onboarding = useOnboarding();
+	// Única instância de `useNetworkSync()` do app inteiro — precisa estar viva independente de
+	// qual rota está montada (pro indicador global do header abaixo, que lê `activeSession()`)
+	// e compartilhada via contexto com `routes/network/+page.svelte` (ver `CONTEXT_KEYS.networkSync`).
+	// Antes, a página de Rede criava sua PRÓPRIA instância e a desmontava (`stopListening()`) ao
+	// sair da tela — `syncComic()` só resolve via um listener daquela instância, então navegar
+	// pra outra tela com um sync ainda em andamento rejeitava a promise com "sync cancelled:
+	// listener stopped" mesmo o sync de verdade continuando (e terminando bem) no backend.
+	const headerSync = useNetworkSync();
+	const headerPeers = usePeerConnection();
+	setContext(CONTEXT_KEYS.networkSync, headerSync);
 
 	const incrementalScanner = useLibraryScanner(
 		DIRECTORY_SCAN_COMMANDS.incrementalScan,
@@ -111,6 +125,14 @@
 		if (folder.folderPath) {
 			incrementalScanner.start();
 		}
+
+		headerSync.startListening();
+		headerPeers.startListening();
+	});
+
+	onDestroy(() => {
+		headerSync.stopListening();
+		headerPeers.stopListening();
 	});
 
 	function minimize() {
@@ -236,6 +258,24 @@
 					<div class="mx-8 flex items-center gap-3">
 						{#if packageIdentity}
 							<span class="text-xs text-muted-foreground">{packageIdentity}</span>
+						{/if}
+
+						{#if headerSync.activeSession()}
+							{@const session = headerSync.activeSession()}
+							{@const progress = headerSync.activeProgressMessage()}
+							<button
+								type="button"
+								class="flex max-w-56 items-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
+								title={progress ?? m['layout.sync_indicator.tooltip']()}
+								onclick={() => goto('/network')}
+							>
+								<RefreshCwIcon size={14} class="shrink-0 animate-spin" />
+								<span class="truncate">
+									{m['layout.sync_indicator.syncing']({
+										peer: session ? headerPeers.peerLabel(session.peerId) : ''
+									})}
+								</span>
+							</button>
 						{/if}
 
 						<AcerolaModePicker />

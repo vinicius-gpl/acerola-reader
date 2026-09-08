@@ -21,13 +21,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentPaste
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Error
@@ -38,9 +38,13 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PersonRemove
 import androidx.compose.material.icons.filled.PhoneAndroid
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.SettingsSuggest
 import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -70,19 +74,24 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import br.acerola.comic.common.state.LocalSnackbarHostState
 import br.acerola.comic.common.state.SyncActionVisualState
 import br.acerola.comic.common.ux.Acerola
+import br.acerola.comic.common.ux.component.AccordionCard
 import br.acerola.comic.common.ux.component.AdaptiveSheet
 import br.acerola.comic.common.ux.component.Dialog
 import br.acerola.comic.common.ux.component.DialogButton
@@ -90,17 +99,20 @@ import br.acerola.comic.common.ux.component.HeroButton
 import br.acerola.comic.common.ux.component.SegmentedControl
 import br.acerola.comic.common.ux.component.SnackbarVariant
 import br.acerola.comic.common.ux.component.SyncActionIcon
+import br.acerola.comic.common.ux.component.ToggleCard
 import br.acerola.comic.common.ux.component.showSnackbar
 import br.acerola.comic.common.ux.theme.AcerolaTheme
 import br.acerola.comic.common.ux.tokens.ShapeTokens
 import br.acerola.comic.common.ux.tokens.SizeTokens
 import br.acerola.comic.common.ux.tokens.SpacingTokens
+import br.acerola.comic.config.preference.RelayPreference
 import br.acerola.comic.logging.AcerolaLogger
 import br.acerola.comic.logging.LogSource
 import br.acerola.comic.module.main.Main
 import br.acerola.comic.module.main.sync.state.ConnectError
 import br.acerola.comic.module.main.sync.state.LogState
 import br.acerola.comic.module.main.sync.state.PairedPeer
+import br.acerola.comic.module.main.sync.state.RelaySettingsUiState
 import br.acerola.comic.module.main.sync.state.SyncAction
 import br.acerola.comic.module.main.sync.state.SyncResult
 import br.acerola.comic.module.main.sync.state.SyncUiState
@@ -119,16 +131,12 @@ import java.util.Date
 import java.util.Locale
 
 @Composable
-fun Main.Sync.Template.Screen(
-    viewModel: SyncViewModel = hiltViewModel(),
-    onBack: () -> Unit,
-) {
+fun Main.Sync.Template.Screen(viewModel: SyncViewModel = hiltViewModel()) {
     val uiState by viewModel.uiState.collectAsState()
 
     SyncLayout(
         uiState = uiState,
         onAction = viewModel::onAction,
-        onBack = onBack,
     )
 }
 
@@ -137,7 +145,6 @@ fun Main.Sync.Template.Screen(
 private fun SyncLayout(
     uiState: SyncUiState,
     onAction: (SyncAction) -> Unit,
-    onBack: () -> Unit,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -197,26 +204,25 @@ private fun SyncLayout(
                         fontWeight = FontWeight.Bold,
                     )
                 },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            tint = MaterialTheme.colorScheme.onSurface,
-                            contentDescription = stringResource(id = R.string.description_icon_navigation_back),
-                        )
-                    }
-                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
             )
         },
     ) { paddingValues ->
+        // `MainActivity` renderiza a `BottomBar` como irmã, fora do Scaffold de cada tela
+        // (`applyScaffoldPadding = false`) — o `paddingValues` daqui só cobre os insets do
+        // sistema, não os 64dp da barra em si. Mesmo tratamento de `HistoryScreen.kt`/
+        // `HomeScreen.kt`: escondida em paisagem (vira `SideBar`), então não reserva nada aí.
+        val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+        val bottomBarClearance = if (isLandscape) 0.dp else 64.dp
+
         Column(
             modifier =
                 Modifier
                     .padding(paddingValues)
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(SpacingTokens.Large),
+                    .padding(SpacingTokens.Large)
+                    .padding(bottom = bottomBarClearance),
             verticalArrangement = Arrangement.spacedBy(SpacingTokens.Large),
         ) {
             Text(
@@ -227,6 +233,12 @@ private fun SyncLayout(
 
             ThisDeviceSection(uiState = uiState, onAction = onAction)
 
+            RelaySettingsCard(
+                relaySettings = uiState.relaySettings,
+                irohServicesTicketError = uiState.irohServicesTicketError,
+                onAction = onAction,
+            )
+
             PeersSection(
                 uiState = uiState,
                 onAction = onAction,
@@ -234,7 +246,7 @@ private fun SyncLayout(
                 onRemoveClick = { peerPendingRemoval = it },
             )
 
-            ActivityLogCard(uiState = uiState)
+            ActivityLogCard(uiState = uiState, onAction = onAction)
         }
 
         if (uiState.pendingConnect != null) {
@@ -301,7 +313,6 @@ private fun ThisDeviceSection(
     onAction: (SyncAction) -> Unit,
 ) {
     val clipboardManager = LocalClipboardManager.current
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = LocalSnackbarHostState.current
     val copiedMessage = stringResource(id = R.string.label_sync_copied)
@@ -392,25 +403,13 @@ private fun ThisDeviceSection(
             ) {
                 Text(
                     text =
-                        buildString {
-                            append(
+                        stringResource(
+                            id =
                                 when (uiState.mode) {
-                                    NetworkMode.LOCAL -> context.getString(R.string.label_sync_mode_local)
-                                    NetworkMode.RELAY -> context.getString(R.string.label_sync_mode_relay)
+                                    NetworkMode.LOCAL -> R.string.label_sync_mode_local
+                                    NetworkMode.RELAY -> R.string.label_sync_mode_relay
                                 },
-                            )
-                            append(" · ")
-                            append(context.getString(R.string.label_sync_relay_label))
-                            append(": ")
-                            append(uiState.relayUrl)
-                            append(" (")
-                            append(
-                                context.getString(
-                                    if (uiState.isRelayOverridden) R.string.label_sync_relay_custom else R.string.label_sync_relay_default,
-                                ),
-                            )
-                            append(")")
-                        },
+                        ),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -418,6 +417,449 @@ private fun ThisDeviceSection(
         },
     )
 }
+
+@Composable
+private fun RelaySettingsCard(
+    relaySettings: RelaySettingsUiState,
+    irohServicesTicketError: Boolean,
+    onAction: (SyncAction) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    val activeSourceCount =
+        (if (relaySettings.useAcerolaRelay) 1 else 0) +
+            relaySettings.customRelayUrls.size
+
+    val summary =
+        when {
+            relaySettings.useIrohPublicNetwork -> stringResource(id = R.string.label_relay_settings_summary_iroh_public)
+            activeSourceCount == 0 -> stringResource(id = R.string.label_relay_settings_summary_mdns_only)
+            else -> stringResource(id = R.string.label_relay_settings_summary_active, activeSourceCount)
+        }
+
+    Acerola.Component.AccordionCard(
+        title = stringResource(id = R.string.title_relay_settings),
+        description = summary,
+        icon = Icons.Default.Wifi,
+        accentColor = MaterialTheme.colorScheme.secondary,
+        expanded = expanded,
+        onToggleExpanded = { expanded = !expanded },
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        // 3 cards ativados (borda/fundo destacados + selo de check quando ativo) no lugar dos
+        // switches crus — mesmo formato do acerola-network-relay-settings-card.svelte do
+        // desktop.
+        var customExpanded by remember { mutableStateOf(false) }
+        var ticketExpanded by remember { mutableStateOf(!relaySettings.hasIrohServicesTicket) }
+
+        Acerola.Component.ToggleCard(
+            title = stringResource(id = R.string.label_relay_settings_use_acerola_relay),
+            subtitle = stringResource(id = R.string.label_relay_settings_use_acerola_relay_desc, RelayPreference.DEFAULT_ACEROLA_RELAY_URL),
+            active = relaySettings.useAcerolaRelay,
+            enabled = !relaySettings.useIrohPublicNetwork,
+            onClick = { onAction(SyncAction.ToggleUseAcerolaRelay(!relaySettings.useAcerolaRelay)) },
+            icon = { Icon(imageVector = Icons.Default.Wifi, contentDescription = null) },
+        )
+
+        Acerola.Component.ToggleCard(
+            title = stringResource(id = R.string.title_relay_settings_custom_relays),
+            subtitle =
+                if (relaySettings.customRelayUrls.isEmpty()) {
+                    stringResource(id = R.string.label_relay_settings_custom_relays_empty)
+                } else {
+                    stringResource(id = R.string.label_relay_settings_summary_active, relaySettings.customRelayUrls.size)
+                },
+            active = relaySettings.customRelayUrls.isNotEmpty(),
+            expanded = customExpanded,
+            onClick = { customExpanded = !customExpanded },
+            icon = { Icon(imageVector = Icons.Default.SettingsSuggest, contentDescription = null) },
+        ) {
+            RelayUrlListEditor(
+                title = stringResource(id = R.string.title_relay_settings_custom_relays),
+                urls = relaySettings.customRelayUrls,
+                placeholder = stringResource(id = R.string.hint_relay_settings_custom_relay_add),
+                emptyLabel = stringResource(id = R.string.label_relay_settings_custom_relays_empty),
+                removeContentDescription = stringResource(id = R.string.action_relay_settings_custom_relay_remove),
+                enabled = !relaySettings.useIrohPublicNetwork,
+                onAdd = { onAction(SyncAction.AddCustomRelayUrl(it)) },
+                onRemove = { onAction(SyncAction.RemoveCustomRelayUrl(it)) },
+            )
+        }
+
+        Acerola.Component.ToggleCard(
+            title = stringResource(id = R.string.label_relay_settings_use_iroh_public_network),
+            subtitle =
+                if (relaySettings.hasIrohServicesTicket) {
+                    stringResource(id = R.string.label_relay_settings_use_iroh_public_network_desc)
+                } else {
+                    stringResource(id = R.string.label_relay_settings_iroh_services_ticket_required_hint)
+                },
+            active = relaySettings.useIrohPublicNetwork,
+            enabled = relaySettings.hasIrohServicesTicket,
+            expanded = true,
+            onClick = { onAction(SyncAction.ToggleUseIrohPublicNetwork(!relaySettings.useIrohPublicNetwork)) },
+            icon = { Icon(imageVector = Icons.Default.Public, contentDescription = null) },
+        ) {
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable { ticketExpanded = !ticketExpanded }
+                        .padding(SpacingTokens.Small),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text =
+                        stringResource(
+                            id =
+                                if (relaySettings.hasIrohServicesTicket) {
+                                    R.string.label_relay_settings_iroh_services_ticket_configured
+                                } else {
+                                    R.string.label_relay_settings_iroh_services_ticket_not_configured
+                                },
+                        ),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                )
+                Icon(
+                    imageVector = if (ticketExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(SizeTokens.IconExtraSmall),
+                )
+            }
+
+            if (ticketExpanded) {
+                IrohServicesTicketSection(
+                    hasTicket = relaySettings.hasIrohServicesTicket,
+                    hasError = irohServicesTicketError,
+                    onSave = { onAction(SyncAction.SetIrohServicesTicket(it)) },
+                    onRemove = { onAction(SyncAction.ClearIrohServicesTicket) },
+                    onDismissError = { onAction(SyncAction.DismissIrohServicesTicketError) },
+                )
+            }
+        }
+
+        RestartSection(
+            restarting = relaySettings.restarting,
+            restartError = relaySettings.restartError,
+            onRestart = { onAction(SyncAction.RestartP2p) },
+        )
+    }
+}
+
+/** Botão manual "Reiniciar" (estilo LocalSend) — desliga o node P2P atual e sobe um novo do
+ *  zero, mesma identidade/storage/peers pareados. Escape hatch pra quando a troca ao vivo de
+ *  relay (switches acima) não é suficiente sozinha, ex: conexão presa depois de uma troca de
+ *  rede física do SO que [P2pService.notifyNetworkChange] não resolveu. */
+@Composable
+private fun RestartSection(
+    restarting: Boolean,
+    restartError: Boolean,
+    onRestart: () -> Unit,
+) {
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(ShapeTokens.Medium)
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                .padding(SpacingTokens.Medium),
+        verticalArrangement = Arrangement.spacedBy(SpacingTokens.Small),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(id = R.string.title_relay_settings_restart),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = stringResource(id = R.string.label_relay_settings_restart_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(modifier = Modifier.width(SpacingTokens.Small))
+            OutlinedButton(onClick = onRestart, enabled = !restarting) {
+                if (restarting) {
+                    CircularProgressIndicator(modifier = Modifier.size(SizeTokens.IconExtraSmall))
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = null,
+                        modifier = Modifier.size(SizeTokens.IconExtraSmall),
+                    )
+                }
+                Spacer(modifier = Modifier.width(SpacingTokens.ExtraSmall))
+                Text(
+                    text =
+                        stringResource(
+                            id =
+                                if (restarting) {
+                                    R.string.action_relay_settings_restarting
+                                } else {
+                                    R.string.action_relay_settings_restart
+                                },
+                        ),
+                )
+            }
+        }
+
+        if (restartError) {
+            Text(
+                text = stringResource(id = R.string.error_relay_settings_restart_failed),
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+    }
+}
+
+/** Ticket da conta do PRÓPRIO usuário em `services.iroh.computer` — nunca um secret de projeto
+ *  embutido no build (ver `RelayModeConfig::IrohDefault` do lado Rust). O valor em si nunca é
+ *  exibido de volta (é uma credencial real, guardada no cofre criptografado do node) — só
+ *  [hasTicket] chega aqui. */
+@Composable
+private fun IrohServicesTicketSection(
+    hasTicket: Boolean,
+    hasError: Boolean,
+    onSave: (String) -> Unit,
+    onRemove: () -> Unit,
+    onDismissError: () -> Unit,
+) {
+    var draft by remember { mutableStateOf("") }
+
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(ShapeTokens.Medium)
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                .padding(SpacingTokens.Medium),
+        verticalArrangement = Arrangement.spacedBy(SpacingTokens.Small),
+    ) {
+        Text(
+            text = stringResource(id = R.string.title_relay_settings_iroh_services_ticket),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text =
+                stringResource(
+                    id =
+                        if (hasTicket) {
+                            R.string.label_relay_settings_iroh_services_ticket_configured
+                        } else {
+                            R.string.label_relay_settings_iroh_services_ticket_not_configured
+                        },
+                ),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
+        // Campo em linha própria, largura cheia — na versão anterior ele dividia a linha com o
+        // botão "Salvar ticket", o que espremia o campo a ponto do placeholder (bem mais longo
+        // que qualquer URL de relay) quebrar em 4 linhas e inflar a caixa inteira.
+        OutlinedTextField(
+            value = draft,
+            onValueChange = {
+                draft = it
+                if (hasError) onDismissError()
+            },
+            placeholder = {
+                Text(
+                    text = stringResource(id = R.string.hint_relay_settings_iroh_services_ticket),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            },
+            singleLine = true,
+            isError = hasError,
+            visualTransformation = PasswordVisualTransformation(),
+            modifier = Modifier.fillMaxWidth(),
+        )
+
+        if (hasError) {
+            Text(
+                text = stringResource(id = R.string.error_relay_settings_iroh_services_ticket_invalid),
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+
+        // Ações numa linha própria, alinhadas à direita — evita competir por espaço com o campo
+        // acima em telas estreitas.
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(SpacingTokens.Small, Alignment.End),
+        ) {
+            if (hasTicket) {
+                TextButton(onClick = onRemove) {
+                    Text(
+                        text = stringResource(id = R.string.action_relay_settings_iroh_services_ticket_remove),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+            Button(
+                onClick = {
+                    val trimmed = draft.trim()
+                    if (trimmed.isBlank()) return@Button
+                    onSave(trimmed)
+                    draft = ""
+                },
+                enabled = draft.isNotBlank(),
+            ) {
+                Text(
+                    text =
+                        stringResource(
+                            id =
+                                if (hasTicket) {
+                                    R.string.action_relay_settings_iroh_services_ticket_replace
+                                } else {
+                                    R.string.action_relay_settings_iroh_services_ticket_save
+                                },
+                        ),
+                )
+            }
+        }
+
+        Text(
+            text = stringResource(id = R.string.label_relay_settings_iroh_services_ticket_help),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/** Espelha o comportamento das listas de relay próprio/Iroh do Desktop
+ *  (`acerola-network-relay-settings-card.svelte`): valida a URL (http/https) antes de aceitar,
+ *  desabilita edição enquanto a rede pública do Iroh estiver ativa (mutuamente exclusiva). */
+@Composable
+private fun RelayUrlListEditor(
+    title: String,
+    urls: List<String>,
+    placeholder: String,
+    emptyLabel: String,
+    removeContentDescription: String,
+    enabled: Boolean,
+    onAdd: (String) -> Unit,
+    onRemove: (String) -> Unit,
+) {
+    var draft by remember { mutableStateOf("") }
+    var showError by remember { mutableStateOf(false) }
+
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = SpacingTokens.Small),
+        verticalArrangement = Arrangement.spacedBy(SpacingTokens.Small),
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
+        if (urls.isEmpty()) {
+            Text(
+                text = emptyLabel,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        urls.forEach { url ->
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(ShapeTokens.Medium)
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                        .padding(start = SpacingTokens.Medium, end = SpacingTokens.ExtraSmall),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = url,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                IconButton(enabled = enabled, onClick = { onRemove(url) }) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = removeContentDescription,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(SizeTokens.IconSmall),
+                    )
+                }
+            }
+        }
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(SpacingTokens.Small),
+        ) {
+            OutlinedTextField(
+                value = draft,
+                onValueChange = {
+                    draft = it
+                    showError = false
+                },
+                placeholder = { Text(text = placeholder) },
+                singleLine = true,
+                enabled = enabled,
+                modifier = Modifier.weight(1f),
+            )
+            IconButton(
+                enabled = enabled && draft.isNotBlank(),
+                onClick = {
+                    val trimmed = draft.trim()
+                    if (isValidRelayUrl(trimmed)) {
+                        onAdd(trimmed)
+                        draft = ""
+                        showError = false
+                    } else {
+                        showError = true
+                    }
+                },
+            ) {
+                Icon(imageVector = Icons.Default.Add, contentDescription = null)
+            }
+        }
+
+        if (showError) {
+            Text(
+                text = stringResource(id = R.string.error_relay_settings_invalid_url),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+    }
+}
+
+private fun isValidRelayUrl(value: String): Boolean =
+    try {
+        val scheme = java.net.URI(value).scheme
+        scheme == "http" || scheme == "https"
+    } catch (error: java.net.URISyntaxException) {
+        false
+    }
 
 @Composable
 private fun PeersSection(
@@ -879,8 +1321,34 @@ private fun SecurityNote() {
 }
 
 @Composable
-private fun ActivityLogCard(uiState: SyncUiState) {
-    SectionCard(title = stringResource(id = R.string.title_sync_activity_log)) {
+private fun ActivityLogCard(
+    uiState: SyncUiState,
+    onAction: (SyncAction) -> Unit,
+) {
+    var showClearDialog by remember { mutableStateOf(false) }
+
+    SectionCard(
+        title = stringResource(id = R.string.title_sync_activity_log),
+        actions = {
+            IconButton(onClick = { onAction(SyncAction.RefreshTransferLog) }) {
+                Icon(
+                    imageVector = Icons.Default.Refresh,
+                    contentDescription = stringResource(id = R.string.action_sync_activity_log_refresh),
+                    modifier = Modifier.size(SizeTokens.IconExtraSmall),
+                )
+            }
+            if (uiState.transferLog.isNotEmpty()) {
+                IconButton(onClick = { showClearDialog = true }) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = stringResource(id = R.string.action_sync_activity_log_clear),
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(SizeTokens.IconExtraSmall),
+                    )
+                }
+            }
+        },
+    ) {
         if (uiState.transferLog.isEmpty()) {
             Text(
                 text = stringResource(id = R.string.label_sync_activity_log_empty),
@@ -892,6 +1360,30 @@ private fun ActivityLogCard(uiState: SyncUiState) {
                 LogRow(entry = entry)
             }
         }
+    }
+
+    Acerola.Component.Dialog(
+        show = showClearDialog,
+        onDismiss = { showClearDialog = false },
+        title = stringResource(id = R.string.title_sync_activity_log_clear_confirm),
+        confirmButtonContent = {
+            Acerola.Component.DialogButton(
+                text = stringResource(id = R.string.action_sync_activity_log_clear_confirm),
+                contentColor = MaterialTheme.colorScheme.error,
+                onClick = {
+                    onAction(SyncAction.ClearTransferLog)
+                    showClearDialog = false
+                },
+            )
+        },
+        dismissButtonContent = {
+            Acerola.Component.DialogButton(
+                text = stringResource(id = R.string.action_cancel),
+                onClick = { showClearDialog = false },
+            )
+        },
+    ) {
+        Text(text = stringResource(id = R.string.description_sync_activity_log_clear_confirm))
     }
 }
 
@@ -1029,23 +1521,31 @@ private fun RemovePeerDialog(
 private fun formatLogTimestamp(timestampMillis: Long): String = SimpleDateFormat("dd/MM HH:mm", Locale.getDefault()).format(Date(timestampMillis))
 
 @Composable
-private fun SectionHeader(title: String) {
+private fun SectionHeader(
+    title: String,
+    modifier: Modifier = Modifier,
+) {
     Text(
         text = title.uppercase(),
         style = MaterialTheme.typography.labelMedium,
         fontWeight = FontWeight.Bold,
         color = MaterialTheme.colorScheme.secondary,
+        modifier = modifier,
     )
 }
 
 @Composable
 private fun SectionCard(
     title: String,
+    actions: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Card(shape = ShapeTokens.Medium, modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(SpacingTokens.Large)) {
-            SectionHeader(title = title)
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                SectionHeader(title = title, modifier = Modifier.weight(1f))
+                actions?.invoke()
+            }
             Spacer(modifier = Modifier.height(SpacingTokens.Small))
             content()
         }
@@ -1058,8 +1558,7 @@ private fun previewUiState() =
         localDeviceName = "Pixel 8",
         pairingCode = "acerola1:eyJpIjoiZGVtbyJ9",
         mode = NetworkMode.LOCAL,
-        relayUrl = "relay.acerola-comic.com",
-        isRelayOverridden = false,
+        relaySettings = RelaySettingsUiState(),
         pairedPeers =
             listOf(
                 PairedPeer(peerId = "z6Mkabc123def456ghi789", deviceName = "Desktop-Vinicius"),
@@ -1101,7 +1600,7 @@ private fun previewUiState() =
 private fun PreviewSyncLayout(uiState: SyncUiState) {
     AcerolaTheme {
         CompositionLocalProvider(LocalSnackbarHostState provides remember { SnackbarHostState() }) {
-            SyncLayout(uiState = uiState, onAction = {}, onBack = {})
+            SyncLayout(uiState = uiState, onAction = {})
         }
     }
 }

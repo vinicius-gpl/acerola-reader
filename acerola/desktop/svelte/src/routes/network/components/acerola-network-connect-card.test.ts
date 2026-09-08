@@ -5,6 +5,7 @@ import { InvalidConnectionCodeError } from '$lib/utils/connection-code.utils';
 
 vi.mock('svelte-sonner', () => ({
 	toast: {
+		loading: vi.fn(() => 'mock-toast-id'),
 		success: vi.fn(),
 		error: vi.fn()
 	}

@@ -50,4 +50,48 @@ sealed interface SyncAction {
         val peerId: String,
         val comicName: String,
     ) : SyncAction
+
+    /** Todas as ações de relay abaixo persistem no DataStore E aplicam na hora
+     *  (`P2pUseCase.applyRelaySettings`, troca o modo de relay num `Endpoint` que continua
+     *  vivo, sem derrubar conexões) — ver [RelaySettingsUiState]. Um caso raro que a troca ao
+     *  vivo não resolve sozinha (conexão presa depois de uma troca de rede física do SO) tem
+     *  o botão manual [RestartP2p] como saída, que derruba e sobe o node inteiro de novo. */
+    data class ToggleUseAcerolaRelay(
+        val value: Boolean,
+    ) : SyncAction
+
+    data class ToggleUseIrohPublicNetwork(
+        val value: Boolean,
+    ) : SyncAction
+
+    data class AddCustomRelayUrl(
+        val url: String,
+    ) : SyncAction
+
+    data class RemoveCustomRelayUrl(
+        val url: String,
+    ) : SyncAction
+
+    /** Valida o formato antes de persistir — se malformado, `SyncUiState.irohServicesTicketError`
+     *  vira `true` (ver `SyncViewModel`). */
+    data class SetIrohServicesTicket(
+        val ticket: String,
+    ) : SyncAction
+
+    data object ClearIrohServicesTicket : SyncAction
+
+    data object DismissIrohServicesTicketError : SyncAction
+
+    /** Botão manual "Reiniciar" — desliga o node P2P atual e sobe um novo do zero (mesma
+     *  identidade/storage), estilo LocalSend. Escape hatch pra quando a troca ao vivo de relay
+     *  não é suficiente (ex: conexão presa depois de uma troca de rede física do SO). */
+    data object RestartP2p : SyncAction
+
+    /** Rebusca o histórico persistido — mesmo botão "Atualizar" do log de Transferências no
+     *  Desktop. Preserva qualquer sessão ao vivo em andamento (ver [SyncViewModel]). */
+    data object RefreshTransferLog : SyncAction
+
+    /** Apaga de vez o histórico de transferências persistido — mesmo botão "Limpar" do
+     *  Desktop, irreversível (a UI já confirma com o usuário antes de chamar). */
+    data object ClearTransferLog : SyncAction
 }

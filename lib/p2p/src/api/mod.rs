@@ -36,13 +36,19 @@ pub mod protocol {
 
 /// Enums descritivos de tipologias do protocolo.
 pub mod network {
-    pub use crate::core::network::state::NetworkMode;
+    pub use crate::core::network::{
+        reconnect::{reconnect_known_peers, RECONNECT_PROBE_ALPN},
+        state::NetworkMode,
+    };
 }
 
 /// Builder de transports
 pub mod transport {
     pub use crate::core::transport::{
-        iroh::{IrohTransportBuilder, RelayModeConfig, ACEROLA_DEFAULT_RELAY_URL},
+        iroh::{
+            validate_iroh_services_ticket, IrohTransportBuilder, RelayModeConfig,
+            ACEROLA_DEFAULT_RELAY_URL,
+        },
         IncomingConnection, P2pTransport, TransportP2pBuilder,
     };
 }

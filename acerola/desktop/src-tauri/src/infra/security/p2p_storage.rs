@@ -71,6 +71,10 @@ impl SecureP2pStorage {
         base_dir.join("device_info.enc")
     }
 
+    fn iroh_services_ticket_path(base_dir: &Path) -> PathBuf {
+        base_dir.join("iroh_services_ticket.enc")
+    }
+
     /// Lê e descriptografa `peers.enc`. Diferente da versão anterior, uma falha real de
     /// descriptografia (chave mestra errada/corrompida) vira `Err` daqui — não pode
     /// silenciosamente virar "lista vazia", porque `save_peer` reescreve o arquivo inteiro
@@ -229,6 +233,46 @@ impl SecureP2pStorage {
         }
 
         Ok(())
+    }
+
+    /// Persiste o ticket da conta do usuário em `services.iroh.computer` (colado por ele na
+    /// tela de configuração de rede) — não faz parte de `P2PStorage` (trait compartilhada com o
+    /// Android) porque é específico da UI de relay do Desktop, não algo que a lib em si precisa
+    /// ler/escrever sozinha. Só tem efeito no próximo início do app (mesma regra das outras
+    /// fontes de relay em `RelaySettings::resolve`), porque a lib não suporta trocar relay em
+    /// runtime.
+    pub async fn save_iroh_services_ticket(&self, ticket: &str) -> std::io::Result<()> {
+        std::fs::write(
+            Self::iroh_services_ticket_path(&self.base_dir),
+            encrypt(&self.master_key, ticket.as_bytes()),
+        )
+    }
+
+    /// `None` quando o usuário nunca colou um ticket, ou quando o arquivo existe mas não
+    /// descriptografa (chave mestra trocada) — nesse caso trata como "não configurado" em vez
+    /// de propagar erro, já que a rede pública do Iroh sendo indisponível não deveria travar a
+    /// inicialização do resto da rede P2P (peers/histórico continuam funcionando sem ela).
+    pub async fn load_iroh_services_ticket(&self) -> std::io::Result<Option<String>> {
+        let encrypted = match std::fs::read(Self::iroh_services_ticket_path(&self.base_dir)) {
+            Ok(bytes) => bytes,
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(err) => return Err(err),
+        };
+
+        let ticket = decrypt(&self.master_key, &encrypted)
+            .ok()
+            .and_then(|bytes| String::from_utf8(bytes).ok());
+        Ok(ticket)
+    }
+
+    /// Remove o ticket salvo — usado quando o usuário desmarca a fonte ou cola um valor novo
+    /// que substitui o antigo.
+    pub async fn clear_iroh_services_ticket(&self) -> std::io::Result<()> {
+        match std::fs::remove_file(Self::iroh_services_ticket_path(&self.base_dir)) {
+            Ok(()) => Ok(()),
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(err) => Err(err),
+        }
     }
 }
 
@@ -459,6 +503,56 @@ mod tests {
         storage.remove_peer("never-paired-peer").await.unwrap();
 
         assert_eq!(storage.load_peers().await.unwrap().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn iroh_services_ticket_roundtrip_through_encrypted_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let storage = SecureP2pStorage::open(dir.path(), [6u8; 32]).unwrap();
+
+        assert_eq!(storage.load_iroh_services_ticket().await.unwrap(), None);
+
+        storage.save_iroh_services_ticket("services-fake-ticket").await.unwrap();
+        assert_eq!(
+            storage.load_iroh_services_ticket().await.unwrap(),
+            Some("services-fake-ticket".to_string())
+        );
+
+        // O arquivo no disco não pode conter o ticket em texto puro.
+        let raw = std::fs::read(dir.path().join("iroh_services_ticket.enc")).unwrap();
+        assert!(!raw
+            .windows("services-fake-ticket".len())
+            .any(|window| window == b"services-fake-ticket"));
+    }
+
+    #[tokio::test]
+    async fn iroh_services_ticket_persists_across_reopen() {
+        let dir = tempfile::tempdir().unwrap();
+        let key = [14u8; 32];
+
+        {
+            let storage = SecureP2pStorage::open(dir.path(), key).unwrap();
+            storage.save_iroh_services_ticket("services-fake-ticket").await.unwrap();
+        }
+
+        let reopened = SecureP2pStorage::open(dir.path(), key).unwrap();
+        assert_eq!(
+            reopened.load_iroh_services_ticket().await.unwrap(),
+            Some("services-fake-ticket".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn clear_iroh_services_ticket_removes_it_and_is_idempotent() {
+        let dir = tempfile::tempdir().unwrap();
+        let storage = SecureP2pStorage::open(dir.path(), [15u8; 32]).unwrap();
+
+        storage.save_iroh_services_ticket("services-fake-ticket").await.unwrap();
+        storage.clear_iroh_services_ticket().await.unwrap();
+        assert_eq!(storage.load_iroh_services_ticket().await.unwrap(), None);
+
+        // Chamar de novo sem nada salvo não é erro.
+        storage.clear_iroh_services_ticket().await.unwrap();
     }
 
     #[tokio::test]
