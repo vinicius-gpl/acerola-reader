@@ -224,6 +224,18 @@
     <string name="message_image_parameter_required_smart_card">A image não pode ser nula para CardType.IMAGE</string>
     <string name="message_path_not_found">Pasta não encontrada.</string>
 
+    <!-- Comic Preferences: categorias (mesmo agrupamento Leitura/Sincronização/Avançado do desktop) -->
+    <string name="title_comic_preferences_reading">Leitura</string>
+    <string name="description_comic_preferences_reading">Exibição de volume, categoria</string>
+    <string name="title_comic_preferences_sync">Sincronização</string>
+    <string name="description_comic_preferences_sync">Metadados, arquivos e dispositivos</string>
+    <string name="title_comic_preferences_advanced">Avançado</string>
+    <string name="description_comic_preferences_advanced">Zona de risco</string>
+    <string name="label_comic_preferences_section_metadata">Metadados</string>
+    <string name="label_comic_preferences_section_files">Arquivos</string>
+    <string name="label_comic_preferences_section_devices">Dispositivos Pareados</string>
+    <string name="label_comic_preferences_section_danger_zone">Zona de Risco</string>
+
     <!-- Settings Section -->
     <string name="title_settings_display_config">Configurações de Exibição</string>
     <string name="title_settings_page_preferences">Preferências da página</string>
