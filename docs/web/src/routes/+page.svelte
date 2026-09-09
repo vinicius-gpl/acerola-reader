@@ -149,7 +149,7 @@
 			</div>
 
 			<div class="mt-4 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
-				<Button href={localizeHref('/docs/getting-started')} variant="ghost">
+				<Button href={localizeHref('/docs/getting-started')} variant="link">
 					{m['landing.cta_get_started']()}
 				</Button>
 				<Button href={GITHUB_URL} target="_blank" rel="noreferrer" variant="ghost">
