@@ -109,14 +109,14 @@
 			style="mask-image: linear-gradient(to bottom, black 85%, transparent); -webkit-mask-image: linear-gradient(to bottom, black 85%, transparent);"
 		>
 			<AcerolaDotField
-				dotRadius={1.5}
-				dotSpacing={14}
-				cursorRadius={500}
-				cursorForce={0.1}
+				dotRadius={5}
+				dotSpacing={10}
+				cursorRadius={600}
+				cursorForce={0.4}
 				bulgeOnly={true}
-				bulgeStrength={67}
-				glowRadius={160}
-				sparkle={false}
+				bulgeStrength={150}
+				glowRadius={190}
+				sparkle={true}
 				waveAmplitude={0}
 				gradientFrom="rgba(255, 62, 0, 0.35)"
 				gradientTo="rgba(255, 176, 137, 0.25)"
