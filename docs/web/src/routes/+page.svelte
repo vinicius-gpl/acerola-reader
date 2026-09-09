@@ -12,7 +12,7 @@
 	import AcerolaApkDownloadButton from '$lib/components/acerola-apk-download-button/acerola-apk-download-button.svelte';
 	import AcerolaCallout from '$lib/components/acerola-callout/acerola-callout.svelte';
 	import AcerolaMicrosoftStoreButton from '$lib/components/acerola-microsoft-store-button/acerola-microsoft-store-button.svelte';
-	import AcerolaFaultyTerminal from '$lib/components/acerola-faulty-terminal/acerola-faulty-terminal.svelte';
+	import AcerolaDotField from '$lib/components/acerola-dot-field/acerola-dot-field.svelte';
 	import AcerolaShinyText from '$lib/components/acerola-shiny-text/acerola-shiny-text.svelte';
 	import CardGrid from '$lib/mdsvex/card-grid.svelte';
 	import PlatformCard from '$lib/mdsvex/platform-card.svelte';
@@ -104,20 +104,23 @@
 <div class="relative">
 	{#if !prefersReducedMotion}
 		<div
-			class="fixed inset-x-0 top-14 bottom-0 -z-10 blur-sm transition-opacity duration-500 ease-out"
+			class="fixed inset-x-0 top-14 bottom-0 -z-10 transition-opacity duration-500 ease-out"
 			class:opacity-0={!bgReady}
 			style="mask-image: linear-gradient(to bottom, black 85%, transparent); -webkit-mask-image: linear-gradient(to bottom, black 85%, transparent);"
 		>
-			<AcerolaFaultyTerminal
-				tint={heroTint}
-				scale={2}
-				digitSize={1.5}
-				timeScale={0.4}
-				scanlineIntensity={0.4}
-				curvature={0.15}
-				brightness={0.85}
-				mouseStrength={0.3}
-				pageLoadAnimation={false}
+			<AcerolaDotField
+				dotRadius={1.5}
+				dotSpacing={14}
+				cursorRadius={500}
+				cursorForce={0.1}
+				bulgeOnly={true}
+				bulgeStrength={67}
+				glowRadius={160}
+				sparkle={false}
+				waveAmplitude={0}
+				gradientFrom="rgba(255, 62, 0, 0.35)"
+				gradientTo="rgba(255, 176, 137, 0.25)"
+				glowColor="#14110E"
 				class="h-full w-full"
 			/>
 		</div>
