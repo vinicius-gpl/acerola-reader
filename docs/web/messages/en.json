@@ -81,10 +81,44 @@
 		"license": "Code under the MPL-2.0 license"
 	},
 	"landing": {
+		"hero_kicker": "Local-first comic & manga reader",
 		"hero_title": "Read your comics and manga on any device. No server, no account.",
+		"hero_subtitle": "Your library lives on your devices and syncs directly between them over encrypted P2P — nothing passes through a server you don't control.",
 		"cta_get_started": "Get Started",
 		"cta_github": "View on GitHub",
+		"facts": {
+			"no_cloud": "No cloud",
+			"no_account": "No account",
+			"open_source": "Open source"
+		},
+		"features": {
+			"title": "Built around one idea: your library is yours",
+			"no_cloud": {
+				"title": "No cloud, no account",
+				"desc": "Your comics, progress, and metadata stay on your devices. There's nothing to sign up for, and no server that can go away."
+			},
+			"p2p_sync": {
+				"title": "Direct P2P sync",
+				"desc": "Devices connect straight to each other over iroh/QUIC. When a direct connection isn't possible, a relay just helps them find each other — it never sees your library."
+			},
+			"open_source": {
+				"title": "Open source",
+				"desc": "Every platform — Android, desktop, and the sync libraries — is MPL-2.0 and open for anyone to read, build, or audit."
+			}
+		},
+		"how_it_works": {
+			"title": "From install to synced, in three steps",
+			"install": "Install Acerola on the devices you want to sync — download the Android APK or build the desktop app from source.",
+			"pair": "Open Network on both devices and scan the QR code shown on one with the other.",
+			"confirm": "Confirm the pairing. From then on, your library and reading progress sync automatically, device to device.",
+			"note_title": "No local network?",
+			"note_desc": "Acerola falls back to a relay (self-hosted or ours) just to help peers find each other — no port forwarding needed, and it never touches your library."
+		},
 		"platforms_title": "One ecosystem, many platforms",
+		"final_cta": {
+			"title": "Your comics. Your devices. Nobody else's server.",
+			"desc": "Get started in a few minutes, or look at the code yourself."
+		},
 		"platform": {
 			"android": {
 				"title": "Android",
