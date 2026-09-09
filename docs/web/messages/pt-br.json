@@ -82,8 +82,8 @@
 	},
 	"landing": {
 		"hero_kicker": "Leitor local-first de quadrinhos e mangás",
-		"hero_title": "Leia seus quadrinhos e mangás em qualquer dispositivo. Sem servidor, sem conta.",
-		"hero_subtitle": "Sua biblioteca fica nos seus dispositivos e sincroniza direto entre eles por P2P criptografado — nada passa por um servidor que você não controla.",
+		"hero_title": "Leia seus quadrinhos e mangás em qualquer dispositivo. Sem conta, sem nuvem.",
+		"hero_subtitle": "Sua biblioteca fica nos seus dispositivos e sincroniza direto entre eles por P2P criptografado — nenhum servidor guarda ou acessa seus dados.",
 		"cta_get_started": "Começar",
 		"cta_github": "Ver no GitHub",
 		"facts": {
@@ -95,7 +95,7 @@
 			"title": "Construído em torno de uma ideia: a biblioteca é sua",
 			"no_cloud": {
 				"title": "Sem nuvem, sem conta",
-				"desc": "Seus quadrinhos, progresso e metadados ficam nos seus dispositivos. Não tem cadastro, e não existe um servidor que pode sair do ar."
+				"desc": "Seus quadrinhos, progresso e metadados ficam nos seus dispositivos. Sem cadastro e sem servidor central."
 			},
 			"p2p_sync": {
 				"title": "Sincronização P2P direta",
@@ -115,10 +115,6 @@
 			"note_desc": "O Acerola usa um relay (próprio ou hospedado por você) só pra ajudar os peers a se encontrarem — sem abrir portas, e ele nunca toca na sua biblioteca."
 		},
 		"platforms_title": "Um ecossistema, várias plataformas",
-		"final_cta": {
-			"title": "Seus quadrinhos. Seus dispositivos. Servidor de ninguém.",
-			"desc": "Comece em poucos minutos, ou veja o código você mesmo."
-		},
 		"platform": {
 			"android": {
 				"title": "Android",

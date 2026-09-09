@@ -82,8 +82,8 @@
 	},
 	"landing": {
 		"hero_kicker": "Local-first comic & manga reader",
-		"hero_title": "Read your comics and manga on any device. No server, no account.",
-		"hero_subtitle": "Your library lives on your devices and syncs directly between them over encrypted P2P — nothing passes through a server you don't control.",
+		"hero_title": "Read your comics and manga on any device. No account, no cloud.",
+		"hero_subtitle": "Your library stays on your devices and syncs directly between them over encrypted P2P — no server stores or sees your data.",
 		"cta_get_started": "Get Started",
 		"cta_github": "View on GitHub",
 		"facts": {
@@ -95,7 +95,7 @@
 			"title": "Built around one idea: your library is yours",
 			"no_cloud": {
 				"title": "No cloud, no account",
-				"desc": "Your comics, progress, and metadata stay on your devices. There's nothing to sign up for, and no server that can go away."
+				"desc": "Your comics, progress, and metadata stay on your devices. No sign-up, no central server."
 			},
 			"p2p_sync": {
 				"title": "Direct P2P sync",
@@ -115,10 +115,6 @@
 			"note_desc": "Acerola falls back to a relay (self-hosted or ours) just to help peers find each other — no port forwarding needed, and it never touches your library."
 		},
 		"platforms_title": "One ecosystem, many platforms",
-		"final_cta": {
-			"title": "Your comics. Your devices. Nobody else's server.",
-			"desc": "Get started in a few minutes, or look at the code yourself."
-		},
 		"platform": {
 			"android": {
 				"title": "Android",

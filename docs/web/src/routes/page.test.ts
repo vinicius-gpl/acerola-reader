@@ -51,16 +51,13 @@ describe('landing +page', () => {
 	it('renders the hero title and the get started / github CTAs', () => {
 		render(LandingPage);
 
-		// A página repete os CTAs no hero e na seção final, então pode haver mais
-		// de um link com o mesmo nome acessível — basta que algum tenha o href certo.
-		const getStartedLinks = screen.getAllByRole('link', { name: /get started|começar/i });
-		expect(getStartedLinks.some((link) => link.getAttribute('href') === '/docs/getting-started')).toBe(
-			true
+		expect(screen.getByRole('link', { name: /get started|começar/i })).toHaveAttribute(
+			'href',
+			'/docs/getting-started'
 		);
-
-		const githubLinks = screen.getAllByRole('link', { name: /github/i });
-		expect(githubLinks.some((link) => link.getAttribute('href')?.includes('github.com'))).toBe(
-			true
+		expect(screen.getByRole('link', { name: /github/i })).toHaveAttribute(
+			'href',
+			expect.stringContaining('github.com')
 		);
 	});
 
