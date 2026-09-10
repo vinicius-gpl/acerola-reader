@@ -14,7 +14,7 @@ test.describe('locale switch', () => {
 		await expect(page).toHaveURL(/\/en\/?$/);
 		await expect(page.getByRole('button', { name: 'EN' })).toBeVisible();
 		await expect(page.getByRole('heading', { level: 1 })).toContainText(
-			'Read your comics and manga on any device. No server, no account.'
+			'Read your comics and manga on any device. No account, no cloud.'
 		);
 	});
 });

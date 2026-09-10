@@ -12,7 +12,7 @@ test.describe('landing page', () => {
 
 		await expect(page).toHaveTitle('Acerola — Docs');
 		await expect(page.getByRole('heading', { level: 1 })).toContainText(
-			'Leia seus quadrinhos e mangás em qualquer dispositivo. Sem servidor, sem conta.'
+			'Leia seus quadrinhos e mangás em qualquer dispositivo. Sem conta, sem nuvem.'
 		);
 		await expect(page.getByRole('link', { name: 'Começar' })).toBeVisible();
 		await expect(page.getByRole('link', { name: 'Ver no GitHub' })).toBeVisible();
