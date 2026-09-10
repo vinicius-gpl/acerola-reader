@@ -81,9 +81,39 @@
 		"license": "Código sob a licença MPL-2.0"
 	},
 	"landing": {
-		"hero_title": "Leia seus quadrinhos e mangás em qualquer dispositivo. Sem servidor, sem conta.",
+		"hero_kicker": "Leitor local-first de quadrinhos e mangás",
+		"hero_title": "Leia seus quadrinhos e mangás em qualquer dispositivo. Sem conta, sem nuvem.",
+		"hero_subtitle": "Sua biblioteca fica nos seus dispositivos e sincroniza direto entre eles por P2P criptografado — nenhum servidor guarda ou acessa seus dados.",
 		"cta_get_started": "Começar",
 		"cta_github": "Ver no GitHub",
+		"facts": {
+			"no_cloud": "Sem nuvem",
+			"no_account": "Sem conta",
+			"open_source": "Código aberto"
+		},
+		"features": {
+			"title": "Construído em torno de uma ideia: a biblioteca é sua",
+			"no_cloud": {
+				"title": "Sem nuvem, sem conta",
+				"desc": "Seus quadrinhos, progresso e metadados ficam nos seus dispositivos. Sem cadastro e sem servidor central."
+			},
+			"p2p_sync": {
+				"title": "Sincronização P2P direta",
+				"desc": "Os dispositivos se conectam direto um no outro via iroh/QUIC. Quando a conexão direta não é possível, um relay só ajuda os peers a se encontrarem — ele nunca vê sua biblioteca."
+			},
+			"open_source": {
+				"title": "Código aberto",
+				"desc": "Toda plataforma — Android, desktop e as bibliotecas de sincronização — é MPL-2.0 e está aberta pra qualquer um ler, compilar ou auditar."
+			}
+		},
+		"how_it_works": {
+			"title": "Da instalação à sincronização, em três passos",
+			"install": "Instale o Acerola nos dispositivos que quer sincronizar — baixe o APK do Android ou compile o app desktop a partir do código.",
+			"pair": "Abra a tela Rede nos dois dispositivos e escaneie o QR code exibido em um usando o outro.",
+			"confirm": "Confirme o pareamento. A partir daí, sua biblioteca e o progresso de leitura sincronizam automaticamente, direto entre os dispositivos.",
+			"note_title": "Sem rede local?",
+			"note_desc": "O Acerola usa um relay (próprio ou hospedado por você) só pra ajudar os peers a se encontrarem — sem abrir portas, e ele nunca toca na sua biblioteca."
+		},
 		"platforms_title": "Um ecossistema, várias plataformas",
 		"platform": {
 			"android": {
