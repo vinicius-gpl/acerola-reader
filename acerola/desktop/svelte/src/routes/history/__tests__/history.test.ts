@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/svelte';
+import { tick } from 'svelte';
 import { userEvent } from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CONTEXT_KEYS } from '$lib/constants/context-keys';
@@ -6,6 +7,14 @@ import HistoryPage from '../+page.svelte';
 
 vi.mock('$app/navigation', () => ({
 	goto: vi.fn()
+}));
+
+vi.mock('svelte-sonner', () => ({
+	toast: {
+		success: vi.fn(),
+		error: vi.fn(),
+		loading: vi.fn()
+	}
 }));
 
 const { mockInvoke, mockListen } = vi.hoisted(() => ({
@@ -89,7 +98,7 @@ function setupInvokeMock(overrides: Record<string, unknown> = {}) {
 // `CONTEXT_KEYS.networkSync`), não de uma instância própria da página — sem prover esse
 // contexto aqui, `getContext(...)` devolve `undefined` e o primeiro acesso a `sync.log`
 // (dentro do `$effect` da página) explode.
-function renderHistoryPage() {
+function renderHistoryPage(networkSyncOverrides: Record<string, unknown> = {}) {
 	return render(HistoryPage, {
 		context: new Map([
 			[
@@ -105,7 +114,8 @@ function renderHistoryPage() {
 					syncComic: vi.fn(),
 					syncAll: vi.fn(),
 					startListening: vi.fn(),
-					stopListening: vi.fn()
+					stopListening: vi.fn(),
+					...networkSyncOverrides
 				}
 			]
 		])
@@ -166,5 +176,25 @@ describe('HistoryPage', () => {
 		await waitFor(() => {
 			expect(screen.queryByText('Comic 1')).not.toBeInTheDocument();
 		});
+	});
+
+	it('does not show a completion toast on mount when sync.log already contains a completed entry', async () => {
+		const { toast } = await import('svelte-sonner');
+		setupInvokeMock({ history_get_all: [] });
+		renderHistoryPage({
+			log: [
+				{
+					id: 99,
+					peerId: 'peer-history-past',
+					kind: 'history',
+					status: 'complete',
+					message: 'peer-history-past',
+					timestamp: Date.now()
+				}
+			]
+		});
+
+		await tick();
+		expect(toast.success).not.toHaveBeenCalled();
 	});
 });

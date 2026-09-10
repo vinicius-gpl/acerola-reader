@@ -101,7 +101,7 @@ function networkSyncStub() {
 	};
 }
 
-function renderHomePage() {
+function renderHomePage(networkSyncOverrides: Record<string, unknown> = {}) {
 	const activeComic = new ActiveComicState();
 	// `Map<symbol, unknown>` explícito: sem isso, TS infere o tipo a partir da PRIMEIRA tupla
 	// (`ActiveComicState`) e rejeita a segunda entrada, cujo valor tem um shape diferente —
@@ -109,7 +109,7 @@ function renderHomePage() {
 	return render(HomePage, {
 		context: new Map<symbol, unknown>([
 			[CONTEXT_KEYS.activeComic, activeComic],
-			[CONTEXT_KEYS.networkSync, networkSyncStub()]
+			[CONTEXT_KEYS.networkSync, { ...networkSyncStub(), ...networkSyncOverrides }]
 		])
 	});
 }
@@ -223,5 +223,25 @@ describe('home +page', () => {
 		await user.click(actionButton as HTMLElement);
 
 		expect(await screen.findByText(/1 selecionado|1 selected/i)).toBeInTheDocument();
+	});
+
+	it('does not show a completion toast on mount when sync.log already contains a completed entry', async () => {
+		const { toast } = await import('svelte-sonner');
+		renderHomePage({
+			log: [
+				{
+					id: 99,
+					peerId: 'peer-past',
+					kind: 'comic',
+					status: 'complete',
+					message: 'peer-past',
+					timestamp: Date.now(),
+					comicName: 'Acerola'
+				}
+			]
+		});
+
+		await tick();
+		expect(toast.success).not.toHaveBeenCalled();
 	});
 });

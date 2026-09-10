@@ -1038,7 +1038,7 @@ describe('useNetworkSync', () => {
 		const pending = hook.syncHistory('peer-6', []);
 		expect(hook.isSyncing('peer-6', 'history')).toBe(true);
 
-		vi.advanceTimersByTime(60_000);
+		vi.advanceTimersByTime(120_000);
 		expect(hook.isSyncing('peer-6', 'history')).toBe(false);
 
 		resolveSync();
@@ -1237,6 +1237,72 @@ describe('useNetworkSync', () => {
 
 		callbacks.get(NETWORK_EVENTS.filesProgress)?.({ payload: 'One Piece - Ch. 2' });
 		expect(hook.activeProgressMessage()).toBe('One Piece - Ch. 2');
+	});
+
+	it('comicProgress refreshes the in-flight timeout so long transfers do not time out', async () => {
+		vi.useFakeTimers();
+		const { callbacks } = setupListeners();
+		invokeMock.mockResolvedValue(undefined);
+		const hook = await renderHook();
+		await hook.startListening();
+
+		let promiseRejected = false;
+		hook.syncComic('peer-long', [1234], 'Big Manga', 'pull').catch(() => {
+			promiseRejected = true;
+		});
+		await tick();
+
+		expect(hook.isSyncing('peer-long', 'comic')).toBe(true);
+
+		// Avança 80s (passou dos 60s antigos, mas dentro dos 120s novos)
+		vi.advanceTimersByTime(80_000);
+		expect(hook.isSyncing('peer-long', 'comic')).toBe(true);
+		expect(promiseRejected).toBe(false);
+
+		// Evento de progresso chega e reseta o timer de inatividade
+		callbacks.get(NETWORK_EVENTS.comicProgress)?.({ payload: 'Big Manga - Ch. 1' });
+		await tick();
+
+		// Avança mais 80s (160s total, mas apenas 80s desde o último progresso)
+		vi.advanceTimersByTime(80_000);
+		expect(hook.isSyncing('peer-long', 'comic')).toBe(true);
+		expect(promiseRejected).toBe(false);
+
+		// Evento de conclusão chega com sucesso
+		callbacks.get(NETWORK_EVENTS.comicComplete)?.({
+			payload: JSON.stringify({ peerId: 'peer-long', comicName: 'Big Manga' })
+		});
+		await tick();
+
+		expect(hook.isSyncing('peer-long', 'comic')).toBe(false);
+		expect(promiseRejected).toBe(false);
+		expect(hook.log[0]).toMatchObject({
+			peerId: 'peer-long',
+			kind: 'comic',
+			status: 'complete',
+			comicName: 'Big Manga'
+		});
+	});
+
+	it('completing a session moves the terminal entry to index 0 of log', async () => {
+		const { callbacks } = setupListeners();
+		invokeMock.mockResolvedValue(undefined);
+		const hook = await renderHook();
+		await hook.startListening();
+
+		callbacks.get(NETWORK_EVENTS.comicStarted)?.({ payload: 'peer-pos' });
+		callbacks.get(NETWORK_EVENTS.comicProgress)?.({ payload: 'Ch. 1' });
+		callbacks.get(NETWORK_EVENTS.comicProgress)?.({ payload: 'Ch. 2' });
+
+		expect(hook.log[0].status).toBe('progress');
+		expect(hook.log[0].message).toBe('Ch. 2');
+
+		callbacks.get(NETWORK_EVENTS.comicComplete)?.({
+			payload: JSON.stringify({ peerId: 'peer-pos', comicName: 'Manga' })
+		});
+
+		expect(hook.log[0].status).toBe('complete');
+		expect(hook.log[0].peerId).toBe('peer-pos');
 	});
 
 	it('stopListening clears the in-flight timeout and entry-id maps', async () => {
