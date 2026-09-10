@@ -490,10 +490,25 @@
 	// `untrack` — este efeito só pode depender de `p2pSync.log`. Se lesse `activeComic.item`/
 	// `manga` fora do untrack, o próprio `invalidateAll()`/re-fetch de capítulos disparado aqui
 	// mudaria esses valores e re-executaria o efeito de novo, entrando em loop.
+	let lastHandledSyncLogId: number | undefined;
+
 	$effect(() => {
 		const entry = p2pSync.log[0];
-		if (!entry || entry.status !== 'complete') return;
-		if (entry.kind !== 'files' && entry.kind !== 'comic') return;
+		// `id < 0` marca uma linha carregada do histórico persistido (ver `fromPersisted` em
+		// `use-network-sync.svelte.ts`), não um evento ao vivo desta sessão — sem esse guard, a
+		// linha "complete" mais recente do histórico disparava este refresh assim que a
+		// página montava, mesmo sem nenhum sync ter de fato acontecido agora.
+		// `lastHandledSyncLogId` previne disparos repetidos ou loops em re-render da página.
+		if (
+			!entry ||
+			entry.id < 0 ||
+			entry.status !== 'complete' ||
+			(entry.kind !== 'files' && entry.kind !== 'comic') ||
+			entry.id === lastHandledSyncLogId
+		)
+			return;
+
+		lastHandledSyncLogId = entry.id;
 
 		untrack(() => {
 			// `manga.title` é o mesmo valor que `handleSyncToDevice` manda como `comicName` pro

@@ -131,7 +131,10 @@ function chapterPayload(overrides: Partial<ChapterPayload> = {}): ChapterPayload
 	};
 }
 
-function renderComicPage(data: { comic: ComicSummaryItemPayload | null }) {
+function renderComicPage(
+	data: { comic: ComicSummaryItemPayload | null },
+	networkSyncOverrides: Record<string, unknown> = {}
+) {
 	const activeComic = new ActiveComicState();
 
 	// `p2pSync` agora vem do contexto compartilhado com `+layout.svelte` (ver
@@ -157,7 +160,8 @@ function renderComicPage(data: { comic: ComicSummaryItemPayload | null }) {
 					syncComic: vi.fn(),
 					syncAll: vi.fn(),
 					startListening: vi.fn(),
-					stopListening: vi.fn()
+					stopListening: vi.fn(),
+					...networkSyncOverrides
 				}
 			]
 		])
@@ -308,5 +312,50 @@ describe('comic/[folderName] +page', () => {
 		await user.click(await screen.findByText(/mangadex sync|sincronização com mangadex/i));
 
 		await waitFor(() => expect(toast.error).toHaveBeenCalled());
+	});
+
+	it('does not call invalidateAll on mount when the latest sync entry is persisted (id < 0)', async () => {
+		mockInvalidateAll.mockClear();
+		renderComicPage(
+			{ comic: comic() },
+			{
+				log: [
+					{
+						id: -1,
+						peerId: 'peer-1',
+						kind: 'files',
+						status: 'complete',
+						message: 'Completo',
+						timestamp: Date.now()
+					}
+				]
+			}
+		);
+
+		await waitForTitle('Acerola Vol. 1');
+		expect(mockInvalidateAll).not.toHaveBeenCalled();
+	});
+
+	it('calls invalidateAll once when a live sync completes for this comic', async () => {
+		mockInvalidateAll.mockClear();
+		renderComicPage(
+			{ comic: comic() },
+			{
+				log: [
+					{
+						id: 1,
+						peerId: 'peer-1',
+						kind: 'comic',
+						comicName: 'Acerola Vol. 1',
+						status: 'complete',
+						message: 'Completo',
+						timestamp: Date.now()
+					}
+				]
+			}
+		);
+
+		await waitForTitle('Acerola Vol. 1');
+		expect(mockInvalidateAll).toHaveBeenCalledTimes(1);
 	});
 });
