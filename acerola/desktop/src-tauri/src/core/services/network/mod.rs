@@ -137,9 +137,8 @@ impl NetworkService {
     }
 
     pub fn new_uninitialized(
-        storage: Arc<SecureP2pStorage>,
-        trust_store: Arc<SecureTrustedStore>, app_data_directory: PathBuf,
-        rebuild_node: NodeBuilder,
+        storage: Arc<SecureP2pStorage>, trust_store: Arc<SecureTrustedStore>,
+        app_data_directory: PathBuf, rebuild_node: NodeBuilder,
     ) -> Self {
         Self {
             node: RwLock::new(None),
@@ -308,7 +307,8 @@ impl NetworkServiceApi for NetworkService {
         }
 
         let fresh_node = (self.rebuild_node)().await?;
-        *self.node.write().unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(Arc::clone(&fresh_node));
+        *self.node.write().unwrap_or_else(|poisoned| poisoned.into_inner()) =
+            Some(Arc::clone(&fresh_node));
 
         tracing::info!("[NetworkService] P2P node restarted");
 
@@ -445,10 +445,16 @@ mod tests {
         };
         storage.save_peer(&peer_addr).await.expect("seeding paired peer should succeed");
 
-        let rebuild_node: NodeBuilder = Arc::new(|| Box::pin(async { Ok(build_test_node().await) }));
+        let rebuild_node: NodeBuilder =
+            Arc::new(|| Box::pin(async { Ok(build_test_node().await) }));
 
-        let service =
-            NetworkService::new(old_node, Arc::clone(&storage), trust, std::env::temp_dir(), rebuild_node);
+        let service = NetworkService::new(
+            old_node,
+            Arc::clone(&storage),
+            trust,
+            std::env::temp_dir(),
+            rebuild_node,
+        );
 
         service.restart().await.expect("restart should succeed");
 
@@ -495,10 +501,16 @@ mod tests {
         storage.save_peer(&reachable_addr).await.expect("seeding reachable peer should succeed");
         storage.save_peer(&offline_addr).await.expect("seeding offline peer should succeed");
 
-        let rebuild_node: NodeBuilder = Arc::new(|| Box::pin(async { Ok(build_test_node().await) }));
+        let rebuild_node: NodeBuilder =
+            Arc::new(|| Box::pin(async { Ok(build_test_node().await) }));
 
-        let service =
-            NetworkService::new(old_node, Arc::clone(&storage), trust, std::env::temp_dir(), rebuild_node);
+        let service = NetworkService::new(
+            old_node,
+            Arc::clone(&storage),
+            trust,
+            std::env::temp_dir(),
+            rebuild_node,
+        );
 
         service.restart().await.expect("restart should succeed mesmo com um peer pareado offline");
 
@@ -584,10 +596,10 @@ mod tests {
 
         let service_a = Arc::clone(&service);
         let service_b = Arc::clone(&service);
-        let (result_a, result_b) = tokio::join!(
-            async move { service_a.restart().await },
-            async move { service_b.restart().await }
-        );
+        let (result_a, result_b) =
+            tokio::join!(async move { service_a.restart().await }, async move {
+                service_b.restart().await
+            });
 
         result_a.expect("primeira chamada de restart deveria ter sucesso");
         result_b.expect("segunda chamada de restart deveria ter sucesso, não ser descartada");
@@ -646,10 +658,10 @@ mod tests {
 
         let service_a = Arc::clone(&service);
         let service_b = Arc::clone(&service);
-        let (result_a, result_b) = tokio::join!(
-            async move { service_a.restart().await },
-            async move { service_b.restart().await }
-        );
+        let (result_a, result_b) =
+            tokio::join!(async move { service_a.restart().await }, async move {
+                service_b.restart().await
+            });
 
         result_a.expect("primeira chamada de restart deveria ter sucesso");
         result_b.expect("segunda chamada de restart deveria ter sucesso");

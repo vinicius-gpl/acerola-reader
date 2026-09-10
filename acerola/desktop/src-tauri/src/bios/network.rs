@@ -275,7 +275,9 @@ impl P2pNodeContext {
     }
 }
 
-pub async fn setup_network(app_handle: &tauri::AppHandle) -> Result<(), ComicError> {
+pub async fn setup_network_services(
+    app_handle: &tauri::AppHandle,
+) -> Result<InitializedNetworkServices, ComicError> {
     let app_handle_clone = app_handle.clone();
 
     let event_emitter: acerola_p2p::api::protocol::EventEmitter =
@@ -400,10 +402,25 @@ pub async fn setup_network(app_handle: &tauri::AppHandle) -> Result<(), ComicErr
     ));
     app_handle.manage(Arc::clone(&network_service) as Arc<dyn NetworkServiceApi>);
 
-    let p2p_node = context.build().await?;
-    network_service.set_node(p2p_node);
+    Ok(InitializedNetworkServices { context, network_service })
+}
 
-    tracing::info!("[Bios::Network] P2P network service initialized successfully");
+pub struct InitializedNetworkServices {
+    context: Arc<P2pNodeContext>,
+    network_service: Arc<NetworkService>,
+}
 
+impl InitializedNetworkServices {
+    pub async fn start_node(self) -> Result<(), ComicError> {
+        let p2p_node = self.context.build().await?;
+        self.network_service.set_node(p2p_node);
+        tracing::info!("[Bios::Network] P2P network service initialized successfully");
+        Ok(())
+    }
+}
+
+pub async fn setup_network(app_handle: &tauri::AppHandle) -> Result<(), ComicError> {
+    let services = setup_network_services(app_handle).await?;
+    services.start_node().await?;
     Ok(())
 }

@@ -133,7 +133,8 @@ impl ComicService {
             q.execute(&mut *tx).await?;
         }
 
-        let comic_delete_sql = format!("DELETE FROM comic_directory WHERE id IN ({})", placeholders);
+        let comic_delete_sql =
+            format!("DELETE FROM comic_directory WHERE id IN ({})", placeholders);
         let mut q = sqlx::query(&comic_delete_sql);
         for &id in ids {
             q = q.bind(id);

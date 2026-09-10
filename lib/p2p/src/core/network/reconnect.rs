@@ -120,8 +120,10 @@ mod tests {
     #[tokio::test]
     async fn skips_peers_with_no_cached_address_without_panicking() {
         let node_a = build_node().await;
-        let unreachable_peer =
-            PeerAddr { id: PeerId { id: "ghost-peer".to_string(), device_id: None }, addrs: vec![] };
+        let unreachable_peer = PeerAddr {
+            id: PeerId { id: "ghost-peer".to_string(), device_id: None },
+            addrs: vec![],
+        };
 
         reconnect_known_peers(&node_a, vec![unreachable_peer]).await;
     }
@@ -188,10 +190,14 @@ mod tests {
         let some_valid_addrs = node_a.local_addr().unwrap().addrs;
         node_a.shutdown().await.expect("shutdown should succeed");
 
-        let peer_one =
-            PeerAddr { id: PeerId { id: "peer-one".to_string(), device_id: None }, addrs: some_valid_addrs.clone() };
-        let peer_two =
-            PeerAddr { id: PeerId { id: "peer-two".to_string(), device_id: None }, addrs: some_valid_addrs };
+        let peer_one = PeerAddr {
+            id: PeerId { id: "peer-one".to_string(), device_id: None },
+            addrs: some_valid_addrs.clone(),
+        };
+        let peer_two = PeerAddr {
+            id: PeerId { id: "peer-two".to_string(), device_id: None },
+            addrs: some_valid_addrs,
+        };
 
         reconnect_known_peers(&node_a, vec![peer_one, peer_two]).await;
     }
