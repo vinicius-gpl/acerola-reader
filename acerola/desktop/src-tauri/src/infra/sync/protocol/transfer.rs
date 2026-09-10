@@ -355,8 +355,8 @@ pub async fn send_files(
 fn chapter_fetch_concurrency(latency: Option<std::time::Duration>) -> usize {
     match latency {
         Some(rtt) if rtt <= std::time::Duration::from_millis(20) => 2,
-        Some(rtt) if rtt <= std::time::Duration::from_millis(200) => 3,
-        Some(_) => 3,
+        Some(rtt) if rtt <= std::time::Duration::from_millis(200) => 4,
+        Some(_) => 6,
         None => 2,
     }
 }

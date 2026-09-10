@@ -31,6 +31,12 @@ impl From<DbError> for ComicError {
     }
 }
 
+impl From<sqlx::Error> for ComicError {
+    fn from(err: sqlx::Error) -> Self {
+        ComicError::from(DbError::from(err))
+    }
+}
+
 impl From<std::io::Error> for ComicError {
     fn from(io_err: std::io::Error) -> Self {
         ComicError::Io(io_err)
