@@ -91,7 +91,7 @@ pub trait NetworkServiceApi: Send + Sync + 'static {
 }
 
 pub struct NetworkService {
-    node: RwLock<Arc<AcerolaP2p>>,
+    node: RwLock<Option<Arc<AcerolaP2p>>>,
     /// Mesmo storage passado ao builder (`.storage(...)`) — clonado antes por
     /// `bios::network::setup_network` pra sobreviver aqui como fonte de "peers pareados"
     /// persistidos, já que a lib não devolve o storage de volta depois do `build()`. Tipo
@@ -127,13 +127,33 @@ impl NetworkService {
         rebuild_node: NodeBuilder,
     ) -> Self {
         Self {
-            node: RwLock::new(node),
+            node: RwLock::new(Some(node)),
             storage,
             trust_store,
             app_data_directory,
             rebuild_node,
             restart_lock: Mutex::new(()),
         }
+    }
+
+    pub fn new_uninitialized(
+        storage: Arc<SecureP2pStorage>,
+        trust_store: Arc<SecureTrustedStore>, app_data_directory: PathBuf,
+        rebuild_node: NodeBuilder,
+    ) -> Self {
+        Self {
+            node: RwLock::new(None),
+            storage,
+            trust_store,
+            app_data_directory,
+            rebuild_node,
+            restart_lock: Mutex::new(()),
+        }
+    }
+
+    pub fn set_node(&self, node: Arc<AcerolaP2p>) {
+        let mut write = self.node.write().unwrap_or_else(|poisoned| poisoned.into_inner());
+        *write = Some(node);
     }
 
     /// Clona o `Arc` atual e libera o lock na hora — cada chamador opera sobre o node que
@@ -146,36 +166,44 @@ impl NetworkService {
     /// `blocking_read()` (que pode entrar em pânico dentro do runtime tokio, exatamente onde
     /// [`Self::local_id`]/[`Self::local_addr`] — os dois métodos SÍNCRONOS da trait — são
     /// chamados) sem precisar tornar essa função `async` só pelos outros métodos.
-    fn node(&self) -> Arc<AcerolaP2p> {
-        Arc::clone(&self.node.read().unwrap_or_else(|poisoned| poisoned.into_inner()))
+    fn node(&self) -> Result<Arc<AcerolaP2p>, String> {
+        self.node
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .as_ref()
+            .cloned()
+            .ok_or_else(|| "P2P network service is initializing".to_string())
     }
 }
 
 #[async_trait]
 impl NetworkServiceApi for NetworkService {
     fn local_id(&self) -> Result<String, String> {
-        Ok(self.node().local_id().to_string())
+        Ok(self.node()?.local_id().to_string())
     }
 
     /// Endereço completo (id + bytes de endereçamento) usado pra gerar o código/QR de
     /// pareamento — é o que o outro dispositivo precisa pra nos alcançar via `connect()`.
     fn local_addr(&self) -> Result<PeerAddr, String> {
-        self.node().local_addr().map_err(|err| err.to_string())
+        self.node()?.local_addr().map_err(|err| err.to_string())
     }
 
     /// Nome/OS/versão deste dispositivo — usado na tela de Rede pra exibir algo mais
     /// legível que o peer id cru (ex: "Notebook do Vinicius" em vez de um hex de 64 chars).
     async fn local_device_info(&self) -> Result<DeviceInfo, String> {
-        Ok(self.node().local_device_info().await)
+        Ok(self.node()?.local_device_info().await)
     }
 
     async fn set_local_device_name(&self, name: String) -> Result<(), String> {
-        self.node().set_local_device_name(name).await;
+        self.node()?.set_local_device_name(name).await;
         Ok(())
     }
 
     async fn connected_peers_with_info(&self) -> Result<Vec<ConnectedPeerInfo>, String> {
-        Ok(self.node().connected_peers_with_info().await)
+        match self.node() {
+            Ok(node) => Ok(node.connected_peers_with_info().await),
+            Err(_) => Ok(vec![]),
+        }
     }
 
     async fn paired_peers(&self) -> Result<Vec<(PeerAddr, Option<DeviceInfo>)>, String> {
@@ -183,13 +211,15 @@ impl NetworkServiceApi for NetworkService {
 
         let peers = self.storage.load_peers().await.map_err(|err| err.to_string())?;
 
-        let device_info_by_peer: HashMap<String, DeviceInfo> = self
-            .node()
-            .known_peers()
-            .await
-            .into_iter()
-            .filter_map(|(peer, _, info)| info.map(|device| (peer.id, device)))
-            .collect();
+        let device_info_by_peer: HashMap<String, DeviceInfo> = match self.node() {
+            Ok(node) => node
+                .known_peers()
+                .await
+                .into_iter()
+                .filter_map(|(peer, _, info)| info.map(|device| (peer.id, device)))
+                .collect(),
+            Err(_) => HashMap::new(),
+        };
 
         Ok(peers
             .into_iter()
@@ -208,25 +238,31 @@ impl NetworkServiceApi for NetworkService {
     async fn switch_to_local(&self) -> Result<(), String> {
         let store = Arc::new(InMemoryTrustedStore::new());
         let guard = TofuGuard::new(store as Arc<dyn TrustedPeerStore>).into_validator();
-        self.node().switch_guard(guard, NetworkMode::Local).await.map_err(|err| err.to_string())
+        self.node()?.switch_guard(guard, NetworkMode::Local).await.map_err(|err| err.to_string())
     }
 
     async fn switch_to_relay(&self) -> Result<(), String> {
         let store = Arc::new(InMemoryTrustedStore::new());
         let guard = TofuGuard::new(store as Arc<dyn TrustedPeerStore>).into_validator();
-        self.node().switch_guard(guard, NetworkMode::Relay).await.map_err(|err| err.to_string())
+        self.node()?.switch_guard(guard, NetworkMode::Relay).await.map_err(|err| err.to_string())
     }
 
     async fn mode(&self) -> Result<NetworkMode, String> {
-        Ok(self.node().mode().await)
+        match self.node() {
+            Ok(node) => Ok(node.mode().await),
+            Err(_) => Ok(NetworkMode::Local),
+        }
     }
 
     async fn connect(&self, peer_addr: PeerAddr, alpn: Vec<u8>) -> Result<(), String> {
-        self.node().connect(peer_addr, &alpn).await.map_err(|err| err.to_string())
+        self.node()?.connect(peer_addr, &alpn).await.map_err(|err| err.to_string())
     }
 
     async fn shutdown(&self) -> Result<(), String> {
-        self.node().shutdown().await.map_err(|err| err.to_string())
+        if let Ok(node) = self.node() {
+            node.shutdown().await.map_err(|err| err.to_string())?;
+        }
+        Ok(())
     }
 
     async fn has_iroh_services_ticket(&self) -> Result<bool, String> {
@@ -259,19 +295,20 @@ impl NetworkServiceApi for NetworkService {
         // `Self::restart_lock` pro bug real que isso evita.
         let _restart_guard = self.restart_lock.lock().await;
 
-        let old_node = self.node();
-        // Melhor esforço: mesmo se o shutdown do node antigo falhar/travar parcialmente, ainda
-        // vale a pena tentar subir um node novo em vez de deixar o usuário sem rede nenhuma —
-        // loga mas não aborta o restart por causa disso.
-        if let Err(error) = old_node.shutdown().await {
-            tracing::warn!(
-                ?error,
-                "[NetworkService] failed to cleanly shut down old p2p node before restart"
-            );
+        if let Ok(old_node) = self.node() {
+            // Melhor esforço: mesmo se o shutdown do node antigo falhar/travar parcialmente, ainda
+            // vale a pena tentar subir um node novo em vez de deixar o usuário sem rede nenhuma —
+            // loga mas não aborta o restart por causa disso.
+            if let Err(error) = old_node.shutdown().await {
+                tracing::warn!(
+                    ?error,
+                    "[NetworkService] failed to cleanly shut down old p2p node before restart"
+                );
+            }
         }
 
         let fresh_node = (self.rebuild_node)().await?;
-        *self.node.write().unwrap_or_else(|poisoned| poisoned.into_inner()) = Arc::clone(&fresh_node);
+        *self.node.write().unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(Arc::clone(&fresh_node));
 
         tracing::info!("[NetworkService] P2P node restarted");
 

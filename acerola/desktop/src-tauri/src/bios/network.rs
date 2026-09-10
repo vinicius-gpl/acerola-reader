@@ -383,8 +383,6 @@ pub async fn setup_network(app_handle: &tauri::AppHandle) -> Result<(), ComicErr
         blob_context,
     });
 
-    let p2p_node = context.build().await?;
-
     // `NetworkService::restart()` (troca de relay, ou o botão manual "Reiniciar") chama isto de
     // novo pra montar um node fresco com a mesma identidade/storage/handlers — ver doc de
     // `NodeBuilder`/`P2pNodeContext`.
@@ -394,14 +392,16 @@ pub async fn setup_network(app_handle: &tauri::AppHandle) -> Result<(), ComicErr
         Box::pin(async move { context.build().await.map_err(|err| err.to_string()) })
     });
 
-    let network_service: Arc<dyn NetworkServiceApi> = Arc::new(NetworkService::new(
-        p2p_node,
+    let network_service = Arc::new(NetworkService::new_uninitialized(
         Arc::clone(&context.secure_p2p_storage),
         Arc::clone(&context.trusted_store),
         app_data_directory,
         rebuild_node,
     ));
-    app_handle.manage(network_service);
+    app_handle.manage(Arc::clone(&network_service) as Arc<dyn NetworkServiceApi>);
+
+    let p2p_node = context.build().await?;
+    network_service.set_node(p2p_node);
 
     tracing::info!("[Bios::Network] P2P network service initialized successfully");
 
