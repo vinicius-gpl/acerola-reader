@@ -355,8 +355,8 @@ pub async fn send_files(
 fn chapter_fetch_concurrency(latency: Option<std::time::Duration>) -> usize {
     match latency {
         Some(rtt) if rtt <= std::time::Duration::from_millis(20) => 2,
-        Some(rtt) if rtt <= std::time::Duration::from_millis(200) => 4,
-        Some(_) => 6,
+        Some(rtt) if rtt <= std::time::Duration::from_millis(200) => 3,
+        Some(_) => 3,
         None => 2,
     }
 }
@@ -471,9 +471,18 @@ async fn receive_one_chapter(
         return ChapterOutcome::Skipped { timed_out: false };
     }
 
-    let computed_checksum = {
+    let (bytes, computed_checksum) = match tokio::task::spawn_blocking(move || {
         use sha2::{Digest, Sha256};
-        format!("{:x}", Sha256::digest(&bytes))
+        let hash = format!("{:x}", Sha256::digest(&bytes));
+        (bytes, hash)
+    })
+    .await
+    {
+        Ok(result) => result,
+        Err(err) => {
+            tracing::warn!(error = %err, "[FileSync] hashing task panicked");
+            return ChapterOutcome::Skipped { timed_out: false };
+        },
     };
 
     if let Some(expected) = &header.checksum {
