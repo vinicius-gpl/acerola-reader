@@ -307,7 +307,12 @@ class ComicViewModel
                             // loading do ícone do capítulo ficava preso pra sempre.
                             if (event.peerId == _sendingChaptersPeerId.value) {
                                 _sendingChaptersPeerId.value = null
-                                _uiEvents.send(UserMessage.Raw(UiText.StringResource(R.string.message_send_chapters_peer_success)))
+                                _uiEvents.send(
+                                    UserMessage.Raw(
+                                        UiText.StringResource(R.string.message_send_chapters_peer_success),
+                                        isSuccess = true,
+                                    ),
+                                )
                             }
                         }
 

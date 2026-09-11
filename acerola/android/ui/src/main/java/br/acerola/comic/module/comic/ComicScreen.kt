@@ -99,26 +99,32 @@ fun ComicScreen(
         comicViewModel.init(comicId = comic.remoteInfo?.id, folderId = comic.directory.id)
     }
 
-    // Coleta de eventos de UI para snackbars
+    // Coleta de eventos de UI para snackbars. A maioria desses canais só carrega erro, mas
+    // UserMessage.Raw pode marcar isSuccess (ex.: confirmação de envio de capítulo pra peer) —
+    // sem essa checagem, uma mensagem de sucesso aparecia com a cor/estilo de erro.
     LaunchedEffect(Unit) {
         launch {
             comicViewModel.uiEvents.collect { message ->
-                snackbarHostState.showSnackbar(message.uiMessage.asString(context), SnackbarVariant.Error)
+                val variant = if (message.isSuccess) SnackbarVariant.Success else SnackbarVariant.Error
+                snackbarHostState.showSnackbar(message.uiMessage.asString(context), variant)
             }
         }
         launch {
             comicDirectoryViewModel.uiEvents.collect { message ->
-                snackbarHostState.showSnackbar(message.uiMessage.asString(context), SnackbarVariant.Error)
+                val variant = if (message.isSuccess) SnackbarVariant.Success else SnackbarVariant.Error
+                snackbarHostState.showSnackbar(message.uiMessage.asString(context), variant)
             }
         }
         launch {
             chapterArchiveViewModel.uiEvents.collect { message ->
-                snackbarHostState.showSnackbar(message.uiMessage.asString(context), SnackbarVariant.Error)
+                val variant = if (message.isSuccess) SnackbarVariant.Success else SnackbarVariant.Error
+                snackbarHostState.showSnackbar(message.uiMessage.asString(context), variant)
             }
         }
         launch {
             comicMetadataViewModel.uiEvents.collect { message ->
-                snackbarHostState.showSnackbar(message.uiMessage.asString(context), SnackbarVariant.Error)
+                val variant = if (message.isSuccess) SnackbarVariant.Success else SnackbarVariant.Error
+                snackbarHostState.showSnackbar(message.uiMessage.asString(context), variant)
             }
         }
     }
