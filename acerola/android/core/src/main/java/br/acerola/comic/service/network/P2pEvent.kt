@@ -39,6 +39,23 @@ sealed interface P2pEvent {
         val error: SyncProtocolError? = null,
     ) : P2pEvent
 
+    /** Push de progresso + marcadores de "lido" de UM ou mais capítulos selecionados
+     *  (`acerola/sync-history-entry/1`) — mais leve que [HistorySyncStarted]/[HistorySyncComplete]
+     *  (biblioteca inteira), disparado pela ação "enviar pra dispositivo" na tela do quadrinho. */
+    data class HistoryEntrySyncStarted(
+        val peerId: String,
+    ) : P2pEvent
+
+    data class HistoryEntrySyncComplete(
+        val peerId: String,
+    ) : P2pEvent
+
+    data class HistoryEntrySyncError(
+        val peerId: String,
+        val message: String,
+        val error: SyncProtocolError? = null,
+    ) : P2pEvent
+
     data class FileSyncManifestExchanged(
         val peerId: String,
         val missingCount: Int,

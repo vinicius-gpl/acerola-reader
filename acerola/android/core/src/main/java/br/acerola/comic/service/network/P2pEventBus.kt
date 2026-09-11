@@ -79,6 +79,25 @@ class P2pEventBus
                             )
                         }
 
+                    "sync:history-entry:started" ->
+                        JSONObject(data).let {
+                            P2pEvent.HistoryEntrySyncStarted(peerId = it.getString("peerId"))
+                        }
+
+                    "sync:history-entry:complete" ->
+                        JSONObject(data).let {
+                            P2pEvent.HistoryEntrySyncComplete(peerId = it.getString("peerId"))
+                        }
+
+                    "sync:history-entry:error" ->
+                        JSONObject(data).let {
+                            P2pEvent.HistoryEntrySyncError(
+                                peerId = it.getString("peerId"),
+                                message = it.getString("message"),
+                                error = SyncProtocolError.fromCode(if (it.isNull("code")) null else it.getString("code")),
+                            )
+                        }
+
                     "sync:files:manifest_exchanged" ->
                         JSONObject(data).let {
                             P2pEvent.FileSyncManifestExchanged(

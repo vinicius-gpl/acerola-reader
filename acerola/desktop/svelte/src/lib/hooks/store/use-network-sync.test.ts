@@ -215,7 +215,7 @@ describe('useNetworkSync', () => {
 		const hook = await renderHook();
 		await hook.startListening();
 
-		expect(unlisteners.size).toBe(11);
+		expect(unlisteners.size).toBe(14);
 
 		callbacks.get(NETWORK_EVENTS.historyStarted)?.({ payload: 'peer-1' });
 		expect(hook.log[0]).toMatchObject({ peerId: 'peer-1', kind: 'history', status: 'started' });
@@ -975,6 +975,58 @@ describe('useNetworkSync', () => {
 
 		await expect(pending).rejects.toBe('peer disconnected');
 		expect(hook.isSyncing('peer-4', 'comic')).toBe(false);
+	});
+
+	it('syncHistoryEntry calls the backend with the comic name and chapter ids and guards the "historyEntry" kind specifically', async () => {
+		const { callbacks } = setupListeners();
+		let resolveSync: () => void = () => {};
+		invokeMock.mockImplementationOnce(
+			() =>
+				new Promise((resolve) => {
+					resolveSync = () => resolve(undefined);
+				})
+		);
+		const hook = await renderHook();
+
+		const pending = hook.syncHistoryEntry('peer-5', [9], 'One Piece', ['1', '2']);
+
+		expect(hook.isSyncing('peer-5', 'historyEntry')).toBe(true);
+		expect(hook.isSyncing('peer-5', 'history')).toBe(false);
+		expect(hook.isSyncing('peer-5', 'comic')).toBe(false);
+
+		resolveSync();
+		await Promise.resolve();
+
+		expect(invokeMock).toHaveBeenCalledWith(NETWORK_COMMANDS.syncHistoryEntry, {
+			peerId: 'peer-5',
+			addrs: [9],
+			comicName: 'One Piece',
+			chapterIds: ['1', '2']
+		});
+		expect(hook.isSyncing('peer-5', 'historyEntry')).toBe(true);
+
+		await hook.startListening();
+		callbacks.get(NETWORK_EVENTS.historyEntryComplete)?.({ payload: 'peer-5' });
+
+		await expect(pending).resolves.toBe('peer-5');
+		expect(hook.isSyncing('peer-5', 'historyEntry')).toBe(false);
+	});
+
+	it('syncHistoryEntry rejects with the real error once sync:history-entry:error arrives', async () => {
+		const { callbacks } = setupListeners();
+		invokeMock.mockResolvedValueOnce(undefined);
+		const hook = await renderHook();
+		await hook.startListening();
+
+		const pending = hook.syncHistoryEntry('peer-5', [9], 'One Piece', ['1']);
+		expect(hook.isSyncing('peer-5', 'historyEntry')).toBe(true);
+
+		callbacks.get(NETWORK_EVENTS.historyEntryError)?.({
+			payload: JSON.stringify({ peerId: 'peer-5', message: 'peer disconnected' })
+		});
+
+		await expect(pending).rejects.toBe('peer disconnected');
+		expect(hook.isSyncing('peer-5', 'historyEntry')).toBe(false);
 	});
 
 	it('lastSyncedAt returns the timestamp of the most recent complete entry for a peer', async () => {

@@ -14,9 +14,9 @@ use crate::{
             protocol::{
                 comic_sync_registry::PendingComicSyncRegistry,
                 cover_request_registry::PendingCoverRequestRegistry,
-                history_entry_registry::PendingHistoryEntryRegistry, COMIC_SYNC_ALPN,
-                COVER_BROWSE_ALPN, FILE_SYNC_ALPN, HISTORY_ENTRY_SYNC_ALPN, HISTORY_SYNC_ALPN,
-                LIBRARY_BROWSE_ALPN,
+                history_entry_registry::{HistoryEntryScope, PendingHistoryEntryRegistry},
+                COMIC_SYNC_ALPN, COVER_BROWSE_ALPN, FILE_SYNC_ALPN, HISTORY_ENTRY_SYNC_ALPN,
+                HISTORY_SYNC_ALPN, LIBRARY_BROWSE_ALPN,
             },
         },
     },
@@ -185,20 +185,29 @@ pub async fn sync_history(
     Ok(())
 }
 
-/// Dispara o push do progresso de UM único quadrinho pra um peer já pareado — mais leve que
-/// `sync_history` (que troca a biblioteca inteira nos dois sentidos). Útil pra levar uma
-/// atualização pontual (ex: terminou de ler um capítulo) sem esperar o próximo sync completo.
-/// Registra o `comic_name` no `PendingHistoryEntryRegistry` antes de conectar, mesma técnica de
-/// `sync_comic`. Progresso via os eventos `sync:history-entry:*`.
+/// Dispara o push do(s) capítulo(s) selecionado(s) (progresso + marcador de "lido") de UM
+/// único quadrinho pra um peer já pareado — mais leve que `sync_history` (que troca a
+/// biblioteca inteira nos dois sentidos). Usado tanto pelo envio de um capítulo só quanto de
+/// vários selecionados de uma vez. Registra o [`HistoryEntryScope`] no
+/// `PendingHistoryEntryRegistry` antes de conectar, mesma técnica de `sync_comic`. Progresso
+/// via os eventos `sync:history-entry:*`.
 #[tauri::command]
 pub async fn sync_history_entry(
     service: State<'_, Arc<dyn NetworkServiceApi>>,
     registry: State<'_, Arc<PendingHistoryEntryRegistry>>, peer_id: String, addrs: Vec<u8>,
-    comic_name: String,
+    comic_name: String, chapter_ids: Vec<String>,
 ) -> Result<(), String> {
     use acerola_p2p::api::peer::{PeerAddr, PeerIdentity};
 
-    registry.set(peer_id.clone(), comic_name);
+    // Mesmo padrão de `history_mark_chapters_read_batch`: o frontend trata IDs de capítulo
+    // como string (`ChapterId` em `use-chapter-selection.svelte.ts`), o parse pra `i64` (o
+    // que `HistorySyncService` de fato espera) acontece aqui.
+    let chapter_ids = chapter_ids
+        .into_iter()
+        .map(|id| id.parse::<i64>().map_err(|error| error.to_string()))
+        .collect::<Result<Vec<_>, _>>()?;
+
+    registry.set(peer_id.clone(), HistoryEntryScope { comic_name, chapter_ids });
 
     let peer_addr = PeerAddr { id: PeerIdentity { id: peer_id, device_id: None }, addrs };
     service.connect(peer_addr, HISTORY_ENTRY_SYNC_ALPN.to_vec()).await?;

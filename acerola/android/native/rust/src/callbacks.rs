@@ -17,7 +17,28 @@ pub trait HistorySyncProvider: Send + Sync {
     /// (`acerola/sync-history-entry/1`), que existe pra não precisar de `get_reading_progress()`
     /// (biblioteca inteira) só pra levar o progresso de um quadrinho que acabou de mudar. `None`
     /// quando o quadrinho não existe localmente ou nunca teve progresso salvo.
-    fn get_reading_progress_for_comic(&self, comic_name: String) -> Option<FfiReadingProgressEntry>;
+    fn get_reading_progress_for_comic(&self, comic_name: String)
+        -> Option<FfiReadingProgressEntry>;
+
+    /// Progresso de leitura de UM quadrinho, só devolvido se o capítulo atual (o de
+    /// `reading_history`) estiver entre os `chapter_sorts` selecionados — usado junto com
+    /// `get_chapters_read_for_chapters` pelo push explícito de capítulo(s) selecionado(s)
+    /// (`acerola/sync-history-entry/1`), que não pode vazar o resto da biblioteca. Vazio (não
+    /// `None`) pra manter o mesmo formato de retorno de `get_reading_progress`.
+    fn get_reading_progress_for_chapters(
+        &self,
+        comic_name: String,
+        chapter_sorts: Vec<String>,
+    ) -> Vec<FfiReadingProgressEntry>;
+
+    /// Marcadores de "lido" restritos ao(s) `chapter_sorts` selecionado(s) de UM quadrinho —
+    /// mesmo raciocínio de `get_reading_progress_for_chapters`, nunca vaza o resto da
+    /// biblioteca.
+    fn get_chapters_read_for_chapters(
+        &self,
+        comic_name: String,
+        chapter_sorts: Vec<String>,
+    ) -> Vec<FfiChapterReadEntry>;
 
     /// Aplica uma linha de progresso recebida do peer (Rust já decidiu que ela vence via LWW).
     /// Retorna `false` se o quadrinho referenciado não existir localmente (entrada ignorada).

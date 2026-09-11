@@ -42,6 +42,7 @@ import br.acerola.comic.usecase.metadata.ExtractVolumeCoverUseCase
 import br.acerola.comic.usecase.metadata.ManageCategoriesUseCase
 import br.acerola.comic.usecase.network.P2pUseCase
 import br.acerola.comic.usecase.network.SyncComicWithPeerUseCase
+import br.acerola.comic.usecase.network.SyncHistoryEntryWithPeerUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -79,6 +80,7 @@ class ComicViewModel
         private val cacheHandler: ChapterCacheHandler,
         private val p2pUseCase: P2pUseCase,
         private val syncComicWithPeerUseCase: SyncComicWithPeerUseCase,
+        private val syncHistoryEntryWithPeerUseCase: SyncHistoryEntryWithPeerUseCase,
         private val p2pEventBus: P2pEventBus,
     ) : ViewModel() {
         private val selectedDirectoryId = MutableStateFlow<Long?>(null)
@@ -123,6 +125,16 @@ class ComicViewModel
 
         private val _uiEvents = Channel<UserMessage>(capacity = Channel.BUFFERED)
         val uiEvents: Flow<UserMessage> = _uiEvents.receiveAsFlow()
+
+        /** `peerId` de um push `acerola/sync-history-entry/1` em andamento (envio do(s)
+         *  capítulo(s) selecionado(s)), ou `null` se nenhum — mesmo raciocínio de
+         *  `_syncingPeerId`, mas separado dele: são protocolos diferentes (este não troca
+         *  arquivos), não podem compartilhar o mesmo guard. */
+        private val _sendingChaptersPeerId = MutableStateFlow<String?>(null)
+        val isSendingChaptersToPeer: StateFlow<Boolean> =
+            _sendingChaptersPeerId
+                .map { it != null }
+                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
         private val _selectedChapterSorts = MutableStateFlow<Set<String>>(emptySet())
         val selectedChapterSorts: StateFlow<Set<String>> = _selectedChapterSorts.asStateFlow()
@@ -284,17 +296,35 @@ class ComicViewModel
         init {
             viewModelScope.launch {
                 p2pEventBus.events.collect { event ->
-                    val pendingPeerId = _syncingPeerId.value ?: return@collect
                     when (event) {
-                        is P2pEvent.FileSyncComplete ->
+                        is P2pEvent.FileSyncComplete -> {
+                            val pendingPeerId = _syncingPeerId.value ?: return@collect
                             if (event.peerId == pendingPeerId) _syncingPeerId.value = null
+                        }
 
                         is P2pEvent.FileSyncChapterFailed -> {
+                            val pendingPeerId = _syncingPeerId.value ?: return@collect
                             // Comic/chapter vazios = falha da sessão inteira, não de um capítulo
                             // (ver protocol::files::mod.rs::run_and_report_scoped).
                             if (event.peerId == pendingPeerId && event.comicName.isEmpty() && event.chapter.isEmpty()) {
                                 _syncingPeerId.value = null
                                 _uiEvents.send(UserMessage.Raw(UiText.StringResource(R.string.error_sync_comic_peer_failed)))
+                            }
+                        }
+
+                        is P2pEvent.HistoryEntrySyncComplete -> {
+                            val pendingPeerId = _sendingChaptersPeerId.value ?: return@collect
+                            if (event.peerId == pendingPeerId) {
+                                _sendingChaptersPeerId.value = null
+                                _uiEvents.send(UserMessage.Raw(UiText.StringResource(R.string.message_send_chapters_peer_success)))
+                            }
+                        }
+
+                        is P2pEvent.HistoryEntrySyncError -> {
+                            val pendingPeerId = _sendingChaptersPeerId.value ?: return@collect
+                            if (event.peerId == pendingPeerId) {
+                                _sendingChaptersPeerId.value = null
+                                _uiEvents.send(UserMessage.Raw(UiText.StringResource(R.string.error_send_chapters_peer_failed)))
                             }
                         }
 
@@ -596,6 +626,34 @@ class ComicViewModel
             }
 
             _syncingPeerId.value = peerId
+        }
+
+        /** Envia progresso + marcador de "lido" do(s) capítulo(s) atualmente selecionado(s) pra
+         *  um peer escolhido no `PeerPickerSheet` — mesma seleção usada por
+         *  [markSelectedChaptersReadStatus], então cobre tanto um capítulo só (seleção de 1)
+         *  quanto vários de uma vez. */
+        fun sendSelectedChaptersToPeer(peerId: String) {
+            val comicName = comic.value?.directory?.name ?: return
+            val chapterSorts = _selectedChapterSorts.value.toList()
+            if (chapterSorts.isEmpty()) return
+
+            AcerolaLogger.audit(
+                TAG,
+                "Sending selected chapters to peer",
+                LogSource.VIEWMODEL,
+                mapOf("peerId" to peerId, "comicName" to comicName, "count" to chapterSorts.size.toString()),
+            )
+
+            val fired = syncHistoryEntryWithPeerUseCase(peerId, comicName, chapterSorts)
+            if (!fired) {
+                viewModelScope.launch {
+                    _uiEvents.send(UserMessage.Raw(UiText.StringResource(R.string.error_send_chapters_peer_not_paired)))
+                }
+                return
+            }
+
+            _sendingChaptersPeerId.value = peerId
+            clearChapterSelection()
         }
 
         private fun String.normalizeKey(): String = this.filter { it.isLetterOrDigit() }.lowercase()

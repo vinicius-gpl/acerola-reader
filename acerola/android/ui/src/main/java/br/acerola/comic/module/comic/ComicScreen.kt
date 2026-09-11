@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.RemoveDone
@@ -71,6 +72,8 @@ import br.acerola.comic.module.comic.template.Header
 import br.acerola.comic.module.comic.template.Tabs
 import br.acerola.comic.module.comic.template.chapterSection
 import br.acerola.comic.module.comic.template.configSection
+import br.acerola.comic.module.main.Main
+import br.acerola.comic.module.main.common.component.PeerPickerSheet
 import br.acerola.comic.module.reader.ReaderActivity
 import br.acerola.comic.ui.R
 import br.acerola.comic.worker.sync.MetadataSyncWorker
@@ -272,6 +275,7 @@ fun ComicScreen(
     }
 
     var showSortSheet by remember { mutableStateOf(false) }
+    var showSendChaptersPeerPicker by remember { mutableStateOf(false) }
 
     val onChapterAction: (ComicChapterAction) -> Unit = { action ->
         when (action) {
@@ -520,6 +524,14 @@ fun ComicScreen(
                                 ),
                             onClick = { comicViewModel.markSelectedChaptersReadStatus(!areAllSelectedRead) },
                         ),
+                        SelectionAction(
+                            icon = Icons.AutoMirrored.Filled.Send,
+                            label = stringResource(id = R.string.action_send_chapters_to_peer),
+                            onClick = {
+                                comicViewModel.loadPairedPeers()
+                                showSendChaptersPeerPicker = true
+                            },
+                        ),
                     ),
                 modifier =
                     Modifier
@@ -533,6 +545,17 @@ fun ComicScreen(
                 sortSettings = uiState.chapterSortSettings,
                 onSortChange = { comicViewModel.updateChapterSort(it) },
                 onDismiss = { showSortSheet = false },
+            )
+        }
+
+        if (showSendChaptersPeerPicker) {
+            Main.Common.Component.PeerPickerSheet(
+                peers = pairedPeers,
+                onSelect = { peerId ->
+                    showSendChaptersPeerPicker = false
+                    comicViewModel.sendSelectedChaptersToPeer(peerId)
+                },
+                onDismiss = { showSendChaptersPeerPicker = false },
             )
         }
     }

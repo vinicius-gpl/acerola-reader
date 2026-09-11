@@ -212,11 +212,13 @@ class P2pService(
         p2pNode.syncComic(ffiAddr, comicName, direction.toFfi())
     }
 
-    /** Empurra o progresso de leitura de UM único quadrinho pro peer — mais leve que
-     *  [syncHistory] (biblioteca inteira). Progresso via os eventos `sync:history-entry:*`. */
+    /** Empurra o progresso + marcadores de "lido" do(s) capítulo(s) selecionado(s)
+     *  (`chapterSorts`) de UM único quadrinho pro peer — mais leve que [syncHistory]
+     *  (biblioteca inteira). Progresso via os eventos `sync:history-entry:*`. */
     fun syncHistoryEntry(
         peerAddress: PeerAddress,
         comicName: String,
+        chapterSorts: List<String>,
     ) {
         Log.d("P2pService", "Syncing history entry for '$comicName' with peer: ${peerAddress.id}")
         val ffiAddr =
@@ -225,7 +227,7 @@ class P2pService(
                 deviceId = peerAddress.deviceId,
                 addrs = peerAddress.addrs,
             )
-        p2pNode.syncHistoryEntry(ffiAddr, comicName)
+        p2pNode.syncHistoryEntry(ffiAddr, comicName, chapterSorts)
     }
 
     /** Pede a lista de quadrinhos (nome + contagem de capítulos) da biblioteca do peer, sem
