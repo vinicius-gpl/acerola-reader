@@ -3,8 +3,8 @@
 		data: {
 			title: string;
 		};
-		events: {
-			onBack: () => void;
+		events?: {
+			onBack?: () => void;
 		};
 	};
 </script>
@@ -17,9 +17,11 @@
 </script>
 
 <div class="flex items-center gap-3">
-	<AcerolaButtonIcon events={{ onClick: events.onBack }} ui={{ size: 'sm' }}>
-		<ArrowLeft size={18} />
-	</AcerolaButtonIcon>
+	{#if events?.onBack}
+		<AcerolaButtonIcon events={{ onClick: events.onBack }} ui={{ size: 'sm' }}>
+			<ArrowLeft size={18} />
+		</AcerolaButtonIcon>
+	{/if}
 	<h1 class="truncate text-2xl font-bold tracking-tight text-foreground">
 		{data.title}
 	</h1>

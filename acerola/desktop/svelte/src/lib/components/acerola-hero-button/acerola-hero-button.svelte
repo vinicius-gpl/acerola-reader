@@ -33,7 +33,9 @@
 <Item.Root
 	class={cn(
 		'group flex min-w-0 items-center justify-between rounded-3xl border border-border bg-card p-6 transition-colors',
-		events?.onClick ? 'cursor-pointer hover:border-primary/50' : '',
+		events?.onClick
+			? 'cursor-pointer transition-transform hover:border-primary/50 active:scale-[0.98]'
+			: '',
 		ui?.class
 	)}
 	onclick={events?.onClick}
