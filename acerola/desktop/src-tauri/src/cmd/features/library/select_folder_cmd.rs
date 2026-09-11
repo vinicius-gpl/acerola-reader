@@ -1,4 +1,4 @@
-use std::{path::PathBuf, sync::mpsc};
+use std::path::PathBuf;
 
 use tauri::{AppHandle, Manager};
 use tauri_plugin_dialog::DialogExt;
@@ -6,13 +6,13 @@ use tauri_plugin_fs::FsExt;
 
 #[tauri::command]
 pub async fn select_folder(app: AppHandle) -> Result<String, String> {
-    let (tx, rx) = mpsc::channel();
+    let (tx, rx) = tokio::sync::oneshot::channel();
 
     app.dialog().file().pick_folder(move |folder| {
-        tx.send(folder).unwrap();
+        let _ = tx.send(folder);
     });
 
-    let path = match rx.recv().unwrap() {
+    let path = match rx.await.map_err(|err| err.to_string())? {
         Some(path) => PathBuf::from(path.to_string()),
         None => {
             return Err("No folder selected".to_string());

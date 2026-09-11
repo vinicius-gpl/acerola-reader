@@ -20,7 +20,6 @@
 	import ArrowRightIcon from '@lucide/svelte/icons/arrow-right';
 	import Trash2Icon from '@lucide/svelte/icons/trash-2';
 	import { m } from '$lib/paraglide/messages';
-	import { autoAnimateList } from '$lib/utils/auto-animate.utils';
 	import AcerolaButtonIcon from '$lib/components/acerola-button/acerola-button-icon.svelte';
 	import AcerolaAlertDialog from '$lib/components/acerola-alert-dialog/acerola-alert-dialog.svelte';
 
@@ -117,7 +116,7 @@
 			{m['pages.network.transfers.empty']()}
 		</p>
 	{:else}
-		<ul class="max-h-80 space-y-1 overflow-y-auto" use:autoAnimateList>
+		<ul class="max-h-80 space-y-1 overflow-y-auto">
 			{#each entries as entry (entry.id)}
 				<li class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm hover:bg-muted/50">
 					{#if entry.status === 'error'}

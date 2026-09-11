@@ -169,8 +169,17 @@ $xml.Package.Applications.Application.VisualElements.DisplayName = $env:MSIX_DIS
 $xml.Package.Applications.Application.VisualElements.Description = $env:MSIX_DESCRIPTION
 $xml.Package.Applications.Application.VisualElements.BackgroundColor = $env:MSIX_BG_COLOR
 
-$rescapNS = "http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
 $capsNode = $xml.Package.Capabilities
+
+$netCap1 = $xml.CreateElement("Capability", $xml.DocumentElement.NamespaceURI)
+$netCap1.SetAttribute("Name", "internetClientServer")
+$capsNode.AppendChild($netCap1) | Out-Null
+
+$netCap2 = $xml.CreateElement("Capability", $xml.DocumentElement.NamespaceURI)
+$netCap2.SetAttribute("Name", "privateNetworkClientServer")
+$capsNode.AppendChild($netCap2) | Out-Null
+
+$rescapNS = "http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
 $broadFs = $xml.CreateElement("rescap", "Capability", $rescapNS)
 $broadFs.SetAttribute("Name", "broadFileSystemAccess")
 $capsNode.AppendChild($broadFs) | Out-Null

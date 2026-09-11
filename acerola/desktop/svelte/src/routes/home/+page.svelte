@@ -1,3 +1,7 @@
+<script module lang="ts">
+	const handledTerminalSyncLogIds = new Set<number>();
+</script>
+
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import PlaceholderManga from '$lib/assets/placeholder/placeholder_manga.svg?component';
@@ -69,10 +73,14 @@
 	let bookmarkFilter = $state<BookmarkFilter>('all');
 	let showPeerPicker = $state(false);
 	let browsingPeerId = $state<string | null>(null);
-	// Evita re-disparar `summary.fetch()`/toast duas vezes pro mesmo evento — `sync.log[0]`
-	// dispara o `$effect` de novo a cada re-render enquanto essa entrada continuar sendo a
-	// mais recente do log (mesmo padrão usado na tela de Histórico pro sync de histórico).
-	let lastHandledSyncLogId: number | undefined;
+	// Evita re-disparar `summary.fetch()`/toast pro mesmo evento — tanto em re-render
+	// quanto ao navegar pra fora e voltar pra Home enquanto uma sessão terminada ainda é a
+	// primeira linha do log (`sync.log[0]`). Sessões já terminadas antes da montagem são
+	// ignoradas de imediato para não exibir toast fantasma na inicialização da página.
+	let lastHandledSyncKey: string | undefined =
+		sync.log[0] && sync.log[0].status !== 'started'
+			? `${sync.log[0].id}:${sync.log[0].status}`
+			: undefined;
 
 	onMount(async () => {
 		await folderStore.loadSavedPath();
@@ -106,13 +114,12 @@
 		// `use-network-sync.svelte.ts`), não um evento ao vivo desta sessão — sem esse guard, a
 		// linha "complete" mais recente do histórico disparava este toast/refresh assim que a
 		// Home montava, mesmo sem nenhum sync ter de fato acontecido agora.
-		if (
-			!entry ||
-			entry.id < 0 ||
-			(entry.kind !== 'comic' && entry.kind !== 'files') ||
-			entry.id === lastHandledSyncLogId
-		)
+		if (!entry || entry.id < 0 || (entry.kind !== 'comic' && entry.kind !== 'files')) return;
+
+		const currentKey = `${entry.id}:${entry.status}`;
+		if (currentKey === lastHandledSyncKey || handledTerminalSyncLogIds.has(entry.id)) {
 			return;
+		}
 
 		// Um único toast por sessão (kind+peer), criado em 'started' e reaproveitado (mesmo
 		// `id`) em 'complete'/'error' — o svelte-sonner substitui o conteúdo do toast existente
@@ -120,7 +127,7 @@
 		const toastId = `sync-${entry.kind}-${entry.peerId}`;
 
 		if (entry.status === 'started') {
-			lastHandledSyncLogId = entry.id;
+			lastHandledSyncKey = currentKey;
 			const peer = peers.peerLabel(entry.peerId);
 			if (entry.kind === 'comic') {
 				toast.loading(m['pages.network.transfers.comic_started']({ peer }), { id: toastId });
@@ -131,24 +138,28 @@
 		}
 
 		if (entry.status === 'complete') {
-			lastHandledSyncLogId = entry.id;
+			lastHandledSyncKey = currentKey;
+			handledTerminalSyncLogIds.add(entry.id);
 			const peer = peers.peerLabel(entry.peerId);
+			const opts = { id: toastId, duration: 4000 };
 			if (entry.kind === 'comic') {
-				toast.success(m['pages.network.transfers.comic_complete']({ peer }), { id: toastId });
+				toast.success(m['pages.network.transfers.comic_complete']({ peer }), opts);
 			} else {
-				toast.success(m['pages.network.transfers.files_complete']({ peer }), { id: toastId });
+				toast.success(m['pages.network.transfers.files_complete']({ peer }), opts);
 			}
 			summary.fetch();
 			return;
 		}
 
 		if (entry.status === 'error') {
-			lastHandledSyncLogId = entry.id;
+			lastHandledSyncKey = currentKey;
+			handledTerminalSyncLogIds.add(entry.id);
 			const msg = entry.message;
+			const opts = { id: toastId, duration: 5000 };
 			if (entry.kind === 'comic') {
-				toast.error(m['pages.network.transfers.comic_error']({ msg }), { id: toastId });
+				toast.error(m['pages.network.transfers.comic_error']({ msg }), opts);
 			} else {
-				toast.error(m['pages.network.transfers.files_error']({ msg }), { id: toastId });
+				toast.error(m['pages.network.transfers.files_error']({ msg }), opts);
 			}
 			// `sync:files:error`/`sync:comic:error` também cobre sessão que terminou com
 			// capítulos faltando (`Ok(skipped) => ... Err(...)` em file_handler.rs/

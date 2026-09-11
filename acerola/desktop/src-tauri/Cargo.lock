@@ -7612,7 +7612,6 @@ dependencies = [
  "tokio",
  "tray-icon",
  "url",
- "uuid",
  "webkit2gtk",
  "webview2-com",
  "window-vibrancy",
@@ -7635,7 +7634,6 @@ dependencies = [
  "semver",
  "serde",
  "serde_json",
- "tauri-codegen",
  "tauri-utils",
  "tauri-winres",
  "walkdir",
@@ -7877,14 +7875,12 @@ version = "2.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3e176a18e67764923c4f1ce66f25ae4abe5f688384d5eb1a0fa6c77f3d90f887"
 dependencies = [
- "aes-gcm",
  "anyhow",
  "brotli",
  "cargo_metadata",
  "ctor",
  "dom_query",
  "dunce",
- "getrandom 0.3.4",
  "glob",
  "http",
  "infer",
@@ -7902,7 +7898,6 @@ dependencies = [
  "serde-untagged",
  "serde_json",
  "serde_with",
- "serialize-to-javascript",
  "swift-rs",
  "thiserror 2.0.18",
  "toml 1.1.2+spec-1.1.0",

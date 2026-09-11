@@ -14,24 +14,43 @@ pub async fn setup_database(
 ) -> Result<(), ComicError> {
     tracing::info!("[Bios::Db] Connecting to SQLite database at {:?}", database_path);
 
-    #[rustfmt::skip]
+    use std::str::FromStr;
+
+    use sqlx::sqlite::{
+        SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous,
+    };
+
+    let connection_options = SqliteConnectOptions::from_str(&format!(
+        "sqlite:{}?mode=rwc",
+        database_path.to_string_lossy()
+    ))
+    .map_err(|err| ComicError::SystemFailure(err.to_string()))?
+    .journal_mode(SqliteJournalMode::Wal)
+    .synchronous(SqliteSynchronous::Normal)
+    .busy_timeout(std::time::Duration::from_secs(10));
+
     let database_pool = match tokio::time::timeout(
         std::time::Duration::from_secs(5),
-        sqlx::SqlitePool::connect(&format!(
-            "sqlite:{}?mode=rwc",
-            database_path.to_string_lossy()
-        ))
-    ).await {
+        SqlitePoolOptions::new().max_connections(10).connect_with(connection_options),
+    )
+    .await
+    {
         Ok(Ok(pool_instance)) => pool_instance,
         Ok(Err(connection_error)) => {
-            tracing::error!("[Bios::Db] Failed to connect to SQLite database: {:?}", connection_error);
+            tracing::error!(
+                "[Bios::Db] Failed to connect to SQLite database: {:?}",
+                connection_error
+            );
             return Err(ComicError::SystemFailure(format!(
                 "Failed to connect to db: {:?}",
                 connection_error
             )));
         },
         Err(timeout_error) => {
-            tracing::error!("[Bios::Db] Timeout waiting for SqlitePool::connect: {:?}", timeout_error);
+            tracing::error!(
+                "[Bios::Db] Timeout waiting for SqlitePool::connect: {:?}",
+                timeout_error
+            );
             return Err(ComicError::SystemFailure(
                 "TIMEOUT waiting for SqlitePool::connect!".to_string(),
             ));
