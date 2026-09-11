@@ -53,7 +53,17 @@ pub fn run() {
     std::mem::forget(pdfium_instance);
 
     let application_context = tauri::generate_context!();
-    bios::build().run(application_context).expect("Erro ao executar a aplicação Tauri");
+    let app = bios::build()
+        .build(application_context)
+        .expect("Erro ao construir a aplicação Tauri");
+
+    // `RunEvent::Exit` (não `.run(context)` direto) só pra poder desligar o node P2P de forma
+    // graciosa antes do processo terminar — ver `bios::shutdown_network`.
+    app.run(|app_handle, event| {
+        if let tauri::RunEvent::Exit = event {
+            bios::shutdown_network(app_handle);
+        }
+    });
 }
 
 pub mod system_cmd {
