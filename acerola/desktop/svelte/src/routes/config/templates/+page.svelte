@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
-	import { goto } from '$app/navigation';
 	import { fly, fade } from 'svelte/transition';
 
+	import AcerolaAccordionCard from '$lib/components/acerola-accordion-card/acerola-accordion-card.svelte';
 	import AcerolaAlertDialog from '$lib/components/acerola-alert-dialog/acerola-alert-dialog.svelte';
 	import AcerolaButton from '$lib/components/acerola-button/acerola-button.svelte';
 	import AcerolaButtonIcon from '$lib/components/acerola-button/acerola-button-icon.svelte';
@@ -25,6 +25,7 @@
 	import Trash2Icon from '@lucide/svelte/icons/trash-2';
 	import PlusIcon from '@lucide/svelte/icons/plus';
 	import LockIcon from '@lucide/svelte/icons/lock';
+	import CircleHelpIcon from '@lucide/svelte/icons/circle-help';
 
 	const templateStore = useArchiveTemplates();
 
@@ -42,6 +43,7 @@
 	let isCreating = $state(false);
 
 	let templateToDelete = $state<ArchiveTemplate | null>(null);
+	let helpExpanded = $state(false);
 
 	const chapterTemplates = $derived(
 		templateStore.templates.filter((template) => template.sort_type === 'Chapter')
@@ -108,76 +110,81 @@
 	class="mx-auto w-full max-w-5xl space-y-10 p-8"
 >
 	<div class="space-y-1">
-		<AcerolaSettingsHeader
-			data={{ title: m['pages.config.templates.title']() }}
-			events={{ onBack: () => goto('/config') }}
-		/>
+		<AcerolaSettingsHeader data={{ title: m['pages.config.templates.title']() }} />
 		<p class="text-muted-foreground">
 			{m['pages.config.templates.desc']()}
 		</p>
 	</div>
 
 	<!-- Referência: como montar um template -->
-	<AcerolaCard
+	<AcerolaAccordionCard
 		data={{
 			title: m['pages.config.templates.help.title'](),
 			description: m['pages.config.templates.help.desc']()
 		}}
+		state={{ expanded: helpExpanded }}
+		events={{ onToggle: () => (helpExpanded = !helpExpanded) }}
 	>
-		<div class="grid gap-3 sm:grid-cols-2">
-			<div class="rounded-xl border border-border/40 bg-background/50 p-3">
-				<code class="text-sm font-bold text-primary">{'{chapter}'}</code>
-				<p class="mt-1 text-xs text-muted-foreground">
-					{m['pages.config.templates.help.macro_chapter_desc']()}
-				</p>
-			</div>
-			<div class="rounded-xl border border-border/40 bg-background/50 p-3">
-				<code class="text-sm font-bold text-primary">{'{volume}'}</code>
-				<p class="mt-1 text-xs text-muted-foreground">
-					{m['pages.config.templates.help.macro_volume_desc']()}
-				</p>
-			</div>
-			<div class="rounded-xl border border-border/40 bg-background/50 p-3">
-				<code class="text-sm font-bold text-primary">{'{decimal}'}</code>
-				<p class="mt-1 text-xs text-muted-foreground">
-					{m['pages.config.templates.help.macro_decimal_desc']()}
-				</p>
-			</div>
-			<div class="rounded-xl border border-border/40 bg-background/50 p-3">
-				<code class="text-sm font-bold text-primary">{'{extension}'}</code>
-				<p class="mt-1 text-xs text-muted-foreground">
-					{m['pages.config.templates.help.macro_extension_desc']()}
-				</p>
-			</div>
-			<div class="rounded-xl border border-border/40 bg-background/50 p-3 sm:col-span-2">
-				<code class="text-sm font-bold text-primary">*</code>
-				<p class="mt-1 text-xs text-muted-foreground">
-					{m['pages.config.templates.help.wildcard_desc']()}
-				</p>
-			</div>
-		</div>
+		{#snippet icon()}
+			<CircleHelpIcon class="text-primary" size={24} />
+		{/snippet}
 
-		<div class="mt-5 grid gap-3 sm:grid-cols-2">
-			<div class="rounded-xl bg-muted/30 p-3">
-				<p class="text-xs font-semibold text-foreground">
-					{m['pages.config.templates.help.example_chapter_label']()}
-				</p>
-				<code class="mt-1 block truncate text-xs text-muted-foreground">{CHAPTER_EXAMPLE}</code>
-				<p class="mt-1 text-xs text-muted-foreground/80">
-					{m['pages.config.templates.help.example_chapter_match']()}
-				</p>
+		{#snippet children()}
+			<div class="grid gap-3 sm:grid-cols-2">
+				<div class="rounded-xl border border-border/40 bg-background/50 p-3">
+					<code class="text-sm font-bold text-primary">{'{chapter}'}</code>
+					<p class="mt-1 text-xs text-muted-foreground">
+						{m['pages.config.templates.help.macro_chapter_desc']()}
+					</p>
+				</div>
+				<div class="rounded-xl border border-border/40 bg-background/50 p-3">
+					<code class="text-sm font-bold text-primary">{'{volume}'}</code>
+					<p class="mt-1 text-xs text-muted-foreground">
+						{m['pages.config.templates.help.macro_volume_desc']()}
+					</p>
+				</div>
+				<div class="rounded-xl border border-border/40 bg-background/50 p-3">
+					<code class="text-sm font-bold text-primary">{'{decimal}'}</code>
+					<p class="mt-1 text-xs text-muted-foreground">
+						{m['pages.config.templates.help.macro_decimal_desc']()}
+					</p>
+				</div>
+				<div class="rounded-xl border border-border/40 bg-background/50 p-3">
+					<code class="text-sm font-bold text-primary">{'{extension}'}</code>
+					<p class="mt-1 text-xs text-muted-foreground">
+						{m['pages.config.templates.help.macro_extension_desc']()}
+					</p>
+				</div>
+				<div class="rounded-xl border border-border/40 bg-background/50 p-3 sm:col-span-2">
+					<code class="text-sm font-bold text-primary">*</code>
+					<p class="mt-1 text-xs text-muted-foreground">
+						{m['pages.config.templates.help.wildcard_desc']()}
+					</p>
+				</div>
 			</div>
-			<div class="rounded-xl bg-muted/30 p-3">
-				<p class="text-xs font-semibold text-foreground">
-					{m['pages.config.templates.help.example_volume_label']()}
-				</p>
-				<code class="mt-1 block truncate text-xs text-muted-foreground">{VOLUME_EXAMPLE}</code>
-				<p class="mt-1 text-xs text-muted-foreground/80">
-					{m['pages.config.templates.help.example_volume_match']()}
-				</p>
+
+			<div class="mt-5 grid gap-3 sm:grid-cols-2">
+				<div class="rounded-xl bg-muted/30 p-3">
+					<p class="text-xs font-semibold text-foreground">
+						{m['pages.config.templates.help.example_chapter_label']()}
+					</p>
+					<code class="mt-1 block truncate text-xs text-muted-foreground">{CHAPTER_EXAMPLE}</code>
+					<p class="mt-1 text-xs text-muted-foreground/80">
+						{m['pages.config.templates.help.example_chapter_match']()}
+					</p>
+				</div>
+				<div class="rounded-xl bg-muted/30 p-3">
+					<p class="text-xs font-semibold text-foreground">
+						{m['pages.config.templates.help.example_volume_label']()}
+					</p>
+					<code class="mt-1 block truncate text-xs text-muted-foreground">{VOLUME_EXAMPLE}</code>
+					<p class="mt-1 text-xs text-muted-foreground/80">
+						{m['pages.config.templates.help.example_volume_match']()}
+					</p>
+				</div>
 			</div>
-		</div>
-	</AcerolaCard>
+		{/snippet}
+	</AcerolaAccordionCard>
 
 	<!-- Criar novo template -->
 	<AcerolaCard data={{ title: m['pages.config.templates.form.title']() }}>
