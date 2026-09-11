@@ -32,12 +32,13 @@ pub(crate) const FILE_SYNC_ALPN: &[u8] = b"acerola/sync-files/1";
 /// transporte (`acerola-p2p`, que roteia por ALPN exato e não carrega payload em `connect()`).
 pub(crate) const COMIC_SYNC_ALPN: &[u8] = b"acerola/sync-comic/1";
 
-/// `peer_id -> (comic_name, direction)` escolhidos pelo usuário na chamada FFI
+/// `peer_id -> (comic_name, direction, chapters)` escolhidos pelo usuário na chamada FFI
 /// `P2PNode::sync_comic`, lidos e removidos por `ComicSyncOutbound::handle` assim que a sessão
 /// outbound começa. Único jeito de levar essa escolha (que só existe do lado Kotlin) até o
 /// `Handler` que a lib de transporte invoca sem contexto por chamada — ver comentário em
-/// `COMIC_SYNC_ALPN`.
-pub(crate) type PendingComicScope = Arc<Mutex<HashMap<String, (String, SyncDirection)>>>;
+/// `COMIC_SYNC_ALPN`. `chapters` (rótulos, vazio = quadrinho inteiro) escopa a sessão a um
+/// subconjunto de capítulos — mesma ideia do Desktop (`PendingComicSyncRegistry`).
+pub(crate) type PendingComicScope = Arc<Mutex<HashMap<String, (String, SyncDirection, Vec<String>)>>>;
 
 /// Papel outbound do protocolo `acerola/sync-files/1` — este lado iniciou a conexão.
 pub(crate) struct FileSyncOutbound {
@@ -309,7 +310,7 @@ async fn run_and_report_scoped(
     provider: &Arc<dyn FileSyncProvider>,
     session_guard: &Arc<FileSyncSessionGuard>,
     transfer: &Arc<dyn ChapterTransfer>,
-    comic_scope_outbound: Option<(String, SyncDirection)>,
+    comic_scope_outbound: Option<(String, SyncDirection, Vec<String>)>,
     send: Box<dyn AsyncWrite + Send + Unpin>,
     recv: Box<dyn AsyncRead + Send + Unpin>,
 ) -> Result<(), P2pError> {
@@ -614,7 +615,7 @@ mod concurrency_tests {
             &provider,
             &session_guard,
             &test_transfer(),
-            Some(("Comic A".to_string(), SyncDirection::Push)),
+            Some(("Comic A".to_string(), SyncDirection::Push, vec![])),
             Box::new(send) as Box<dyn AsyncWrite + Send + Unpin>,
             Box::new(recv) as Box<dyn AsyncRead + Send + Unpin>,
         )

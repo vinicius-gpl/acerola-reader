@@ -498,20 +498,27 @@ impl P2PNode {
 
     /// Sincroniza um único quadrinho (`comic_name`) com `peer_addr`, na `direction` explícita
     /// escolhida pelo usuário (`Push` = mandar pro peer; `Pull` = puxar dele) — ver
-    /// `protocol::files::model::SyncDirection`. Grava `(comic_name, direction)` no registro
-    /// pendente ANTES de conectar — é a única forma dessa escolha (que só existe aqui, do lado
-    /// que chamou) chegar até `ComicSyncOutbound::handle`, já que `connect()` não carrega
+    /// `protocol::files::model::SyncDirection`. Grava `(comic_name, direction, chapters)` no
+    /// registro pendente ANTES de conectar — é a única forma dessa escolha (que só existe aqui,
+    /// do lado que chamou) chegar até `ComicSyncOutbound::handle`, já que `connect()` não carrega
     /// payload (ver `protocol::files::COMIC_SYNC_ALPN`).
+    ///
+    /// `chapters` (rótulos de capítulo, mesma chave de `FileChapterInfo.chapter` — vazio =
+    /// quadrinho inteiro) escopa a sessão a um subconjunto de capítulos, usado pelo botão
+    /// "Enviar" da seleção múltipla/menu de três pontinhos: o Kotlin resolve os
+    /// `chapterSort`s selecionados pros rótulos correspondentes antes de chamar este método
+    /// (ver `ComicViewModel`), já que o manifesto trocado no wire usa rótulo, não `chapter_sort`.
     pub fn sync_comic(
         &self,
         peer_addr: FfiPeerAddr,
         comic_name: String,
         direction: FfiSyncDirection,
+        chapters: Vec<String>,
     ) {
         self.pending_comic_scope
             .lock()
             .expect("pending comic scope mutex poisoned")
-            .insert(peer_addr.id.clone(), (comic_name, direction.into()));
+            .insert(peer_addr.id.clone(), (comic_name, direction.into(), chapters));
         self.connect(peer_addr, COMIC_SYNC_ALPN.to_vec());
     }
 

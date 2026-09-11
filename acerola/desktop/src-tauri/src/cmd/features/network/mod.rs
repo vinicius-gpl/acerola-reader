@@ -255,11 +255,20 @@ pub async fn sync_all(
 pub async fn sync_comic(
     service: State<'_, Arc<dyn NetworkServiceApi>>,
     registry: State<'_, Arc<PendingComicSyncRegistry>>, peer_id: String, addrs: Vec<u8>,
-    comic_name: String, direction: SyncDirection,
+    comic_name: String, direction: SyncDirection, chapter_ids: Vec<String>,
 ) -> Result<(), String> {
     use acerola_p2p::api::peer::{PeerAddr, PeerIdentity};
 
-    registry.set(peer_id.clone(), comic_name, direction);
+    // Mesmo padrão de `sync_history_entry`: o frontend trata IDs de capítulo como string
+    // (`ChapterId` em `use-chapter-selection.svelte.ts`), o parse pra `i64`
+    // (`chapter_archive.id`) acontece aqui. Lista vazia = quadrinho inteiro (botão
+    // "Sincronizar com dispositivo"), não escopada a nenhum capítulo específico.
+    let chapter_ids = chapter_ids
+        .into_iter()
+        .map(|id| id.parse::<i64>().map_err(|error| error.to_string()))
+        .collect::<Result<Vec<_>, _>>()?;
+
+    registry.set(peer_id.clone(), comic_name, direction, chapter_ids);
 
     let peer_addr = PeerAddr { id: PeerIdentity { id: peer_id, device_id: None }, addrs };
     service.connect(peer_addr, COMIC_SYNC_ALPN.to_vec()).await?;
