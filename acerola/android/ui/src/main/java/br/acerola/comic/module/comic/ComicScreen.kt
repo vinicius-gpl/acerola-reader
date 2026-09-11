@@ -148,6 +148,7 @@ fun ComicScreen(
 
     val isExtractingVolumeCovers by comicViewModel.isExtractingVolumeCovers.collectAsStateWithLifecycle(false)
     val isSyncingWithPeer by comicViewModel.isSyncingWithPeer.collectAsStateWithLifecycle(false)
+    val isSendingChaptersToPeer by comicViewModel.isSendingChaptersToPeer.collectAsStateWithLifecycle(false)
     val pairedPeers by comicViewModel.pairedPeers.collectAsStateWithLifecycle()
 
     val activeLibrarySyncType by comicDirectoryViewModel.activeSyncType.collectAsStateWithLifecycle(null)
@@ -218,6 +219,38 @@ fun ComicScreen(
         when {
             isSyncingWithPeer -> SyncActionVisualState.LOADING
             syncWithPeerSuccess -> SyncActionVisualState.SUCCESS
+            else -> SyncActionVisualState.IDLE
+        }
+
+    // `sendSelectedChaptersToPeer` limpa a seleção assim que dispara o envio (não quando
+    // termina), então o conjunto de capítulos sendo enviados precisa ser capturado no
+    // momento do disparo (ver `onSelect` do `PeerPickerSheet` abaixo) — não dá pra derivar
+    // de `selectedChapterSorts` porque ele já volta vazio.
+    var sendingChapterSorts by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var sendChaptersSuccess by remember { mutableStateOf(false) }
+    var wasSendingChapters by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isSendingChaptersToPeer) {
+        if (isSendingChaptersToPeer) {
+            wasSendingChapters = true
+            return@LaunchedEffect
+        }
+
+        if (wasSendingChapters) {
+            wasSendingChapters = false
+            sendChaptersSuccess = true
+            delay(1800.milliseconds)
+            if (sendChaptersSuccess) {
+                sendChaptersSuccess = false
+                sendingChapterSorts = emptySet()
+            }
+        }
+    }
+
+    val sendChaptersVisualState =
+        when {
+            isSendingChaptersToPeer -> SyncActionVisualState.LOADING
+            sendChaptersSuccess -> SyncActionVisualState.SUCCESS
             else -> SyncActionVisualState.IDLE
         }
 
@@ -412,6 +445,8 @@ fun ComicScreen(
                                 onChapterClick = { chapter -> onChapterAction(ComicChapterAction.ClickChapter(chapter, 0)) },
                                 selectedChapterSorts = selectedChapterSorts,
                                 isSelectionMode = isChapterSelectionMode,
+                                sendingChapterSorts = sendingChapterSorts,
+                                sendChaptersVisualState = sendChaptersVisualState,
                                 onToggleSelection = comicViewModel::toggleChapterSelection,
                                 onLongPressChapter = onChapterLongPress,
                                 onSendToPeer = onSendChapterToPeer,
@@ -564,6 +599,7 @@ fun ComicScreen(
                 peers = pairedPeers,
                 onSelect = { peerId ->
                     showSendChaptersPeerPicker = false
+                    sendingChapterSorts = selectedChapterSorts
                     comicViewModel.sendSelectedChaptersToPeer(peerId)
                 },
                 onDismiss = { showSendChaptersPeerPicker = false },

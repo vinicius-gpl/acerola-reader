@@ -2,6 +2,7 @@ package br.acerola.comic.module.comic.template
 
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.LaunchedEffect
+import br.acerola.comic.common.state.SyncActionVisualState
 import br.acerola.comic.config.preference.types.VolumeViewType
 import br.acerola.comic.dto.ChapterDto
 import br.acerola.comic.dto.archive.ChapterFileDto
@@ -20,6 +21,8 @@ fun Comic.Template.chapterSection(
     activeVolumeId: Long? = null,
     selectedChapterSorts: Set<String> = emptySet(),
     isSelectionMode: Boolean = false,
+    sendingChapterSorts: Set<String> = emptySet(),
+    sendChaptersVisualState: SyncActionVisualState = SyncActionVisualState.IDLE,
     onChapterClick: (ChapterFileDto) -> Unit,
     onToggleRead: (String) -> Unit,
     onToggleSelection: (String) -> Unit = {},
@@ -78,6 +81,12 @@ fun Comic.Template.chapterSection(
                             onLongClick = { onLongPressChapter(chapter.chapterSort) },
                             onToggleRead = { onToggleRead(chapter.chapterSort) },
                             onSendToPeer = { onSendToPeer(chapter.chapterSort) },
+                            sendState =
+                                if (chapter.chapterSort in sendingChapterSorts) {
+                                    sendChaptersVisualState
+                                } else {
+                                    SyncActionVisualState.IDLE
+                                },
                         )
                     }
                 }
