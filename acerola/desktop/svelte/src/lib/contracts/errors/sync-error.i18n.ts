@@ -26,7 +26,8 @@ const SYNC_ERROR_MESSAGES: Record<string, () => string> = {
 	comic_directory_unavailable: m['tauri_errors.sync.comic_directory_unavailable.label'],
 	persist_failed: m['tauri_errors.sync.persist_failed.label'],
 	no_pending_request: m['tauri_errors.sync.no_pending_request.label'],
-	partial_sync: m['tauri_errors.sync.partial_sync.label']
+	partial_sync: m['tauri_errors.sync.partial_sync.label'],
+	comic_not_found: m['tauri_errors.sync.comic_not_found.label']
 };
 
 export function translateSyncMessage(code: string | undefined, message: string): string {

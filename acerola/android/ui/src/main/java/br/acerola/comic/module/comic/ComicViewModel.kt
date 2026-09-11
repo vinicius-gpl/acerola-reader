@@ -324,7 +324,13 @@ class ComicViewModel
                             val pendingPeerId = _sendingChaptersPeerId.value ?: return@collect
                             if (event.peerId == pendingPeerId) {
                                 _sendingChaptersPeerId.value = null
-                                _uiEvents.send(UserMessage.Raw(UiText.StringResource(R.string.error_send_chapters_peer_failed)))
+                                // `event.error` já é um `SyncProtocolError` (ex.: `ComicNotFound`)
+                                // quando o `code` do wire foi reconhecido — mostra a causa
+                                // específica em vez da mensagem genérica sempre que possível.
+                                _uiEvents.send(
+                                    event.error
+                                        ?: UserMessage.Raw(UiText.StringResource(R.string.error_send_chapters_peer_failed)),
+                                )
                             }
                         }
 

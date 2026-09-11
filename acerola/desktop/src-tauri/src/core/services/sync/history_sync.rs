@@ -103,9 +103,10 @@ impl HistorySyncService {
     /// Monta o manifesto restrito a um subconjunto de capítulos de UM quadrinho — usado pelo
     /// envio explícito de capítulo(s) selecionado(s) pra um peer (`acerola/sync-history-entry/1`).
     /// Recebe `chapter_archive_id`s (mesma unidade que o resto da UI local, ex.:
-    /// `markChaptersReadBatch`) e resolve pra `chapter_sort` aqui dentro — só esse último é
-    /// comparável entre os dois devices, então é o que efetivamente viaja no manifesto. IDs
-    /// que não existem ou pertencem a outro quadrinho são ignorados silenciosamente.
+    /// `markChaptersReadBatch`) e resolve pra `chapter_sort` via [`Self::resolve_chapter_sorts`] —
+    /// só esse último é comparável entre os dois devices, então é o que efetivamente viaja no
+    /// manifesto. IDs que não existem ou pertencem a outro quadrinho são ignorados
+    /// silenciosamente.
     pub async fn build_manifest_for_chapters(
         &self, comic_name: &str, chapter_ids: &[i64],
     ) -> Result<HistoryManifest, ComicError> {
@@ -113,30 +114,13 @@ impl HistorySyncService {
             return Ok(HistoryManifest { entries: vec![], read_markers: vec![] });
         };
 
-        let mut chapter_sorts = Vec::with_capacity(chapter_ids.len());
-        for &chapter_id in chapter_ids {
-            if let Some(chapter) = self.chapter_repo.find_by_id(chapter_id).await? {
-                if chapter.comic_directory_fk == comic.id {
-                    chapter_sorts.push(chapter.chapter_sort);
-                }
-            }
-        }
+        let chapter_sorts = self.resolve_chapter_sorts(comic_name, chapter_ids).await?;
 
-        let mut entries = Vec::new();
-        if let Some(progress) = self.reading_repo.find_by_comic_id(comic.id).await? {
-            if let Some(chapter) = self.chapter_repo.find_by_id(progress.chapter_archive_id).await?
-            {
-                if chapter_sorts.iter().any(|sort| sort == &chapter.chapter_sort) {
-                    entries.push(HistoryEntry {
-                        comic_name: comic_name.to_string(),
-                        chapter: chapter.chapter_sort,
-                        last_page: progress.last_page,
-                        is_completed: progress.is_completed,
-                        updated_at: progress.updated_at,
-                    });
-                }
-            }
-        }
+        let entries = self
+            .current_progress_entry_if_selected(comic_name, comic.id, &chapter_sorts)
+            .await?
+            .into_iter()
+            .collect();
 
         let read_markers = self
             .read_marker_repo
@@ -153,12 +137,72 @@ impl HistorySyncService {
         Ok(HistoryManifest { entries, read_markers })
     }
 
+    /// Entrada de progresso do capítulo "atual" (o de `reading_history`) de um quadrinho, só se
+    /// esse capítulo estiver entre os `chapter_sorts` selecionados — `None` em qualquer guarda
+    /// que falhe (sem progresso salvo, capítulo não encontrado, ou capítulo não selecionado).
+    /// Extraído de [`Self::build_manifest_for_chapters`] pra manter guardas encadeadas em vez de
+    /// `if let` aninhado.
+    async fn current_progress_entry_if_selected(
+        &self, comic_name: &str, comic_id: i64, chapter_sorts: &[String],
+    ) -> Result<Option<HistoryEntry>, ComicError> {
+        let Some(progress) = self.reading_repo.find_by_comic_id(comic_id).await? else {
+            return Ok(None);
+        };
+        let Some(chapter) = self.chapter_repo.find_by_id(progress.chapter_archive_id).await? else {
+            return Ok(None);
+        };
+        if !chapter_sorts.iter().any(|sort| sort == &chapter.chapter_sort) {
+            return Ok(None);
+        }
+
+        Ok(Some(HistoryEntry {
+            comic_name: comic_name.to_string(),
+            chapter: chapter.chapter_sort,
+            last_page: progress.last_page,
+            is_completed: progress.is_completed,
+            updated_at: progress.updated_at,
+        }))
+    }
+
+    /// Resolve `chapter_archive_id`s locais pra `chapter_sort` (a chave comparável entre
+    /// devices) — usado tanto por [`Self::build_manifest_for_chapters`] quanto pelo protocolo
+    /// `acerola/sync-history-entry/1` pra montar o `HistoryEntryRequest` (primeira mensagem do
+    /// contrato, declarando o escopo antes do manifesto em si). IDs que não existem ou
+    /// pertencem a outro quadrinho são ignorados silenciosamente; quadrinho inexistente
+    /// devolve lista vazia.
+    pub async fn resolve_chapter_sorts(
+        &self, comic_name: &str, chapter_ids: &[i64],
+    ) -> Result<Vec<String>, ComicError> {
+        let Some(comic) = self.comic_repo.find_by_name(comic_name).await? else {
+            return Ok(vec![]);
+        };
+
+        let mut chapter_sorts = Vec::with_capacity(chapter_ids.len());
+        for &chapter_id in chapter_ids {
+            let Some(chapter) = self.chapter_repo.find_by_id(chapter_id).await? else {
+                continue;
+            };
+            if chapter.comic_directory_fk != comic.id {
+                continue;
+            }
+
+            chapter_sorts.push(chapter.chapter_sort);
+        }
+
+        Ok(chapter_sorts)
+    }
+
     /// Aplica o manifesto recebido do peer localmente: last-write-wins por `updated_at`
     /// no progresso de leitura, união nos marcadores de "lido". Só toca em quadrinhos que
     /// já existem localmente — histórico não cria quadrinho novo, isso é papel do sync de
-    /// arquivos. Retorna quantas entradas de progresso foram de fato aplicadas.
-    pub async fn apply_manifest(&self, manifest: &HistoryManifest) -> Result<usize, ComicError> {
-        let mut applied = 0usize;
+    /// arquivos. Retorna quantas entradas/marcadores foram de fato aplicados — é o que dá ao
+    /// chamador (`acerola/sync-history-entry/1`) um sinal real de validação, em vez de "a
+    /// sessão não caiu" (ver `HistoryEntryAck`).
+    pub async fn apply_manifest(
+        &self, manifest: &HistoryManifest,
+    ) -> Result<ApplyManifestStats, ComicError> {
+        let mut entries_applied = 0u32;
+        let mut markers_applied = 0u32;
 
         for entry in &manifest.entries {
             let Some(comic) = self.comic_repo.find_by_name(&entry.comic_name).await? else {
@@ -190,7 +234,7 @@ impl HistorySyncService {
                 })
                 .await?;
 
-            applied += 1;
+            entries_applied += 1;
         }
 
         for marker in &manifest.read_markers {
@@ -210,10 +254,30 @@ impl HistorySyncService {
                     created_at: marker.created_at,
                 })
                 .await?;
+
+            markers_applied += 1;
         }
 
-        Ok(applied)
+        Ok(ApplyManifestStats { entries_applied, markers_applied })
     }
+
+    /// Verifica só a existência do quadrinho (sem tocar em progresso/lido) — usado pelo
+    /// contrato de `acerola/sync-history-entry/1` pra validar ANTES de responder "aplicado com
+    /// sucesso": sem isso, um manifesto vazio (nenhum capítulo selecionado tinha progresso/
+    /// marcador) não dava nenhum sinal de erro mesmo quando o peer nunca teve esse quadrinho.
+    pub async fn comic_exists(&self, comic_name: &str) -> Result<bool, ComicError> {
+        Ok(self.comic_repo.find_by_name(comic_name).await?.is_some())
+    }
+}
+
+/// Resultado de [`HistorySyncService::apply_manifest`] — quantas entradas de progresso e
+/// quantos marcadores de "lido" foram de fato escritos localmente (não só "a sessão não deu
+/// erro"). Espelhado no Android por `HistorySyncStats` (`protocol/history/model.rs`), que já
+/// tinha esse formato mais rico — este tipo alinha o Desktop ao mesmo padrão.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct ApplyManifestStats {
+    pub entries_applied: u32,
+    pub markers_applied: u32,
 }
 
 #[cfg(test)]
@@ -284,7 +348,7 @@ mod tests {
         };
 
         let applied = service.apply_manifest(&peer_manifest).await.unwrap();
-        assert_eq!(applied, 0);
+        assert_eq!(applied.entries_applied, 0);
 
         let manifest = service.build_manifest().await.unwrap();
         assert_eq!(manifest.entries[0].last_page, 20);
@@ -316,7 +380,7 @@ mod tests {
         };
 
         let applied = service.apply_manifest(&peer_manifest).await.unwrap();
-        assert_eq!(applied, 1);
+        assert_eq!(applied.entries_applied, 1);
 
         let manifest = service.build_manifest().await.unwrap();
         assert_eq!(manifest.entries[0].last_page, 30);
@@ -414,7 +478,7 @@ mod tests {
         };
 
         let applied = service.apply_manifest(&peer_manifest).await.unwrap();
-        assert_eq!(applied, 0);
+        assert_eq!(applied.entries_applied, 0);
     }
 
     #[tokio::test]
@@ -433,9 +497,29 @@ mod tests {
             ],
         };
 
-        service.apply_manifest(&peer_manifest).await.unwrap();
+        let applied = service.apply_manifest(&peer_manifest).await.unwrap();
+        assert_eq!(applied.markers_applied, 2);
 
         let manifest = service.build_manifest().await.unwrap();
         assert_eq!(manifest.read_markers.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn resolve_chapter_sorts_ignores_unknown_id_and_unknown_comic() {
+        let (_, service) = setup().await;
+
+        assert_eq!(
+            service.resolve_chapter_sorts("Test", &[1, 999]).await.unwrap(),
+            vec!["1".to_string()]
+        );
+        assert!(service.resolve_chapter_sorts("Nao Existe", &[1]).await.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn comic_exists_reflects_local_presence() {
+        let (_, service) = setup().await;
+
+        assert!(service.comic_exists("Test").await.unwrap());
+        assert!(!service.comic_exists("Nao Existe Aqui").await.unwrap());
     }
 }

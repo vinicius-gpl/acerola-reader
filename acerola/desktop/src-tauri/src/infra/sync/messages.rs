@@ -36,6 +36,29 @@ pub struct HistoryManifest {
     pub read_markers: Vec<ReadMarker>,
 }
 
+/// Primeira mensagem do protocolo `acerola/sync-history-entry/1`, escrita pelo lado outbound —
+/// declara explicitamente qual quadrinho e quais capítulos (`chapter_sort`) o manifesto que vem
+/// a seguir está escopado, em vez de o inbound só descobrir isso lendo o conteúdo do manifesto
+/// (que pode vir vazio se nenhum capítulo selecionado tiver progresso/marcador de "lido" — nesse
+/// caso o inbound não teria como saber nem qual quadrinho validar). Mesmo padrão de
+/// `ComicSyncRequest`, schema espelhado no Android (`protocol/history/model.rs`).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HistoryEntryRequest {
+    pub comic_name: String,
+    pub chapter_sorts: Vec<String>,
+}
+
+/// Resposta do lado inbound de `acerola/sync-history-entry/1`, no lugar do antigo ack vazio
+/// (`{}`) — carrega o resultado real da aplicação, não só "a sessão não caiu". `comic_known`
+/// é o que permite o outbound diferenciar "enviei e o peer aplicou" de "enviei, mas o peer nem
+/// tinha esse quadrinho" (antes um falso positivo silencioso). Schema espelhado no Android.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HistoryEntryAck {
+    pub comic_known: bool,
+    pub entries_applied: u32,
+    pub markers_applied: u32,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileChapterInfo {
     pub chapter: String,
@@ -283,6 +306,25 @@ mod wire_contract_tests {
         });
         let decoded: HistoryManifest = serde_json::from_value(android_wire).unwrap();
         assert_eq!(decoded.entries[0].chapter, "12");
+    }
+
+    /// Trava o schema de wire de `HistoryEntryRequest`/`HistoryEntryAck` (novas mensagens do
+    /// contrato padronizado de `acerola/sync-history-entry/1`) contra o formato espelhado no
+    /// Android (`protocol/history/model.rs::HistoryEntryRequest`/`HistoryEntryAck`) — nomes de
+    /// campo idênticos nos dois lados, sem `rename` (mensagens novas, sem legado a preservar).
+    #[test]
+    fn history_entry_request_and_ack_match_android_wire_shape() {
+        let request =
+            HistoryEntryRequest { comic_name: "Berserk".into(), chapter_sorts: vec!["12".into()] };
+        let value = serde_json::to_value(&request).unwrap();
+        assert_eq!(value, serde_json::json!({ "comic_name": "Berserk", "chapter_sorts": ["12"] }));
+
+        let android_ack_wire =
+            serde_json::json!({ "comic_known": false, "entries_applied": 0, "markers_applied": 0 });
+        let decoded: HistoryEntryAck = serde_json::from_value(android_ack_wire).unwrap();
+        assert!(!decoded.comic_known);
+        assert_eq!(decoded.entries_applied, 0);
+        assert_eq!(decoded.markers_applied, 0);
     }
 
     /// `LibraryBrowseRequest` só precisa existir no wire (ver doc do tipo) — trava que o
