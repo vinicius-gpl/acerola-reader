@@ -101,7 +101,9 @@ describe('AcerolaNetworkPeerList', () => {
 		await fireEvent.click(document.querySelector('[data-popover-trigger]')!);
 		await fireEvent.click(screen.getByRole('button', { name: /Rename|Renomear/i }));
 
-		const input = screen.getByPlaceholderText(/Nickname for this device|Apelido pra esse dispositivo/i);
+		const input = screen.getByPlaceholderText(
+			/Nickname for this device|Apelido pra esse dispositivo/i
+		);
 		expect(input).toHaveValue('');
 
 		await fireEvent.input(input, { target: { value: '  Celular da Sala  ' } });
