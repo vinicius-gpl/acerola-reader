@@ -9,9 +9,13 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
 
 use super::model::{HistoryManifest, HistorySyncStats};
-use crate::{callbacks::HistorySyncProvider, protocol::ffi_blocking::run_blocking};
+use crate::{
+    callbacks::{FfiReadingProgressEntry, HistorySyncProvider},
+    protocol::ffi_blocking::run_blocking,
+};
 
 const MANIFEST_READ_TIMEOUT: Duration = Duration::from_secs(15);
+const ENTRY_READ_TIMEOUT: Duration = Duration::from_secs(15);
 
 pub(super) use crate::protocol::framing::{Recv, Writer};
 
@@ -178,6 +182,54 @@ pub(super) async fn run_exchange(
     Ok(())
 }
 
+/// Executa o push unidirecional de UMA entrada de progresso (`acerola/sync-history-entry/1`).
+/// `outbound_role`: o lado que inicia busca a entrada via `provider` (escopada por
+/// `comic_name`, já resolvido do `PendingHistoryEntryScope` por quem chama) e escreve; o lado
+/// que responde lê, aplica (se houver entrada — `None` quando o quadrinho nunca teve progresso
+/// no outro lado) e confirma com um ack vazio antes de fechar, pra o outbound não considerar a
+/// sessão concluída antes do inbound terminar de aplicar.
+pub(super) async fn run_entry_exchange(
+    outbound_role: bool,
+    comic_name: Option<String>,
+    peer: &PeerIdentity,
+    emit: &EventEmitter,
+    provider: &Arc<dyn HistorySyncProvider>,
+    send: Box<dyn AsyncWrite + Send + Unpin>,
+    recv: Box<dyn AsyncRead + Send + Unpin>,
+) -> Result<(), P2pError> {
+    let mut writer: Writer = FramedWrite::new(send, LengthDelimitedCodec::new());
+    let mut reader: Recv = FramedRead::new(recv, LengthDelimitedCodec::new());
+
+    emit("sync:history-entry:started", started_payload(peer));
+
+    if outbound_role {
+        let comic_name = comic_name.ok_or_else(|| {
+            P2pError::StreamFailed("no pending history entry scope for this peer".into())
+        })?;
+        let provider_clone = Arc::clone(provider);
+        let entry = run_blocking(move || provider_clone.get_reading_progress_for_comic(comic_name))
+            .await?;
+
+        crate::protocol::framing::write_json(&mut writer, &entry).await?;
+        let _ack: serde_json::Value =
+            crate::protocol::framing::read_json(&mut reader, ENTRY_READ_TIMEOUT).await?;
+    } else {
+        let entry: Option<FfiReadingProgressEntry> =
+            crate::protocol::framing::read_json(&mut reader, ENTRY_READ_TIMEOUT).await?;
+
+        if let Some(entry) = entry {
+            let provider_clone = Arc::clone(provider);
+            run_blocking(move || provider_clone.apply_reading_progress(entry)).await?;
+        }
+
+        crate::protocol::framing::write_json(&mut writer, &serde_json::json!({})).await?;
+    }
+
+    emit("sync:history-entry:complete", started_payload(peer));
+
+    Ok(())
+}
+
 fn started_payload(peer: &PeerIdentity) -> String {
     serde_json::json!({ "peerId": peer.id }).to_string()
 }
@@ -223,6 +275,128 @@ mod tests {
         fn apply_chapter_read(&self, _entry: FfiChapterReadEntry) -> bool {
             true
         }
+        fn get_reading_progress_for_comic(&self, _comic_name: String) -> Option<FfiReadingProgressEntry> {
+            None
+        }
+    }
+
+    struct InMemoryProvider {
+        progress: std::sync::Mutex<HashMap<String, FfiReadingProgressEntry>>,
+    }
+
+    impl InMemoryProvider {
+        fn new() -> Self {
+            Self { progress: std::sync::Mutex::new(HashMap::new()) }
+        }
+
+        fn with_entry(entry: FfiReadingProgressEntry) -> Self {
+            let provider = Self::new();
+            provider
+                .progress
+                .lock()
+                .unwrap()
+                .insert(entry.comic_name.clone(), entry);
+            provider
+        }
+    }
+
+    impl HistorySyncProvider for InMemoryProvider {
+        fn get_reading_progress(&self) -> Vec<FfiReadingProgressEntry> {
+            self.progress.lock().unwrap().values().cloned().collect()
+        }
+        fn get_chapters_read(&self) -> Vec<FfiChapterReadEntry> {
+            vec![]
+        }
+        fn apply_reading_progress(&self, entry: FfiReadingProgressEntry) -> bool {
+            self.progress.lock().unwrap().insert(entry.comic_name.clone(), entry);
+            true
+        }
+        fn apply_chapter_read(&self, _entry: FfiChapterReadEntry) -> bool {
+            true
+        }
+        fn get_reading_progress_for_comic(&self, comic_name: String) -> Option<FfiReadingProgressEntry> {
+            self.progress.lock().unwrap().get(&comic_name).cloned()
+        }
+    }
+
+    fn test_peer() -> PeerIdentity {
+        PeerIdentity { id: "peer-a".to_string(), device_id: None }
+    }
+
+    fn noop_emitter() -> EventEmitter {
+        Arc::new(|_, _| {})
+    }
+
+    /// O escopo (`comic_name`) só existe do lado outbound (vem do `PendingHistoryEntryScope`,
+    /// resolvido por quem chama antes de invocar `run_entry_exchange`) — a entrada aplicada do
+    /// lado inbound tem que ser exatamente a do quadrinho escopado, não a biblioteca inteira.
+    #[tokio::test]
+    async fn entry_exchange_pushes_only_the_scoped_comic() {
+        let outbound_provider: Arc<dyn HistorySyncProvider> =
+            Arc::new(InMemoryProvider::with_entry(FfiReadingProgressEntry {
+                comic_name: "Berserk".to_string(),
+                chapter_sort: "12".to_string(),
+                last_page: 7,
+                is_completed: false,
+                updated_at: 5000,
+            }));
+        let inbound_provider: Arc<dyn HistorySyncProvider> = Arc::new(InMemoryProvider::new());
+
+        let (client_io, server_io) = tokio::io::duplex(64 * 1024);
+        let (client_recv, client_send) = tokio::io::split(client_io);
+        let (server_recv, server_send) = tokio::io::split(server_io);
+        let peer = test_peer();
+        let emit = noop_emitter();
+
+        let outbound_fut = run_entry_exchange(
+            true,
+            Some("Berserk".to_string()),
+            &peer,
+            &emit,
+            &outbound_provider,
+            Box::new(client_send),
+            Box::new(client_recv),
+        );
+        let inbound_fut = run_entry_exchange(
+            false,
+            None,
+            &peer,
+            &emit,
+            &inbound_provider,
+            Box::new(server_send),
+            Box::new(server_recv),
+        );
+
+        let (outbound_result, inbound_result) = tokio::join!(outbound_fut, inbound_fut);
+        outbound_result.expect("outbound deveria completar sem erro");
+        inbound_result.expect("inbound deveria completar sem erro");
+
+        let applied = inbound_provider.get_reading_progress_for_comic("Berserk".to_string());
+        assert_eq!(applied.map(|entry| entry.last_page), Some(7));
+    }
+
+    /// Sem escopo registrado (`comic_name: None` do lado outbound), a sessão falha rápido em
+    /// vez de tentar adivinhar qual quadrinho mandar.
+    #[tokio::test]
+    async fn entry_exchange_fails_fast_without_a_scoped_comic() {
+        let provider: Arc<dyn HistorySyncProvider> = Arc::new(InMemoryProvider::new());
+        let (client_io, _server_io) = tokio::io::duplex(1024);
+        let (client_recv, client_send) = tokio::io::split(client_io);
+        let peer = test_peer();
+        let emit = noop_emitter();
+
+        let result = run_entry_exchange(
+            true,
+            None,
+            &peer,
+            &emit,
+            &provider,
+            Box::new(client_send),
+            Box::new(client_recv),
+        )
+        .await;
+
+        assert!(result.is_err());
     }
 
     /// Mesma prova que em `protocol/files/exchange.rs`: uma chamada FFI lenta não deve travar

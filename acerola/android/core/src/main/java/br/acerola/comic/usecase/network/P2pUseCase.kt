@@ -54,6 +54,18 @@ class P2pUseCase
             p2pService.syncComic(peerAddress, comicName, direction)
         }
 
+        fun syncHistoryEntry(
+            peerAddress: PeerAddress,
+            comicName: String,
+        ) {
+            AcerolaLogger.i(
+                "P2pUseCase",
+                "Syncing history entry for '$comicName' with peer: ${peerAddress.id}",
+                LogSource.NETWORK,
+            )
+            p2pService.syncHistoryEntry(peerAddress, comicName)
+        }
+
         fun browseLibrary(peerAddress: PeerAddress) {
             AcerolaLogger.i("P2pUseCase", "Browsing library of peer: ${peerAddress.id}", LogSource.NETWORK)
             p2pService.browseLibrary(peerAddress)

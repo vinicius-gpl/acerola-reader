@@ -74,6 +74,33 @@ impl HistorySyncService {
         Ok(HistoryManifest { entries, read_markers })
     }
 
+    /// Monta a entrada de progresso de UM único quadrinho, sem marcadores de "lido" — usado
+    /// pelo push individual (`acerola/sync-history-entry/1`), que existe pra não precisar do
+    /// manifesto da biblioteca inteira só pra levar o progresso de um quadrinho que acabou de
+    /// mudar. `None` quando o quadrinho não existe localmente ou nunca teve progresso salvo.
+    pub async fn build_entry_for_comic(
+        &self, comic_name: &str,
+    ) -> Result<Option<HistoryEntry>, ComicError> {
+        let Some(comic) = self.comic_repo.find_by_name(comic_name).await? else {
+            return Ok(None);
+        };
+        let Some(progress) = self.reading_repo.find_by_comic_id(comic.id).await? else {
+            return Ok(None);
+        };
+        let Some(chapter) = self.chapter_repo.find_by_id(progress.chapter_archive_id).await?
+        else {
+            return Ok(None);
+        };
+
+        Ok(Some(HistoryEntry {
+            comic_name: comic_name.to_string(),
+            chapter: chapter.chapter_sort,
+            last_page: progress.last_page,
+            is_completed: progress.is_completed,
+            updated_at: progress.updated_at,
+        }))
+    }
+
     /// Aplica o manifesto recebido do peer localmente: last-write-wins por `updated_at`
     /// no progresso de leitura, união nos marcadores de "lido". Só toca em quadrinhos que
     /// já existem localmente — histórico não cria quadrinho novo, isso é papel do sync de
