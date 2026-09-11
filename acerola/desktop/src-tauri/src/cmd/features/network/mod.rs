@@ -13,8 +13,10 @@ use crate::{
             messages::SyncDirection,
             protocol::{
                 comic_sync_registry::PendingComicSyncRegistry,
-                cover_request_registry::PendingCoverRequestRegistry, COMIC_SYNC_ALPN,
-                COVER_BROWSE_ALPN, FILE_SYNC_ALPN, HISTORY_SYNC_ALPN, LIBRARY_BROWSE_ALPN,
+                cover_request_registry::PendingCoverRequestRegistry,
+                history_entry_registry::PendingHistoryEntryRegistry, COMIC_SYNC_ALPN,
+                COVER_BROWSE_ALPN, FILE_SYNC_ALPN, HISTORY_ENTRY_SYNC_ALPN, HISTORY_SYNC_ALPN,
+                LIBRARY_BROWSE_ALPN,
             },
         },
     },
@@ -180,6 +182,26 @@ pub async fn sync_history(
 
     let peer_addr = PeerAddr { id: PeerIdentity { id: peer_id, device_id: None }, addrs };
     service.connect(peer_addr, HISTORY_SYNC_ALPN.to_vec()).await?;
+    Ok(())
+}
+
+/// Dispara o push do progresso de UM único quadrinho pra um peer já pareado — mais leve que
+/// `sync_history` (que troca a biblioteca inteira nos dois sentidos). Útil pra levar uma
+/// atualização pontual (ex: terminou de ler um capítulo) sem esperar o próximo sync completo.
+/// Registra o `comic_name` no `PendingHistoryEntryRegistry` antes de conectar, mesma técnica de
+/// `sync_comic`. Progresso via os eventos `sync:history-entry:*`.
+#[tauri::command]
+pub async fn sync_history_entry(
+    service: State<'_, Arc<dyn NetworkServiceApi>>,
+    registry: State<'_, Arc<PendingHistoryEntryRegistry>>, peer_id: String, addrs: Vec<u8>,
+    comic_name: String,
+) -> Result<(), String> {
+    use acerola_p2p::api::peer::{PeerAddr, PeerIdentity};
+
+    registry.set(peer_id.clone(), comic_name);
+
+    let peer_addr = PeerAddr { id: PeerIdentity { id: peer_id, device_id: None }, addrs };
+    service.connect(peer_addr, HISTORY_ENTRY_SYNC_ALPN.to_vec()).await?;
     Ok(())
 }
 

@@ -4,11 +4,18 @@ pub mod cover_browse_handler;
 pub mod cover_request_registry;
 pub mod file_handler;
 pub mod file_session_guard;
+pub mod history_entry_handler;
+pub mod history_entry_registry;
 pub mod history_handler;
 pub mod library_browse_handler;
 pub mod transfer;
 
 pub const HISTORY_SYNC_ALPN: &[u8] = b"acerola/sync-history/1";
+/// Push individual de UMA entrada de histórico (progresso de UM quadrinho), sem trocar o
+/// manifesto da biblioteca inteira — ver `history_entry_handler.rs`. Complementar a
+/// `HISTORY_SYNC_ALPN`, não substitui: aquele continua sendo o sync completo (botão "Sincronizar
+/// histórico"), este é o "mandar só esse capítulo" pontual.
+pub const HISTORY_ENTRY_SYNC_ALPN: &[u8] = b"acerola/sync-history-entry/1";
 pub const FILE_SYNC_ALPN: &[u8] = b"acerola/sync-files/1";
 /// Sync individual de UM quadrinho (push ou pull, ver `comic_handler.rs`) — reaproveita o
 /// mesmo `FileSyncSessionGuard` de `FILE_SYNC_ALPN`.

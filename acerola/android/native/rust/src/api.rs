@@ -26,7 +26,11 @@ use crate::{
             FileSyncInbound, FileSyncOutbound, FileSyncSessionGuard, PendingComicScope,
             COMIC_SYNC_ALPN, FILE_SYNC_ALPN,
         },
-        history::{HistorySyncInbound, HistorySyncOutbound, HISTORY_SYNC_ALPN},
+        history::{
+            HistoryEntrySyncInbound, HistoryEntrySyncOutbound, HistorySyncInbound,
+            HistorySyncOutbound, PendingHistoryEntryScope, HISTORY_ENTRY_SYNC_ALPN,
+            HISTORY_SYNC_ALPN,
+        },
         library_browse::{LibraryBrowseInbound, LibraryBrowseOutbound, LIBRARY_BROWSE_ALPN},
     },
     relay_settings::{FfiRelaySettings, RelayTicketError},
@@ -89,6 +93,7 @@ struct P2pNodeContext {
     cover_provider: Arc<dyn CoverBrowseProvider>,
     file_sync_guard: Arc<FileSyncSessionGuard>,
     pending_comic_scope: PendingComicScope,
+    pending_history_entry_scope: PendingHistoryEntryScope,
     pending_cover_scope: Arc<PendingCoverRequestRegistry>,
     chapter_transfer: Arc<dyn ChapterTransfer>,
     blob_context: Arc<crate::protocol::blob_context::BlobContext>,
@@ -183,6 +188,21 @@ impl P2pNodeContext {
                 )),
             )
             .inbound(
+                HISTORY_ENTRY_SYNC_ALPN,
+                Arc::new(HistoryEntrySyncInbound::new(
+                    Arc::clone(&self.emit),
+                    Arc::clone(&self.history_provider),
+                )),
+            )
+            .outbound(
+                HISTORY_ENTRY_SYNC_ALPN,
+                Arc::new(HistoryEntrySyncOutbound::new(
+                    Arc::clone(&self.emit),
+                    Arc::clone(&self.history_provider),
+                    Arc::clone(&self.pending_history_entry_scope),
+                )),
+            )
+            .inbound(
                 LIBRARY_BROWSE_ALPN,
                 Arc::new(LibraryBrowseInbound::new(Arc::clone(&self.file_provider))),
             )
@@ -239,6 +259,10 @@ pub struct P2PNode {
     /// `sync_comic` e o `Handler` outbound de `acerola/sync-comic/1` que ela dispara.
     #[cfg(target_os = "android")]
     pending_comic_scope: PendingComicScope,
+    /// Ver `protocol::history::PendingHistoryEntryScope` — mesma ideia do `pending_comic_scope`,
+    /// pro push individual de uma entrada de histórico (`acerola/sync-history-entry/1`).
+    #[cfg(target_os = "android")]
+    pending_history_entry_scope: PendingHistoryEntryScope,
     /// Ver `protocol::cover_browse::PendingCoverRequestRegistry` — mesma ideia do
     /// `pending_comic_scope`, mas fila FIFO por peer em vez de slot único (o único disparado em
     /// rajada — `SyncViewModel::fetchCoversFor` chama `browse_cover` uma vez por quadrinho da
@@ -308,6 +332,8 @@ impl P2PNode {
         let iroh_services_ticket = load_iroh_services_ticket_logged(&storage);
 
         let pending_comic_scope: PendingComicScope = Arc::new(Mutex::new(HashMap::new()));
+        let pending_history_entry_scope: PendingHistoryEntryScope =
+            Arc::new(Mutex::new(HashMap::new()));
         let pending_cover_scope = PendingCoverRequestRegistry::new();
 
         // Handlers de `sync-files`/`sync-comic` são registrados no builder ANTES do node
@@ -335,6 +361,7 @@ impl P2PNode {
             cover_provider,
             file_sync_guard,
             pending_comic_scope: Arc::clone(&pending_comic_scope),
+            pending_history_entry_scope: Arc::clone(&pending_history_entry_scope),
             pending_cover_scope: Arc::clone(&pending_cover_scope),
             chapter_transfer,
             blob_context,
@@ -371,6 +398,7 @@ impl P2PNode {
             trust_store,
             storage,
             pending_comic_scope,
+            pending_history_entry_scope,
             pending_cover_scope,
         }
     }
@@ -485,6 +513,17 @@ impl P2PNode {
             .expect("pending comic scope mutex poisoned")
             .insert(peer_addr.id.clone(), (comic_name, direction.into()));
         self.connect(peer_addr, COMIC_SYNC_ALPN.to_vec());
+    }
+
+    /// Empurra o progresso de leitura de UM único quadrinho (`comic_name`) pra `peer_addr` — mais
+    /// leve que uma sessão completa de `acerola/sync-history/1` (biblioteca inteira nos dois
+    /// sentidos). Mesma técnica de `sync_comic`: grava o escopo pendente ANTES de conectar.
+    pub fn sync_history_entry(&self, peer_addr: FfiPeerAddr, comic_name: String) {
+        self.pending_history_entry_scope
+            .lock()
+            .expect("pending history entry scope mutex poisoned")
+            .insert(peer_addr.id.clone(), comic_name);
+        self.connect(peer_addr, HISTORY_ENTRY_SYNC_ALPN.to_vec());
     }
 
     /// Pede a lista de quadrinhos (nome + contagem de capítulos) da biblioteca de `peer_addr`,
