@@ -206,10 +206,13 @@
 		chapterSelection.exitSelectionMode();
 	}
 
-	/// Envia o(s) capítulo(s) atualmente selecionado(s) (progresso + marcador de "lido") pra um
-	/// peer escolhido no `AcerolaPeerPicker` — mesma seleção usada por `handleBatchMarkRead`/
+	/// Envia o(s) ARQUIVO(S) do(s) capítulo(s) atualmente selecionado(s) pra um peer escolhido
+	/// no `AcerolaPeerPicker` — mesma seleção usada por `handleBatchMarkRead`/
 	/// `handleBatchMarkUnread`, então funciona tanto pra um capítulo só (seleção de 1) quanto
-	/// pra vários de uma vez.
+	/// pra vários de uma vez. Usa `syncComic` (não `syncHistoryEntry`) escopado a esses
+	/// capítulos: diferente do push de histórico (só progresso/"lido"), isso manda o `.cbz`/
+	/// `.cbr` de verdade e cria o quadrinho no destino se ele ainda não existir lá. Direção
+	/// sempre `push`: quem clica "Enviar" está mandando pro peer, nunca puxando dele.
 	async function handleSendChaptersToPeer(peer: PairedPeerPayload) {
 		sendToPeerPickerOpen = false;
 		if (!manga?.title) return;
@@ -219,7 +222,7 @@
 
 		try {
 			await toastAsync(
-				() => p2pSync.syncHistoryEntry(peer.peerId, peer.addrs, manga!.title, chapterIds),
+				() => p2pSync.syncComic(peer.peerId, peer.addrs, manga!.title, 'push', chapterIds),
 				{
 					loading: m['pages.comic.selection.send_to_peer.toast.start'](),
 					success: m['pages.comic.selection.send_to_peer.toast.success'](),

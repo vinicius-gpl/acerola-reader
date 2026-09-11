@@ -634,14 +634,22 @@ class ComicViewModel
             _syncingPeerId.value = peerId
         }
 
-        /** Envia progresso + marcador de "lido" do(s) capítulo(s) atualmente selecionado(s) pra
-         *  um peer escolhido no `PeerPickerSheet` — mesma seleção usada por
+        /** Envia o(s) ARQUIVO(S) do(s) capítulo(s) atualmente selecionado(s) pra um peer
+         *  escolhido no `PeerPickerSheet` — mesma seleção usada por
          *  [markSelectedChaptersReadStatus], então cobre tanto um capítulo só (seleção de 1)
-         *  quanto vários de uma vez. */
+         *  quanto vários de uma vez. Usa [syncComicWithPeerUseCase] (não
+         *  [syncHistoryEntryWithPeerUseCase]) escopado a esses capítulos: diferente do push de
+         *  histórico (só progresso/"lido"), isso manda o `.cbz`/`.cbr` de verdade e cria o
+         *  quadrinho no destino se ele ainda não existir lá. Direção sempre `PUSH`: quem chama
+         *  isso está mandando pro peer, nunca puxando dele. O protocolo escopa por RÓTULO de
+         *  capítulo, não `chapterSort` — por isso resolve via [allChapters] (já carregado em
+         *  memória) antes de disparar. */
         fun sendSelectedChaptersToPeer(peerId: String) {
             val comicName = comic.value?.directory?.name ?: return
-            val chapterSorts = _selectedChapterSorts.value.toList()
+            val chapterSorts = _selectedChapterSorts.value
             if (chapterSorts.isEmpty()) return
+
+            val chapterNames = allChapters.value.filter { it.chapterSort in chapterSorts }.map { it.name }
 
             AcerolaLogger.audit(
                 TAG,
@@ -650,7 +658,7 @@ class ComicViewModel
                 mapOf("peerId" to peerId, "comicName" to comicName, "count" to chapterSorts.size.toString()),
             )
 
-            val fired = syncHistoryEntryWithPeerUseCase(peerId, comicName, chapterSorts)
+            val fired = syncComicWithPeerUseCase(peerId, comicName, SyncDirection.PUSH, chapterNames)
             if (!fired) {
                 viewModelScope.launch {
                     _uiEvents.send(UserMessage.Raw(UiText.StringResource(R.string.error_send_chapters_peer_not_paired)))

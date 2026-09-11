@@ -10,6 +10,10 @@ import javax.inject.Inject
  * single comic, in the explicit [SyncDirection] the caller chose — shared by both the push entry
  * point (user picks a comic they already have) and the pull entry point (user picks a comic
  * discovered by browsing a peer's library).
+ *
+ * [chapters] (chapter labels, empty by default = whole comic) scopes the session to a subset of
+ * chapters — used by the chapter-selection/per-chapter "Send" flows, which send the actual
+ * file(s) instead of just reading progress.
  */
 class SyncComicWithPeerUseCase
     @Inject
@@ -21,6 +25,7 @@ class SyncComicWithPeerUseCase
             peerId: String,
             comicName: String,
             direction: SyncDirection,
+            chapters: List<String> = emptyList(),
         ): Boolean {
             val peerAddress = p2pUseCase.getPairedPeers().find { it.id == peerId }
             if (peerAddress == null) {
@@ -28,7 +33,7 @@ class SyncComicWithPeerUseCase
                 return false
             }
 
-            p2pUseCase.syncComic(peerAddress, comicName, direction)
+            p2pUseCase.syncComic(peerAddress, comicName, direction, chapters)
             return true
         }
     }
