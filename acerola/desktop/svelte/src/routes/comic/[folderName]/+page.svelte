@@ -290,6 +290,12 @@
 				success: m['pages.comic.toast.sync.rescan_success'](),
 				error: (err) => m['pages.comic.toast.rescan_error']({ msg: extractErrorMessage(err) })
 			});
+			// `invalidateAll()` só recarrega o `load()` do SvelteKit — a lista de capítulos vive
+			// no `chapterStore` (estado Svelte à parte, com seu próprio cache LRU), que
+			// `invalidateAll()` não sabe que existe. Sem isso, a lista ficava com os capítulos
+			// antigos até o usuário sair e voltar pro quadrinho.
+			chapterStore.invalidate();
+			syncRefreshTrigger++;
 			await invalidateAll();
 		} catch {
 			// Erro já foi mostrado pelo toastAsync acima.
@@ -355,6 +361,9 @@
 				success: m['pages.comic.toast.sync.success'](),
 				error: (err) => m['pages.comic.toast.deep_rescan_error']({ msg: extractErrorMessage(err) })
 			});
+			// Ver comentário equivalente em `handleRescanComic`.
+			chapterStore.invalidate();
+			syncRefreshTrigger++;
 			await invalidateAll();
 		} catch {
 			// Erro já foi mostrado pelo toastAsync acima.

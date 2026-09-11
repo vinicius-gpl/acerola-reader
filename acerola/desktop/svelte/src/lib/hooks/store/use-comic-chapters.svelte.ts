@@ -83,6 +83,16 @@ export function useComicChapters() {
 		loading = false;
 	}
 
+	// INFO: `clear()` sozinho não basta pra forçar um dado fresco — o próximo `fetch()`
+	// pra essa mesma chave (comic + volume + ordenação + busca) ainda acha o payload
+	// antigo no `chapterCache` e aplica ele sem round-trip nenhum. Usado depois de uma
+	// mutação real (rescan leve/completo), onde o conteúdo por trás da mesma chave mudou —
+	// diferente de só trocar de volume/ordenação, onde reaproveitar o cache é o
+	// comportamento certo.
+	function invalidate() {
+		chapterCache.clear();
+	}
+
 	onMount(() => {
 		let unlistenChapters: (() => void) | undefined;
 		let unlistenError: (() => void) | undefined;
@@ -182,6 +192,7 @@ export function useComicChapters() {
 	return {
 		fetch,
 		clear,
+		invalidate,
 		get chapters() {
 			return chapters;
 		},
