@@ -29,7 +29,7 @@ pub async fn get_network_status<R: Runtime>(
     let mode = service.mode().await?;
     let peers = service.connected_peers_with_info().await?;
 
-    app.emit("network:status", NetworkStatusPayload::from(mode, peers)).unwrap();
+    let _ = app.emit("network:status", NetworkStatusPayload::from(mode, peers));
 
     Ok(())
 }

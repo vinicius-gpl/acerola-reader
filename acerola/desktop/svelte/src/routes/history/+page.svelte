@@ -1,3 +1,7 @@
+<script module lang="ts">
+	const handledTerminalSyncLogIds = new Set<number>();
+</script>
+
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { getContext, onDestroy, onMount } from 'svelte';
@@ -36,10 +40,13 @@
 	const sync = getContext<ReturnType<typeof useNetworkSync>>(CONTEXT_KEYS.networkSync);
 
 	let syncMenuOpen = $state(false);
-	// Evita re-disparar `history.fetch()`/toast duas vezes pro mesmo evento — `sync.log[0]`
-	// dispara o `$effect` de novo a cada re-render enquanto essa entrada continuar sendo a mais
-	// recente do log.
-	let lastHandledSyncLogId: number | undefined;
+	// Evita re-disparar `history.fetch()`/toast pro mesmo evento — tanto em re-render
+	// quanto ao navegar pra fora e voltar pra tela de Histórico. Sessões já terminadas
+	// antes da montagem são ignoradas para não exibir toast fantasma na inicialização.
+	let lastHandledSyncKey: string | undefined =
+		sync.log[0] && sync.log[0].status !== 'started'
+			? `${sync.log[0].id}:${sync.log[0].status}`
+			: undefined;
 
 	type DisplayPeer = { peerId: string; deviceName: string | null; connected: boolean };
 
@@ -92,15 +99,19 @@
 		// `use-network-sync.svelte.ts`), não um evento ao vivo desta sessão — sem esse guard, a
 		// linha "complete" mais recente do histórico disparava este toast assim que a tela de
 		// Histórico montava, mesmo sem nenhum sync ter de fato acontecido agora.
-		if (!entry || entry.id < 0 || entry.kind !== 'history' || entry.id === lastHandledSyncLogId)
+		if (!entry || entry.id < 0 || entry.kind !== 'history') return;
+
+		const currentKey = `${entry.id}:${entry.status}`;
+		if (currentKey === lastHandledSyncKey || handledTerminalSyncLogIds.has(entry.id)) {
 			return;
+		}
 
 		// Mesmo padrão da Home: um toast por sessão, criado em 'started' e substituído (mesmo
 		// `id`) em 'complete'/'error' em vez de empilhar um novo.
 		const toastId = `sync-history-${entry.peerId}`;
 
 		if (entry.status === 'started') {
-			lastHandledSyncLogId = entry.id;
+			lastHandledSyncKey = currentKey;
 			toast.loading(
 				m['pages.network.transfers.history_started']({ peer: peers.peerLabel(entry.message) }),
 				{ id: toastId }
@@ -109,17 +120,23 @@
 		}
 
 		if (entry.status === 'complete') {
-			lastHandledSyncLogId = entry.id;
+			lastHandledSyncKey = currentKey;
+			handledTerminalSyncLogIds.add(entry.id);
 			toast.success(m['pages.history.sync.success']({ peer: peers.peerLabel(entry.message) }), {
-				id: toastId
+				id: toastId,
+				duration: 4000
 			});
 			history.fetch();
 			return;
 		}
 
 		if (entry.status === 'error') {
-			lastHandledSyncLogId = entry.id;
-			toast.error(m['pages.history.sync.error']({ msg: entry.message }), { id: toastId });
+			lastHandledSyncKey = currentKey;
+			handledTerminalSyncLogIds.add(entry.id);
+			toast.error(m['pages.history.sync.error']({ msg: entry.message }), {
+				id: toastId,
+				duration: 5000
+			});
 			return;
 		}
 	});

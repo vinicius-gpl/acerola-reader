@@ -104,6 +104,15 @@
 		const { invoke } = await import('@tauri-apps/api/core');
 		const { error: logError } = await import('@tauri-apps/plugin-log');
 
+		window.addEventListener('error', (event) => {
+			logError(
+				`[Frontend Error] ${event.message} at ${event.filename}:${event.lineno}:${event.colno}`
+			);
+		});
+		window.addEventListener('unhandledrejection', (event) => {
+			logError(`[Frontend UnhandledRejection] ${event.reason}`);
+		});
+
 		await folder.loadSavedPath();
 		await bookmarkStore.loadBookmarks();
 

@@ -19,22 +19,17 @@
         "minHeight": 1124,
         "resizable": true,
         "fullscreen": false,
-        "decorations": false
+        "decorations": false,
+        "devtools": true
       }
     ],
     "security": {
-      "csp": "default-src 'self'; img-src 'self' acerola-reader: asset: https://asset.localhost http://asset.localhost data: blob:",
+      "csp": null,
       "assetProtocol": {
         "enable": true,
         "scope": [
           "**"
         ]
-      },
-      "pattern": {
-        "use": "isolation",
-        "options": {
-          "dir": "isolation-src"
-        }
       }
     }
   },

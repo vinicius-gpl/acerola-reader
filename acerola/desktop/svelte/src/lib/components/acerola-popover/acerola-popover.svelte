@@ -59,7 +59,11 @@
 
 <Popover.Root bind:open>
 	<Popover.Trigger>
-		{@render trigger()}
+		{#snippet child({ props })}
+			<div {...props} class="inline-flex">
+				{@render trigger()}
+			</div>
+		{/snippet}
 	</Popover.Trigger>
 
 	<Popover.Content

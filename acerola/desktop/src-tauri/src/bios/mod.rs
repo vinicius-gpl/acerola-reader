@@ -147,7 +147,8 @@ fn setup_runtime(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>>
                 }),
                 tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout),
             ])
-            .level(tauri_plugin_log::log::LevelFilter::Warn)
+            .level(tauri_plugin_log::log::LevelFilter::Info)
+            .level_for("acerola", tauri_plugin_log::log::LevelFilter::Debug)
             .level_for("acerola_p2p", tauri_plugin_log::log::LevelFilter::Debug)
             .level_for("acerola_lib", tauri_plugin_log::log::LevelFilter::Debug)
             .build(),
@@ -156,19 +157,22 @@ fn setup_runtime(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>>
     app_handle.manage(ReaderService::new());
     app_handle.manage(ChapterCacheService::new());
 
-    tauri::async_runtime::block_on(async move {
+    let network_services = tauri::async_runtime::block_on(async {
         db::setup_database(&app_handle, database_path).await.map_err(|db_error| {
             tracing::error!("[Bios] Database initialization error: {:?}", db_error);
             db_error
         })?;
         scopes::setup_scopes_from_store(&app_handle, &app_data_directory).await;
-        Ok::<(), ComicError>(())
+        let services = network::setup_network_services(&app_handle).await.map_err(|net_error| {
+            tracing::error!("[Bios] Network services setup error: {:?}", net_error);
+            net_error
+        })?;
+        Ok::<network::InitializedNetworkServices, ComicError>(services)
     })?;
 
-    let network_app_handle = app.handle().clone();
     tauri::async_runtime::spawn(async move {
-        if let Err(network_error) = network::setup_network(&network_app_handle).await {
-            tracing::error!("[Bios] P2P Network initialization failed: {:?}", network_error);
+        if let Err(network_error) = network_services.start_node().await {
+            tracing::error!("[Bios] P2P Network node build failed: {:?}", network_error);
         }
     });
 

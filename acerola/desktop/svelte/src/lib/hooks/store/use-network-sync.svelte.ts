@@ -45,7 +45,9 @@ type PersistedSyncLogEntry = {
 const MAX_LOG_ENTRIES = 200;
 // Rede real pode nunca devolver o evento de conclusão/erro (peer sumiu no meio da
 // sessão) — sem isso os botões daquele peer ficariam desabilitados pra sempre.
-const IN_FLIGHT_TIMEOUT_MS = 60_000;
+// Janela de inatividade de 2 minutos, renovada a cada evento de progresso recebido
+// da rede pra transferências volumosas não estourarem falso positivo no meio.
+const IN_FLIGHT_TIMEOUT_MS = 120_000;
 
 function syncKey(peerId: string, kind: SyncKind): string {
 	return `${peerId}:${kind}`;
@@ -107,15 +109,8 @@ export function useNetworkSync() {
 		else pending.reject(message);
 	}
 
-	function markSyncing(peerId: string, kind: SyncKind) {
+	function scheduleInFlightTimeout(peerId: string, kind: SyncKind) {
 		const key = syncKey(peerId, kind);
-		syncingKeys.add(key);
-		// Stryker disable next-line CallExpression: markSyncing só roda depois do guard
-		// `kinds.some(isSyncing)` em withSyncGuard confirmar que a chave NÃO está syncing —
-		// e `syncingKeys`/`inFlightTimeouts` são sempre atualizados juntos (markSyncing seta
-		// os dois, clearSyncing apaga os dois), então `inFlightTimeouts.get(key)` aqui é
-		// sempre `undefined`. Remover esta chamada defensiva não muda nenhum comportamento
-		// observável.
 		clearTimeout(inFlightTimeouts.get(key));
 		inFlightTimeouts.set(
 			key,
@@ -133,6 +128,25 @@ export function useNetworkSync() {
 				settlePending(key, false, message);
 			}, IN_FLIGHT_TIMEOUT_MS)
 		);
+	}
+
+	/// Reseta a contagem regressiva de timeout de inatividade pra sessões ativas daquele `kind`.
+	/// Chamado a cada evento de progresso recebido pela rede (capítulo/arquivo ou itemLevel error)
+	/// pra garantir que transferências longas com muitos capítulos nunca estourem timeout enquanto
+	/// houver tráfego real fluindo.
+	function refreshInFlightTimeouts(kind: SyncKind) {
+		for (const key of syncingKeys) {
+			const [peerId, syncKind] = key.split(':') as [string, SyncKind];
+			if (syncKind === kind) {
+				scheduleInFlightTimeout(peerId, syncKind);
+			}
+		}
+	}
+
+	function markSyncing(peerId: string, kind: SyncKind) {
+		const key = syncKey(peerId, kind);
+		syncingKeys.add(key);
+		scheduleInFlightTimeout(peerId, kind);
 	}
 
 	function clearSyncing(peerId: string, kind: SyncKind) {
@@ -256,14 +270,23 @@ export function useNetworkSync() {
 		message: string,
 		comicName?: string
 	) {
-		log[index] = {
+		const updated: TransferLogEntry = {
 			...log[index],
 			status,
 			message,
 			timestamp: Date.now(),
 			comicName: comicName ?? log[index].comicName
 		};
-		if (isTerminalStatus(status)) inFlightEntryId.delete(key);
+		if (isTerminalStatus(status)) {
+			inFlightEntryId.delete(key);
+			// Mover a entrada concluída/com erro pro topo do log garante que `sync.log[0]`
+			// (usado por Home, Histórico e Detalhe) veja o desfecho final mesmo se eventos
+			// de progresso tiverem sido adicionados antes, e mantém a lista de transferências
+			// ordenada com a finalização mais recente no topo.
+			log = [updated, ...log.filter((_, i) => i !== index)];
+		} else {
+			log[index] = updated;
+		}
 	}
 
 	function appendNewEntry(
@@ -378,9 +401,10 @@ export function useNetworkSync() {
 			await listen<string>(NETWORK_EVENTS.filesStarted, (event) =>
 				push(event.payload, 'files', 'started', event.payload)
 			),
-			await listen<string>(NETWORK_EVENTS.filesProgress, (event) =>
-				push('', 'files', 'progress', event.payload)
-			),
+			await listen<string>(NETWORK_EVENTS.filesProgress, (event) => {
+				refreshInFlightTimeouts('files');
+				push('', 'files', 'progress', event.payload);
+			}),
 			await listen<string>(NETWORK_EVENTS.filesComplete, (event) => {
 				clearSyncing(event.payload, 'files');
 				push(event.payload, 'files', 'complete', event.payload);
@@ -388,6 +412,7 @@ export function useNetworkSync() {
 			await listen<string>(NETWORK_EVENTS.filesError, (event) => {
 				const parsed = parseErrorPayload(event.payload);
 				if (parsed.itemLevel) {
+					refreshInFlightTimeouts('files');
 					// `peerId: ''` de propósito — mesmo truque que `progress` já usa pra nunca
 					// correlacionar com `inFlightEntryId` e clobberar a linha da sessão em
 					// andamento (ver doc de `itemLevel` em `parseErrorPayload`).
@@ -411,9 +436,10 @@ export function useNetworkSync() {
 			await listen<string>(NETWORK_EVENTS.comicStarted, (event) =>
 				push(event.payload, 'comic', 'started', event.payload)
 			),
-			await listen<string>(NETWORK_EVENTS.comicProgress, (event) =>
-				push('', 'comic', 'progress', event.payload)
-			),
+			await listen<string>(NETWORK_EVENTS.comicProgress, (event) => {
+				refreshInFlightTimeouts('comic');
+				push('', 'comic', 'progress', event.payload);
+			}),
 			await listen<string>(NETWORK_EVENTS.comicComplete, (event) => {
 				const { peerId, comicName } = parseCompletePayload(event.payload);
 				clearSyncing(peerId, 'comic');
@@ -423,6 +449,7 @@ export function useNetworkSync() {
 			await listen<string>(NETWORK_EVENTS.comicError, (event) => {
 				const parsed = parseErrorPayload(event.payload);
 				if (parsed.itemLevel) {
+					refreshInFlightTimeouts('comic');
 					// Mesmo raciocínio de `filesError` acima — um capítulo/extra que falhou
 					// dentro de um `sync-comic` não pode ser confundido com o erro final da
 					// sessão, nem resolver a promise de `syncComic()` (que só se importa com o

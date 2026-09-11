@@ -1110,7 +1110,10 @@ mod tests {
         async fn open_bi(
             &self, _alpn: &[u8], _peer: &PeerAddr,
         ) -> Result<
-            (Box<dyn tokio::io::AsyncWrite + Send + Unpin>, Box<dyn tokio::io::AsyncRead + Send + Unpin>),
+            (
+                Box<dyn tokio::io::AsyncWrite + Send + Unpin>,
+                Box<dyn tokio::io::AsyncRead + Send + Unpin>,
+            ),
             ConnectionError,
         > {
             self.dial_count.fetch_add(1, Ordering::SeqCst);
@@ -1151,8 +1154,7 @@ mod tests {
     #[tokio::test(start_paused = true)]
     async fn handler_timeout_retries_the_whole_session_with_a_fresh_dial() {
         let dial_count = Arc::new(AtomicUsize::new(0));
-        let transport =
-            Arc::new(CountingDialTransport { dial_count: Arc::clone(&dial_count) });
+        let transport = Arc::new(CountingDialTransport { dial_count: Arc::clone(&dial_count) });
         let handler_calls = Arc::new(AtomicUsize::new(0));
         let handler = Arc::new(FailsOnceWithTimeoutThenSucceedsHandler {
             call_count: Arc::clone(&handler_calls),
@@ -1207,8 +1209,7 @@ mod tests {
     #[tokio::test(start_paused = true)]
     async fn handler_non_timeout_failure_is_not_retried() {
         let dial_count = Arc::new(AtomicUsize::new(0));
-        let transport =
-            Arc::new(CountingDialTransport { dial_count: Arc::clone(&dial_count) });
+        let transport = Arc::new(CountingDialTransport { dial_count: Arc::clone(&dial_count) });
 
         let (mut network_manager, command_sender, _network_state) =
             NetworkManager::new(transport, open_validator(), no_op_emitter());

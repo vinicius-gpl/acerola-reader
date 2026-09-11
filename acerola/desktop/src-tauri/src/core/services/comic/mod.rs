@@ -6,18 +6,10 @@ use crate::{
     core::services::archive::{comic_scanner_engine::ComicScannerService, cover_extractor},
     data::{
         models::archive::{comic_directory::ComicDirectory, volume_archive::VolumeArchive},
-        repositories::{
-            archive::{
-                chapter_archive_repo::{ChapterRepository, ChapterSortCriteria},
-                comic_directory_repo::ComicRepository,
-                volume_archive_repo::VolumeRepository,
-            },
-            category::CategoryRepository,
-            history::{
-                chapter_read_repo::ChapterReadRepository,
-                reading_history_repo::ReadingHistoryRepository,
-            },
-            metadata::MetadataRepository,
+        repositories::archive::{
+            chapter_archive_repo::{ChapterRepository, ChapterSortCriteria},
+            comic_directory_repo::ComicRepository,
+            volume_archive_repo::VolumeRepository,
         },
     },
     infra::error::ComicError,
@@ -28,10 +20,6 @@ pub struct ComicService {
     repo: ComicRepository,
     chapter_repo: ChapterRepository,
     volume_repo: VolumeRepository,
-    metadata_repo: MetadataRepository,
-    category_repo: CategoryRepository,
-    reading_history_repo: ReadingHistoryRepository,
-    chapter_read_repo: ChapterReadRepository,
     pool: SqlitePool,
 }
 
@@ -41,10 +29,6 @@ impl ComicService {
             repo: ComicRepository::new(pool.clone()),
             chapter_repo: ChapterRepository::new(pool.clone()),
             volume_repo: VolumeRepository::new(pool.clone()),
-            metadata_repo: MetadataRepository::new(pool.clone()),
-            category_repo: CategoryRepository::new(pool.clone()),
-            reading_history_repo: ReadingHistoryRepository::new(pool.clone()),
-            chapter_read_repo: ChapterReadRepository::new(pool.clone()),
             pool,
         }
     }
@@ -118,57 +102,73 @@ impl ComicService {
             return Ok(0);
         }
 
+        let placeholders = ids.iter().map(|_| "?").collect::<Vec<_>>().join(", ");
+
+        // 1. Coleta os caminhos físicos dos quadrinhos antes de remover os registros do banco.
+        let select_sql = format!("SELECT path FROM comic_directory WHERE id IN ({})", placeholders);
+        let mut query = sqlx::query_scalar::<_, String>(&select_sql);
         for &id in ids {
-            self.remove_comic_folder_best_effort(id).await;
+            query = query.bind(id);
+        }
+        let paths: Vec<String> = query.fetch_all(&self.pool).await.unwrap_or_default();
 
-            self.reading_history_repo.delete_by_comic_id(id).await.ok();
-            self.chapter_read_repo.delete_by_comic(id).await.ok();
-            self.metadata_repo.delete_by_comic_id(id).await.ok();
-            self.chapter_repo.delete_by_comic(id).await.ok();
-            self.volume_repo.delete_by_comic(id).await.ok();
-            self.category_repo.remove_category_from_comic(id).await.ok();
+        // 2. Executa a limpeza em lote de todas as tabelas filhas e dos registros principais dentro
+        // de uma transação atômica única, eliminando deadlocks e dezenas de transações individuais.
+        let mut tx = self.pool.begin().await?;
+
+        let child_delete_queries = [
+            format!("DELETE FROM reading_history WHERE comic_directory_id IN ({})", placeholders),
+            format!("DELETE FROM chapter_read WHERE comic_directory_id IN ({})", placeholders),
+            format!("DELETE FROM comic_metadata WHERE comic_directory_fk IN ({})", placeholders),
+            format!("DELETE FROM chapter_archive WHERE comic_directory_fk IN ({})", placeholders),
+            format!("DELETE FROM volume_archive WHERE comic_directory_fk IN ({})", placeholders),
+            format!("DELETE FROM comic_category WHERE comic_directory_fk IN ({})", placeholders),
+        ];
+
+        for sql in child_delete_queries {
+            let mut q = sqlx::query(&sql);
+            for &id in ids {
+                q = q.bind(id);
+            }
+            q.execute(&mut *tx).await?;
         }
 
-        self.repo.delete_batch(ids).await.map_err(ComicError::from)
-    }
-
-    /// Remove a pasta física de um quadrinho do disco — melhor esforço: um `id` sem
-    /// registro correspondente (não deveria acontecer) ou uma pasta que não pode ser
-    /// removida (já ausente, permissão negada) não impede a exclusão do restante em
-    /// `delete_batch`, só loga e segue. Todo caminho de saída loga algo — nenhuma falha
-    /// fica silenciosa (era exatamente esse o sintoma reportado: pasta não sumia e não
-    /// aparecia nenhum log explicando por quê).
-    async fn remove_comic_folder_best_effort(&self, id: i64) {
-        let comic = match self.repo.find_by_id(id).await {
-            Ok(Some(comic)) => comic,
-            Ok(None) => {
-                tracing::warn!(
-                    comic_id = id,
-                    "Comic not found in database while deleting its folder"
-                );
-                return;
-            },
-            Err(error) => {
-                tracing::warn!(comic_id = id, error = %error, "Failed to look up comic before deleting its folder");
-                return;
-            },
-        };
-
-        tracing::info!(comic_id = id, path = %comic.path, "Removing comic folder from disk");
-
-        match tokio::fs::remove_dir_all(&comic.path).await {
-            Ok(()) => {
-                tracing::info!(comic_id = id, path = %comic.path, "Comic folder removed from disk");
-            },
-            Err(error) => {
-                tracing::warn!(
-                    comic_id = id,
-                    path = %comic.path,
-                    error = %error,
-                    "Failed to remove comic folder from disk while deleting comic"
-                );
-            },
+        let comic_delete_sql =
+            format!("DELETE FROM comic_directory WHERE id IN ({})", placeholders);
+        let mut q = sqlx::query(&comic_delete_sql);
+        for &id in ids {
+            q = q.bind(id);
         }
+        let rows_affected = q.execute(&mut *tx).await?.rows_affected() as usize;
+
+        tx.commit().await?;
+
+        // 3. Desacopla a remoção em disco para threads bloqueantes dedicadas (spawn_blocking),
+        // evitando travar os threads de worker do Tokio ou a thread principal do IPC no Windows.
+        let mut handles = Vec::with_capacity(paths.len());
+        for path_str in paths {
+            handles.push(tokio::task::spawn_blocking(move || {
+                let path = Path::new(&path_str);
+                if path.exists() {
+                    tracing::info!(path = %path_str, "Removing comic folder from disk");
+                    if let Err(error) = std::fs::remove_dir_all(path) {
+                        tracing::warn!(
+                            path = %path_str,
+                            error = %error,
+                            "Failed to remove comic folder from disk while deleting comic"
+                        );
+                    } else {
+                        tracing::info!(path = %path_str, "Comic folder removed from disk");
+                    }
+                }
+            }));
+        }
+
+        for handle in handles {
+            let _ = handle.await;
+        }
+
+        Ok(rows_affected)
     }
 
     /// Gera a capa de um quadrinho a partir da primeira página do seu primeiro capítulo
