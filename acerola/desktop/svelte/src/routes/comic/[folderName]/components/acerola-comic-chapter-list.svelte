@@ -71,7 +71,9 @@
 	// capítulo já lido).
 	function rowClass(chapter: Chapter, isSelected: boolean, isOpening: boolean): string {
 		const base = 'h-full flex-nowrap overflow-hidden';
-		const selectedRing = isSelected ? ' ring-2 ring-primary ring-offset-2 ring-offset-background' : '';
+		const selectedRing = isSelected
+			? ' ring-2 ring-primary ring-offset-2 ring-offset-background'
+			: '';
 		const openingState = isOpening ? ' pointer-events-none opacity-70' : '';
 		if (chapter.hasConflict) {
 			return `${base} border-destructive/30 bg-destructive/10 hover:bg-destructive/20${selectedRing}${openingState}`;

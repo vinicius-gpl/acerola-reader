@@ -90,7 +90,9 @@
 
 	function rowClass(chapter: VolumeChapter, isSelected: boolean, isOpening: boolean): string {
 		const base = 'h-full flex-nowrap overflow-hidden';
-		const selectedRing = isSelected ? ' ring-2 ring-primary ring-offset-2 ring-offset-background' : '';
+		const selectedRing = isSelected
+			? ' ring-2 ring-primary ring-offset-2 ring-offset-background'
+			: '';
 		const openingState = isOpening ? ' pointer-events-none opacity-70' : '';
 		if (chapter.isRead) {
 			return `${base} border-primary/30 bg-primary/10 hover:bg-primary/20${selectedRing}${openingState}`;
