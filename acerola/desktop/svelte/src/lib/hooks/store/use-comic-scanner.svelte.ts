@@ -32,14 +32,14 @@ export function useLibraryScanner(
 
 		scanning = true;
 
-		const unlistenProgress = await listen(LIBRARY_EVENTS.scanProgress, () => {
-			if (progressId === undefined) {
-				progressId = notify.info(m['hooks.comic_scanner.in_progress'](), { duration: 0 });
-			}
-			if (toastId === undefined) {
-				toastId = toast.loading(m['hooks.comic_scanner.in_progress']());
-			}
-		});
+		// Mostra a notificação/toast IMEDIATAMENTE ao clicar, não só quando o primeiro
+		// `scan:progress` chegar do backend — dependendo de quanto o scan demora pra emitir
+		// esse primeiro evento, o toast podia aparecer bem depois do clique (às vezes quase
+		// junto com o de conclusão), num momento sem sentido pra quem clicou o botão.
+		progressId = notify.info(m['hooks.comic_scanner.in_progress'](), { duration: 0 });
+		toastId = toast.loading(m['hooks.comic_scanner.in_progress']());
+
+		const unlistenProgress = await listen(LIBRARY_EVENTS.scanProgress, () => {});
 
 		const unlistenConverting = await listen<string>(LIBRARY_EVENTS.scanConverting, (event) => {
 			const msg = event.payload || m['hooks.comic_scanner.converting']();
