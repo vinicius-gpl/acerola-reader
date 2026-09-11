@@ -34,6 +34,7 @@ const loadMock = vi.mocked(load);
 
 function mockStore() {
 	const store = {
+		get: vi.fn((): Promise<unknown> => Promise.resolve(null)),
 		set: vi.fn(() => Promise.resolve()),
 		delete: vi.fn(() => Promise.resolve()),
 		save: vi.fn(() => Promise.resolve())
@@ -98,6 +99,9 @@ function defaultInvokeImpl(overrides: Record<string, unknown> = {}) {
 describe('usePeerConnection', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		// `loadLocalInfo` agora também lê `peer_nicknames` do store — cada teste que precisa
+		// de asserts sobre o store chama `mockStore()` de novo, sobrescrevendo este default.
+		mockStore();
 	});
 
 	it('starts with an empty paired peers list', async () => {
@@ -396,6 +400,66 @@ describe('usePeerConnection', () => {
 
 		expect(hook.peerLabel('peer-5')).toBe('Paired Name');
 		expect(hook.peerLabel('unknown-peer-id-1234567890')).toBe('unknown-…567890');
+	});
+
+	it('loadLocalInfo restores previously saved peer nicknames from the store', async () => {
+		defaultInvokeImpl();
+		const store = mockStore();
+		store.get.mockResolvedValue({ 'peer-6': 'Apelido salvo' });
+		const hook = await renderHook();
+
+		await hook.loadLocalInfo();
+
+		expect(hook.peerNicknames).toEqual({ 'peer-6': 'Apelido salvo' });
+	});
+
+	it('setPeerNickname persists a trimmed nickname and takes priority in peerLabel', async () => {
+		const pairedPeers: PairedPeerPayload[] = [
+			{ peerId: 'peer-7', addrs: [], deviceName: 'Default Name' }
+		];
+		defaultInvokeImpl({ [NETWORK_COMMANDS.getPairedPeers]: pairedPeers });
+		const store = mockStore();
+		setupListeners();
+		const hook = await renderHook();
+		await hook.startListening();
+
+		await hook.setPeerNickname('peer-7', '  Meu Notebook  ');
+
+		expect(hook.peerNicknames).toEqual({ 'peer-7': 'Meu Notebook' });
+		expect(hook.peerLabel('peer-7')).toBe('Meu Notebook');
+		expect(store.set).toHaveBeenCalledWith(STORE_KEYS.peerNicknames, { 'peer-7': 'Meu Notebook' });
+		expect(store.save).toHaveBeenCalledOnce();
+	});
+
+	it('setPeerNickname with a blank value clears a previously saved nickname', async () => {
+		defaultInvokeImpl();
+		const store = mockStore();
+		const hook = await renderHook();
+
+		await hook.setPeerNickname('peer-8', 'Temporário');
+		await hook.setPeerNickname('peer-8', '   ');
+
+		expect(hook.peerNicknames).toEqual({});
+		expect(store.set).toHaveBeenLastCalledWith(STORE_KEYS.peerNicknames, {});
+	});
+
+	it('removePeer also clears the local nickname of the removed peer', async () => {
+		const pairedPeers: PairedPeerPayload[] = [
+			{ peerId: 'peer-9', addrs: [1], deviceName: 'Old Tablet' }
+		];
+		defaultInvokeImpl({
+			[NETWORK_COMMANDS.getPairedPeers]: pairedPeers,
+			[NETWORK_COMMANDS.removePairedPeer]: undefined
+		});
+		mockStore();
+		setupListeners();
+		const hook = await renderHook();
+		await hook.startListening();
+		await hook.setPeerNickname('peer-9', 'Apelido');
+
+		await hook.removePeer('peer-9');
+
+		expect(hook.peerNicknames).toEqual({});
 	});
 
 	it('stopListening disposes the hook and stops mutating state afterwards', async () => {

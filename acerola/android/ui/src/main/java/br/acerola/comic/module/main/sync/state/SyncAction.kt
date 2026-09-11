@@ -37,6 +37,13 @@ sealed interface SyncAction {
         val peerId: String,
     ) : SyncAction
 
+    /** Define (ou limpa, com string vazia) o apelido local de um peer — só neste dispositivo,
+     *  nunca chega no protocolo (ver `PeerNicknamePreference`). */
+    data class RenamePeer(
+        val peerId: String,
+        val nickname: String,
+    ) : SyncAction
+
     /** Pede a lista de quadrinhos do peer (nome + contagem de capítulos), sem sincronizar
      *  nada — abre o [br.acerola.comic.module.main.sync.RemoteLibrarySheet]. */
     data class BrowseLibrary(

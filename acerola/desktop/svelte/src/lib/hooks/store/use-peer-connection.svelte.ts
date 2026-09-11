@@ -33,6 +33,10 @@ export function usePeerConnection() {
 	let status = $state<NetworkStatusPayload | undefined>(undefined);
 	let pairedPeers = $state<PairedPeerPayload[]>([]);
 	let connecting = $state(false);
+	// Apelido local por peer (estilo agenda de contatos) — só existe neste dispositivo, nunca
+	// é trocado no protocolo. Fica em cima do `deviceName` default que o peer anuncia no
+	// handshake, sem nunca sobrescrevê-lo: `peerLabel` usa isso só como prioridade de exibição.
+	let peerNicknames = $state<Record<string, string>>({});
 
 	// `network:status` só traz peerId/alpn/device — não os bytes de endereço, que a lib
 	// exige de novo pra abrir uma conexão em outro ALPN (ex: disparar um sync depois do
@@ -61,6 +65,11 @@ export function usePeerConnection() {
 		]);
 		if (disposed) return;
 		[localId, localAddr, localDeviceInfo, relayInfo] = result;
+
+		const store = await load(STORE_FILE);
+		const savedNicknames = await store.get<Record<string, string>>(STORE_KEYS.peerNicknames);
+		if (disposed) return;
+		peerNicknames = savedNicknames ?? {};
 	}
 
 	async function refreshStatus() {
@@ -163,13 +172,33 @@ export function usePeerConnection() {
 		await invoke(NETWORK_COMMANDS.removePairedPeer, { peerId });
 		pairedPeers = pairedPeers.filter((peer) => peer.peerId !== peerId);
 		knownAddrs.delete(peerId);
+		await setPeerNickname(peerId, '');
 	}
 
-	/// Nome amigável de um peer — prioriza `network:status` (mais fresco, cobre o caso raro de
-	/// um dispositivo renomeado no meio da sessão), mas cai pra `pairedPeers` (persistente,
-	/// sobrevive ao handshake fechar — é o caso comum, já que a sessão de handshake em si dura
-	/// só segundos) antes de cair pro id truncado.
+	/// Define (ou limpa, com string vazia) o apelido local de um peer — só neste dispositivo,
+	/// nunca chega no protocolo. Persiste em `settings.json` pra sobreviver a um restart.
+	async function setPeerNickname(peerId: string, nickname: string) {
+		const trimmed = nickname.trim();
+		const next = { ...peerNicknames };
+		if (trimmed) {
+			next[peerId] = trimmed;
+		} else {
+			delete next[peerId];
+		}
+		peerNicknames = next;
+
+		const store = await load(STORE_FILE);
+		await store.set(STORE_KEYS.peerNicknames, next);
+		await store.save();
+	}
+
+	/// Nome amigável de um peer — prioriza o apelido local (`peerNicknames`, definido pelo
+	/// usuário neste dispositivo), depois `network:status` (mais fresco, cobre o caso raro de
+	/// um dispositivo renomeado no meio da sessão), depois `pairedPeers` (persistente, sobrevive
+	/// ao handshake fechar — é o caso comum) e por fim o id truncado.
 	function peerLabel(peerId: string): string {
+		const nickname = peerNicknames[peerId];
+		if (nickname) return nickname;
 		const liveDevice = status?.peers.find((peer) => peer.peerId === peerId)?.device;
 		if (liveDevice) return liveDevice.name;
 		const paired = pairedPeers.find((peer) => peer.peerId === peerId);
@@ -186,6 +215,7 @@ export function usePeerConnection() {
 		getKnownAddr,
 		setDeviceName,
 		removePeer,
+		setPeerNickname,
 		peerLabel,
 		get localId() {
 			return localId;
@@ -201,6 +231,9 @@ export function usePeerConnection() {
 		},
 		get pairedPeers() {
 			return pairedPeers;
+		},
+		get peerNicknames() {
+			return peerNicknames;
 		},
 		get connecting() {
 			return connecting;

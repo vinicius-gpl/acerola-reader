@@ -811,6 +811,13 @@
 				"more_actions": "Mais ações de sincronização pra esse dispositivo.",
 				"browse_library": "Buscar biblioteca remota",
 				"remove": "Remover dispositivo",
+				"rename": {
+					"action": "Renomear",
+					"placeholder": "Apelido pra esse dispositivo",
+					"save": "Salvar",
+					"cancel": "Cancelar",
+					"hint": "Visível só neste dispositivo — o outro lado mantém o próprio nome padrão."
+				},
 				"remove_confirm": {
 					"title": "Remover \"{peer}\"?",
 					"desc": "Esse dispositivo deixa de ter acesso à sua biblioteca. Se ele tentar se conectar de novo depois, vai passar pela mesma confirmação de um dispositivo nunca pareado.",

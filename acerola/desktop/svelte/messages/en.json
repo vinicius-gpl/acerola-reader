@@ -811,6 +811,13 @@
 				"more_actions": "More sync actions for this device.",
 				"browse_library": "Browse remote library",
 				"remove": "Remove device",
+				"rename": {
+					"action": "Rename",
+					"placeholder": "Nickname for this device",
+					"save": "Save",
+					"cancel": "Cancel",
+					"hint": "Only visible on this device — the other side keeps its own default name."
+				},
 				"remove_confirm": {
 					"title": "Remove \"{peer}\"?",
 					"desc": "This device loses access to your library. If it tries to connect again later, it'll go through the same confirmation as a never-paired device.",

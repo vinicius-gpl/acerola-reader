@@ -120,6 +120,48 @@ object DeviceAliasPreference {
 }
 
 /**
+ * Apelido local por peer pareado (estilo agenda de contatos) — só existe neste dispositivo,
+ * nunca é trocado no protocolo P2P. Fica em cima do `deviceName` default que o peer anuncia no
+ * handshake, sem nunca sobrescrevê-lo: quem lê decide a prioridade de exibição (ver
+ * `SyncScreen::PeerRow`). Uma chave por peer (`peer_nickname_<peerId>`) em vez de um único valor
+ * serializado — Preferences DataStore não tem um tipo Map nativo, e isso evita depender de
+ * serialização JSON só pra isso.
+ */
+object PeerNicknamePreference {
+    private val Context.dataStore by preferencesDataStore(name = "peer_nickname_prefs")
+    private const val KEY_PREFIX = "peer_nickname_"
+
+    private fun keyFor(peerId: String) = stringPreferencesKey(name = "$KEY_PREFIX$peerId")
+
+    /** `nickname` nulo ou em branco limpa o apelido salvo (volta a cair pro `deviceName`
+     *  default). */
+    suspend fun setNickname(
+        context: Context,
+        peerId: String,
+        nickname: String?,
+    ) {
+        context.dataStore.edit { prefs ->
+            val trimmed = nickname?.trim()
+            if (trimmed.isNullOrEmpty()) {
+                prefs.remove(keyFor(peerId))
+            } else {
+                prefs[keyFor(peerId)] = trimmed
+            }
+        }
+    }
+
+    /** Mapa peerId -> apelido local salvo. */
+    fun nicknamesFlow(context: Context): Flow<Map<String, String>> =
+        context.dataStore.data.map { prefs ->
+            prefs
+                .asMap()
+                .entries
+                .filter { (key, _) -> key.name.startsWith(KEY_PREFIX) }
+                .associate { (key, value) -> key.name.removePrefix(KEY_PREFIX) to value as String }
+        }
+}
+
+/**
  * Configuração de relay combinável, espelhando `RelaySettings`/`RelaySettings::resolve` do
  * Desktop (`bios/scopes.rs`) — relay do Acerola e lista de relays próprios podem ser combinados
  * entre si (exceto a Iroh Services, exclusiva com as demais). Mudar qualquer fonte só tem

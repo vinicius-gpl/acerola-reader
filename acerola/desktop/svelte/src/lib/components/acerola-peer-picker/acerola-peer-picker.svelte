@@ -7,6 +7,9 @@
 		};
 		data: {
 			peers: PairedPeerPayload[];
+			/** Apelido local (definido pelo usuário neste dispositivo) pra sobrepor o
+			 *  `deviceName` default — mesma prioridade de `usePeerConnection().peerLabel`. */
+			nicknameFor?: (peerId: string) => string | null | undefined;
 		};
 		events: {
 			onOpenChange: (open: boolean) => void;
@@ -55,7 +58,7 @@
 				>
 					<MonitorIcon size={18} class="shrink-0 text-muted-foreground" />
 					<span class="truncate text-sm font-medium text-foreground">
-						{peer.deviceName ?? shortId(peer.peerId)}
+						{safeData.nicknameFor?.(peer.peerId) ?? peer.deviceName ?? shortId(peer.peerId)}
 					</span>
 				</button>
 			{/each}

@@ -563,7 +563,7 @@
 <!-- Escolher dispositivo pareado pra buscar quadrinhos -->
 <AcerolaPeerPicker
 	state={{ open: showPeerPicker }}
-	data={{ peers: peers.pairedPeers }}
+	data={{ peers: peers.pairedPeers, nicknameFor: (peerId) => peers.peerNicknames[peerId] }}
 	events={{
 		onOpenChange: (open) => (showPeerPicker = open),
 		onSelect: selectPeerForBrowsing

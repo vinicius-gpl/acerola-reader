@@ -3,15 +3,26 @@ import { render, screen, fireEvent } from '@testing-library/svelte';
 import AcerolaNetworkPeerList, { type DisplayPeer } from './acerola-network-peer-list.svelte';
 
 describe('AcerolaNetworkPeerList', () => {
-	const onlinePeer: DisplayPeer = { peerId: 'peer-1', deviceName: 'Meu Celular', connected: true };
-	const offlinePeer: DisplayPeer = { peerId: 'peer-2', deviceName: null, connected: false };
+	const onlinePeer: DisplayPeer = {
+		peerId: 'peer-1',
+		deviceName: 'Meu Celular',
+		nickname: null,
+		connected: true
+	};
+	const offlinePeer: DisplayPeer = {
+		peerId: 'peer-2',
+		deviceName: null,
+		nickname: null,
+		connected: false
+	};
 
 	const mockEvents = {
 		onSyncHistory: vi.fn(),
 		onSyncFiles: vi.fn(),
 		onSyncAll: vi.fn(),
 		onBrowseLibrary: vi.fn(),
-		onRemove: vi.fn()
+		onRemove: vi.fn(),
+		onRename: vi.fn()
 	};
 
 	beforeEach(() => {
@@ -48,6 +59,55 @@ describe('AcerolaNetworkPeerList', () => {
 		});
 
 		expect(screen.getByText('Meu Celular')).toBeInTheDocument();
+	});
+
+	it('prefers the local nickname over the device name when both are set', () => {
+		const nicknamedPeer: DisplayPeer = {
+			peerId: 'peer-3',
+			deviceName: 'Meu Celular',
+			nickname: 'Celular da Sala',
+			connected: true
+		};
+
+		render(AcerolaNetworkPeerList, {
+			props: {
+				data: {
+					peers: [nicknamedPeer],
+					addrFor: () => [1, 2, 3],
+					statusLabel: () => 'online',
+					isSyncing: () => false
+				},
+				events: mockEvents
+			}
+		});
+
+		expect(screen.getByText('Celular da Sala')).toBeInTheDocument();
+		expect(screen.queryByText('Meu Celular')).not.toBeInTheDocument();
+	});
+
+	it('renames a peer: opens the editor pre-filled with the current nickname and saves it', async () => {
+		render(AcerolaNetworkPeerList, {
+			props: {
+				data: {
+					peers: [onlinePeer],
+					addrFor: () => [1, 2, 3],
+					statusLabel: () => 'online',
+					isSyncing: () => false
+				},
+				events: mockEvents
+			}
+		});
+
+		await fireEvent.click(document.querySelector('[data-popover-trigger]')!);
+		await fireEvent.click(screen.getByRole('button', { name: /Rename|Renomear/i }));
+
+		const input = screen.getByPlaceholderText(/Nickname for this device|Apelido pra esse dispositivo/i);
+		expect(input).toHaveValue('');
+
+		await fireEvent.input(input, { target: { value: '  Celular da Sala  ' } });
+		await fireEvent.click(screen.getByRole('button', { name: /Save|Salvar/i }));
+
+		expect(mockEvents.onRename).toHaveBeenCalledWith(onlinePeer.peerId, 'Celular da Sala');
 	});
 
 	it('shows the offline hint when a peer has no known address', () => {

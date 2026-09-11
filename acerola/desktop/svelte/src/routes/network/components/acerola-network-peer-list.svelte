@@ -1,5 +1,10 @@
 <script module lang="ts">
-	export type DisplayPeer = { peerId: string; deviceName: string | null; connected: boolean };
+	export type DisplayPeer = {
+		peerId: string;
+		deviceName: string | null;
+		nickname: string | null;
+		connected: boolean;
+	};
 
 	export type NetworkPeerListProps = {
 		data: {
@@ -14,6 +19,7 @@
 			onSyncAll: (peerId: string) => void;
 			onBrowseLibrary: (peerId: string) => void;
 			onRemove: (peer: DisplayPeer) => void;
+			onRename: (peerId: string, nickname: string) => void;
 		};
 	};
 </script>
@@ -27,8 +33,13 @@
 	import BookOpenIcon from '@lucide/svelte/icons/book-open';
 	import UserMinusIcon from '@lucide/svelte/icons/user-minus';
 	import RefreshCwIcon from '@lucide/svelte/icons/refresh-cw';
+	import PencilIcon from '@lucide/svelte/icons/pencil';
+	import CheckIcon from '@lucide/svelte/icons/check';
+	import XIcon from '@lucide/svelte/icons/x';
 	import AcerolaHeroButton from '$lib/components/acerola-hero-button/acerola-hero-button.svelte';
 	import AcerolaButton from '$lib/components/acerola-button/acerola-button.svelte';
+	import AcerolaButtonIcon from '$lib/components/acerola-button/acerola-button-icon.svelte';
+	import AcerolaInput from '$lib/components/acerola-input/acerola-input.svelte';
 	import AcerolaPopover from '$lib/components/acerola-popover/acerola-popover.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { shortId } from '$lib/utils/connection-code.utils';
@@ -37,6 +48,25 @@
 	let { data, events }: NetworkPeerListProps = $props();
 
 	let openPeerMenuId = $state<string | null>(null);
+	// Apelido local por peer — edição inline substitui o card do peer, mesmo padrão de
+	// `acerola-network-my-device-card.svelte` pro nome do próprio dispositivo.
+	let editingPeerId = $state<string | null>(null);
+	let nicknameDraft = $state('');
+
+	function startEditingNickname(peer: DisplayPeer) {
+		nicknameDraft = peer.nickname ?? '';
+		editingPeerId = peer.peerId;
+	}
+
+	function cancelEditingNickname() {
+		editingPeerId = null;
+	}
+
+	function confirmEditingNickname() {
+		if (!editingPeerId) return;
+		events.onRename(editingPeerId, nicknameDraft.trim());
+		editingPeerId = null;
+	}
 
 	// No teardown da story (Storybook + vitest browser mode), o efeito reativo deste
 	// template roda mais uma vez com `data` já undefined antes do componente ser
@@ -67,9 +97,37 @@
 				{@const filesSyncing = data.isSyncing(peer.peerId, 'files')}
 				{@const anySyncing = historySyncing || filesSyncing}
 
+				{#if editingPeerId === peer.peerId}
+					<div class="flex items-center gap-3 rounded-3xl border border-border bg-card p-6">
+						<div class="flex-1 space-y-1.5">
+							<AcerolaInput
+								state={{ value: nicknameDraft }}
+								events={{ onValueChange: (value) => (nicknameDraft = value) }}
+								ui={{ placeholder: m['pages.network.peers.rename.placeholder']() }}
+							/>
+							<p class="px-1 text-xs text-muted-foreground">
+								{m['pages.network.peers.rename.hint']()}
+							</p>
+						</div>
+						<AcerolaButton events={{ onClick: confirmEditingNickname }} ui={{ size: 'sm' }}>
+							<CheckIcon size={14} />
+							{m['pages.network.peers.rename.save']()}
+						</AcerolaButton>
+						<AcerolaButtonIcon
+							events={{ onClick: cancelEditingNickname }}
+							ui={{
+								variant: 'ghost',
+								class: 'size-10',
+								'aria-label': m['pages.network.peers.rename.cancel']()
+							}}
+						>
+							<XIcon size={16} />
+						</AcerolaButtonIcon>
+					</div>
+				{:else}
 				<AcerolaHeroButton
 					data={{
-						title: peer.deviceName ?? shortId(peer.peerId),
+						title: peer.nickname ?? peer.deviceName ?? shortId(peer.peerId),
 						description: data.statusLabel(peer)
 					}}
 				>
@@ -171,6 +229,23 @@
 											{m['pages.network.peers.browse_library']()}
 										</AcerolaButton>
 
+										<AcerolaButton
+											events={{
+												onClick: () => {
+													openPeerMenuId = null;
+													startEditingNickname(peer);
+												}
+											}}
+											ui={{
+												variant: 'ghost',
+												class:
+													'h-9 w-full justify-start gap-2.5 rounded-xl px-2.5 text-sm font-medium'
+											}}
+										>
+											<PencilIcon size={16} class="shrink-0" />
+											{m['pages.network.peers.rename.action']()}
+										</AcerolaButton>
+
 										<div class="my-1 h-px bg-border/60"></div>
 
 										<AcerolaButton
@@ -208,6 +283,7 @@
 					<p class="-mt-2 px-2 text-xs text-muted-foreground">
 						{m['pages.network.peers.offline_hint']()}
 					</p>
+				{/if}
 				{/if}
 			{/each}
 		{/if}
