@@ -79,6 +79,20 @@ describe('useLibraryScanner', () => {
 		expect(toast.error).toHaveBeenCalledWith('Sem pasta selecionada.');
 	});
 
+	it('shows the notification and toast immediately when the scan starts, before any backend event', async () => {
+		const hook = await renderScanner('C:/Comics');
+
+		await hook.start();
+
+		// Regressão: o toast/notificação de "em andamento" não podia esperar o primeiro
+		// `scan:progress` do backend pra aparecer — dependendo de quanto o scan demora pra
+		// emitir esse evento, o toast surgia num momento sem sentido (às vezes quase junto
+		// com o de conclusão). Precisa aparecer no clique, sem depender de nenhum evento.
+		expect(hook.scanning).toBe(true);
+		expect(toast.loading).toHaveBeenCalledWith('Scan em andamento...');
+		expect(notificationStore.notifications[0]?.message).toBe('Scan em andamento...');
+	});
+
 	it('displays progress and completes scan successfully', async () => {
 		const { callbacks, unlisteners } = setupListeners();
 		const hook = await renderScanner('C:/Comics');
