@@ -40,6 +40,12 @@ pub trait HistorySyncProvider: Send + Sync {
         chapter_sorts: Vec<String>,
     ) -> Vec<FfiChapterReadEntry>;
 
+    /// Verifica só a existência do quadrinho (sem tocar em progresso/lido) — usado pelo
+    /// contrato de `acerola/sync-history-entry/1` pra validar ANTES de responder "aplicado com
+    /// sucesso": sem isso, um manifesto vazio (nenhum capítulo selecionado tinha progresso/
+    /// marcador) não dava nenhum sinal de erro mesmo quando o peer nunca teve esse quadrinho.
+    fn comic_exists(&self, comic_name: String) -> bool;
+
     /// Aplica uma linha de progresso recebida do peer (Rust já decidiu que ela vence via LWW).
     /// Retorna `false` se o quadrinho referenciado não existir localmente (entrada ignorada).
     fn apply_reading_progress(&self, entry: FfiReadingProgressEntry) -> bool;

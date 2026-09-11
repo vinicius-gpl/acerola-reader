@@ -112,6 +112,12 @@ pub(super) const SESSION_BUSY_TAG: &str = "busy";
 /// frase, nenhuma delas classificada, então a UI sempre mostrava o texto cru em inglês).
 pub const NO_PENDING_SCOPE_REASON: &str = "no pending sync scope registered for this peer";
 
+/// Motivo usado quando o inbound de `acerola/sync-history-entry/1` responde `comic_known:
+/// false` no `HistoryEntryAck` — o outbound trata isso como falha (não sucesso silencioso),
+/// já que nenhuma entrada/marcador pôde ser aplicado do outro lado. Mesma técnica de
+/// `NO_PENDING_SCOPE_REASON`: string nossa reconhecida por igualdade exata, não heurística.
+pub const PEER_COMIC_NOT_FOUND_REASON: &str = "peer does not have this comic";
+
 /// Identificador estável de causa de erro de sync, serializado em `snake_case` (`"busy"`,
 /// `"timeout"`, `"connection_lost"`) — o mesmo valor que o frontend já esperava quando isso era
 /// uma `&'static str` solta, então trocar pra enum não muda o contrato de wire (`SYNC_ERROR_MESSAGES`
@@ -141,6 +147,10 @@ pub(super) enum SyncErrorCode {
     ComicDirectoryUnavailable,
     PersistFailed,
     NoPendingRequest,
+    /// O peer respondeu que não tem o quadrinho referenciado (`HistoryEntryAck.comic_known ==
+    /// false`) — histórico nunca cria quadrinho novo no destino, então isso é esperado quando o
+    /// outro lado ainda não sincronizou os arquivos desse quadrinho.
+    ComicNotFound,
     /// Sessão terminou sem erro de protocolo, mas nem todos os itens chegaram (ver doc de
     /// `receive_files`/`receive_extras`) — antes essas duas ocorrências (`comic_handler.rs`,
     /// `file_handler.rs`) montavam a mensagem já em pt-BR direto no backend, sem `code`
@@ -169,6 +179,9 @@ pub(super) fn classify_sync_error(error: &P2pError) -> Option<SyncErrorCode> {
         },
         P2pError::StreamFailed(msg) if msg == NO_PENDING_SCOPE_REASON => {
             Some(SyncErrorCode::NoPendingRequest)
+        },
+        P2pError::StreamFailed(msg) if msg == PEER_COMIC_NOT_FOUND_REASON => {
+            Some(SyncErrorCode::ComicNotFound)
         },
         // Resto de `StreamFailed` é texto de I/O genérico de baixo nível (framing, disco) sem
         // uma causa específica pra nomear — cai no fallback de quem chamou (`message` cru no

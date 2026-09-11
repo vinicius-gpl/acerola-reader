@@ -720,9 +720,12 @@ internal interface UniffiCallbackInterfaceHistorySyncProviderMethod4 : com.sun.j
     fun callback(`uniffiHandle`: Long,`comicName`: RustBuffer.ByValue,`chapterSorts`: RustBuffer.ByValue,`uniffiOutReturn`: RustBuffer,uniffiCallStatus: UniffiRustCallStatus,)
 }
 internal interface UniffiCallbackInterfaceHistorySyncProviderMethod5 : com.sun.jna.Callback {
-    fun callback(`uniffiHandle`: Long,`entry`: RustBuffer.ByValue,`uniffiOutReturn`: ByteByReference,uniffiCallStatus: UniffiRustCallStatus,)
+    fun callback(`uniffiHandle`: Long,`comicName`: RustBuffer.ByValue,`uniffiOutReturn`: ByteByReference,uniffiCallStatus: UniffiRustCallStatus,)
 }
 internal interface UniffiCallbackInterfaceHistorySyncProviderMethod6 : com.sun.jna.Callback {
+    fun callback(`uniffiHandle`: Long,`entry`: RustBuffer.ByValue,`uniffiOutReturn`: ByteByReference,uniffiCallStatus: UniffiRustCallStatus,)
+}
+internal interface UniffiCallbackInterfaceHistorySyncProviderMethod7 : com.sun.jna.Callback {
     fun callback(`uniffiHandle`: Long,`entry`: RustBuffer.ByValue,`uniffiOutReturn`: ByteByReference,uniffiCallStatus: UniffiRustCallStatus,)
 }
 internal interface UniffiCallbackInterfaceP2pCallbackMethod0 : com.sun.jna.Callback {
@@ -811,15 +814,16 @@ internal open class UniffiVTableCallbackInterfaceFileSyncProvider(
     }
 
 }
-@Structure.FieldOrder("getReadingProgress", "getChaptersRead", "getReadingProgressForComic", "getReadingProgressForChapters", "getChaptersReadForChapters", "applyReadingProgress", "applyChapterRead", "uniffiFree")
+@Structure.FieldOrder("getReadingProgress", "getChaptersRead", "getReadingProgressForComic", "getReadingProgressForChapters", "getChaptersReadForChapters", "comicExists", "applyReadingProgress", "applyChapterRead", "uniffiFree")
 internal open class UniffiVTableCallbackInterfaceHistorySyncProvider(
     @JvmField internal var `getReadingProgress`: UniffiCallbackInterfaceHistorySyncProviderMethod0? = null,
     @JvmField internal var `getChaptersRead`: UniffiCallbackInterfaceHistorySyncProviderMethod1? = null,
     @JvmField internal var `getReadingProgressForComic`: UniffiCallbackInterfaceHistorySyncProviderMethod2? = null,
     @JvmField internal var `getReadingProgressForChapters`: UniffiCallbackInterfaceHistorySyncProviderMethod3? = null,
     @JvmField internal var `getChaptersReadForChapters`: UniffiCallbackInterfaceHistorySyncProviderMethod4? = null,
-    @JvmField internal var `applyReadingProgress`: UniffiCallbackInterfaceHistorySyncProviderMethod5? = null,
-    @JvmField internal var `applyChapterRead`: UniffiCallbackInterfaceHistorySyncProviderMethod6? = null,
+    @JvmField internal var `comicExists`: UniffiCallbackInterfaceHistorySyncProviderMethod5? = null,
+    @JvmField internal var `applyReadingProgress`: UniffiCallbackInterfaceHistorySyncProviderMethod6? = null,
+    @JvmField internal var `applyChapterRead`: UniffiCallbackInterfaceHistorySyncProviderMethod7? = null,
     @JvmField internal var `uniffiFree`: UniffiCallbackInterfaceFree? = null,
 ) : Structure() {
     class UniffiByValue(
@@ -828,10 +832,11 @@ internal open class UniffiVTableCallbackInterfaceHistorySyncProvider(
         `getReadingProgressForComic`: UniffiCallbackInterfaceHistorySyncProviderMethod2? = null,
         `getReadingProgressForChapters`: UniffiCallbackInterfaceHistorySyncProviderMethod3? = null,
         `getChaptersReadForChapters`: UniffiCallbackInterfaceHistorySyncProviderMethod4? = null,
-        `applyReadingProgress`: UniffiCallbackInterfaceHistorySyncProviderMethod5? = null,
-        `applyChapterRead`: UniffiCallbackInterfaceHistorySyncProviderMethod6? = null,
+        `comicExists`: UniffiCallbackInterfaceHistorySyncProviderMethod5? = null,
+        `applyReadingProgress`: UniffiCallbackInterfaceHistorySyncProviderMethod6? = null,
+        `applyChapterRead`: UniffiCallbackInterfaceHistorySyncProviderMethod7? = null,
         `uniffiFree`: UniffiCallbackInterfaceFree? = null,
-    ): UniffiVTableCallbackInterfaceHistorySyncProvider(`getReadingProgress`,`getChaptersRead`,`getReadingProgressForComic`,`getReadingProgressForChapters`,`getChaptersReadForChapters`,`applyReadingProgress`,`applyChapterRead`,`uniffiFree`,), Structure.ByValue
+    ): UniffiVTableCallbackInterfaceHistorySyncProvider(`getReadingProgress`,`getChaptersRead`,`getReadingProgressForComic`,`getReadingProgressForChapters`,`getChaptersReadForChapters`,`comicExists`,`applyReadingProgress`,`applyChapterRead`,`uniffiFree`,), Structure.ByValue
 
    internal fun uniffiSetValue(other: UniffiVTableCallbackInterfaceHistorySyncProvider) {
         `getReadingProgress` = other.`getReadingProgress`
@@ -839,6 +844,7 @@ internal open class UniffiVTableCallbackInterfaceHistorySyncProvider(
         `getReadingProgressForComic` = other.`getReadingProgressForComic`
         `getReadingProgressForChapters` = other.`getReadingProgressForChapters`
         `getChaptersReadForChapters` = other.`getChaptersReadForChapters`
+        `comicExists` = other.`comicExists`
         `applyReadingProgress` = other.`applyReadingProgress`
         `applyChapterRead` = other.`applyChapterRead`
         `uniffiFree` = other.`uniffiFree`
@@ -883,6 +889,8 @@ internal open class UniffiVTableCallbackInterfaceSecureBlobStore(
     }
 
 }
+
+
 
 
 
@@ -1142,6 +1150,8 @@ internal interface UniffiLib : Library {
     ): RustBuffer.ByValue
     fun uniffi_acerola_fn_method_historysyncprovider_get_chapters_read_for_chapters(`ptr`: Pointer,`comicName`: RustBuffer.ByValue,`chapterSorts`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
+    fun uniffi_acerola_fn_method_historysyncprovider_comic_exists(`ptr`: Pointer,`comicName`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): Byte
     fun uniffi_acerola_fn_method_historysyncprovider_apply_reading_progress(`ptr`: Pointer,`entry`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Byte
     fun uniffi_acerola_fn_method_historysyncprovider_apply_chapter_read(`ptr`: Pointer,`entry`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
@@ -1370,6 +1380,8 @@ internal interface UniffiLib : Library {
     ): Short
     fun uniffi_acerola_checksum_method_historysyncprovider_get_chapters_read_for_chapters(
     ): Short
+    fun uniffi_acerola_checksum_method_historysyncprovider_comic_exists(
+    ): Short
     fun uniffi_acerola_checksum_method_historysyncprovider_apply_reading_progress(
     ): Short
     fun uniffi_acerola_checksum_method_historysyncprovider_apply_chapter_read(
@@ -1508,10 +1520,13 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
     if (lib.uniffi_acerola_checksum_method_historysyncprovider_get_chapters_read_for_chapters() != 41489.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_acerola_checksum_method_historysyncprovider_apply_reading_progress() != 50529.toShort()) {
+    if (lib.uniffi_acerola_checksum_method_historysyncprovider_comic_exists() != 19512.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_acerola_checksum_method_historysyncprovider_apply_chapter_read() != 64303.toShort()) {
+    if (lib.uniffi_acerola_checksum_method_historysyncprovider_apply_reading_progress() != 35798.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_acerola_checksum_method_historysyncprovider_apply_chapter_read() != 57692.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_acerola_checksum_method_p2pcallback_on_event() != 37231.toShort()) {
@@ -3158,6 +3173,14 @@ public interface HistorySyncProvider {
     fun `getChaptersReadForChapters`(`comicName`: kotlin.String, `chapterSorts`: List<kotlin.String>): List<FfiChapterReadEntry>
     
     /**
+     * Verifica só a existência do quadrinho (sem tocar em progresso/lido) — usado pelo
+     * contrato de `acerola/sync-history-entry/1` pra validar ANTES de responder "aplicado com
+     * sucesso": sem isso, um manifesto vazio (nenhum capítulo selecionado tinha progresso/
+     * marcador) não dava nenhum sinal de erro mesmo quando o peer nunca teve esse quadrinho.
+     */
+    fun `comicExists`(`comicName`: kotlin.String): kotlin.Boolean
+    
+    /**
      * Aplica uma linha de progresso recebida do peer (Rust já decidiu que ela vence via LWW).
      * Retorna `false` se o quadrinho referenciado não existir localmente (entrada ignorada).
      */
@@ -3343,6 +3366,24 @@ open class HistorySyncProviderImpl: Disposable, AutoCloseable, HistorySyncProvid
 
     
     /**
+     * Verifica só a existência do quadrinho (sem tocar em progresso/lido) — usado pelo
+     * contrato de `acerola/sync-history-entry/1` pra validar ANTES de responder "aplicado com
+     * sucesso": sem isso, um manifesto vazio (nenhum capítulo selecionado tinha progresso/
+     * marcador) não dava nenhum sinal de erro mesmo quando o peer nunca teve esse quadrinho.
+     */override fun `comicExists`(`comicName`: kotlin.String): kotlin.Boolean {
+            return FfiConverterBoolean.lift(
+    callWithPointer {
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_acerola_fn_method_historysyncprovider_comic_exists(
+        it, FfiConverterString.lower(`comicName`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
      * Aplica uma linha de progresso recebida do peer (Rust já decidiu que ela vence via LWW).
      * Retorna `false` se o quadrinho referenciado não existir localmente (entrada ignorada).
      */override fun `applyReadingProgress`(`entry`: FfiReadingProgressEntry): kotlin.Boolean {
@@ -3444,7 +3485,19 @@ internal object uniffiCallbackInterfaceHistorySyncProvider {
             uniffiTraitInterfaceCall(uniffiCallStatus, makeCall, writeReturn)
         }
     }
-    internal object `applyReadingProgress`: UniffiCallbackInterfaceHistorySyncProviderMethod5 {
+    internal object `comicExists`: UniffiCallbackInterfaceHistorySyncProviderMethod5 {
+        override fun callback(`uniffiHandle`: Long,`comicName`: RustBuffer.ByValue,`uniffiOutReturn`: ByteByReference,uniffiCallStatus: UniffiRustCallStatus,) {
+            val uniffiObj = FfiConverterTypeHistorySyncProvider.handleMap.get(uniffiHandle)
+            val makeCall = { ->
+                uniffiObj.`comicExists`(
+                    FfiConverterString.lift(`comicName`),
+                )
+            }
+            val writeReturn = { value: kotlin.Boolean -> uniffiOutReturn.setValue(FfiConverterBoolean.lower(value)) }
+            uniffiTraitInterfaceCall(uniffiCallStatus, makeCall, writeReturn)
+        }
+    }
+    internal object `applyReadingProgress`: UniffiCallbackInterfaceHistorySyncProviderMethod6 {
         override fun callback(`uniffiHandle`: Long,`entry`: RustBuffer.ByValue,`uniffiOutReturn`: ByteByReference,uniffiCallStatus: UniffiRustCallStatus,) {
             val uniffiObj = FfiConverterTypeHistorySyncProvider.handleMap.get(uniffiHandle)
             val makeCall = { ->
@@ -3456,7 +3509,7 @@ internal object uniffiCallbackInterfaceHistorySyncProvider {
             uniffiTraitInterfaceCall(uniffiCallStatus, makeCall, writeReturn)
         }
     }
-    internal object `applyChapterRead`: UniffiCallbackInterfaceHistorySyncProviderMethod6 {
+    internal object `applyChapterRead`: UniffiCallbackInterfaceHistorySyncProviderMethod7 {
         override fun callback(`uniffiHandle`: Long,`entry`: RustBuffer.ByValue,`uniffiOutReturn`: ByteByReference,uniffiCallStatus: UniffiRustCallStatus,) {
             val uniffiObj = FfiConverterTypeHistorySyncProvider.handleMap.get(uniffiHandle)
             val makeCall = { ->
@@ -3481,6 +3534,7 @@ internal object uniffiCallbackInterfaceHistorySyncProvider {
         `getReadingProgressForComic`,
         `getReadingProgressForChapters`,
         `getChaptersReadForChapters`,
+        `comicExists`,
         `applyReadingProgress`,
         `applyChapterRead`,
         uniffiFree,

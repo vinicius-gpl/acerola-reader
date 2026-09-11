@@ -69,6 +69,8 @@ class FileSyncFfiIntegrationTest {
             chapterSorts: List<String>,
         ): List<FfiChapterReadEntry> = emptyList()
 
+        override fun comicExists(comicName: String): Boolean = false
+
         override fun applyReadingProgress(entry: FfiReadingProgressEntry): Boolean = false
 
         override fun applyChapterRead(entry: FfiChapterReadEntry): Boolean = false

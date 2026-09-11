@@ -20,7 +20,19 @@ pub(crate) enum SyncErrorCode {
     /// `finalize_chapter_write`/`finalize_extra_write` (que só faz a comparação de checksum
     /// nesse ponto, do lado Kotlin) retornou `false` mesmo assim.
     ChecksumMismatch,
+    /// O peer respondeu que não tem o quadrinho referenciado (`HistoryEntryAck.comic_known ==
+    /// false`, `acerola/sync-history-entry/1`) — histórico nunca cria quadrinho novo no
+    /// destino, então isso é esperado quando o outro lado ainda não sincronizou os arquivos
+    /// desse quadrinho. Mesmo raciocínio de `Busy`: não vem de `classify_sync_error`, é
+    /// verificado por igualdade exata numa string que este módulo controla.
+    ComicNotFound,
 }
+
+/// Motivo usado quando o outbound de `acerola/sync-history-entry/1` recebe `comic_known:
+/// false` no ack — string nossa reconhecida por igualdade exata em `classify_sync_error`, não
+/// heurística de texto de terceiros. Espelhado no Desktop
+/// (`infra/sync/protocol/transfer.rs::PEER_COMIC_NOT_FOUND_REASON`).
+pub(crate) const PEER_COMIC_NOT_FOUND_REASON: &str = "peer does not have this comic";
 
 /// Classifica um `P2pError` (não seu texto) num `SyncErrorCode`. Só é confiável porque os
 /// `ChapterTransfer`/blob-fetch de cada protocolo pararam de achatar `ConnectionError` em
@@ -37,6 +49,9 @@ pub(crate) fn classify_sync_error(error: &P2pError) -> Option<SyncErrorCode> {
         P2pError::PeerDisconnected(_) => Some(SyncErrorCode::ConnectionLost),
         P2pError::StreamFailed(msg) if msg.contains("already in progress") => {
             Some(SyncErrorCode::Busy)
+        }
+        P2pError::StreamFailed(msg) if msg == PEER_COMIC_NOT_FOUND_REASON => {
+            Some(SyncErrorCode::ComicNotFound)
         }
         _ => None,
     }

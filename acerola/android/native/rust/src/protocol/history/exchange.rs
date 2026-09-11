@@ -8,8 +8,11 @@ use acerola_p2p::api::{error::P2pError, peer::PeerIdentity, protocol::EventEmitt
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
 
-use super::model::{HistoryManifest, HistorySyncStats};
-use crate::{callbacks::HistorySyncProvider, protocol::ffi_blocking::run_blocking};
+use super::model::{HistoryEntryAck, HistoryEntryRequest, HistoryManifest, HistorySyncStats};
+use crate::{
+    callbacks::HistorySyncProvider,
+    protocol::{ffi_blocking::run_blocking, sync_error::PEER_COMIC_NOT_FOUND_REASON},
+};
 
 const MANIFEST_READ_TIMEOUT: Duration = Duration::from_secs(15);
 const ENTRY_READ_TIMEOUT: Duration = Duration::from_secs(15);
@@ -198,13 +201,17 @@ async fn build_manifest_for_chapters(
 }
 
 /// Executa o push unidirecional de um manifesto restrito ao(s) capítulo(s) selecionado(s)
-/// (`acerola/sync-history-entry/1`). `outbound_role`: o lado que inicia monta o manifesto
-/// escopado (`comic_name` + `chapter_sorts`, já resolvidos do `PendingHistoryEntryScope` por
-/// quem chama) e escreve; o lado que responde lê e aplica com a MESMA lógica de diff/LWW/união
-/// idempotente do sync completo (`diff_and_apply`, comparando contra o manifesto local inteiro
-/// — continua correto mesmo o manifesto do peer sendo um subconjunto), confirmando com um ack
-/// vazio antes de fechar, pra o outbound não considerar a sessão concluída antes do inbound
-/// terminar de aplicar.
+/// (`acerola/sync-history-entry/1`). Contrato de duas mensagens (padronizado com
+/// `acerola/sync-comic/1`): primeiro um `HistoryEntryRequest` (quadrinho + capítulos escopados,
+/// sempre presente mesmo se o manifesto que vem a seguir estiver vazio), depois o
+/// `HistoryManifest` em si. `outbound_role`: o lado que inicia monta e escreve os dois (escopo
+/// já resolvido do `PendingHistoryEntryScope` por quem chama); o lado que responde lê os dois,
+/// valida se o quadrinho existe localmente ANTES de aplicar qualquer coisa, aplica com a MESMA
+/// lógica de diff/LWW/união idempotente do sync completo (`diff_and_apply`, comparando contra o
+/// manifesto local inteiro — continua correto mesmo o manifesto do peer sendo um subconjunto), e
+/// confirma com um `HistoryEntryAck` carregando o resultado real — nunca um ack vazio que
+/// esconderia um quadrinho ausente como se fosse sucesso. Se `comic_known` vier `false`, o
+/// outbound termina com erro (`PEER_COMIC_NOT_FOUND_REASON`), não sucesso silencioso.
 pub(super) async fn run_entry_exchange(
     outbound_role: bool,
     scope: Option<(String, Vec<String>)>,
@@ -223,17 +230,70 @@ pub(super) async fn run_entry_exchange(
         let (comic_name, chapter_sorts) = scope.ok_or_else(|| {
             P2pError::StreamFailed("no pending history entry scope for this peer".into())
         })?;
-        let manifest = build_manifest_for_chapters(provider, comic_name, chapter_sorts).await?;
 
+        crate::protocol::framing::write_json(
+            &mut writer,
+            &HistoryEntryRequest {
+                comic_name: comic_name.clone(),
+                chapter_sorts: chapter_sorts.clone(),
+            },
+        )
+        .await?;
+
+        let manifest =
+            build_manifest_for_chapters(provider, comic_name.clone(), chapter_sorts.clone())
+                .await?;
         write_manifest(&mut writer, &manifest).await?;
-        let _ack: serde_json::Value =
-            crate::protocol::framing::read_json(&mut reader, ENTRY_READ_TIMEOUT).await?;
-    } else {
-        let peer_manifest = read_manifest(&mut reader).await?;
-        let local_manifest = build_local_manifest(provider).await?;
-        diff_and_apply(&local_manifest, peer_manifest, provider).await?;
 
-        crate::protocol::framing::write_json(&mut writer, &serde_json::json!({})).await?;
+        let ack: HistoryEntryAck =
+            crate::protocol::framing::read_json(&mut reader, ENTRY_READ_TIMEOUT).await?;
+        if !ack.comic_known {
+            return Err(P2pError::StreamFailed(PEER_COMIC_NOT_FOUND_REASON.into()));
+        }
+
+        tracing::info!(
+            peer = %peer.id,
+            comic = %comic_name,
+            chapters = chapter_sorts.len(),
+            entries_applied = ack.entries_applied,
+            markers_applied = ack.markers_applied,
+            "[HistoryEntrySync] push applied by peer",
+        );
+    } else {
+        let request: HistoryEntryRequest =
+            crate::protocol::framing::read_json(&mut reader, ENTRY_READ_TIMEOUT).await?;
+        let peer_manifest = read_manifest(&mut reader).await?;
+
+        let comic_known = {
+            let provider = Arc::clone(provider);
+            let comic_name = request.comic_name.clone();
+            run_blocking(move || provider.comic_exists(comic_name)).await?
+        };
+        let stats = if comic_known {
+            let local_manifest = build_local_manifest(provider).await?;
+            diff_and_apply(&local_manifest, peer_manifest, provider).await?
+        } else {
+            HistorySyncStats::default()
+        };
+
+        crate::protocol::framing::write_json(
+            &mut writer,
+            &HistoryEntryAck {
+                comic_known,
+                entries_applied: stats.progress_applied,
+                markers_applied: stats.chapters_read_applied,
+            },
+        )
+        .await?;
+
+        tracing::info!(
+            comic = %request.comic_name,
+            chapters = request.chapter_sorts.len(),
+            comic_known,
+            entries_applied = stats.progress_applied,
+            markers_applied = stats.chapters_read_applied,
+            "[HistoryEntrySync] request processed",
+        );
     }
 
     emit("sync:history-entry:complete", started_payload(peer));
@@ -306,11 +366,15 @@ mod tests {
         ) -> Vec<FfiChapterReadEntry> {
             vec![]
         }
+        fn comic_exists(&self, _comic_name: String) -> bool {
+            true
+        }
     }
 
     struct InMemoryProvider {
         progress: std::sync::Mutex<HashMap<String, FfiReadingProgressEntry>>,
         chapters_read: std::sync::Mutex<HashMap<(String, String), FfiChapterReadEntry>>,
+        known_comics: std::sync::Mutex<HashSet<String>>,
     }
 
     impl InMemoryProvider {
@@ -318,11 +382,27 @@ mod tests {
             Self {
                 progress: std::sync::Mutex::new(HashMap::new()),
                 chapters_read: std::sync::Mutex::new(HashMap::new()),
+                known_comics: std::sync::Mutex::new(HashSet::new()),
             }
+        }
+
+        /// Marca `comic_name` como existente localmente (sem nenhum progresso/marcador) — usado
+        /// pra simular "o quadrinho existe, mas ainda não tem histórico salvo".
+        fn with_known_comic(self, comic_name: &str) -> Self {
+            self.known_comics
+                .lock()
+                .unwrap()
+                .insert(comic_name.to_string());
+            self
         }
 
         fn with_entry(entry: FfiReadingProgressEntry) -> Self {
             let provider = Self::new();
+            provider
+                .known_comics
+                .lock()
+                .unwrap()
+                .insert(entry.comic_name.clone());
             provider
                 .progress
                 .lock()
@@ -333,13 +413,16 @@ mod tests {
 
         fn with_chapters_read(self, entries: Vec<FfiChapterReadEntry>) -> Self {
             let mut store = self.chapters_read.lock().unwrap();
+            let mut known = self.known_comics.lock().unwrap();
             for entry in entries {
+                known.insert(entry.comic_name.clone());
                 store.insert(
                     (entry.comic_name.clone(), entry.chapter_sort.clone()),
                     entry,
                 );
             }
             drop(store);
+            drop(known);
             self
         }
     }
@@ -405,6 +488,9 @@ mod tests {
                 .cloned()
                 .collect()
         }
+        fn comic_exists(&self, comic_name: String) -> bool {
+            self.known_comics.lock().unwrap().contains(&comic_name)
+        }
     }
 
     fn test_peer() -> PeerIdentity {
@@ -431,7 +517,8 @@ mod tests {
                 is_completed: false,
                 updated_at: 5000,
             }));
-        let inbound_provider: Arc<dyn HistorySyncProvider> = Arc::new(InMemoryProvider::new());
+        let inbound_provider: Arc<dyn HistorySyncProvider> =
+            Arc::new(InMemoryProvider::new().with_known_comic("Berserk"));
 
         let (client_io, server_io) = tokio::io::duplex(64 * 1024);
         let (client_recv, client_send) = tokio::io::split(client_io);
@@ -483,7 +570,8 @@ mod tests {
                     created_at: 900,
                 },
             ]));
-        let inbound_provider: Arc<dyn HistorySyncProvider> = Arc::new(InMemoryProvider::new());
+        let inbound_provider: Arc<dyn HistorySyncProvider> =
+            Arc::new(InMemoryProvider::new().with_known_comic("Berserk"));
 
         let (client_io, server_io) = tokio::io::duplex(64 * 1024);
         let (client_recv, client_send) = tokio::io::split(client_io);
@@ -517,6 +605,52 @@ mod tests {
         let applied = inbound_provider.get_chapters_read();
         assert_eq!(applied.len(), 1);
         assert_eq!(applied[0].chapter_sort, "2");
+    }
+
+    /// Núcleo do contrato novo: se o peer não tem o quadrinho, o `HistoryEntryAck` volta com
+    /// `comic_known: false` e o outbound TERMINA COM ERRO — não mais o falso positivo de
+    /// "enviado com sucesso" quando na verdade nada foi aplicado do outro lado.
+    #[tokio::test]
+    async fn entry_exchange_fails_when_peer_does_not_have_the_comic() {
+        let outbound_provider: Arc<dyn HistorySyncProvider> =
+            Arc::new(InMemoryProvider::with_entry(FfiReadingProgressEntry {
+                comic_name: "Berserk".to_string(),
+                chapter_sort: "12".to_string(),
+                last_page: 7,
+                is_completed: false,
+                updated_at: 5000,
+            }));
+        // Inbound "vazio": nenhum quadrinho conhecido.
+        let inbound_provider: Arc<dyn HistorySyncProvider> = Arc::new(InMemoryProvider::new());
+
+        let (client_io, server_io) = tokio::io::duplex(64 * 1024);
+        let (client_recv, client_send) = tokio::io::split(client_io);
+        let (server_recv, server_send) = tokio::io::split(server_io);
+        let peer = test_peer();
+        let emit = noop_emitter();
+
+        let outbound_fut = run_entry_exchange(
+            true,
+            Some(("Berserk".to_string(), vec!["12".to_string()])),
+            &peer,
+            &emit,
+            &outbound_provider,
+            Box::new(client_send),
+            Box::new(client_recv),
+        );
+        let inbound_fut = run_entry_exchange(
+            false,
+            None,
+            &peer,
+            &emit,
+            &inbound_provider,
+            Box::new(server_send),
+            Box::new(server_recv),
+        );
+
+        let (outbound_result, inbound_result) = tokio::join!(outbound_fut, inbound_fut);
+        assert!(outbound_result.is_err());
+        inbound_result.expect("inbound ainda deve completar a sessão (o erro é do outbound)");
     }
 
     /// Sem escopo registrado (`comic_name`/`chapter_sorts: None` do lado outbound), a sessão

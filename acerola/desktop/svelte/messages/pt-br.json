@@ -151,6 +151,9 @@
 			},
 			"partial_sync": {
 				"label": "Alguns capítulos não foram sincronizados — veja o histórico para mais detalhes."
+			},
+			"comic_not_found": {
+				"label": "O outro dispositivo ainda não tem esse quadrinho."
 			}
 		}
 	},

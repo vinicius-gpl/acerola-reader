@@ -100,6 +100,11 @@ class HistorySyncProviderImpl
                 }
             }
 
+        override fun comicExists(comicName: String): Boolean =
+            runBlocking {
+                comicDirectoryDao.getDirectoryByName(comicName) != null
+            }
+
         override fun applyReadingProgress(entry: FfiReadingProgressEntry): Boolean =
             runBlocking {
                 val comic = comicDirectoryDao.getDirectoryByName(entry.comicName) ?: return@runBlocking false
