@@ -97,7 +97,7 @@
 
 - [x] **Exibir leituras recentes** - Rota renderizada agrupando items a partir de uma call SQL (Tauri) listando as leituras e capas ativas.
 - [x] **Continuar pelo histórico** - Payload de clique empacota state via router Svelte abrindo direto a page do `reader`.
-- [ ] **[Alta] Corrigir bug no histórico** - Quando um capítulo é marcado como concluído o app não atualiza o histórico para otimizar o histórico.
+- [x] **[Alta] Corrigir bug no histórico** - Quando um capítulo é marcado como concluído o app não atualiza o histórico para otimizar o histórico. Causa: `mark_chapter_read`/`mark_chapters_read_batch` (`core/services/history/mod.rs`) só gravavam em `chapter_read` (checkmark na lista de capítulos), nunca em `reading_history` (a tabela que a página de Histórico lê) — só `update_progress` (disparado pelo leitor de verdade) tocava nela. Corrigido pra upsertar `reading_history` também nos dois casos, preservando `last_page` já salvo quando o capítulo marcado é o mesmo que já estava sendo trackeado (não regride progresso real de leitura).
 
 ---
 
