@@ -38,6 +38,7 @@ import br.acerola.comic.usecase.metadata.ExtractVolumeCoverUseCase
 import br.acerola.comic.usecase.metadata.ManageCategoriesUseCase
 import br.acerola.comic.usecase.network.P2pUseCase
 import br.acerola.comic.usecase.network.SyncComicWithPeerUseCase
+import br.acerola.comic.usecase.network.SyncHistoryEntryWithPeerUseCase
 import com.google.common.truth.Truth.assertThat
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -86,6 +87,7 @@ class ComicViewModelTest {
     private val cacheHandler = mockk<ChapterCacheHandler>(relaxed = true)
     private val p2pUseCase = mockk<P2pUseCase>(relaxed = true)
     private val syncComicWithPeerUseCase = mockk<SyncComicWithPeerUseCase>(relaxed = true)
+    private val syncHistoryEntryWithPeerUseCase = mockk<SyncHistoryEntryWithPeerUseCase>(relaxed = true)
     private val p2pEventBus = mockk<P2pEventBus>(relaxed = true)
 
     private val localChaptersFlow = MutableStateFlow(ChapterPageDto(emptyList(), emptyList(), 20, 0, 0))
@@ -209,6 +211,7 @@ class ComicViewModelTest {
             cacheHandler = cacheHandler,
             p2pUseCase = p2pUseCase,
             syncComicWithPeerUseCase = syncComicWithPeerUseCase,
+            syncHistoryEntryWithPeerUseCase = syncHistoryEntryWithPeerUseCase,
             p2pEventBus = p2pEventBus,
         )
 

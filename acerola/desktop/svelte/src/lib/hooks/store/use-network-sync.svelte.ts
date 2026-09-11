@@ -11,7 +11,7 @@ export type TransferLogEntry = {
 	id: number;
 	/** Vazio quando a origem não é resolvível (ex.: `files:progress`, que não carrega peer id). */
 	peerId: string;
-	kind: 'history' | 'files' | 'comic';
+	kind: 'history' | 'files' | 'comic' | 'historyEntry';
 	status: 'started' | 'progress' | 'complete' | 'error';
 	message: string;
 	timestamp: number;
@@ -446,6 +446,21 @@ export function useNetworkSync() {
 				push(peerId, 'comic', 'complete', peerId, comicName);
 				settlePending(syncKey(peerId, 'comic'), true, peerId);
 			}),
+			await listen<string>(NETWORK_EVENTS.historyEntryStarted, (event) =>
+				push(event.payload, 'historyEntry', 'started', event.payload)
+			),
+			await listen<string>(NETWORK_EVENTS.historyEntryComplete, (event) => {
+				clearSyncing(event.payload, 'historyEntry');
+				push(event.payload, 'historyEntry', 'complete', event.payload);
+				settlePending(syncKey(event.payload, 'historyEntry'), true, event.payload);
+			}),
+			await listen<string>(NETWORK_EVENTS.historyEntryError, (event) => {
+				const { peerId, message, code } = parseErrorPayload(event.payload);
+				const translated = translateSyncMessage(code, message);
+				if (peerId) clearSyncing(peerId, 'historyEntry');
+				push(peerId ?? '', 'historyEntry', 'error', translated);
+				if (peerId) settlePending(syncKey(peerId, 'historyEntry'), false, translated);
+			}),
 			await listen<string>(NETWORK_EVENTS.comicError, (event) => {
 				const parsed = parseErrorPayload(event.payload);
 				if (parsed.itemLevel) {
@@ -565,6 +580,44 @@ export function useNetworkSync() {
 		return settlement;
 	}
 
+	/// Push do(s) capítulo(s) selecionado(s) (progresso + marcador de "lido") de UM quadrinho pra
+	/// um peer — mais leve que `syncComic`, que troca o quadrinho inteiro. Usado tanto pelo envio
+	/// de um capítulo só quanto de vários selecionados de uma vez. `chapterIds` são os mesmos
+	/// `ChapterId` (string) usados pelo resto da UI de seleção (ver `useChapterSelection` /
+	/// `markChaptersReadBatch`) — o backend faz o parse e resolve pra `chapter_sort` (a chave
+	/// comparável entre devices) antes de montar o manifesto. Mesmo padrão de espera de
+	/// conclusão real de `syncComic`: o `invoke` só enfileira a conexão, a promise
+	/// resolve/rejeita com `sync:history-entry:complete`/`error`.
+	async function syncHistoryEntry(
+		peerId: string,
+		addrs: number[],
+		comicName: string,
+		chapterIds: string[]
+	): Promise<string> {
+		if (isSyncing(peerId, 'historyEntry')) {
+			throw new Error(m['tauri_errors.sync.session_busy.label']());
+		}
+
+		const key = syncKey(peerId, 'historyEntry');
+		const settlement = new Promise<string>((resolve, reject) => {
+			pendingSettlement.set(key, { resolve, reject });
+		});
+
+		try {
+			await withSyncGuard(peerId, ['historyEntry'], NETWORK_COMMANDS.syncHistoryEntry, {
+				peerId,
+				addrs,
+				comicName,
+				chapterIds
+			});
+		} catch (err) {
+			pendingSettlement.delete(key);
+			throw err;
+		}
+
+		return settlement;
+	}
+
 	/// Timestamp da última sessão concluída com sucesso pra esse peer (qualquer `kind`), ou
 	/// `undefined` se nunca sincronizou — usado pra mostrar "Última sync: ..." por peer.
 	function lastSyncedAt(peerId: string): number | undefined {
@@ -600,6 +653,7 @@ export function useNetworkSync() {
 		syncFiles,
 		syncAll,
 		syncComic,
+		syncHistoryEntry,
 		isSyncing,
 		lastSyncedAt,
 		activeSession,

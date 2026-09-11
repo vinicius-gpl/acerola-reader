@@ -14,6 +14,8 @@
 	import { useHistory } from '$lib/hooks/store/use-history.svelte';
 	import { usePeerConnection } from '$lib/hooks/store/use-peer-connection.svelte';
 	import type { useNetworkSync, SyncDirection } from '$lib/hooks/store/use-network-sync.svelte';
+	import AcerolaPeerPicker from '$lib/components/acerola-peer-picker/acerola-peer-picker.svelte';
+	import type { PairedPeerPayload } from '$lib/contracts/network/network.payloads';
 	import { CONTEXT_KEYS } from '$lib/constants/context-keys';
 
 	import { useComicContext } from '$lib/state/comic-context.svelte';
@@ -30,6 +32,7 @@
 	import RefreshCw from '@lucide/svelte/icons/refresh-cw';
 	import ArrowUpDown from '@lucide/svelte/icons/arrow-up-down';
 	import Check from '@lucide/svelte/icons/check';
+	import Share2 from '@lucide/svelte/icons/share-2';
 
 	import { getContext, onMount, untrack } from 'svelte';
 	import { fade } from 'svelte/transition';
@@ -78,6 +81,7 @@
 	);
 	let searchQuery = $state('');
 	let showSortMenu = $state(false);
+	let sendToPeerPickerOpen = $state(false);
 
 	// Sobrescrever cover.* mantém o mesmo path no disco, então o back-end não muda a URL
 	// resolvida — sem isso o <img> nunca re-renderiza e o cache do protocolo asset:// serve
@@ -200,6 +204,32 @@
 		await historyActions.unmarkChaptersReadBatch(id.toString(), ids);
 		readChapters = readChapters.filter((readId) => !ids.includes(readId));
 		chapterSelection.exitSelectionMode();
+	}
+
+	/// Envia o(s) capítulo(s) atualmente selecionado(s) (progresso + marcador de "lido") pra um
+	/// peer escolhido no `AcerolaPeerPicker` — mesma seleção usada por `handleBatchMarkRead`/
+	/// `handleBatchMarkUnread`, então funciona tanto pra um capítulo só (seleção de 1) quanto
+	/// pra vários de uma vez.
+	async function handleSendChaptersToPeer(peer: PairedPeerPayload) {
+		sendToPeerPickerOpen = false;
+		if (!manga?.title) return;
+
+		const chapterIds = chapterSelection.selectedIdsArray;
+		chapterSelection.exitSelectionMode();
+
+		try {
+			await toastAsync(
+				() => p2pSync.syncHistoryEntry(peer.peerId, peer.addrs, manga!.title, chapterIds),
+				{
+					loading: m['pages.comic.selection.send_to_peer.toast.start'](),
+					success: m['pages.comic.selection.send_to_peer.toast.success'](),
+					error: (err) =>
+						m['pages.comic.selection.send_to_peer.toast.error']({ msg: extractErrorMessage(err) })
+				}
+			);
+		} catch {
+			// Erro já foi mostrado pelo toastAsync acima.
+		}
 	}
 
 	async function handleSyncMangadex() {
@@ -844,6 +874,13 @@
 							{m['pages.comic.selection.mark_unread']()}
 						</AcerolaButton>
 						<AcerolaButton
+							ui={{ variant: 'secondary', size: 'sm', class: 'gap-1.5 rounded-lg' }}
+							events={{ onClick: () => (sendToPeerPickerOpen = true) }}
+						>
+							<Share2 size={14} />
+							{m['pages.comic.selection.send_to_peer.button']()}
+						</AcerolaButton>
+						<AcerolaButton
 							ui={{ variant: 'ghost', size: 'sm', class: 'rounded-lg' }}
 							events={{ onClick: () => chapterSelection.exitSelectionMode() }}
 						>
@@ -851,6 +888,18 @@
 						</AcerolaButton>
 					</div>
 				{/if}
+
+				<AcerolaPeerPicker
+					state={{ open: sendToPeerPickerOpen }}
+					data={{
+						peers: peers.pairedPeers,
+						nicknameFor: (peerId) => peers.peerNicknames[peerId]
+					}}
+					events={{
+						onOpenChange: (open) => (sendToPeerPickerOpen = open),
+						onSelect: handleSendChaptersToPeer
+					}}
+				/>
 
 				<div class="min-h-150">
 					{#if activeTab === 'content'}

@@ -15,6 +15,7 @@ export const NETWORK_COMMANDS = {
 	restartP2p: 'restart_p2p',
 	connectToPeer: 'connect_to_peer',
 	syncHistory: 'sync_history',
+	syncHistoryEntry: 'sync_history_entry',
 	syncFiles: 'sync_files',
 	syncAll: 'sync_all',
 	syncComic: 'sync_comic',

@@ -87,8 +87,7 @@ impl HistorySyncService {
         let Some(progress) = self.reading_repo.find_by_comic_id(comic.id).await? else {
             return Ok(None);
         };
-        let Some(chapter) = self.chapter_repo.find_by_id(progress.chapter_archive_id).await?
-        else {
+        let Some(chapter) = self.chapter_repo.find_by_id(progress.chapter_archive_id).await? else {
             return Ok(None);
         };
 
@@ -99,6 +98,59 @@ impl HistorySyncService {
             is_completed: progress.is_completed,
             updated_at: progress.updated_at,
         }))
+    }
+
+    /// Monta o manifesto restrito a um subconjunto de capítulos de UM quadrinho — usado pelo
+    /// envio explícito de capítulo(s) selecionado(s) pra um peer (`acerola/sync-history-entry/1`).
+    /// Recebe `chapter_archive_id`s (mesma unidade que o resto da UI local, ex.:
+    /// `markChaptersReadBatch`) e resolve pra `chapter_sort` aqui dentro — só esse último é
+    /// comparável entre os dois devices, então é o que efetivamente viaja no manifesto. IDs
+    /// que não existem ou pertencem a outro quadrinho são ignorados silenciosamente.
+    pub async fn build_manifest_for_chapters(
+        &self, comic_name: &str, chapter_ids: &[i64],
+    ) -> Result<HistoryManifest, ComicError> {
+        let Some(comic) = self.comic_repo.find_by_name(comic_name).await? else {
+            return Ok(HistoryManifest { entries: vec![], read_markers: vec![] });
+        };
+
+        let mut chapter_sorts = Vec::with_capacity(chapter_ids.len());
+        for &chapter_id in chapter_ids {
+            if let Some(chapter) = self.chapter_repo.find_by_id(chapter_id).await? {
+                if chapter.comic_directory_fk == comic.id {
+                    chapter_sorts.push(chapter.chapter_sort);
+                }
+            }
+        }
+
+        let mut entries = Vec::new();
+        if let Some(progress) = self.reading_repo.find_by_comic_id(comic.id).await? {
+            if let Some(chapter) = self.chapter_repo.find_by_id(progress.chapter_archive_id).await?
+            {
+                if chapter_sorts.iter().any(|sort| sort == &chapter.chapter_sort) {
+                    entries.push(HistoryEntry {
+                        comic_name: comic_name.to_string(),
+                        chapter: chapter.chapter_sort,
+                        last_page: progress.last_page,
+                        is_completed: progress.is_completed,
+                        updated_at: progress.updated_at,
+                    });
+                }
+            }
+        }
+
+        let read_markers = self
+            .read_marker_repo
+            .find_natural_keys_for_chapters(comic.id, &chapter_sorts)
+            .await?
+            .into_iter()
+            .map(|(chapter, created_at)| ReadMarker {
+                comic_name: comic_name.to_string(),
+                chapter,
+                created_at,
+            })
+            .collect();
+
+        Ok(HistoryManifest { entries, read_markers })
     }
 
     /// Aplica o manifesto recebido do peer localmente: last-write-wins por `updated_at`
@@ -269,6 +321,81 @@ mod tests {
         let manifest = service.build_manifest().await.unwrap();
         assert_eq!(manifest.entries[0].last_page, 30);
         assert!(manifest.entries[0].is_completed);
+    }
+
+    #[tokio::test]
+    async fn build_manifest_for_chapters_includes_progress_only_when_selected() {
+        let (pool, service) = setup().await;
+        sqlx::query("INSERT INTO chapter_archive (id, chapter, path, chapter_sort, is_special, comic_directory_fk, last_modified) VALUES (2, 'Cap 2', 'p', '2', 0, 1, 0)")
+            .execute(&pool)
+            .await
+            .unwrap();
+        ReadingHistoryRepository::new(pool.clone())
+            .upsert(&ReadingHistory {
+                comic_directory_id: 1,
+                chapter_archive_id: 1,
+                last_page: 5,
+                is_completed: false,
+                updated_at: 1000,
+            })
+            .await
+            .unwrap();
+
+        let not_selected = service.build_manifest_for_chapters("Test", &[2]).await.unwrap();
+        assert!(not_selected.entries.is_empty());
+
+        let selected = service.build_manifest_for_chapters("Test", &[1]).await.unwrap();
+        assert_eq!(selected.entries.len(), 1);
+        assert_eq!(selected.entries[0].chapter, "1");
+    }
+
+    #[tokio::test]
+    async fn build_manifest_for_chapters_only_includes_selected_read_markers() {
+        use crate::data::repositories::history::chapter_read_repo::ChapterReadRepository;
+
+        let (pool, service) = setup().await;
+        sqlx::query("INSERT INTO chapter_archive (id, chapter, path, chapter_sort, is_special, comic_directory_fk, last_modified) VALUES (2, 'Cap 2', 'p', '2', 0, 1, 0)")
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        let read_repo = ChapterReadRepository::new(pool.clone());
+        read_repo.insert_batch(1, &[1, 2], 500).await.unwrap();
+
+        let manifest = service.build_manifest_for_chapters("Test", &[1]).await.unwrap();
+
+        assert_eq!(manifest.read_markers.len(), 1);
+        assert_eq!(manifest.read_markers[0].chapter, "1");
+    }
+
+    #[tokio::test]
+    async fn build_manifest_for_chapters_ignores_id_belonging_to_another_comic() {
+        use crate::{
+            data::repositories::history::chapter_read_repo::ChapterReadRepository,
+            tests::utils::setup_test_db::insert_comic_directory,
+        };
+
+        let (pool, service) = setup().await;
+        insert_comic_directory(&pool, 2, "Outro", "/outro").await;
+        sqlx::query("INSERT INTO chapter_archive (id, chapter, path, chapter_sort, is_special, comic_directory_fk, last_modified) VALUES (2, '1', 'p', '1', 0, 2, 0)")
+            .execute(&pool)
+            .await
+            .unwrap();
+        ChapterReadRepository::new(pool.clone()).insert_batch(2, &[2], 500).await.unwrap();
+
+        let manifest = service.build_manifest_for_chapters("Test", &[2]).await.unwrap();
+
+        assert!(manifest.read_markers.is_empty());
+    }
+
+    #[tokio::test]
+    async fn build_manifest_for_chapters_unknown_comic_returns_empty_manifest() {
+        let (_, service) = setup().await;
+
+        let manifest = service.build_manifest_for_chapters("Nao Existe", &[1]).await.unwrap();
+
+        assert!(manifest.entries.is_empty());
+        assert!(manifest.read_markers.is_empty());
     }
 
     #[tokio::test]

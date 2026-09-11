@@ -65,6 +65,41 @@ class HistorySyncProviderImpl
                 )
             }
 
+        override fun getReadingProgressForChapters(
+            comicName: String,
+            chapterSorts: List<String>,
+        ): List<FfiReadingProgressEntry> =
+            runBlocking {
+                val comic = comicDirectoryDao.getDirectoryByName(comicName) ?: return@runBlocking emptyList()
+                val history = readingHistoryDao.observeHistoryByDirectoryId(comic.id).first() ?: return@runBlocking emptyList()
+                if (history.chapterSort !in chapterSorts) return@runBlocking emptyList()
+
+                listOf(
+                    FfiReadingProgressEntry(
+                        comicName = comicName,
+                        chapterSort = history.chapterSort,
+                        lastPage = history.lastPage,
+                        isCompleted = history.isCompleted,
+                        updatedAt = history.updatedAt,
+                    ),
+                )
+            }
+
+        override fun getChaptersReadForChapters(
+            comicName: String,
+            chapterSorts: List<String>,
+        ): List<FfiChapterReadEntry> =
+            runBlocking {
+                val comic = comicDirectoryDao.getDirectoryByName(comicName) ?: return@runBlocking emptyList()
+                readingHistoryDao.getChapterReadsByDirectoryIdAndSorts(comic.id, chapterSorts).map { chapterRead ->
+                    FfiChapterReadEntry(
+                        comicName = comicName,
+                        chapterSort = chapterRead.chapterSort,
+                        createdAt = chapterRead.createdAt,
+                    )
+                }
+            }
+
         override fun applyReadingProgress(entry: FfiReadingProgressEntry): Boolean =
             runBlocking {
                 val comic = comicDirectoryDao.getDirectoryByName(entry.comicName) ?: return@runBlocking false

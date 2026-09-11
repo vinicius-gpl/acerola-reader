@@ -316,7 +316,15 @@
 				"select": "Selecionar",
 				"selected": "{count} selecionado(s)",
 				"select_all": "Selecionar todos",
-				"cancel": "Cancelar"
+				"cancel": "Cancelar",
+				"send_to_peer": {
+					"button": "Enviar",
+					"toast": {
+						"start": "Enviando para o dispositivo...",
+						"success": "Enviado!",
+						"error": "Falha ao enviar: {msg}"
+					}
+				}
 			},
 			"metadata": {
 				"description": {
@@ -831,6 +839,9 @@
 				"history_started": "Sincronizando histórico com {peer}...",
 				"history_complete": "Histórico sincronizado com {peer}.",
 				"history_error": "Falha ao sincronizar histórico: {msg}",
+				"history_entry_started": "Enviando capítulo(s) para {peer}...",
+				"history_entry_complete": "Capítulo(s) enviado(s) para {peer}.",
+				"history_entry_error": "Falha ao enviar capítulo(s): {msg}",
 				"files_started": "Sincronizando arquivos com {peer}...",
 				"files_progress": "Transferindo {item}...",
 				"files_complete": "Arquivos sincronizados com {peer}.",

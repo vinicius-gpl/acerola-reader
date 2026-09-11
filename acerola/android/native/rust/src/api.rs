@@ -515,14 +515,20 @@ impl P2PNode {
         self.connect(peer_addr, COMIC_SYNC_ALPN.to_vec());
     }
 
-    /// Empurra o progresso de leitura de UM único quadrinho (`comic_name`) pra `peer_addr` — mais
-    /// leve que uma sessão completa de `acerola/sync-history/1` (biblioteca inteira nos dois
-    /// sentidos). Mesma técnica de `sync_comic`: grava o escopo pendente ANTES de conectar.
-    pub fn sync_history_entry(&self, peer_addr: FfiPeerAddr, comic_name: String) {
+    /// Empurra o progresso + marcadores de "lido" do(s) capítulo(s) selecionado(s)
+    /// (`chapter_sorts`) de UM único quadrinho (`comic_name`) pra `peer_addr` — mais leve que
+    /// uma sessão completa de `acerola/sync-history/1` (biblioteca inteira nos dois sentidos).
+    /// Mesma técnica de `sync_comic`: grava o escopo pendente ANTES de conectar.
+    pub fn sync_history_entry(
+        &self,
+        peer_addr: FfiPeerAddr,
+        comic_name: String,
+        chapter_sorts: Vec<String>,
+    ) {
         self.pending_history_entry_scope
             .lock()
             .expect("pending history entry scope mutex poisoned")
-            .insert(peer_addr.id.clone(), comic_name);
+            .insert(peer_addr.id.clone(), (comic_name, chapter_sorts));
         self.connect(peer_addr, HISTORY_ENTRY_SYNC_ALPN.to_vec());
     }
 

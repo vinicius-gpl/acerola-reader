@@ -25,7 +25,6 @@
 	import { NETWORK_COMMANDS } from '$lib/contracts/network/network.commands';
 	import { NETWORK_EVENTS } from '$lib/contracts/network/network.events';
 	import { CONTEXT_KEYS } from '$lib/constants/context-keys';
-	import { shortId } from '$lib/utils/connection-code.utils';
 
 	import ShieldAlertIcon from '@lucide/svelte/icons/shield-alert';
 	import XIcon from '@lucide/svelte/icons/x';
@@ -273,9 +272,7 @@
 	state={{ open: peerPendingRemoval !== null }}
 	data={{
 		title: m['pages.network.peers.remove_confirm.title']({
-			peer: peerPendingRemoval
-				? (peerPendingRemoval.deviceName ?? shortId(peerPendingRemoval.peerId))
-				: ''
+			peer: peerPendingRemoval ? peers.peerLabel(peerPendingRemoval.peerId) : ''
 		}),
 		description: m['pages.network.peers.remove_confirm.desc'](),
 		cancelText: m['pages.network.peers.remove_confirm.cancel'](),
