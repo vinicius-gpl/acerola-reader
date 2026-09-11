@@ -92,13 +92,19 @@
 	const uniquePeers = $derived.by(() => {
 		const byId = new Map<string, DisplayPeer>();
 		for (const peer of peers.pairedPeers) {
-			byId.set(peer.peerId, { peerId: peer.peerId, deviceName: peer.deviceName, connected: false });
+			byId.set(peer.peerId, {
+				peerId: peer.peerId,
+				deviceName: peer.deviceName,
+				nickname: peers.peerNicknames[peer.peerId] ?? null,
+				connected: false
+			});
 		}
 
 		for (const peer of peers.status?.peers ?? []) {
 			byId.set(peer.peerId, {
 				peerId: peer.peerId,
 				deviceName: peer.device?.name ?? byId.get(peer.peerId)?.deviceName ?? null,
+				nickname: peers.peerNicknames[peer.peerId] ?? null,
 				connected: true
 			});
 		}
@@ -213,7 +219,8 @@
 			onSyncFiles: (peerId) => withSync((id, addrs) => sync.syncFiles(id, addrs), peerId),
 			onSyncAll: (peerId) => withSync((id, addrs) => sync.syncAll(id, addrs), peerId),
 			onBrowseLibrary: openRemoteLibrary,
-			onRemove: (peer) => (peerPendingRemoval = peer)
+			onRemove: (peer) => (peerPendingRemoval = peer),
+			onRename: (peerId, nickname) => peers.setPeerNickname(peerId, nickname)
 		}}
 	/>
 

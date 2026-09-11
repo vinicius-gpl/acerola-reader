@@ -22,7 +22,8 @@ vi.mock('svelte-sonner', () => ({
 	toast: {
 		error: vi.fn(),
 		info: vi.fn(),
-		success: vi.fn()
+		success: vi.fn(),
+		loading: vi.fn(() => 'toast-id')
 	}
 }));
 
@@ -78,6 +79,20 @@ describe('useLibraryScanner', () => {
 		expect(toast.error).toHaveBeenCalledWith('Sem pasta selecionada.');
 	});
 
+	it('shows the notification and toast immediately when the scan starts, before any backend event', async () => {
+		const hook = await renderScanner('C:/Comics');
+
+		await hook.start();
+
+		// Regressão: o toast/notificação de "em andamento" não podia esperar o primeiro
+		// `scan:progress` do backend pra aparecer — dependendo de quanto o scan demora pra
+		// emitir esse evento, o toast surgia num momento sem sentido (às vezes quase junto
+		// com o de conclusão). Precisa aparecer no clique, sem depender de nenhum evento.
+		expect(hook.scanning).toBe(true);
+		expect(toast.loading).toHaveBeenCalledWith('Scan em andamento...');
+		expect(notificationStore.notifications[0]?.message).toBe('Scan em andamento...');
+	});
+
 	it('displays progress and completes scan successfully', async () => {
 		const { callbacks, unlisteners } = setupListeners();
 		const hook = await renderScanner('C:/Comics');
@@ -92,12 +107,13 @@ describe('useLibraryScanner', () => {
 		callbacks.get(LIBRARY_EVENTS.scanProgress)?.({ payload: undefined });
 
 		expect(toast.info).not.toHaveBeenCalled();
+		expect(toast.loading).toHaveBeenCalledWith('Scan em andamento...');
 		expect(notificationStore.notifications[0]?.message).toBe('Scan em andamento...');
 
 		callbacks.get(LIBRARY_EVENTS.scanComplete)?.({ payload: undefined });
 
 		expect(hook.scanning).toBe(false);
-		expect(toast.success).not.toHaveBeenCalled();
+		expect(toast.success).toHaveBeenCalledWith('Scan concluído!', { id: 'toast-id' });
 		expect(notificationStore.notifications.at(-1)?.message).toBe('Scan concluído!');
 		expect(unlisteners.get(LIBRARY_EVENTS.scanProgress)).toHaveBeenCalledOnce();
 		expect(unlisteners.get(LIBRARY_EVENTS.scanComplete)).toHaveBeenCalledOnce();
@@ -115,7 +131,10 @@ describe('useLibraryScanner', () => {
 		});
 
 		expect(hook.scanning).toBe(false);
-		expect(toast.error).not.toHaveBeenCalled();
+		expect(toast.error).toHaveBeenCalledWith('Falha no scan', {
+			description: 'falha no scan',
+			id: 'toast-id'
+		});
 		expect(
 			notificationStore.notifications.some((item) => item.message === 'Scan em andamento...')
 		).toBe(false);

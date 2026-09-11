@@ -36,11 +36,13 @@ use crate::{
             cover_request_registry::PendingCoverRequestRegistry,
             file_handler::{FileSyncInbound, FileSyncOutbound},
             file_session_guard::FileSyncSessionGuard,
+            history_entry_handler::{HistoryEntrySyncInbound, HistoryEntrySyncOutbound},
+            history_entry_registry::PendingHistoryEntryRegistry,
             history_handler::{HistorySyncInbound, HistorySyncOutbound},
             library_browse_handler::{LibraryBrowseInbound, LibraryBrowseOutbound},
             transfer::{BlobChapterTransfer, ChapterTransfer},
-            COMIC_SYNC_ALPN, COVER_BROWSE_ALPN, FILE_SYNC_ALPN, HISTORY_SYNC_ALPN,
-            LIBRARY_BROWSE_ALPN,
+            COMIC_SYNC_ALPN, COVER_BROWSE_ALPN, FILE_SYNC_ALPN, HISTORY_ENTRY_SYNC_ALPN,
+            HISTORY_SYNC_ALPN, LIBRARY_BROWSE_ALPN,
         },
     },
 };
@@ -108,6 +110,7 @@ struct P2pNodeContext {
     sync_log_repo: SyncHistoryLogRepository,
     file_sync_session_guard: Arc<FileSyncSessionGuard>,
     pending_comic_sync: Arc<PendingComicSyncRegistry>,
+    pending_history_entry: Arc<PendingHistoryEntryRegistry>,
     pending_cover_request: Arc<PendingCoverRequestRegistry>,
     chapter_transfer: Arc<dyn ChapterTransfer>,
     remote_covers_dir: PathBuf,
@@ -220,6 +223,21 @@ impl P2pNodeContext {
                     Arc::clone(&self.file_sync_session_guard),
                     Arc::clone(&self.pending_comic_sync),
                     Arc::clone(&self.chapter_transfer),
+                )),
+            )
+            .inbound(
+                HISTORY_ENTRY_SYNC_ALPN,
+                Arc::new(HistoryEntrySyncInbound::new(
+                    Arc::clone(&self.event_emitter),
+                    self.history_sync_service.clone(),
+                )),
+            )
+            .outbound(
+                HISTORY_ENTRY_SYNC_ALPN,
+                Arc::new(HistoryEntrySyncOutbound::new(
+                    Arc::clone(&self.event_emitter),
+                    self.history_sync_service.clone(),
+                    Arc::clone(&self.pending_history_entry),
                 )),
             )
             .inbound(
@@ -356,6 +374,12 @@ pub async fn setup_network_services(
     let pending_comic_sync = PendingComicSyncRegistry::new();
     app_handle.manage(Arc::clone(&pending_comic_sync));
 
+    // Mesmo motivo de `pending_comic_sync`: `sync_history_entry` (comando Tauri) grava o
+    // `comic_name` aqui antes de `connect()`, e `HistoryEntrySyncOutbound` consome no início da
+    // sessão (ver `history_entry_registry.rs`).
+    let pending_history_entry = PendingHistoryEntryRegistry::new();
+    app_handle.manage(Arc::clone(&pending_history_entry));
+
     let pending_cover_request = PendingCoverRequestRegistry::new();
     app_handle.manage(Arc::clone(&pending_cover_request));
 
@@ -379,6 +403,7 @@ pub async fn setup_network_services(
         sync_log_repo,
         file_sync_session_guard,
         pending_comic_sync,
+        pending_history_entry,
         pending_cover_request,
         chapter_transfer,
         remote_covers_dir,

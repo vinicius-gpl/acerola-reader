@@ -5,6 +5,7 @@ import android.os.Build
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import br.acerola.comic.config.preference.DeviceAliasPreference
+import br.acerola.comic.config.preference.PeerNicknamePreference
 import br.acerola.comic.config.preference.RelayPreference
 import br.acerola.comic.error.message.SyncProtocolError
 import br.acerola.comic.logging.AcerolaLogger
@@ -81,6 +82,13 @@ class SyncViewModel
 
         private val nextLogId = AtomicLong(0)
 
+        /** Último snapshot de [PeerNicknamePreference.nicknamesFlow] — lido por
+         *  [refreshLocalInfo] pra não apagar os apelidos já aplicados enquanto reconstrói
+         *  [SyncUiState.pairedPeers] do zero a partir do lado nativo (que não sabe nada sobre
+         *  apelidos locais). */
+        @Volatile
+        private var currentNicknames: Map<String, String> = emptyMap()
+
         /** `"$peerId:$comicName"` -> última versão de capa confirmada (cacheada ou já sabida
          *  como atual) — usado como `known_version` em `browseCover`, pra nunca rebaixar a mesma
          *  versão duas vezes na mesma sessão do app. Fora do `SyncUiState` de propósito: não
@@ -131,6 +139,20 @@ class SyncViewModel
             viewModelScope.launch {
                 val alias = DeviceAliasPreference.deviceAliasFlow(context).first()
                 _uiState.update { it.copy(localDeviceName = alias ?: Build.MODEL) }
+            }
+
+            // Apelidos locais por peer — reaplica em cima de `pairedPeers` a cada mudança
+            // (renomear ou desparear), sem precisar de um novo `refreshLocalInfo()` (que bate
+            // no lado nativo via JNI) só pra isso.
+            viewModelScope.launch {
+                PeerNicknamePreference.nicknamesFlow(context).collect { nicknames ->
+                    currentNicknames = nicknames
+                    _uiState.update { state ->
+                        state.copy(
+                            pairedPeers = state.pairedPeers.map { peer -> peer.copy(nickname = nicknames[peer.peerId]) },
+                        )
+                    }
+                }
             }
 
             // Só pro estado de UI DESTA tela (log em memória, spinner dos botões) — a
@@ -240,6 +262,7 @@ class SyncViewModel
                 SyncAction.DismissTrustDialog -> _uiState.update { it.copy(trustedPeerDialogPeerId = null) }
                 SyncAction.DismissConnectError -> _uiState.update { it.copy(connectError = null) }
                 is SyncAction.RemovePeer -> removePeer(action.peerId)
+                is SyncAction.RenamePeer -> renamePeer(action.peerId, action.nickname)
 
                 is SyncAction.BrowseLibrary -> browseLibrary(action.peerId)
                 SyncAction.DismissLibraryBrowse ->
@@ -452,6 +475,10 @@ class SyncViewModel
         private fun removePeer(peerId: String) {
             viewModelScope.launch(Dispatchers.IO) {
                 p2pUseCase.removePairedPeer(peerId)
+                // Limpa também o apelido local — sem isso, reparear o mesmo `peerId` de volta
+                // faria o apelido antigo "ressuscitar" (mesmo cuidado do lado Desktop com
+                // `SecureP2pStorage::remove_peer` pro `device_info` persistido).
+                PeerNicknamePreference.setNickname(context, peerId, null)
                 _uiState.update {
                     it.copy(
                         pairedPeers = it.pairedPeers.filterNot { peer -> peer.peerId == peerId },
@@ -461,6 +488,18 @@ class SyncViewModel
                         syncingKeys = it.syncingKeys.filterNot { key -> key.startsWith("$peerId:") }.toSet(),
                     )
                 }
+            }
+        }
+
+        /** Define (ou limpa, com string vazia) o apelido local de um peer — persiste via
+         *  DataStore; [SyncUiState.pairedPeers] é atualizado pelo coletor de
+         *  [PeerNicknamePreference.nicknamesFlow] no `init`, não aqui (única fonte de verdade). */
+        private fun renamePeer(
+            peerId: String,
+            nickname: String,
+        ) {
+            viewModelScope.launch(Dispatchers.IO) {
+                PeerNicknamePreference.setNickname(context, peerId, nickname)
             }
         }
 
@@ -804,7 +843,7 @@ class SyncViewModel
                 val connectedPeers = p2pUseCase.getConnectedPeersWithInfo()
                 val paired =
                     p2pUseCase.getPairedPeers().map {
-                        PairedPeer(peerId = it.id, deviceName = it.deviceName)
+                        PairedPeer(peerId = it.id, deviceName = it.deviceName, nickname = currentNicknames[it.id])
                     }
                 val localId = p2pUseCase.getLocalId()
                 val mode = p2pUseCase.getMode()

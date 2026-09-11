@@ -99,6 +99,9 @@ data class SyncResult(
 data class PairedPeer(
     val peerId: String,
     val deviceName: String?,
+    /** Apelido local (definido pelo usuário neste dispositivo, ver `PeerNicknamePreference`) —
+     *  tem prioridade sobre [deviceName] na exibição, sem nunca sobrescrevê-lo. */
+    val nickname: String? = null,
 )
 
 data class PendingConnect(

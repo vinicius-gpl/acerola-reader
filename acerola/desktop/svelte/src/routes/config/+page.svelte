@@ -5,6 +5,7 @@
 	import { SvelteSet } from 'svelte/reactivity';
 	import { invoke } from '@tauri-apps/api/core';
 	import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+	import { toast } from 'svelte-sonner';
 	import AcerolaAccordionCard from '$lib/components/acerola-accordion-card/acerola-accordion-card.svelte';
 	import AcerolaButtonIcon from '$lib/components/acerola-button/acerola-button-icon.svelte';
 	import AcerolaCommand from '$lib/components/acerola-command/acerola-command.svelte';
@@ -54,6 +55,10 @@
 	// sync_all_metadata_mangadex/anilist no backend, que emitem o mesmo evento pras duas) —
 	// por isso só uma sincronização "all" roda por vez, nunca mangadex e anilist juntas.
 	let syncingSource = $state<'mangadex' | 'anilist' | null>(null);
+	// Toast espelhando a mesma sincronização — atualizado in-place (mesmo `id`) em vez de
+	// empilhar um toast por evento de progresso. Sem isso, sincronizar metadados da biblioteca
+	// inteira só aparecia no sininho de notificações, não num toast.
+	let syncToastId: string | number | undefined;
 
 	const selectedMetadataLanguageLabel = $derived(
 		LANGUAGES.find((lang) => lang.code === metadataLanguageStore.metadataLanguage)?.label ??
@@ -80,6 +85,7 @@
 		syncingSource = 'mangadex';
 		try {
 			notify.info(m['pages.config.toast.sync.mangadex.start'](), { duration: 0 });
+			syncToastId = toast.loading(m['pages.config.toast.sync.mangadex.start']());
 			await invoke(METADATA_COMMANDS.syncAllMangadex, {
 				language: metadataLanguageStore.metadataLanguage,
 				generateComicInfo: comicInfoPreference.comicInfoPreference ?? false
@@ -88,6 +94,8 @@
 			syncingSource = null;
 			const msg = extractErrorMessage(error);
 			notify.error(m['pages.config.toast.sync.mangadex.error']({ msg }), { duration: 0 });
+			toast.error(m['pages.config.toast.sync.mangadex.error']({ msg }), { id: syncToastId });
+			syncToastId = undefined;
 		}
 	}
 
@@ -96,6 +104,7 @@
 		syncingSource = 'anilist';
 		try {
 			notify.info(m['pages.config.toast.sync.anilist.start'](), { duration: 0 });
+			syncToastId = toast.loading(m['pages.config.toast.sync.anilist.start']());
 			await invoke(METADATA_COMMANDS.syncAllAnilist, {
 				language: metadataLanguageStore.metadataLanguage,
 				generateComicInfo: comicInfoPreference.comicInfoPreference ?? false
@@ -104,6 +113,8 @@
 			syncingSource = null;
 			const msg = extractErrorMessage(error);
 			notify.error(m['pages.config.toast.sync.anilist.error']({ msg }), { duration: 0 });
+			toast.error(m['pages.config.toast.sync.anilist.error']({ msg }), { id: syncToastId });
+			syncToastId = undefined;
 		}
 	}
 
@@ -114,20 +125,24 @@
 
 		(async () => {
 			unlistenProgress = await listen<string>('metadata:sync_all:progress', (event) => {
-				notify.info(m['pages.config.toast.sync.progress']({ name: event.payload }), {
-					duration: 0
-				});
+				const msg = m['pages.config.toast.sync.progress']({ name: event.payload });
+				notify.info(msg, { duration: 0 });
+				syncToastId = toast.loading(msg, { id: syncToastId });
 			});
 
 			unlistenComplete = await listen('metadata:sync_all:complete', () => {
 				syncingSource = null;
 				notify.success(m['pages.config.toast.sync.complete'](), { duration: 0 });
+				toast.success(m['pages.config.toast.sync.complete'](), { id: syncToastId });
+				syncToastId = undefined;
 			});
 
 			unlistenError = await listen<any>('metadata:sync_all:error', (event) => {
 				syncingSource = null;
 				const msg = event.payload?.message || event.payload;
 				notify.error(m['pages.config.toast.sync.error']({ msg }), { duration: 0 });
+				toast.error(m['pages.config.toast.sync.error']({ msg }), { id: syncToastId });
+				syncToastId = undefined;
 			});
 		})();
 

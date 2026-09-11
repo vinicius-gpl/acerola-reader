@@ -14,7 +14,9 @@ use crate::{
         metadata as metadata_cmd, network as network_cmd, reader as reader_cmd,
         summary as comic_summary_cmd,
     },
-    core::services::{reader::ReaderService, summary::ChapterCacheService},
+    core::services::{
+        network::NetworkServiceApi, reader::ReaderService, summary::ChapterCacheService,
+    },
     infra::error::ComicError,
     system_cmd,
 };
@@ -52,6 +54,7 @@ pub fn build() -> tauri::Builder<tauri::Wry> {
         network_cmd::apply_relay_settings,
         network_cmd::restart_p2p,
         network_cmd::sync_history,
+        network_cmd::sync_history_entry,
         network_cmd::sync_files,
         network_cmd::sync_all,
         network_cmd::sync_comic,
@@ -187,4 +190,146 @@ fn resolve_paths(app: &tauri::App) -> (PathBuf, PathBuf, PathBuf) {
 
     std::fs::create_dir_all(&logs_directory).ok();
     (base_directory.clone(), base_directory.join("acerola.db"), logs_directory)
+}
+
+/// Desliga o node P2P de forma graciosa antes do processo terminar — chamado no
+/// `RunEvent::Exit` do Tauri (ver `lib.rs`). Sem isso, o `Endpoint` do iroh nunca fecha de
+/// verdade (o processo simplesmente morre e o SO recolhe os sockets), o relay não recebe um
+/// disconnect limpo e continua tratando esta identidade como "conectada" por um tempo depois
+/// do processo já ter saído. Isso deixa a PRÓXIMA execução (ex: depois de recompilar durante o
+/// desenvolvimento, ou só reabrir o app rápido) sem conseguir se reconectar direito com peers
+/// já pareados — mesma classe de erro do relay ("Another endpoint connected with the same
+/// endpoint id") já corrigida pra restarts concorrentes dentro do mesmo processo (ver
+/// `NetworkService::restart`), mas nunca coberta pro caso de fechar e reabrir o processo
+/// inteiro. Best-effort: se o node ainda nem tinha terminado de subir, ou o shutdown falhar,
+/// só loga — o processo vai terminar de qualquer forma, não há como impedir isso aqui.
+pub fn shutdown_network<R: tauri::Runtime>(app_handle: &tauri::AppHandle<R>) {
+    let Some(network_service) = app_handle.try_state::<std::sync::Arc<dyn NetworkServiceApi>>()
+    else {
+        return;
+    };
+
+    if let Err(error) = tauri::async_runtime::block_on(network_service.shutdown()) {
+        tracing::warn!("[Bios] Failed to shut down P2P network on exit: {}", error);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    };
+
+    use acerola_p2p::api::{
+        identity::DeviceInfo,
+        network::NetworkMode,
+        peer::{PeerAddr, PeerIdentity},
+    };
+    use async_trait::async_trait;
+
+    use super::*;
+    use crate::core::services::network::ConnectedPeerInfo;
+
+    #[derive(Default)]
+    struct RecordingNetworkService {
+        shutdown_called: AtomicBool,
+    }
+
+    #[async_trait]
+    impl NetworkServiceApi for RecordingNetworkService {
+        fn local_id(&self) -> Result<String, String> {
+            Ok("local-id".to_string())
+        }
+
+        fn local_addr(&self) -> Result<PeerAddr, String> {
+            Ok(PeerAddr { id: PeerIdentity { id: "local-id".to_string(), device_id: None }, addrs: vec![] })
+        }
+
+        async fn local_device_info(&self) -> Result<DeviceInfo, String> {
+            Ok(DeviceInfo { name: "test".to_string(), os: "test".to_string(), version: "0.0.0".to_string() })
+        }
+
+        async fn set_local_device_name(&self, _name: String) -> Result<(), String> {
+            Ok(())
+        }
+
+        async fn connected_peers_with_info(&self) -> Result<Vec<ConnectedPeerInfo>, String> {
+            Ok(vec![])
+        }
+
+        async fn paired_peers(&self) -> Result<Vec<(PeerAddr, Option<DeviceInfo>)>, String> {
+            Ok(vec![])
+        }
+
+        async fn remove_peer(&self, _id: String) -> Result<(), String> {
+            Ok(())
+        }
+
+        async fn switch_to_local(&self) -> Result<(), String> {
+            Ok(())
+        }
+
+        async fn switch_to_relay(&self) -> Result<(), String> {
+            Ok(())
+        }
+
+        async fn mode(&self) -> Result<NetworkMode, String> {
+            Ok(NetworkMode::Local)
+        }
+
+        async fn connect(&self, _peer_addr: PeerAddr, _alpn: Vec<u8>) -> Result<(), String> {
+            Ok(())
+        }
+
+        async fn shutdown(&self) -> Result<(), String> {
+            self.shutdown_called.store(true, Ordering::SeqCst);
+            Ok(())
+        }
+
+        async fn has_iroh_services_ticket(&self) -> Result<bool, String> {
+            Ok(false)
+        }
+
+        async fn set_iroh_services_ticket(&self, _ticket: String) -> Result<(), String> {
+            Ok(())
+        }
+
+        async fn clear_iroh_services_ticket(&self) -> Result<(), String> {
+            Ok(())
+        }
+
+        async fn apply_relay_settings(&self) -> Result<(), String> {
+            Ok(())
+        }
+
+        async fn restart(&self) -> Result<(), String> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn shutdown_network_shuts_down_the_managed_network_service() {
+        let service = Arc::new(RecordingNetworkService::default());
+        let managed: Arc<dyn NetworkServiceApi> = Arc::clone(&service) as Arc<dyn NetworkServiceApi>;
+        let app = tauri::test::mock_builder()
+            .manage(managed)
+            .build(tauri::test::mock_context(tauri::test::noop_assets()))
+            .expect("mock app should build");
+
+        shutdown_network(&app.handle().clone());
+
+        assert!(service.shutdown_called.load(Ordering::SeqCst));
+    }
+
+    #[test]
+    fn shutdown_network_is_a_no_op_when_no_network_service_is_managed() {
+        let app = tauri::test::mock_builder()
+            .build(tauri::test::mock_context(tauri::test::noop_assets()))
+            .expect("mock app should build");
+
+        // Não deve entrar em pânico mesmo sem `NetworkServiceApi` gerenciado (ex: app fechado
+        // bem cedo, antes de `setup_network_services` terminar).
+        shutdown_network(&app.handle().clone());
+    }
 }

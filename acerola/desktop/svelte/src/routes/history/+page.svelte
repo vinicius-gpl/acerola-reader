@@ -48,20 +48,31 @@
 			? `${sync.log[0].id}:${sync.log[0].status}`
 			: undefined;
 
-	type DisplayPeer = { peerId: string; deviceName: string | null; connected: boolean };
+	type DisplayPeer = {
+		peerId: string;
+		deviceName: string | null;
+		nickname: string | null;
+		connected: boolean;
+	};
 
 	// Mesmo merge de pareados persistidos + conectados ao vivo usado em `/network` — ver o
 	// comentário lá para o motivo de precisar dos dois.
 	const uniquePeers = $derived.by(() => {
 		const byId = new Map<string, DisplayPeer>();
 		for (const peer of peers.pairedPeers) {
-			byId.set(peer.peerId, { peerId: peer.peerId, deviceName: peer.deviceName, connected: false });
+			byId.set(peer.peerId, {
+				peerId: peer.peerId,
+				deviceName: peer.deviceName,
+				nickname: peers.peerNicknames[peer.peerId] ?? null,
+				connected: false
+			});
 		}
 
 		for (const peer of peers.status?.peers ?? []) {
 			byId.set(peer.peerId, {
 				peerId: peer.peerId,
 				deviceName: peer.device?.name ?? byId.get(peer.peerId)?.deviceName ?? null,
+				nickname: peers.peerNicknames[peer.peerId] ?? null,
 				connected: true
 			});
 		}
@@ -232,7 +243,7 @@
 									<MonitorIcon size={16} class="shrink-0 text-muted-foreground" />
 									<span class="min-w-0 flex-1">
 										<span class="block truncate text-foreground">
-											{peer.deviceName ?? shortId(peer.peerId)}
+											{peer.nickname ?? peer.deviceName ?? shortId(peer.peerId)}
 										</span>
 										<span class="block truncate text-xs text-muted-foreground">
 											{peerStatusLabel(peer)}

@@ -13,6 +13,12 @@ pub trait HistorySyncProvider: Send + Sync {
     /// Todas as linhas locais de capítulos marcados como lidos, com chave natural.
     fn get_chapters_read(&self) -> Vec<FfiChapterReadEntry>;
 
+    /// Progresso de leitura de UM único quadrinho (`comic_name`) — usado pelo push individual
+    /// (`acerola/sync-history-entry/1`), que existe pra não precisar de `get_reading_progress()`
+    /// (biblioteca inteira) só pra levar o progresso de um quadrinho que acabou de mudar. `None`
+    /// quando o quadrinho não existe localmente ou nunca teve progresso salvo.
+    fn get_reading_progress_for_comic(&self, comic_name: String) -> Option<FfiReadingProgressEntry>;
+
     /// Aplica uma linha de progresso recebida do peer (Rust já decidiu que ela vence via LWW).
     /// Retorna `false` se o quadrinho referenciado não existir localmente (entrada ignorada).
     fn apply_reading_progress(&self, entry: FfiReadingProgressEntry) -> bool;
