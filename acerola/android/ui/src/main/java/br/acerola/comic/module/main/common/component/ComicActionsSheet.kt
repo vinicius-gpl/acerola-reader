@@ -26,7 +26,6 @@ import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
@@ -42,7 +41,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -53,6 +51,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import br.acerola.comic.common.ux.Acerola
+import br.acerola.comic.common.ux.component.ActionListItem
 import br.acerola.comic.common.ux.component.AdaptiveSheet
 import br.acerola.comic.common.ux.component.Dialog
 import br.acerola.comic.common.ux.component.DialogButton
@@ -162,14 +161,14 @@ fun Main.Common.Component.ComicActionsSheet(
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
             ) {
                 Column {
-                    ActionListItem(
+                    Acerola.Component.ActionListItem(
                         icon = if (comic.category != null) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
                         title = stringResource(id = R.string.action_bookmark),
                         subtitle = currentCategoryName ?: stringResource(id = R.string.label_no_bookmark),
                         onClick = { showCategorySheet = true },
                     )
 
-                    ActionListItem(
+                    Acerola.Component.ActionListItem(
                         icon = if (comic.directory.hidden) Icons.Rounded.Visibility else Icons.Rounded.VisibilityOff,
                         title =
                             stringResource(
@@ -182,7 +181,7 @@ fun Main.Common.Component.ComicActionsSheet(
                         onClick = { showHideDialog = true },
                     )
 
-                    ActionListItem(
+                    Acerola.Component.ActionListItem(
                         icon = Icons.Rounded.CloudUpload,
                         title = stringResource(id = R.string.action_sync_comic_push),
                         subtitle = stringResource(id = R.string.description_sync_comic_with_peer),
@@ -193,7 +192,7 @@ fun Main.Common.Component.ComicActionsSheet(
                         },
                     )
 
-                    ActionListItem(
+                    Acerola.Component.ActionListItem(
                         icon = Icons.Rounded.CloudDownload,
                         title = stringResource(id = R.string.action_sync_comic_pull),
                         subtitle = stringResource(id = R.string.description_sync_comic_with_peer),
@@ -204,7 +203,7 @@ fun Main.Common.Component.ComicActionsSheet(
                         },
                     )
 
-                    ActionListItem(
+                    Acerola.Component.ActionListItem(
                         icon = Icons.Rounded.LayersClear,
                         title = stringResource(id = R.string.action_clear_metadata),
                         subtitle = stringResource(id = R.string.description_clear_metadata),
@@ -218,7 +217,7 @@ fun Main.Common.Component.ComicActionsSheet(
                 shape = ShapeTokens.Large,
                 color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f),
             ) {
-                ActionListItem(
+                Acerola.Component.ActionListItem(
                     icon = Icons.Rounded.Delete,
                     title = stringResource(id = R.string.action_delete),
                     subtitle = stringResource(id = R.string.description_delete),
@@ -354,33 +353,6 @@ fun Main.Common.Component.ComicActionsSheet(
                 onDismiss()
             },
             onDismiss = { showPeerPicker = false },
-        )
-    }
-}
-
-@Composable
-private fun ActionListItem(
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    onClick: () -> Unit,
-    tint: Color = MaterialTheme.colorScheme.onSurfaceVariant,
-    isLast: Boolean = false,
-) {
-    val titleColor = if (tint == MaterialTheme.colorScheme.onSurfaceVariant) MaterialTheme.colorScheme.onSurface else tint
-
-    ListItem(
-        leadingContent = { Icon(imageVector = icon, contentDescription = null, tint = tint) },
-        headlineContent = { Text(text = title, color = titleColor) },
-        supportingContent = { Text(text = subtitle, color = tint) },
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        modifier = Modifier.clickable(onClick = onClick),
-    )
-
-    if (!isLast) {
-        HorizontalDivider(
-            modifier = Modifier.padding(start = SpacingTokens.ExtraGiant),
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
         )
     }
 }
