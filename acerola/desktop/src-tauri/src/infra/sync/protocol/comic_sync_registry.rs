@@ -20,9 +20,13 @@ use crate::infra::sync::messages::SyncDirection;
 /// histórico. `ComicSyncOutbound::run` resolve esses IDs pros rótulos (`FileChapterInfo.chapter`)
 /// antes de montar o `ComicSyncRequest`, porque só o outbound tem os IDs locais; o inbound recebe
 /// os rótulos já resolvidos pelo wire.
+/// `(comic_name, direction, chapter_ids)` pendente pra um peer — extraído num alias porque o
+/// clippy (`type_complexity`) reclama da tupla tripla aninhada direto em `Mutex<HashMap<...>>`.
+type PendingComicSync = (String, SyncDirection, Vec<i64>);
+
 #[derive(Default)]
 pub struct PendingComicSyncRegistry {
-    pending: Mutex<HashMap<String, (String, SyncDirection, Vec<i64>)>>,
+    pending: Mutex<HashMap<String, PendingComicSync>>,
 }
 
 impl PendingComicSyncRegistry {
@@ -43,7 +47,7 @@ impl PendingComicSyncRegistry {
     /// Consome (remove) o `(comic_name, direction, chapter_ids)` pendente pro peer — cada
     /// chamada de `connect()` só serve pra uma sessão, então não faz sentido deixar o valor lá
     /// depois de lido.
-    pub fn take(&self, peer_id: &str) -> Option<(String, SyncDirection, Vec<i64>)> {
+    pub fn take(&self, peer_id: &str) -> Option<PendingComicSync> {
         self.pending.lock().expect("pending comic sync registry mutex poisoned").remove(peer_id)
     }
 }
