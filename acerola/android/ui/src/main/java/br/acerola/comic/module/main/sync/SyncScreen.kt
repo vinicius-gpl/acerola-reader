@@ -292,7 +292,8 @@ private fun SyncLayout(
 
         uiState.browsingPeerId?.let { peerId ->
             val peerDisplayName =
-                uiState.pairedPeers.find { it.peerId == peerId }?.deviceName ?: PairingCode.shortId(peerId)
+                uiState.pairedPeers.find { it.peerId == peerId }?.let { it.nickname ?: it.deviceName }
+                    ?: PairingCode.shortId(peerId)
             RemoteLibrarySheet(
                 peerDisplayName = peerDisplayName,
                 comics = uiState.remoteLibrary,
@@ -920,6 +921,51 @@ private fun PeerRow(
     val anySyncing = historySyncing || filesSyncing
     var menuExpanded by remember { mutableStateOf(false) }
 
+    // Apelido local — edição inline substitui o card do peer, mesmo padrão de
+    // `ThisDeviceSection` pro nome do próprio dispositivo.
+    var editingNickname by remember { mutableStateOf(false) }
+    var nicknameDraft by remember { mutableStateOf("") }
+
+    if (editingNickname) {
+        Card(shape = ShapeTokens.Huge, modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier.padding(SpacingTokens.Large),
+                verticalArrangement = Arrangement.spacedBy(SpacingTokens.Small),
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(SpacingTokens.Small),
+                ) {
+                    OutlinedTextField(
+                        value = nicknameDraft,
+                        onValueChange = { nicknameDraft = it },
+                        placeholder = { Text(text = stringResource(id = R.string.hint_sync_rename_peer)) },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f),
+                    )
+                    IconButton(onClick = {
+                        onAction(SyncAction.RenamePeer(peer.peerId, nicknameDraft))
+                        editingNickname = false
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = stringResource(id = R.string.action_sync_rename_save),
+                        )
+                    }
+                    IconButton(onClick = { editingNickname = false }) {
+                        Icon(imageVector = Icons.Default.Close, contentDescription = stringResource(id = R.string.action_cancel))
+                    }
+                }
+                Text(
+                    text = stringResource(id = R.string.label_sync_rename_peer_hint),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        return
+    }
+
     // Pisca o ícone de sucesso por um instante quando uma sessão termina bem — mesma ideia
     // do SyncActionIcon usado em SyncLibraryArchive — em vez de voltar direto pro ícone
     // ocioso sem nenhum feedback de que a sync deu certo.
@@ -947,7 +993,7 @@ private fun PeerRow(
         }
 
     Acerola.Component.HeroButton(
-        title = peer.deviceName ?: PairingCode.shortId(peer.peerId),
+        title = peer.nickname ?: peer.deviceName ?: PairingCode.shortId(peer.peerId),
         description = description,
         modifier = Modifier.fillMaxWidth(),
         bottomContent =
@@ -1014,6 +1060,15 @@ private fun PeerRow(
                             onClick = {
                                 menuExpanded = false
                                 onAction(SyncAction.BrowseLibrary(peer.peerId))
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(id = R.string.action_sync_rename_peer)) },
+                            leadingIcon = { Icon(imageVector = Icons.Default.Edit, contentDescription = null) },
+                            onClick = {
+                                menuExpanded = false
+                                nicknameDraft = peer.nickname ?: ""
+                                editingNickname = true
                             },
                         )
                         HorizontalDivider()

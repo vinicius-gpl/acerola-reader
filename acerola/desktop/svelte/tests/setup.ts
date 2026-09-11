@@ -109,7 +109,13 @@ vi.mock('@tauri-apps/plugin-store', () => {
 					set: vi.fn().mockResolvedValue(undefined)
 				};
 			}
-		}
+		},
+		load: vi.fn().mockResolvedValue({
+			reload: vi.fn().mockResolvedValue(undefined),
+			get: vi.fn().mockResolvedValue(null),
+			set: vi.fn().mockResolvedValue(undefined),
+			save: vi.fn().mockResolvedValue(undefined)
+		})
 	};
 });
 

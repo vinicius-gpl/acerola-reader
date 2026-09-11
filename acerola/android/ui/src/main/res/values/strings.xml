@@ -114,6 +114,9 @@
     <string name="error_sync_last_attempt_failed">Última tentativa falhou: %1$s</string>
     <string name="description_icon_sync_peer_more_actions">Mais ações de sincronização pra esse dispositivo.</string>
     <string name="action_sync_remove_peer">Remover dispositivo</string>
+    <string name="action_sync_rename_peer">Renomear</string>
+    <string name="hint_sync_rename_peer">Apelido pra esse dispositivo</string>
+    <string name="label_sync_rename_peer_hint">Visível só neste dispositivo — o outro lado mantém o próprio nome padrão.</string>
     <string name="title_sync_remove_peer_confirm">Remover \"%1$s\"?</string>
     <string name="description_sync_remove_peer_confirm">Esse dispositivo deixa de ter acesso à sua biblioteca. Se ele tentar se conectar de novo depois, vai passar pela mesma confirmação de um dispositivo nunca pareado.</string>
 

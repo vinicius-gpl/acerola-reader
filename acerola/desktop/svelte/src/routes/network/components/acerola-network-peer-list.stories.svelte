@@ -3,8 +3,13 @@
 	import AcerolaNetworkPeerList, { type DisplayPeer } from './acerola-network-peer-list.svelte';
 
 	const peers: DisplayPeer[] = [
-		{ peerId: 'peer-1', deviceName: 'Meu Celular', connected: true },
-		{ peerId: 'peer-2', deviceName: 'Notebook do Trabalho', connected: false }
+		{ peerId: 'peer-1', deviceName: 'Meu Celular', nickname: null, connected: true },
+		{
+			peerId: 'peer-2',
+			deviceName: 'Notebook do Trabalho',
+			nickname: 'PC da sala',
+			connected: false
+		}
 	];
 
 	const { Story } = defineMeta({
@@ -37,7 +42,8 @@
 					onSyncFiles: () => {},
 					onSyncAll: () => {},
 					onBrowseLibrary: () => {},
-					onRemove: () => {}
+					onRemove: () => {},
+					onRename: () => {}
 				}}
 			/>
 		</div>
@@ -59,7 +65,8 @@
 					onSyncFiles: () => {},
 					onSyncAll: () => {},
 					onBrowseLibrary: () => {},
-					onRemove: () => {}
+					onRemove: () => {},
+					onRename: () => {}
 				}}
 			/>
 		</div>
