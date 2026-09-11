@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{collections::HashSet, path::Path};
 
 use tokio::fs;
 
@@ -32,6 +32,25 @@ impl ChapterScannerService {
     /// para invalidar o estado atual antes de re-escanear a pasta do zero.
     pub async fn delete_by_comic(&self, comic_id: i64) -> Result<(), ComicError> {
         self.chapter_repo.delete_by_comic(comic_id).await?;
+        Ok(())
+    }
+
+    /// Remove do banco os capítulos de `comic_id` que não apareceram em `discovered_ids`.
+    ///
+    /// `scan_chapter` sozinho só sabe inserir/atualizar — chamado pelo rescan leve
+    /// (que não invalida tudo antes, ao contrário do rescan profundo) pra refletir
+    /// arquivos apagados via explorador de arquivos.
+    pub async fn reconcile_removed(
+        &self, comic_id: i64, discovered_ids: &HashSet<i64>,
+    ) -> Result<(), ComicError> {
+        let existing_ids = self.chapter_repo.find_all_ids_by_directory(comic_id).await?;
+
+        for id in existing_ids {
+            if !discovered_ids.contains(&id) {
+                self.chapter_repo.base.delete(id).await?;
+            }
+        }
+
         Ok(())
     }
 

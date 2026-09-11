@@ -125,7 +125,7 @@ impl ComicScannerService {
                 })
                 .await
             {
-                Ok(processed_successfully) => processed_successfully,
+                Ok(discovered_ids) => discovered_ids.is_some(),
                 Err(processing_error) => {
                     tracing::error!(
                         "Error processing comic in {}: {}",
@@ -214,7 +214,8 @@ impl ComicScannerService {
                     })
                     .await
                 {
-                    Ok(processed_successfully) => {
+                    Ok(discovered_ids) => {
+                        let processed_successfully = discovered_ids.is_some();
                         if processed_successfully {
                             on_progress(directory_path.clone());
                         }
@@ -289,7 +290,7 @@ impl ComicScannerService {
                 })
                 .await
             {
-                Ok(processed_successfully) => processed_successfully,
+                Ok(discovered_ids) => discovered_ids.is_some(),
                 Err(processing_error) => {
                     tracing::error!(
                         "Error processing comic in {}: {}",
@@ -310,16 +311,15 @@ impl ComicScannerService {
     }
 
     /// Reescaneia pontualmente um único quadrinho já indexado, sem comparar contra o
-    /// restante da biblioteca — apenas insere/atualiza o que for encontrado na pasta.
-    ///
-    /// Diferente de [`Self::incremental_scan`], não remove capítulos cujo arquivo tenha
-    /// sumido do disco (mesma limitação que o scan de biblioteca inteira já tem hoje para
-    /// pastas que continuam existindo). Para invalidar tudo, veja [`Self::deep_rescan_comic`].
+    /// restante da biblioteca — insere/atualiza o que for encontrado na pasta e remove
+    /// os capítulos cujo arquivo tenha sumido do disco. Para invalidar tudo (inclusive
+    /// volumes), veja [`Self::deep_rescan_comic`].
     pub async fn rescan_comic(
         &self, comic: ComicDirectory, on_progress: impl FnMut(String),
         on_converting: impl FnMut(String),
     ) -> Result<(), ComicError> {
-        self.scan_comic_path(PathBuf::from(&comic.path), on_progress, on_converting).await
+        self.scan_comic_path(PathBuf::from(&comic.path), comic.id, on_progress, on_converting)
+            .await
     }
 
     /// Invalida e reescaneia um único quadrinho do zero: apaga seus capítulos e volumes
@@ -331,13 +331,16 @@ impl ComicScannerService {
         self.chapter_scanner.delete_by_comic(comic.id).await?;
         self.volume_repo.delete_by_comic(comic.id).await?;
 
-        self.scan_comic_path(PathBuf::from(&comic.path), on_progress, on_converting).await
+        self.scan_comic_path(PathBuf::from(&comic.path), comic.id, on_progress, on_converting)
+            .await
     }
 
     /// Núcleo compartilhado de [`Self::rescan_comic`] e [`Self::deep_rescan_comic`]: processa
-    /// apenas as entradas encontradas dentro de `path`, sem tocar em quadrinhos de fora dele.
+    /// apenas as entradas encontradas dentro de `path`, sem tocar em quadrinhos de fora dele,
+    /// e ao final remove do banco qualquer capítulo de `comic_id` que não tenha sido
+    /// redescoberto (arquivo apagado via explorador de arquivos entre um rescan e outro).
     async fn scan_comic_path(
-        &self, path: PathBuf, mut on_progress: impl FnMut(String),
+        &self, path: PathBuf, comic_id: i64, mut on_progress: impl FnMut(String),
         mut on_converting: impl FnMut(String),
     ) -> Result<(), ComicError> {
         self.path_guard.execute(&path, |_guard_path| -> Result<(), String> { Ok(()) })?;
@@ -350,6 +353,7 @@ impl ComicScannerService {
 
         let repository = self.comic_repo.clone();
         let mut processed_paths: Vec<String> = vec![];
+        let mut discovered_chapter_ids: HashSet<i64> = HashSet::new();
 
         for entry in entries {
             let directory_path = entry.directory.to_string_lossy().to_string();
@@ -374,7 +378,13 @@ impl ComicScannerService {
                 })
                 .await
             {
-                Ok(processed_successfully) => processed_successfully,
+                Ok(discovered_ids) => {
+                    let found = discovered_ids.is_some();
+                    if let Some(ids) = discovered_ids {
+                        discovered_chapter_ids.extend(ids);
+                    }
+                    found
+                },
                 Err(processing_error) => {
                     tracing::error!(
                         "Error processing comic in {}: {}",
@@ -390,6 +400,8 @@ impl ComicScannerService {
                 processed_paths.push(directory_path);
             }
         }
+
+        self.chapter_scanner.reconcile_removed(comic_id, &discovered_chapter_ids).await?;
 
         Ok(())
     }
@@ -422,7 +434,7 @@ impl ComicScannerService {
     /// formatos não suportados nativamente pelo banco de dados (PDF) e transformá-los.
     async fn process_entry<F, Fut>(
         &self, entry: DirectoryEntry, templates: &[ArchiveTemplate], persist: F,
-    ) -> Result<bool, ComicError>
+    ) -> Result<Option<Vec<i64>>, ComicError>
     where
         F: FnOnce(ComicDirectory) -> Fut,
         Fut: Future<Output = Result<ComicDirectory, ComicError>>,
@@ -488,7 +500,7 @@ impl ComicScannerService {
         }
 
         if comic_files.is_empty() && matched_volumes.is_empty() {
-            return Ok(false);
+            return Ok(None);
         }
 
         let detected_template = self.detect_template_for(&comic_files, &chapter_templates);
@@ -517,7 +529,10 @@ impl ComicScannerService {
 
         let saved_comic = persist(comic).await?;
 
+        let mut discovered_ids = Vec::new();
+
         for (index, file) in comic_files.iter().enumerate() {
+            discovered_ids.push(path_hash(file));
             self.chapter_scanner
                 .scan_chapter(file, index, saved_comic.id, None, template_pattern)
                 .await?;
@@ -592,13 +607,14 @@ impl ComicScannerService {
             volume_archives.sort();
 
             for (index, file) in volume_archives.iter().enumerate() {
+                discovered_ids.push(path_hash(file));
                 self.chapter_scanner
                     .scan_chapter(file, index, saved_comic.id, Some(volume_id), template_pattern)
                     .await?;
             }
         }
 
-        Ok(true)
+        Ok(Some(discovered_ids))
     }
 
     /// Coleta arquivos de um diretório específico de forma assíncrona.
@@ -1074,6 +1090,27 @@ mod tests {
 
         assert_eq!(count_comics(&pool).await, 2, "Other comics must remain untouched");
         assert_eq!(count_chapters(&pool).await, 3, "New chapter file must be picked up");
+    }
+
+    #[tokio::test]
+    async fn rescan_comic_removes_chapter_deleted_from_disk() {
+        let root = tempfile::tempdir().unwrap();
+        let (service, pool) = setup(&root).await;
+
+        let berserk_dir = create_comic_dir(&root, "Berserk", &["Ch. 1.cbz", "Ch. 2.cbz"]).await;
+        service.refresh_library(root.path().to_path_buf(), |_| {}, |_| {}).await.unwrap();
+        assert_eq!(count_chapters(&pool).await, 2);
+
+        fs::remove_file(berserk_dir.join("Ch. 2.cbz")).await.unwrap();
+        let berserk = find_comic_by_name(&pool, "Berserk").await;
+
+        service.rescan_comic(berserk, |_| {}, |_| {}).await.unwrap();
+
+        assert_eq!(
+            count_chapters(&pool).await,
+            1,
+            "Orphaned chapter row must be removed by the light rescan too"
+        );
     }
 
     #[tokio::test]

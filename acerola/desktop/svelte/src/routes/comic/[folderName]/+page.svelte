@@ -904,7 +904,7 @@
 					}}
 				/>
 
-				<div class="min-h-150">
+				<div class="min-h-150 pb-8">
 					{#if activeTab === 'content'}
 						{#if chapterStore.chapters?.hasVolumeStructure}
 							<ComicVolumeList
