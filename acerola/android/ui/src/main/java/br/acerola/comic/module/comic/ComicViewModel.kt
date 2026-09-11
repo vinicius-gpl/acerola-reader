@@ -298,31 +298,31 @@ class ComicViewModel
                 p2pEventBus.events.collect { event ->
                     when (event) {
                         is P2pEvent.FileSyncComplete -> {
-                            val pendingPeerId = _syncingPeerId.value ?: return@collect
-                            if (event.peerId == pendingPeerId) _syncingPeerId.value = null
-                        }
+                            if (event.peerId == _syncingPeerId.value) _syncingPeerId.value = null
 
-                        is P2pEvent.FileSyncChapterFailed -> {
-                            val pendingPeerId = _syncingPeerId.value ?: return@collect
-                            // Comic/chapter vazios = falha da sessão inteira, não de um capítulo
-                            // (ver protocol::files::mod.rs::run_and_report_scoped).
-                            if (event.peerId == pendingPeerId && event.comicName.isEmpty() && event.chapter.isEmpty()) {
-                                _syncingPeerId.value = null
-                                _uiEvents.send(UserMessage.Raw(UiText.StringResource(R.string.error_sync_comic_peer_failed)))
-                            }
-                        }
-
-                        is P2pEvent.HistoryEntrySyncComplete -> {
-                            val pendingPeerId = _sendingChaptersPeerId.value ?: return@collect
-                            if (event.peerId == pendingPeerId) {
+                            // `sendSelectedChaptersToPeer` usa o mesmo protocolo de arquivo
+                            // (`syncComicWithPeerUseCase`, não `syncHistoryEntryWithPeerUseCase`),
+                            // então conclui pelo mesmo evento — antes isso escutava
+                            // `HistoryEntrySyncComplete`, que esse fluxo nunca dispara, e o
+                            // loading do ícone do capítulo ficava preso pra sempre.
+                            if (event.peerId == _sendingChaptersPeerId.value) {
                                 _sendingChaptersPeerId.value = null
                                 _uiEvents.send(UserMessage.Raw(UiText.StringResource(R.string.message_send_chapters_peer_success)))
                             }
                         }
 
-                        is P2pEvent.HistoryEntrySyncError -> {
-                            val pendingPeerId = _sendingChaptersPeerId.value ?: return@collect
-                            if (event.peerId == pendingPeerId) {
+                        is P2pEvent.FileSyncChapterFailed -> {
+                            // Comic/chapter vazios = falha da sessão inteira, não de um capítulo
+                            // (ver protocol::files::mod.rs::run_and_report_scoped).
+                            val isSessionFailure = event.comicName.isEmpty() && event.chapter.isEmpty()
+                            if (!isSessionFailure) return@collect
+
+                            if (event.peerId == _syncingPeerId.value) {
+                                _syncingPeerId.value = null
+                                _uiEvents.send(UserMessage.Raw(UiText.StringResource(R.string.error_sync_comic_peer_failed)))
+                            }
+
+                            if (event.peerId == _sendingChaptersPeerId.value) {
                                 _sendingChaptersPeerId.value = null
                                 // `event.error` já é um `SyncProtocolError` (ex.: `ComicNotFound`)
                                 // quando o `code` do wire foi reconhecido — mostra a causa

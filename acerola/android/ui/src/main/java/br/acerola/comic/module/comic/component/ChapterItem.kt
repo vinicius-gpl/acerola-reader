@@ -5,6 +5,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -249,11 +250,11 @@ fun Comic.Component.ChapterItem(
 
                     Spacer(modifier = Modifier.height(SpacingTokens.Small))
 
-                    Surface(
-                        shape = ShapeTokens.Large,
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    ) {
-                        Column {
+                    Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.Small)) {
+                        Surface(
+                            shape = ShapeTokens.Large,
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        ) {
                             Acerola.Component.ActionListItem(
                                 icon = if (isRead) Icons.Default.BookmarkRemove else Icons.Default.Check,
                                 title =
@@ -261,13 +262,19 @@ fun Comic.Component.ChapterItem(
                                         id = if (isRead) R.string.action_mark_as_unread else R.string.action_mark_as_read,
                                     ),
                                 tint = if (isRead) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                                isLast = true,
                                 onClick = { onToggleRead() },
                             )
+                        }
 
+                        Surface(
+                            shape = ShapeTokens.Large,
+                            color = MaterialTheme.colorScheme.tertiaryContainer,
+                        ) {
                             Acerola.Component.ActionListItem(
                                 icon = Icons.AutoMirrored.Filled.Send,
                                 title = stringResource(id = R.string.action_send_chapters_to_peer),
-                                tint = MaterialTheme.colorScheme.primary,
+                                tint = MaterialTheme.colorScheme.onTertiaryContainer,
                                 isLast = true,
                                 onClick = {
                                     showDetails = false
