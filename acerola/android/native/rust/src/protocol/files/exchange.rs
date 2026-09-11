@@ -1416,27 +1416,29 @@ async fn exchange_comic_scope(
     outbound_role: bool,
     writer: &mut Writer,
     reader: &mut Recv,
-    comic_name_outbound: Option<(&str, SyncDirection)>,
-) -> Result<(String, SyncDirection), P2pError> {
+    comic_name_outbound: Option<(&str, SyncDirection, &[String])>,
+) -> Result<(String, SyncDirection, Vec<String>), P2pError> {
     if outbound_role {
-        let (comic_name, direction) = comic_name_outbound.ok_or_else(|| {
+        let (comic_name, direction, chapters) = comic_name_outbound.ok_or_else(|| {
             P2pError::StreamFailed(
                 "sync-comic: missing target comic_name for outbound session".into(),
             )
         })?;
         let comic_name = comic_name.to_string();
+        let chapters = chapters.to_vec();
         write_json(
             writer,
             &ComicSyncScope {
                 comic_name: comic_name.clone(),
                 direction,
+                chapters: chapters.clone(),
             },
         )
         .await?;
-        Ok((comic_name, direction))
+        Ok((comic_name, direction, chapters))
     } else {
         let scope = read_comic_scope_or_busy(reader).await?;
-        Ok((scope.comic_name, scope.direction))
+        Ok((scope.comic_name, scope.direction, scope.chapters))
     }
 }
 
@@ -1451,6 +1453,23 @@ fn filter_manifest_to_comic(manifest: FileManifest, comic_name: &str) -> FileMan
             .filter(|c| c.comic_name == comic_name)
             .collect(),
     }
+}
+
+/// Restringe um manifesto (já filtrado a UM quadrinho, via `filter_manifest_to_comic`) aos
+/// rótulos de capítulo pedidos — lista vazia significa "sem filtro" (quadrinho inteiro),
+/// preservando o comportamento do sync completo. Itens extra (capa/banner/`ComicInfo.xml`)
+/// nunca são filtrados aqui: são metadado do quadrinho como um todo, não de um capítulo
+/// específico. Espelha o Desktop (`core/services/sync/file_sync.rs::restrict_manifest_to_chapters`).
+fn restrict_manifest_to_chapters(mut manifest: FileManifest, chapters: &[String]) -> FileManifest {
+    if chapters.is_empty() {
+        return manifest;
+    }
+    for comic in &mut manifest.comics {
+        comic
+            .chapters
+            .retain(|chapter| chapters.iter().any(|wanted| wanted == &chapter.chapter));
+    }
+    manifest
 }
 
 /// Executa a sessão inteira do protocolo `acerola/sync-comic/1` (sincronização de um único
@@ -1469,7 +1488,7 @@ pub(super) async fn run_exchange_scoped(
     emit: &EventEmitter,
     provider: &Arc<dyn FileSyncProvider>,
     transfer: &Arc<dyn ChapterTransfer>,
-    comic_name_outbound: Option<(String, SyncDirection)>,
+    comic_name_outbound: Option<(String, SyncDirection, Vec<String>)>,
     send: Box<dyn AsyncWrite + Send + Unpin>,
     recv: Box<dyn AsyncRead + Send + Unpin>,
 ) -> Result<FileSyncStats, P2pError> {
@@ -1478,8 +1497,8 @@ pub(super) async fn run_exchange_scoped(
 
     let comic_name_outbound_ref = comic_name_outbound
         .as_ref()
-        .map(|(name, direction)| (name.as_str(), *direction));
-    let (comic_name, direction) = exchange_comic_scope(
+        .map(|(name, direction, chapters)| (name.as_str(), *direction, chapters.as_slice()));
+    let (comic_name, direction, chapters) = exchange_comic_scope(
         outbound_role,
         &mut writer,
         &mut reader,
@@ -1490,6 +1509,7 @@ pub(super) async fn run_exchange_scoped(
 
     let local_manifest = build_local_manifest(provider).await?;
     let local_manifest = filter_manifest_to_comic(local_manifest, &comic_name);
+    let local_manifest = restrict_manifest_to_chapters(local_manifest, &chapters);
 
     run_exchange_with_manifest(
         outbound_role,
@@ -2763,7 +2783,7 @@ mod tests {
             &emit,
             &outbound_dyn,
             &outbound_transfer,
-            Some(("Comic A".to_string(), SyncDirection::Push)),
+            Some(("Comic A".to_string(), SyncDirection::Push, vec![])),
             Box::new(client_send) as Box<dyn AsyncWrite + Send + Unpin>,
             Box::new(client_recv) as Box<dyn AsyncRead + Send + Unpin>,
         );
@@ -2789,6 +2809,83 @@ mod tests {
             "só o quadrinho escopado deveria ter sido transferido, não a biblioteca inteira"
         );
         assert_eq!(received[0].comic_name, "Comic A");
+        assert_eq!(received[0].bytes, payload_a);
+    }
+
+    /// Prova o caso de uso do botão "Enviar" da seleção de capítulos: escopar a sessão a um
+    /// subconjunto de rótulos de capítulo (`ComicSyncScope.chapters`) entrega SÓ os capítulos
+    /// escopados — mesmo pro peer que ainda não tem o quadrinho, que precisa ser criado no
+    /// destino contendo apenas o que foi pedido, não a coleção inteira do outbound.
+    #[tokio::test]
+    async fn run_exchange_scoped_to_chapters_only_sends_the_requested_ones() {
+        let payload_a = make_payload(20_000, 1);
+        let payload_b = make_payload(25_000, 2);
+
+        let outbound_provider = Arc::new(InMemoryFileSyncProvider::with_readable(vec![
+            (
+                "Test".to_string(),
+                "Cap A".to_string(),
+                "Cap A.cbz".to_string(),
+                payload_a.clone(),
+            ),
+            (
+                "Test".to_string(),
+                "Cap B".to_string(),
+                "Cap B.cbz".to_string(),
+                payload_b.clone(),
+            ),
+        ]));
+        // Inbound NÃO tem "Test" ainda — prova que o quadrinho é criado do zero com só o
+        // capítulo escopado, não com a coleção inteira do outbound.
+        let inbound_provider = Arc::new(InMemoryFileSyncProvider::with_readable(vec![]));
+
+        let (client_io, server_io) = tokio::io::duplex(256 * 1024);
+        let (client_recv, client_send) = tokio::io::split(client_io);
+        let (server_recv, server_send) = tokio::io::split(server_io);
+
+        let peer = make_peer("peer-scoped-chapters");
+        let emit = no_op_emitter();
+        let (outbound_transfer, inbound_transfer) = test_transfer_pair();
+
+        let outbound_dyn: Arc<dyn FileSyncProvider> =
+            Arc::clone(&outbound_provider) as Arc<dyn FileSyncProvider>;
+        let inbound_dyn: Arc<dyn FileSyncProvider> =
+            Arc::clone(&inbound_provider) as Arc<dyn FileSyncProvider>;
+
+        // Só escopa "Cap A" — "Cap B" fica de fora.
+        let outbound_fut = run_exchange_scoped(
+            true,
+            &peer,
+            &emit,
+            &outbound_dyn,
+            &outbound_transfer,
+            Some(("Test".to_string(), SyncDirection::Push, vec!["Cap A".to_string()])),
+            Box::new(client_send) as Box<dyn AsyncWrite + Send + Unpin>,
+            Box::new(client_recv) as Box<dyn AsyncRead + Send + Unpin>,
+        );
+        let inbound_fut = run_exchange_scoped(
+            false,
+            &peer,
+            &emit,
+            &inbound_dyn,
+            &inbound_transfer,
+            None,
+            Box::new(server_send) as Box<dyn AsyncWrite + Send + Unpin>,
+            Box::new(server_recv) as Box<dyn AsyncRead + Send + Unpin>,
+        );
+
+        let (outbound_result, inbound_result) = tokio::join!(outbound_fut, inbound_fut);
+        outbound_result.expect("push escopado a capítulos não deveria falhar");
+        inbound_result.expect("push escopado a capítulos não deveria falhar");
+
+        let received = inbound_provider.finalized.lock().unwrap();
+        assert_eq!(
+            received.len(),
+            1,
+            "quadrinho deveria ter sido criado no destino só com o capítulo escopado"
+        );
+        assert_eq!(received[0].comic_name, "Test");
+        assert_eq!(received[0].chapter, "Cap A");
         assert_eq!(received[0].bytes, payload_a);
     }
 
@@ -2827,7 +2924,7 @@ mod tests {
             &emit,
             &outbound_dyn,
             &outbound_transfer,
-            Some(("Comic Only On Peer".to_string(), SyncDirection::Pull)),
+            Some(("Comic Only On Peer".to_string(), SyncDirection::Pull, vec![])),
             Box::new(client_send) as Box<dyn AsyncWrite + Send + Unpin>,
             Box::new(client_recv) as Box<dyn AsyncRead + Send + Unpin>,
         );
@@ -2899,7 +2996,7 @@ mod tests {
             &emit,
             &outbound_dyn,
             &outbound_transfer,
-            Some(("Shared Comic".to_string(), SyncDirection::Push)),
+            Some(("Shared Comic".to_string(), SyncDirection::Push, vec![])),
             Box::new(client_send) as Box<dyn AsyncWrite + Send + Unpin>,
             Box::new(client_recv) as Box<dyn AsyncRead + Send + Unpin>,
         );
@@ -2972,7 +3069,7 @@ mod tests {
             &emit,
             &outbound_dyn,
             &outbound_transfer,
-            Some(("Shared Comic".to_string(), SyncDirection::Pull)),
+            Some(("Shared Comic".to_string(), SyncDirection::Pull, vec![])),
             Box::new(client_send) as Box<dyn AsyncWrite + Send + Unpin>,
             Box::new(client_recv) as Box<dyn AsyncRead + Send + Unpin>,
         );

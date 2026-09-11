@@ -79,6 +79,14 @@ pub(crate) enum SyncDirection {
 pub(crate) struct ComicSyncScope {
     pub comic_name: String,
     pub direction: SyncDirection,
+    /// Rótulos de capítulo (mesma chave usada em `FileChapterInfo.chapter`) a escopar a
+    /// sessão — vazio significa "quadrinho inteiro", o comportamento de antes desta mudança.
+    /// Espelha o Desktop (`infra/sync/messages.rs::ComicSyncRequest.chapters`): os dois lados
+    /// filtram o próprio manifesto local por essa lista antes de escrevê-lo (ver
+    /// `exchange::run_exchange_scoped`). `#[serde(default)]` pra um peer sem essa versão do
+    /// protocolo ainda desserializar como lista vazia em vez de falhar.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub chapters: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -349,6 +357,7 @@ mod wire_contract_tests {
         let scope = ComicSyncScope {
             comic_name: "Berserk".into(),
             direction: SyncDirection::Push,
+            chapters: vec![],
         };
 
         let value = serde_json::to_value(&scope).unwrap();
@@ -360,6 +369,37 @@ mod wire_contract_tests {
         let desktop_wire = serde_json::json!({ "comic_name": "Berserk", "direction": "pull" });
         let decoded: ComicSyncScope = serde_json::from_value(desktop_wire).unwrap();
         assert_eq!(decoded.direction, SyncDirection::Pull);
+        assert!(decoded.chapters.is_empty());
+    }
+
+    /// Trava que uma sessão escopada a capítulos específicos serializa/desserializa a lista de
+    /// rótulos corretamente, no formato espelhado no Desktop
+    /// (`infra/sync/messages.rs::ComicSyncRequest`).
+    #[test]
+    fn comic_sync_scope_serializes_chapters_when_scoped() {
+        let scope = ComicSyncScope {
+            comic_name: "Berserk".into(),
+            direction: SyncDirection::Push,
+            chapters: vec!["Cap 1".into(), "Cap 2".into()],
+        };
+
+        let value = serde_json::to_value(&scope).unwrap();
+        assert_eq!(
+            value,
+            serde_json::json!({
+                "comic_name": "Berserk",
+                "direction": "push",
+                "chapters": ["Cap 1", "Cap 2"]
+            })
+        );
+
+        let desktop_wire = serde_json::json!({
+            "comic_name": "Berserk",
+            "direction": "pull",
+            "chapters": ["Cap 1"]
+        });
+        let decoded: ComicSyncScope = serde_json::from_value(desktop_wire).unwrap();
+        assert_eq!(decoded.chapters, vec!["Cap 1".to_string()]);
     }
 
     /// Trava o schema de wire de `FileExtraHeader` contra o Desktop

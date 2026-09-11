@@ -24,6 +24,7 @@ fun Comic.Template.chapterSection(
     onToggleRead: (String) -> Unit,
     onToggleSelection: (String) -> Unit = {},
     onLongPressChapter: (String) -> Unit = {},
+    onSendToPeer: (String) -> Unit = {},
     onPageChange: (Int) -> Unit,
     onSetActiveVolume: (Long?) -> Unit = {},
     onLoadVolumeChaptersPage: (Long, Int) -> Unit = { _, _ -> },
@@ -76,6 +77,7 @@ fun Comic.Template.chapterSection(
                             },
                             onLongClick = { onLongPressChapter(chapter.chapterSort) },
                             onToggleRead = { onToggleRead(chapter.chapterSort) },
+                            onSendToPeer = { onSendToPeer(chapter.chapterSort) },
                         )
                     }
                 }
@@ -105,6 +107,7 @@ fun Comic.Template.chapterSection(
                     },
                     onLongClick = { onLongPressChapter(chapter.chapterSort) },
                     onToggleRead = { onToggleRead(chapter.chapterSort) },
+                    onSendToPeer = { onSendToPeer(chapter.chapterSort) },
                 )
             }
         }

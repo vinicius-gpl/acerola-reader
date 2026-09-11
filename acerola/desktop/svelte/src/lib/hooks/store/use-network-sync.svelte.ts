@@ -541,6 +541,12 @@ export function useNetworkSync() {
 	/// `comicName` é o mesmo nome (`comic_directory.name`) usado como chave natural em todo o
 	/// resto do protocolo de sync de arquivos.
 	///
+	/// `chapterIds` (mesmo `ChapterId` string da UI de seleção, ver `syncHistoryEntry`) escopa
+	/// a sessão a um subconjunto de capítulos — vazio (padrão) sincroniza o quadrinho inteiro,
+	/// comportamento de antes desta mudança usado pelo "Sincronizar com dispositivo". O botão
+	/// "Enviar" da seleção múltipla de capítulos usa a lista pra mandar só os arquivos
+	/// escolhidos, sem precisar mandar o resto do quadrinho.
+	///
 	/// Ao contrário de `syncHistory`/`syncFiles`/`syncAll`, a promise retornada só resolve
 	/// (ou rejeita) quando a sessão termina de verdade (`sync:comic:complete`/`error`, ou o
 	/// timeout de `markSyncing`) — o `invoke` do comando Tauri resolve assim que a conexão é
@@ -551,7 +557,8 @@ export function useNetworkSync() {
 		peerId: string,
 		addrs: number[],
 		comicName: string,
-		direction: SyncDirection
+		direction: SyncDirection,
+		chapterIds: string[] = []
 	): Promise<string> {
 		if (isSyncing(peerId, 'comic')) {
 			// Mesmo texto traduzido do `code: "busy"` que o backend manda — este guard é
@@ -570,7 +577,8 @@ export function useNetworkSync() {
 				peerId,
 				addrs,
 				comicName,
-				direction
+				direction,
+				chapterIds
 			});
 		} catch (err) {
 			pendingSettlement.delete(key);

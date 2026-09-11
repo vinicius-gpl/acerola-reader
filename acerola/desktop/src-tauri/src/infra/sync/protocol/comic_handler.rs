@@ -9,7 +9,10 @@ use async_trait::async_trait;
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::{
-    core::services::{metadata::MetadataService, sync::file_sync::FileSyncService},
+    core::services::{
+        metadata::MetadataService,
+        sync::file_sync::{restrict_manifest_to_chapters, FileSyncService},
+    },
     data::{models::sync::SyncHistoryLogEntry, repositories::sync::SyncHistoryLogRepository},
     infra::sync::{
         framing::{
@@ -76,14 +79,20 @@ impl ComicSyncOutbound {
     async fn run(
         &self, peer: &PeerIdentity, writer: &mut FramedWriter, reader: &mut FramedReader,
     ) -> Result<(usize, String), P2pError> {
-        let (comic_name, direction) = self
+        let (comic_name, direction, chapter_ids) = self
             .registry
             .take(&peer.id)
             .ok_or_else(|| P2pError::StreamFailed(NO_PENDING_SCOPE_REASON.into()))?;
+        let chapters = self.service.resolve_chapter_labels(&comic_name, &chapter_ids).await?;
 
-        write_json(writer, &ComicSyncRequest { comic_name: comic_name.clone(), direction }).await?;
+        write_json(
+            writer,
+            &ComicSyncRequest { comic_name: comic_name.clone(), direction, chapters: chapters.clone() },
+        )
+        .await?;
 
         let local_manifest = self.service.build_manifest_for_comic(&comic_name).await?;
+        let local_manifest = restrict_manifest_to_chapters(local_manifest, &chapters);
         write_json(writer, &local_manifest).await?;
 
         let peer_manifest: FileManifest = read_or_busy(reader).await?;
@@ -259,6 +268,7 @@ impl ComicSyncInbound {
         let peer_manifest: FileManifest = read_json(reader).await?;
 
         let local_manifest = self.service.build_manifest_for_comic(&request.comic_name).await?;
+        let local_manifest = restrict_manifest_to_chapters(local_manifest, &request.chapters);
         write_json(writer, &local_manifest).await?;
 
         let their_wanted: FileWantList = read_json(reader).await?;
@@ -521,7 +531,12 @@ mod tests {
         let (inbound_emit, inbound_events) = mock_emitter();
 
         let peer = PeerIdentity { id: "peer-complete".to_string(), device_id: None };
-        registry.set(peer.id.clone(), "Quadrinho Compartilhado".to_string(), SyncDirection::Push);
+        registry.set(
+            peer.id.clone(),
+            "Quadrinho Compartilhado".to_string(),
+            SyncDirection::Push,
+            vec![],
+        );
 
         let outbound = ComicSyncOutbound::new(
             outbound_emit,
@@ -684,7 +699,7 @@ mod tests {
         let (inbound_emit, _inbound_events) = mock_emitter();
 
         let peer = PeerIdentity { id: "peer-push".to_string(), device_id: None };
-        registry.set(peer.id.clone(), "Test".to_string(), SyncDirection::Push);
+        registry.set(peer.id.clone(), "Test".to_string(), SyncDirection::Push, vec![]);
 
         // Pega os dois handles do MESMO par (`shared_pair`), não `test_transfer()` duas vezes —
         // cada chamada a `test_transfer()` cria um par NOVO e isolado, descartando a metade que
@@ -734,6 +749,117 @@ mod tests {
         );
     }
 
+    /// Prova o caso de uso do botão "Enviar" da seleção de capítulos: escopar a sessão a um
+    /// subconjunto de `chapter_archive_id`s locais (`registry.set(..., vec![1])`, só "Cap A")
+    /// entrega SÓ o capítulo escopado — mesmo pro peer que ainda não tem o quadrinho, que
+    /// precisa ser criado no destino contendo apenas o que foi pedido, não a coleção inteira
+    /// do outbound.
+    #[tokio::test]
+    async fn push_direction_scoped_to_chapters_only_sends_the_requested_ones() {
+        let outbound_pool = crate::tests::utils::setup_test_db::setup_test_db().await;
+        let inbound_pool = crate::tests::utils::setup_test_db::setup_test_db().await;
+
+        let outbound_dir = tempfile::tempdir().unwrap();
+        let inbound_dir = tempfile::tempdir().unwrap();
+
+        crate::tests::utils::setup_test_db::insert_comic_directory(
+            &outbound_pool,
+            1,
+            "Test",
+            outbound_dir.path().join("Test").to_str().unwrap(),
+        )
+        .await;
+        // Inbound NÃO tem "Test" ainda — prova que o quadrinho é criado do zero com só o
+        // capítulo escopado, não com a coleção inteira do outbound.
+
+        let cap_a_path = outbound_dir.path().join("Cap A.cbz");
+        let cap_a_bytes = b"chapter A bytes";
+        tokio::fs::write(&cap_a_path, cap_a_bytes).await.unwrap();
+        sqlx::query(
+            "INSERT INTO chapter_archive (id, chapter, path, chapter_sort, is_special, checksum, comic_directory_fk, last_modified) VALUES (1, 'Cap A', ?, '1', 0, ?, 1, 0)",
+        )
+        .bind(cap_a_path.to_str().unwrap())
+        .bind(sha256_hex(cap_a_bytes))
+        .execute(&outbound_pool)
+        .await
+        .unwrap();
+
+        let cap_b_path = outbound_dir.path().join("Cap B.cbz");
+        let cap_b_bytes = b"chapter B bytes";
+        tokio::fs::write(&cap_b_path, cap_b_bytes).await.unwrap();
+        sqlx::query(
+            "INSERT INTO chapter_archive (id, chapter, path, chapter_sort, is_special, checksum, comic_directory_fk, last_modified) VALUES (2, 'Cap B', ?, '2', 0, ?, 1, 0)",
+        )
+        .bind(cap_b_path.to_str().unwrap())
+        .bind(sha256_hex(cap_b_bytes))
+        .execute(&outbound_pool)
+        .await
+        .unwrap();
+
+        let outbound_root = outbound_dir.path().to_path_buf();
+        let inbound_root = inbound_dir.path().to_path_buf();
+        let outbound_service =
+            FileSyncService::new(outbound_pool.clone(), move || outbound_root.clone());
+        let inbound_service =
+            FileSyncService::new(inbound_pool.clone(), move || inbound_root.clone());
+        let outbound_metadata = Arc::new(MetadataService::new(outbound_pool.clone()));
+        let inbound_metadata = Arc::new(MetadataService::new(inbound_pool.clone()));
+
+        let outbound_guard = FileSyncSessionGuard::new();
+        let inbound_guard = FileSyncSessionGuard::new();
+        let registry = PendingComicSyncRegistry::new();
+        let (outbound_emit, _outbound_events) = mock_emitter();
+        let (inbound_emit, _inbound_events) = mock_emitter();
+
+        let peer = PeerIdentity { id: "peer-scoped-push".to_string(), device_id: None };
+        // Só escopa o chapter_archive_id=1 ("Cap A") — "Cap B" (id=2) fica de fora.
+        registry.set(peer.id.clone(), "Test".to_string(), SyncDirection::Push, vec![1]);
+
+        let (outbound_transfer, inbound_transfer) = InMemoryChapterTransfer::shared_pair();
+
+        let outbound = ComicSyncOutbound::new(
+            outbound_emit,
+            outbound_service,
+            outbound_metadata,
+            SyncHistoryLogRepository::new(outbound_pool.clone()),
+            outbound_guard,
+            registry,
+            outbound_transfer,
+        );
+        let inbound = ComicSyncInbound::new(
+            inbound_emit,
+            inbound_service,
+            inbound_metadata,
+            SyncHistoryLogRepository::new(inbound_pool.clone()),
+            inbound_guard,
+            inbound_transfer,
+        );
+
+        let (client_io, server_io) = tokio::io::duplex(64 * 1024);
+        let (client_recv, client_send) = tokio::io::split(client_io);
+        let (server_recv, server_send) = tokio::io::split(server_io);
+
+        let (outbound_result, inbound_result) = tokio::join!(
+            outbound.handle(&peer, Box::new(client_send), Box::new(client_recv)),
+            inbound.handle(&peer, Box::new(server_send), Box::new(server_recv)),
+        );
+        outbound_result.expect("push escopado não deveria falhar");
+        inbound_result.expect("push escopado não deveria falhar");
+
+        assert_eq!(
+            chapters_of(&inbound_pool).await,
+            vec!["Cap A".to_string()],
+            "quadrinho deveria ter sido criado no destino só com o capítulo escopado"
+        );
+
+        let comic_row: (i64,) =
+            sqlx::query_as("SELECT COUNT(*) FROM comic_directory WHERE name = 'Test'")
+                .fetch_one(&inbound_pool)
+                .await
+                .unwrap();
+        assert_eq!(comic_row.0, 1, "quadrinho deveria ter sido criado no destino");
+    }
+
     /// Espelho do teste acima pra `direction: Pull` — outbound puxa "Cap B" do peer sem nunca
     /// mandar "Cap A", mesmo o inbound estando genuinamente sem esse capítulo.
     #[tokio::test]
@@ -746,7 +872,7 @@ mod tests {
         let (inbound_emit, _inbound_events) = mock_emitter();
 
         let peer = PeerIdentity { id: "peer-pull".to_string(), device_id: None };
-        registry.set(peer.id.clone(), "Test".to_string(), SyncDirection::Pull);
+        registry.set(peer.id.clone(), "Test".to_string(), SyncDirection::Pull, vec![]);
 
         let (outbound_transfer, inbound_transfer) = InMemoryChapterTransfer::shared_pair();
 
@@ -867,7 +993,7 @@ mod tests {
         let (inbound_emit, inbound_events) = mock_emitter();
 
         let peer = PeerIdentity { id: "peer-partial-persist".to_string(), device_id: None };
-        registry.set(peer.id.clone(), "Test".to_string(), SyncDirection::Push);
+        registry.set(peer.id.clone(), "Test".to_string(), SyncDirection::Push, vec![]);
 
         let (outbound_transfer, inbound_transfer) = InMemoryChapterTransfer::shared_pair();
 

@@ -949,7 +949,8 @@ describe('useNetworkSync', () => {
 			peerId: 'peer-4',
 			addrs: [9],
 			comicName: 'One Piece',
-			direction: 'push'
+			direction: 'push',
+			chapterIds: []
 		});
 		expect(hook.isSyncing('peer-4', 'comic')).toBe(true);
 
@@ -958,6 +959,22 @@ describe('useNetworkSync', () => {
 
 		await expect(pending).resolves.toBe('peer-4');
 		expect(hook.isSyncing('peer-4', 'comic')).toBe(false);
+	});
+
+	it('syncComic forwards chapterIds to the backend when scoped to specific chapters', async () => {
+		invokeMock.mockResolvedValueOnce(undefined);
+		const hook = await renderHook();
+
+		void hook.syncComic('peer-4', [9], 'One Piece', 'push', ['1', '2']);
+		await Promise.resolve();
+
+		expect(invokeMock).toHaveBeenCalledWith(NETWORK_COMMANDS.syncComic, {
+			peerId: 'peer-4',
+			addrs: [9],
+			comicName: 'One Piece',
+			direction: 'push',
+			chapterIds: ['1', '2']
+		});
 	});
 
 	it('syncComic rejects with the real error once sync:comic:error arrives, not just on an immediate invoke failure', async () => {

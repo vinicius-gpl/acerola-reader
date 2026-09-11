@@ -196,11 +196,14 @@ class P2pService(
     }
 
     /** Sincroniza um único quadrinho com o peer, na [direction] explícita escolhida pelo
-     *  usuário — `PUSH` manda o quadrinho pro peer, `PULL` puxa dele. */
+     *  usuário — `PUSH` manda o quadrinho pro peer, `PULL` puxa dele. `chapters` (rótulos de
+     *  capítulo, vazio por padrão = quadrinho inteiro) escopa a sessão a um subconjunto de
+     *  capítulos — usado pelo botão "Enviar" da seleção múltipla/menu de três pontinhos. */
     fun syncComic(
         peerAddress: PeerAddress,
         comicName: String,
         direction: SyncDirection,
+        chapters: List<String> = emptyList(),
     ) {
         Log.d("P2pService", "Syncing comic '$comicName' with peer: ${peerAddress.id} ($direction)")
         val ffiAddr =
@@ -209,7 +212,7 @@ class P2pService(
                 deviceId = peerAddress.deviceId,
                 addrs = peerAddress.addrs,
             )
-        p2pNode.syncComic(ffiAddr, comicName, direction.toFfi())
+        p2pNode.syncComic(ffiAddr, comicName, direction.toFfi(), chapters)
     }
 
     /** Empurra o progresso + marcadores de "lido" do(s) capítulo(s) selecionado(s)

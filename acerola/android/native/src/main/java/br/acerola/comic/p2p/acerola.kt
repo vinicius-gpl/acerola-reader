@@ -1210,7 +1210,7 @@ internal interface UniffiLib : Library {
     ): Unit
     fun uniffi_acerola_fn_method_p2pnode_switch_to_relay(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
-    fun uniffi_acerola_fn_method_p2pnode_sync_comic(`ptr`: Pointer,`peerAddr`: RustBuffer.ByValue,`comicName`: RustBuffer.ByValue,`direction`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    fun uniffi_acerola_fn_method_p2pnode_sync_comic(`ptr`: Pointer,`peerAddr`: RustBuffer.ByValue,`comicName`: RustBuffer.ByValue,`direction`: RustBuffer.ByValue,`chapters`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
     fun uniffi_acerola_fn_method_p2pnode_sync_history_entry(`ptr`: Pointer,`peerAddr`: RustBuffer.ByValue,`comicName`: RustBuffer.ByValue,`chapterSorts`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
@@ -1592,7 +1592,7 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
     if (lib.uniffi_acerola_checksum_method_p2pnode_switch_to_relay() != 54345.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_acerola_checksum_method_p2pnode_sync_comic() != 39377.toShort()) {
+    if (lib.uniffi_acerola_checksum_method_p2pnode_sync_comic() != 59092.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_acerola_checksum_method_p2pnode_sync_history_entry() != 5508.toShort()) {
@@ -4061,12 +4061,18 @@ public interface P2pNodeInterface {
     /**
      * Sincroniza um único quadrinho (`comic_name`) com `peer_addr`, na `direction` explícita
      * escolhida pelo usuário (`Push` = mandar pro peer; `Pull` = puxar dele) — ver
-     * `protocol::files::model::SyncDirection`. Grava `(comic_name, direction)` no registro
-     * pendente ANTES de conectar — é a única forma dessa escolha (que só existe aqui, do lado
-     * que chamou) chegar até `ComicSyncOutbound::handle`, já que `connect()` não carrega
+     * `protocol::files::model::SyncDirection`. Grava `(comic_name, direction, chapters)` no
+     * registro pendente ANTES de conectar — é a única forma dessa escolha (que só existe aqui,
+     * do lado que chamou) chegar até `ComicSyncOutbound::handle`, já que `connect()` não carrega
      * payload (ver `protocol::files::COMIC_SYNC_ALPN`).
+     *
+     * `chapters` (rótulos de capítulo, mesma chave de `FileChapterInfo.chapter` — vazio =
+     * quadrinho inteiro) escopa a sessão a um subconjunto de capítulos, usado pelo botão
+     * "Enviar" da seleção múltipla/menu de três pontinhos: o Kotlin resolve os
+     * `chapterSort`s selecionados pros rótulos correspondentes antes de chamar este método
+     * (ver `ComicViewModel`), já que o manifesto trocado no wire usa rótulo, não `chapter_sort`.
      */
-    fun `syncComic`(`peerAddr`: FfiPeerAddr, `comicName`: kotlin.String, `direction`: FfiSyncDirection)
+    fun `syncComic`(`peerAddr`: FfiPeerAddr, `comicName`: kotlin.String, `direction`: FfiSyncDirection, `chapters`: List<kotlin.String>)
     
     /**
      * Empurra o progresso + marcadores de "lido" do(s) capítulo(s) selecionado(s)
@@ -4471,16 +4477,22 @@ open class P2pNode: Disposable, AutoCloseable, P2pNodeInterface {
     /**
      * Sincroniza um único quadrinho (`comic_name`) com `peer_addr`, na `direction` explícita
      * escolhida pelo usuário (`Push` = mandar pro peer; `Pull` = puxar dele) — ver
-     * `protocol::files::model::SyncDirection`. Grava `(comic_name, direction)` no registro
-     * pendente ANTES de conectar — é a única forma dessa escolha (que só existe aqui, do lado
-     * que chamou) chegar até `ComicSyncOutbound::handle`, já que `connect()` não carrega
+     * `protocol::files::model::SyncDirection`. Grava `(comic_name, direction, chapters)` no
+     * registro pendente ANTES de conectar — é a única forma dessa escolha (que só existe aqui,
+     * do lado que chamou) chegar até `ComicSyncOutbound::handle`, já que `connect()` não carrega
      * payload (ver `protocol::files::COMIC_SYNC_ALPN`).
-     */override fun `syncComic`(`peerAddr`: FfiPeerAddr, `comicName`: kotlin.String, `direction`: FfiSyncDirection)
+     *
+     * `chapters` (rótulos de capítulo, mesma chave de `FileChapterInfo.chapter` — vazio =
+     * quadrinho inteiro) escopa a sessão a um subconjunto de capítulos, usado pelo botão
+     * "Enviar" da seleção múltipla/menu de três pontinhos: o Kotlin resolve os
+     * `chapterSort`s selecionados pros rótulos correspondentes antes de chamar este método
+     * (ver `ComicViewModel`), já que o manifesto trocado no wire usa rótulo, não `chapter_sort`.
+     */override fun `syncComic`(`peerAddr`: FfiPeerAddr, `comicName`: kotlin.String, `direction`: FfiSyncDirection, `chapters`: List<kotlin.String>)
         = 
     callWithPointer {
     uniffiRustCall() { _status ->
     UniffiLib.INSTANCE.uniffi_acerola_fn_method_p2pnode_sync_comic(
-        it, FfiConverterTypeFfiPeerAddr.lower(`peerAddr`),FfiConverterString.lower(`comicName`),FfiConverterTypeFfiSyncDirection.lower(`direction`),_status)
+        it, FfiConverterTypeFfiPeerAddr.lower(`peerAddr`),FfiConverterString.lower(`comicName`),FfiConverterTypeFfiSyncDirection.lower(`direction`),FfiConverterSequenceString.lower(`chapters`),_status)
 }
     }
     

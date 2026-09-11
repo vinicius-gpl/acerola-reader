@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.MoreVert
@@ -65,6 +66,7 @@ fun Comic.Component.ChapterItem(
     isSelectionMode: Boolean = false,
     onLongClick: () -> Unit = {},
     onClick: () -> Unit,
+    onSendToPeer: () -> Unit = {},
 ) {
     var showDetails by remember { mutableStateOf(value = false) }
 
@@ -248,6 +250,26 @@ fun Comic.Component.ChapterItem(
                                 } else {
                                     stringResource(id = R.string.action_mark_as_read)
                                 },
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+
+                    TextButton(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = {
+                            showDetails = false
+                            onSendToPeer()
+                        },
+                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.primary),
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Send,
+                            contentDescription = null,
+                            modifier = Modifier.size(SizeTokens.IconSmall),
+                        )
+                        Spacer(modifier = Modifier.width(SpacingTokens.Small))
+                        Text(
+                            text = stringResource(id = R.string.action_send_chapters_to_peer),
                             fontWeight = FontWeight.SemiBold,
                         )
                     }

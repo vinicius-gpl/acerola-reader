@@ -277,6 +277,16 @@ fun ComicScreen(
     var showSortSheet by remember { mutableStateOf(false) }
     var showSendChaptersPeerPicker by remember { mutableStateOf(false) }
 
+    // Ação "Enviar" do menu de três pontinhos de UM capítulo (`ChapterItem`) — mesmo fluxo da
+    // barra de seleção múltipla acima (`SelectionActionDock`/`PeerPickerSheet`), só que
+    // selecionando primeiro (e só) esse capítulo via `selectAllChapters`, que substitui a
+    // seleção inteira em vez de alternar (evita depender do estado de seleção anterior).
+    val onSendChapterToPeer: (String) -> Unit = { chapterSort ->
+        comicViewModel.selectAllChapters(listOf(chapterSort))
+        comicViewModel.loadPairedPeers()
+        showSendChaptersPeerPicker = true
+    }
+
     val onChapterAction: (ComicChapterAction) -> Unit = { action ->
         when (action) {
             is ComicChapterAction.ChangePage -> {
@@ -404,6 +414,7 @@ fun ComicScreen(
                                 isSelectionMode = isChapterSelectionMode,
                                 onToggleSelection = comicViewModel::toggleChapterSelection,
                                 onLongPressChapter = onChapterLongPress,
+                                onSendToPeer = onSendChapterToPeer,
                                 volumeViewMode = uiState.volumeViewMode,
                                 activeVolumeId = uiState.activeVolumeId,
                                 onSetActiveVolume = comicViewModel::setActiveVolume,
