@@ -15,6 +15,11 @@ export function useLibraryScanner(
 	getPath: () => string | undefined
 ) {
 	let progressId: number | undefined;
+	// Toast espelhando o mesmo progresso — atualizado in-place (mesmo `id`, estilo
+	// `toastAsync`) em vez de empilhar um toast por evento. Sem isso, um scan que roda em
+	// background só aparecia no sininho de notificações: quem não estivesse de olho nele
+	// não tinha como saber que o scan tinha começado/terminado/falhado.
+	let toastId: string | number | undefined;
 	let scanning = $state(false);
 
 	async function start() {
@@ -31,6 +36,9 @@ export function useLibraryScanner(
 			if (progressId === undefined) {
 				progressId = notify.info(m['hooks.comic_scanner.in_progress'](), { duration: 0 });
 			}
+			if (toastId === undefined) {
+				toastId = toast.loading(m['hooks.comic_scanner.in_progress']());
+			}
 		});
 
 		const unlistenConverting = await listen<string>(LIBRARY_EVENTS.scanConverting, (event) => {
@@ -41,6 +49,7 @@ export function useLibraryScanner(
 			}
 
 			progressId = notify.info(msg, { duration: 0 });
+			toastId = toast.loading(msg, { id: toastId });
 		});
 
 		const unlisten = await listen(LIBRARY_EVENTS.scanComplete, () => {
@@ -50,6 +59,8 @@ export function useLibraryScanner(
 			}
 
 			notify.success(m['hooks.comic_scanner.success'](), { duration: 0 });
+			toast.success(m['hooks.comic_scanner.success'](), { id: toastId });
+			toastId = undefined;
 
 			scanning = false;
 
@@ -70,6 +81,11 @@ export function useLibraryScanner(
 				description,
 				duration: 0
 			});
+			toast.error(m['hooks.comic_scanner.error.title'](), {
+				description,
+				id: toastId
+			});
+			toastId = undefined;
 
 			scanning = false;
 
