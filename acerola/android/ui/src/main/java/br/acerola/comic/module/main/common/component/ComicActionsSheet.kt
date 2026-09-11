@@ -2,6 +2,7 @@ package br.acerola.comic.module.main.common.component
 
 import android.content.res.Configuration
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -25,8 +26,10 @@ import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TriStateCheckbox
 import androidx.compose.runtime.Composable
@@ -36,8 +39,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
@@ -51,6 +57,7 @@ import br.acerola.comic.common.ux.component.AdaptiveSheet
 import br.acerola.comic.common.ux.component.Dialog
 import br.acerola.comic.common.ux.component.DialogButton
 import br.acerola.comic.common.ux.theme.AcerolaTheme
+import br.acerola.comic.common.ux.tokens.ShapeTokens
 import br.acerola.comic.common.ux.tokens.SizeTokens
 import br.acerola.comic.common.ux.tokens.SpacingTokens
 import br.acerola.comic.dto.ComicDto
@@ -96,7 +103,7 @@ fun Main.Common.Component.ComicActionsSheet(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = SpacingTokens.ExtraLarge, vertical = SpacingTokens.Medium),
+                    .padding(horizontal = SpacingTokens.ExtraLarge, vertical = SpacingTokens.Large),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             AsyncImage(
@@ -108,10 +115,12 @@ fun Main.Common.Component.ComicActionsSheet(
                         .diskCacheKey("${coverUri}_${comic.directory.lastModified}")
                         .build(),
                 contentDescription = null,
+                contentScale = ContentScale.Crop,
                 modifier =
                     Modifier
                         .width(56.dp)
-                        .height(84.dp),
+                        .height(84.dp)
+                        .clip(ShapeTokens.Small),
             )
 
             Spacer(modifier = Modifier.width(SpacingTokens.Large))
@@ -124,118 +133,101 @@ fun Main.Common.Component.ComicActionsSheet(
                     maxLines = 2,
                 )
                 if (currentCategoryName != null) {
-                    Text(
-                        text = currentCategoryName,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Rounded.Bookmark,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(SizeTokens.IconExtraSmall),
+                        )
+                        Spacer(modifier = Modifier.width(SpacingTokens.ExtraSmall))
+                        Text(
+                            text = currentCategoryName,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
         }
 
-        HorizontalDivider()
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
 
-        ListItem(
-            leadingContent = {
-                Icon(
-                    imageVector = if (comic.category != null) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
-                    contentDescription = null,
-                )
-            },
-            headlineContent = { Text(text = stringResource(id = R.string.action_bookmark)) },
-            supportingContent = {
-                Text(
-                    text = currentCategoryName ?: stringResource(id = R.string.label_no_bookmark),
-                )
-            },
-            modifier = Modifier.clickable { showCategorySheet = true },
-        )
+        Column(
+            modifier = Modifier.padding(SpacingTokens.Large),
+            verticalArrangement = Arrangement.spacedBy(SpacingTokens.Large),
+        ) {
+            Surface(
+                shape = ShapeTokens.Large,
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            ) {
+                Column {
+                    ActionListItem(
+                        icon = if (comic.category != null) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
+                        title = stringResource(id = R.string.action_bookmark),
+                        subtitle = currentCategoryName ?: stringResource(id = R.string.label_no_bookmark),
+                        onClick = { showCategorySheet = true },
+                    )
 
-        ListItem(
-            leadingContent = {
-                Icon(
-                    imageVector = if (comic.directory.hidden) Icons.Rounded.Visibility else Icons.Rounded.VisibilityOff,
-                    contentDescription = null,
-                )
-            },
-            headlineContent = {
-                Text(
-                    text =
-                        stringResource(
-                            id = if (comic.directory.hidden) R.string.action_unhide else R.string.action_hide,
-                        ),
-                )
-            },
-            supportingContent = {
-                Text(
-                    text =
-                        stringResource(
-                            id = if (comic.directory.hidden) R.string.description_unhide else R.string.description_hide,
-                        ),
-                )
-            },
-            modifier = Modifier.clickable { showHideDialog = true },
-        )
+                    ActionListItem(
+                        icon = if (comic.directory.hidden) Icons.Rounded.Visibility else Icons.Rounded.VisibilityOff,
+                        title =
+                            stringResource(
+                                id = if (comic.directory.hidden) R.string.action_unhide else R.string.action_hide,
+                            ),
+                        subtitle =
+                            stringResource(
+                                id = if (comic.directory.hidden) R.string.description_unhide else R.string.description_hide,
+                            ),
+                        onClick = { showHideDialog = true },
+                    )
 
-        ListItem(
-            leadingContent = {
-                Icon(imageVector = Icons.Rounded.CloudUpload, contentDescription = null)
-            },
-            headlineContent = { Text(text = stringResource(id = R.string.action_sync_comic_push)) },
-            supportingContent = { Text(text = stringResource(id = R.string.description_sync_comic_with_peer)) },
-            modifier =
-                Modifier.clickable {
-                    onLoadPairedPeers()
-                    pendingDirection = SyncDirection.PUSH
-                    showPeerPicker = true
-                },
-        )
+                    ActionListItem(
+                        icon = Icons.Rounded.CloudUpload,
+                        title = stringResource(id = R.string.action_sync_comic_push),
+                        subtitle = stringResource(id = R.string.description_sync_comic_with_peer),
+                        onClick = {
+                            onLoadPairedPeers()
+                            pendingDirection = SyncDirection.PUSH
+                            showPeerPicker = true
+                        },
+                    )
 
-        ListItem(
-            leadingContent = {
-                Icon(imageVector = Icons.Rounded.CloudDownload, contentDescription = null)
-            },
-            headlineContent = { Text(text = stringResource(id = R.string.action_sync_comic_pull)) },
-            supportingContent = { Text(text = stringResource(id = R.string.description_sync_comic_with_peer)) },
-            modifier =
-                Modifier.clickable {
-                    onLoadPairedPeers()
-                    pendingDirection = SyncDirection.PULL
-                    showPeerPicker = true
-                },
-        )
+                    ActionListItem(
+                        icon = Icons.Rounded.CloudDownload,
+                        title = stringResource(id = R.string.action_sync_comic_pull),
+                        subtitle = stringResource(id = R.string.description_sync_comic_with_peer),
+                        onClick = {
+                            onLoadPairedPeers()
+                            pendingDirection = SyncDirection.PULL
+                            showPeerPicker = true
+                        },
+                    )
 
-        ListItem(
-            leadingContent = {
-                Icon(imageVector = Icons.Rounded.LayersClear, contentDescription = null)
-            },
-            headlineContent = { Text(text = stringResource(id = R.string.action_clear_metadata)) },
-            supportingContent = { Text(text = stringResource(id = R.string.description_clear_metadata)) },
-            modifier = Modifier.clickable { showClearMetadataDialog = true },
-        )
+                    ActionListItem(
+                        icon = Icons.Rounded.LayersClear,
+                        title = stringResource(id = R.string.action_clear_metadata),
+                        subtitle = stringResource(id = R.string.description_clear_metadata),
+                        onClick = { showClearMetadataDialog = true },
+                        isLast = true,
+                    )
+                }
+            }
 
-        ListItem(
-            leadingContent = {
-                Icon(
-                    imageVector = Icons.Rounded.Delete,
-                    contentDescription = null,
+            Surface(
+                shape = ShapeTokens.Large,
+                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f),
+            ) {
+                ActionListItem(
+                    icon = Icons.Rounded.Delete,
+                    title = stringResource(id = R.string.action_delete),
+                    subtitle = stringResource(id = R.string.description_delete),
+                    onClick = { showDeleteDialog = true },
                     tint = MaterialTheme.colorScheme.error,
+                    isLast = true,
                 )
-            },
-            headlineContent = {
-                Text(
-                    text = stringResource(id = R.string.action_delete),
-                    color = MaterialTheme.colorScheme.error,
-                )
-            },
-            supportingContent = {
-                Text(
-                    text = stringResource(id = R.string.description_delete),
-                    color = MaterialTheme.colorScheme.error,
-                )
-            },
-            modifier = Modifier.clickable { showDeleteDialog = true },
-        )
+            }
+        }
 
         Spacer(modifier = Modifier.navigationBarsPadding())
     }
@@ -362,6 +354,33 @@ fun Main.Common.Component.ComicActionsSheet(
                 onDismiss()
             },
             onDismiss = { showPeerPicker = false },
+        )
+    }
+}
+
+@Composable
+private fun ActionListItem(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+    tint: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+    isLast: Boolean = false,
+) {
+    val titleColor = if (tint == MaterialTheme.colorScheme.onSurfaceVariant) MaterialTheme.colorScheme.onSurface else tint
+
+    ListItem(
+        leadingContent = { Icon(imageVector = icon, contentDescription = null, tint = tint) },
+        headlineContent = { Text(text = title, color = titleColor) },
+        supportingContent = { Text(text = subtitle, color = tint) },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        modifier = Modifier.clickable(onClick = onClick),
+    )
+
+    if (!isLast) {
+        HorizontalDivider(
+            modifier = Modifier.padding(start = SpacingTokens.ExtraGiant),
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
         )
     }
 }
