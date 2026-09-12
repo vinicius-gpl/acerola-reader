@@ -371,6 +371,7 @@ fn complete_payload(peer: &PeerIdentity, stats: &FileSyncStats) -> String {
         "receivedCount": stats.received_count,
         "sentCount": stats.sent_count,
         "failedCount": stats.failed_count,
+        "conflictsCount": stats.conflicts_count,
     })
     .to_string()
 }
