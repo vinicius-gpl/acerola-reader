@@ -15,6 +15,7 @@ object NordDark {
     val Tertiary = Color(0xFF8FBCBB)
 
     val Error = Color(0xFFBF616A)
+    val Green = Color(0xFFA3BE8C)
 }
 
 object NordLight {
@@ -31,4 +32,5 @@ object NordLight {
     val Tertiary = Color(0xFF8FBCBB)
 
     val Error = Color(0xFFBF616A)
+    val Green = Color(0xFFA3BE8C)
 }
