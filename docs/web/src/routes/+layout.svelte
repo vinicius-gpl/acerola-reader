@@ -89,18 +89,23 @@
 
 	<!-- Open Graph Meta Tags -->
 	<meta property="og:site_name" content={m['site.name']()} />
-	<meta property="og:title" content={m['site.og_title']()} />
-	<meta property="og:description" content={m['site.og_description']()} />
+	<meta property="og:title" content={m['site.og.title']()} />
+	<meta property="og:description" content={m['site.og.description']()} />
 	<meta property="og:type" content="website" />
 	<meta property="og:url" content={page.url.href} />
 	<meta property="og:locale" content={getLocale() === 'pt-br' ? 'pt_BR' : 'en_US'} />
 	<meta property="og:image" content={OG_IMAGE_URL} />
+	<meta property="og:image:type" content="image/jpeg" />
+	<meta property="og:image:width" content="1200" />
+	<meta property="og:image:height" content="630" />
+	<meta property="og:image:alt" content={m['site.og.image_alt']()} />
 
 	<!-- Twitter Card Meta Tags -->
 	<meta name="twitter:card" content="summary_large_image" />
-	<meta name="twitter:title" content={m['site.og_title']()} />
-	<meta name="twitter:description" content={m['site.og_description']()} />
+	<meta name="twitter:title" content={m['site.og.title']()} />
+	<meta name="twitter:description" content={m['site.og.description']()} />
 	<meta name="twitter:image" content={OG_IMAGE_URL} />
+	<meta name="twitter:image:alt" content={m['site.og.image_alt']()} />
 
 	<!-- JSON-LD Structured Data for Google & AI Engines. -->
 	{@html jsonLdScript}
