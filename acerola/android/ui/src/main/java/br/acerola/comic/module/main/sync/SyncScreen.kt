@@ -7,7 +7,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -1399,16 +1398,32 @@ private fun SecurityNote() {
     }
 }
 
+/** Accordion que expande em linha — mesmo componente já usado por [RelaySettingsCard] nessa
+ *  tela, em vez de abrir um dialog/sheet à parte. Refresh/limpar ficam como ícones no topo do
+ *  corpo expandido (só visíveis com o accordion aberto), mesmo espírito do `RestartSection`
+ *  dentro de [RelaySettingsCard]. */
 @Composable
 private fun ActivityLogCard(
     uiState: SyncUiState,
     onAction: (SyncAction) -> Unit,
 ) {
+    var expanded by remember { mutableStateOf(false) }
     var showClearDialog by remember { mutableStateOf(false) }
 
-    SectionCard(
+    val summary =
+        uiState.transferLog.firstOrNull()?.let { describeEntry(it) }
+            ?: stringResource(id = R.string.label_sync_activity_log_empty)
+
+    Acerola.Component.AccordionCard(
         title = stringResource(id = R.string.title_sync_activity_log),
-        actions = {
+        description = summary,
+        icon = Icons.Default.History,
+        accentColor = MaterialTheme.colorScheme.tertiary,
+        expanded = expanded,
+        onToggleExpanded = { expanded = !expanded },
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
             IconButton(onClick = { onAction(SyncAction.RefreshTransferLog) }) {
                 Icon(
                     imageVector = Icons.Default.Refresh,
@@ -1426,8 +1441,8 @@ private fun ActivityLogCard(
                     )
                 }
             }
-        },
-    ) {
+        }
+
         if (uiState.transferLog.isEmpty()) {
             Text(
                 text = stringResource(id = R.string.label_sync_activity_log_empty),
@@ -1611,24 +1626,6 @@ private fun SectionHeader(
         color = MaterialTheme.colorScheme.secondary,
         modifier = modifier,
     )
-}
-
-@Composable
-private fun SectionCard(
-    title: String,
-    actions: (@Composable () -> Unit)? = null,
-    content: @Composable ColumnScope.() -> Unit,
-) {
-    Card(shape = ShapeTokens.Medium, modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(SpacingTokens.Large)) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                SectionHeader(title = title, modifier = Modifier.weight(1f))
-                actions?.invoke()
-            }
-            Spacer(modifier = Modifier.height(SpacingTokens.Small))
-            content()
-        }
-    }
 }
 
 private fun previewUiState() =
