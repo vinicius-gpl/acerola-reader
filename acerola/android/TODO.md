@@ -52,8 +52,11 @@
   explícita antes de disparar.
 - [ ] **Link estável de download do APK** — CI (`android-release.yml`) já sobe o APK pro
   Cloudflare R2 quando o canal é `prod`, mas nenhuma tag até hoje usou `prod` (só `alpha`) —
-  esse caminho nunca rodou de verdade. Falta: confirmar o dry-run, e depois resolver o nome de
-  arquivo feio (`Content-Disposition` correto ou rota de redirect no `docs/web`).
+  esse caminho nunca rodou de verdade. `android/latest/acerola-{version}.apk` +
+  `android/releases/acerola-{version}.apk` (arquivo permanente) e a rota
+  `/api/apk-latest` no `docs/web` (resolve a maior versão via `R2Bucket.list`) já resolvem o
+  nome de arquivo feio e dão histórico versionado. Falta só: confirmar o dry-run contra um
+  tag `prod` de verdade.
 
 ## Baixa
 
