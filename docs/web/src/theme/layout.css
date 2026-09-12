@@ -152,7 +152,30 @@ figure[data-rehype-pretty-code-figure] code[data-line-numbers] > [data-line]::be
 	@apply my-8 border-border;
 }
 
-/* No `table`/`thead`/`th`/`td` rules here on purpose — every table in docs content
-   goes through the Table component (src/lib/components/ui/table/), which styles
-   and spaces itself. A generic `.doc-content table` rule here would double up
-   borders/margins with that component's own wrapper. */
+/* Tabelas em markdown viram `<table>`/`<th>`/`<td>` puro via remark-gfm — o
+   componente Table (src/lib/components/ui/table/) não entra nesse pipeline,
+   então precisam do próprio estilo aqui. Tokens espelham os do componente. */
+.doc-content :where(table) {
+	@apply my-6 block w-full overflow-x-auto rounded-lg border border-border text-sm;
+	border-collapse: collapse;
+}
+
+.doc-content :where(thead) {
+	@apply bg-muted;
+}
+
+.doc-content :where(th) {
+	@apply border-b border-border px-4 py-2 text-left align-middle font-semibold whitespace-nowrap text-foreground;
+}
+
+.doc-content :where(td) {
+	@apply border-b border-border px-4 py-2.5 align-top text-foreground;
+}
+
+.doc-content :where(tbody tr:last-child td) {
+	@apply border-b-0;
+}
+
+.doc-content :where(tbody tr:hover) {
+	@apply bg-accent/50;
+}
