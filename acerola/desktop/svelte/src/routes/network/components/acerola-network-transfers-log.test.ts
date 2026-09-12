@@ -71,9 +71,7 @@ describe('AcerolaNetworkTransfersLog', () => {
 		render(AcerolaNetworkTransfersLog, {
 			props: {
 				data: {
-					entries: [
-						entry({ kind: 'files', status: 'complete', message: 'peer-1', conflicts: 2 })
-					],
+					entries: [entry({ kind: 'files', status: 'complete', message: 'peer-1', conflicts: 2 })],
 					peerLabel: () => 'Meu Notebook'
 				}
 			}
