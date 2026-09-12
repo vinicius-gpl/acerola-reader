@@ -7,49 +7,49 @@
 ## Crítico
 
 - [ ] **Conflito de sync (quadrinho existente nos dois lados) está quebrado** — mesmo bug do
-  Android: nenhuma lógica de detecção/resolução de conflito existe no código Rust (`grep` por
-  "conflict" não encontra nada em `src-tauri/src`). Falso negativo de timeout em sessões que
-  terminaram com sucesso.
+      Android: nenhuma lógica de detecção/resolução de conflito existe no código Rust (`grep` por
+      "conflict" não encontra nada em `src-tauri/src`). Falso negativo de timeout em sessões que
+      terminaram com sucesso.
 - [ ] **`FsStore` do iroh-blobs trava ao abrir store em disco (mitigado)** — Mitigado com
-  `.blobs(IrohBlobsConfig::mem())` em `bios/network.rs` — blobs não persistem entre
-  reinícios. Causa raiz rastreada em [`lib/p2p/TODO.md`](../../lib/p2p/TODO.md).
+      `.blobs(IrohBlobsConfig::mem())` em `bios/network.rs` — blobs não persistem entre
+      reinícios. Causa raiz rastreada em [`lib/p2p/TODO.md`](../../lib/p2p/TODO.md).
 
 ## Alta
 
 - [ ] **Validar encerramento de conexões/blobs — sessões só voltam ao fechar o app (lado
-  Android)** — Log do Android: `timed out reading library summary`, sem recuperação até
-  reabrir o app. Suspeita: este lado (Desktop) inicia uma sessão `acerola/browse-cover/1` e
-  não a finaliza corretamente, deixando o Android preso esperando.
+      Android)** — Log do Android: `timed out reading library summary`, sem recuperação até
+      reabrir o app. Suspeita: este lado (Desktop) inicia uma sessão `acerola/browse-cover/1` e
+      não a finaliza corretamente, deixando o Android preso esperando.
 - [ ] **`browse-library` — fix aplicado no Android, aguardando confirmação ao vivo** — O lado
-  Desktop (inbound) já estava correto; o fix foi só no Android (outbound). Pendente:
-  rebuild+reinstall lá e confirmar.
+      Desktop (inbound) já estava correto; o fix foi só no Android (outbound). Pendente:
+      rebuild+reinstall lá e confirmar.
 - [ ] **`BlobNotFound` esporádico em transferências** — Causa raiz corrigida no `acerola-p2p`
-  compartilhado (tag permanente antes do fetch) e `cargo update -p acerola-p2p` já rodado nos
-  dois apps. Pendente: confirmar ao vivo.
+      compartilhado (tag permanente antes do fetch) e `cargo update -p acerola-p2p` já rodado nos
+      dois apps. Pendente: confirmar ao vivo.
 - [ ] **Trocar pra um relay que um peer não compartilha corta o alcance sem aviso** —
-  `RelayModeConfig::resolve` monta um `RelayMap` fechado; trocar de relay próprio deixa peers
-  que não usam esse relay inalcançáveis até convergirem. Falta aviso na UI antes de trocar.
+      `RelayModeConfig::resolve` monta um `RelayMap` fechado; trocar de relay próprio deixa peers
+      que não usam esse relay inalcançáveis até convergirem. Falta aviso na UI antes de trocar.
 - [ ] **[To Fix] Recompilação do app quebra o handshake P2P (mitigado)** — Suspeito
-  identificado: `shutdown()` não era chamado no encerramento normal do app. Mitigado (`lib.rs`
-  agora chama `bios::shutdown_network` em `RunEvent::Exit`). Pendente: confirmar ao vivo que
-  isso elimina o sintoma; se persistir, investigar o timeout de keep-alive do relay.
+      identificado: `shutdown()` não era chamado no encerramento normal do app. Mitigado (`lib.rs`
+      agora chama `bios::shutdown_network` em `RunEvent::Exit`). Pendente: confirmar ao vivo que
+      isso elimina o sintoma; se persistir, investigar o timeout de keep-alive do relay.
 
 ## Média
 
 - [ ] **Editar template** — Update das tabelas locais relacionadas via Tauri Invoke.
 - [ ] **"Reescanear quadrinho completo": unificar entre os dois apps** — Preferência: remover
-  daqui em vez de adicionar no Android.
+      daqui em vez de adicionar no Android.
 - [ ] **Automatizar submissão do MSIX na Microsoft Store via CD** — Publicação no Partner
-  Center ainda é manual. Adicionar a `msstore` CLI no `desktop-release.yml` pra
-  preparar/atualizar a submissão a cada release, parando antes do envio pra certificação.
+      Center ainda é manual. Adicionar a `msstore` CLI no `desktop-release.yml` pra
+      preparar/atualizar a submissão a cada release, parando antes do envio pra certificação.
 - [ ] **App conseguir ficar em segundo plano com ícone escondido** — Poder colapsar em
-  segundo plano/bandeja do sistema pra tarefas demoradas sem precisar deixar a janela aberta.
+      segundo plano/bandeja do sistema pra tarefas demoradas sem precisar deixar a janela aberta.
 
 ## Baixa
 
 - [ ] **Otimizar busca/navegação da biblioteca remota** — É webview, dá pra fazer melhor
-  (paginação/virtualização, layout mais claro do que o outro dispositivo tem).
-- [ ] **Botão de sync de histórico na tela de histórico** *(talvez)*
+      (paginação/virtualização, layout mais claro do que o outro dispositivo tem).
+- [ ] **Botão de sync de histórico na tela de histórico** _(talvez)_
 
 ## Referência: itens que o doc dizia em aberto mas já estão corrigidos (auditoria 11/09/2026)
 
