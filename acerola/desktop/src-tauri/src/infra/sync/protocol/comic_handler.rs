@@ -70,15 +70,18 @@ impl ComicSyncOutbound {
         Self { emit, service, metadata_service, log_repo, guard, registry, transfer }
     }
 
-    /// Retorna `(skipped, comic_name)` — `skipped` é quantos capítulos/extras (de qualquer uma
-    /// das duas fases) não foram transferidos de verdade, usado por `handle()` pra decidir se a
-    /// sessão pode mesmo ser reportada como "completa" (ver doc de `receive_files`/`send_files`
-    /// em `transfer.rs`); `comic_name` viaja de volta só pra `handle()` poder incluir no
-    /// payload do evento `sync:comic:complete`/`error`, já que só `run()` sabe qual foi o
-    /// quadrinho escopado desta sessão.
+    /// Retorna `(skipped, comic_name, conflicts)` — `skipped` é quantos capítulos/extras (de
+    /// qualquer uma das duas fases) não foram transferidos de verdade, usado por `handle()` pra
+    /// decidir se a sessão pode mesmo ser reportada como "completa" (ver doc de
+    /// `receive_files`/`send_files` em `transfer.rs`); `comic_name` viaja de volta só pra
+    /// `handle()` poder incluir no payload do evento `sync:comic:complete`/`error`, já que só
+    /// `run()` sabe qual foi o quadrinho escopado desta sessão; `conflicts` é quantos desses
+    /// capítulos já existiam localmente com um checksum diferente do peer (ver
+    /// `FileSyncService::diff_wanted`) — só populado no lado que efetivamente calculou o diff
+    /// (`is_sender == false` abaixo), fica em 0 no lado que só serve o que foi pedido.
     async fn run(
         &self, peer: &PeerIdentity, writer: &mut FramedWriter, reader: &mut FramedReader,
-    ) -> Result<(usize, String), P2pError> {
+    ) -> Result<(usize, String, usize), P2pError> {
         let (comic_name, direction, chapter_ids) = self
             .registry
             .take(&peer.id)
@@ -102,8 +105,8 @@ impl ComicSyncOutbound {
         // sendo calculado normalmente do outro lado (inbound), que decide o que pedir de mim sem
         // saber (nem precisar saber) da direção.
         let is_sender = direction == SyncDirection::Push;
-        let (my_wanted, my_wanted_extras) = if is_sender {
-            (Vec::new(), Vec::new())
+        let (my_wanted, my_wanted_extras, my_conflicts) = if is_sender {
+            (Vec::new(), Vec::new(), Vec::new())
         } else {
             self.service.diff_wanted(&peer_manifest).await?
         };
@@ -163,6 +166,7 @@ impl ComicSyncOutbound {
         Ok((
             received_skipped + received_extras_skipped + sent_skipped + sent_extras_skipped,
             comic_name,
+            my_conflicts.len(),
         ))
     }
 }
@@ -185,10 +189,15 @@ impl Handler for ComicSyncOutbound {
         (self.emit)(STARTED_EVENT, peer.id.clone());
 
         match self.run(peer, &mut writer, &mut reader).await {
-            Ok((0, comic_name)) => {
+            Ok((0, comic_name, conflicts)) => {
                 (self.emit)(
                     COMPLETE_EVENT,
-                    serde_json::json!({ "peerId": peer.id, "comicName": comic_name }).to_string(),
+                    serde_json::json!({
+                        "peerId": peer.id,
+                        "comicName": comic_name,
+                        "conflicts": conflicts,
+                    })
+                    .to_string(),
                 );
                 self.log_repo
                     .base
@@ -200,7 +209,7 @@ impl Handler for ComicSyncOutbound {
             // Sessão terminou sem erro de protocolo, mas nem todos os capítulos chegaram —
             // reportar como "complete" aqui esconderia exatamente o tipo de perda de dado
             // silenciosa que motivou essa mudança (ver doc de `receive_files`).
-            Ok((skipped, comic_name)) => {
+            Ok((skipped, comic_name, _conflicts)) => {
                 let message =
                     format!("{skipped} chapter(s) not synced — see backend log for details");
                 tracing::warn!(peer = %peer.id, skipped, "[ComicSync] session finished with missing chapters");
@@ -259,10 +268,10 @@ impl ComicSyncInbound {
     }
 
     /// Ver doc equivalente em `ComicSyncOutbound::run` — mesmo contrato de retorno
-    /// `(skipped, comic_name)`.
+    /// `(skipped, comic_name, conflicts)`.
     async fn run(
         &self, peer: &PeerIdentity, writer: &mut FramedWriter, reader: &mut FramedReader,
-    ) -> Result<(usize, String), P2pError> {
+    ) -> Result<(usize, String, usize), P2pError> {
         let request: ComicSyncRequest = read_or_busy(reader).await?;
 
         let peer_manifest: FileManifest = read_json(reader).await?;
@@ -277,8 +286,8 @@ impl ComicSyncInbound {
         // puxa de mim) — papel sempre o oposto do outbound (ver doc de `SyncDirection` e
         // `ComicSyncOutbound::run`), então não pede nada de volta, só serve o que foi pedido.
         let is_sender = request.direction == SyncDirection::Pull;
-        let (my_wanted, my_wanted_extras) = if is_sender {
-            (Vec::new(), Vec::new())
+        let (my_wanted, my_wanted_extras, my_conflicts) = if is_sender {
+            (Vec::new(), Vec::new(), Vec::new())
         } else {
             self.service.diff_wanted(&peer_manifest).await?
         };
@@ -336,6 +345,7 @@ impl ComicSyncInbound {
         Ok((
             sent_skipped + sent_extras_skipped + received_skipped + received_extras_skipped,
             request.comic_name,
+            my_conflicts.len(),
         ))
     }
 }
@@ -358,10 +368,15 @@ impl Handler for ComicSyncInbound {
         (self.emit)(STARTED_EVENT, peer.id.clone());
 
         match self.run(peer, &mut writer, &mut reader).await {
-            Ok((0, comic_name)) => {
+            Ok((0, comic_name, conflicts)) => {
                 (self.emit)(
                     COMPLETE_EVENT,
-                    serde_json::json!({ "peerId": peer.id, "comicName": comic_name }).to_string(),
+                    serde_json::json!({
+                        "peerId": peer.id,
+                        "comicName": comic_name,
+                        "conflicts": conflicts,
+                    })
+                    .to_string(),
                 );
                 self.log_repo
                     .base
@@ -370,7 +385,7 @@ impl Handler for ComicSyncInbound {
                     .ok();
                 Ok(())
             },
-            Ok((skipped, comic_name)) => {
+            Ok((skipped, comic_name, _conflicts)) => {
                 let message =
                     format!("{skipped} chapter(s) not synced — see backend log for details");
                 tracing::warn!(peer = %peer.id, skipped, "[ComicSync] session finished with missing chapters");
@@ -576,6 +591,7 @@ mod tests {
         let payload: serde_json::Value = serde_json::from_str(&complete_event.1).unwrap();
         assert_eq!(payload["comicName"], "Quadrinho Compartilhado");
         assert_eq!(payload["peerId"], "peer-complete");
+        assert_eq!(payload["conflicts"], 0, "nenhum capítulo envolvido, sem conflito possível");
 
         let inbound_recorded = inbound_events.lock().unwrap();
         let inbound_complete = inbound_recorded
@@ -584,6 +600,118 @@ mod tests {
             .expect("inbound também deveria ter emitido sync:comic:complete");
         let inbound_payload: serde_json::Value = serde_json::from_str(&inbound_complete.1).unwrap();
         assert_eq!(inbound_payload["comicName"], "Quadrinho Compartilhado");
+    }
+
+    /// Mesmo quadrinho/capítulo nos dois lados, conteúdo (checksum) diferente — cenário real do
+    /// bug relatado ("conflito não é detectado nem reportado" ao sincronizar um quadrinho já
+    /// existente nos dois devices). Prova que `sync:comic:complete` carrega `conflicts >= 1` no
+    /// lado que calculou o diff (o `Pull`, que é quem chama `diff_wanted`).
+    #[tokio::test]
+    async fn comic_complete_event_payload_carries_a_real_conflict_count() {
+        let outbound_pool = crate::tests::utils::setup_test_db::setup_test_db().await;
+        let inbound_pool = crate::tests::utils::setup_test_db::setup_test_db().await;
+        let outbound_dir = tempfile::tempdir().unwrap();
+        let inbound_dir = tempfile::tempdir().unwrap();
+
+        crate::tests::utils::setup_test_db::insert_comic_directory(
+            &outbound_pool,
+            1,
+            "Test",
+            outbound_dir.path().join("Test").to_str().unwrap(),
+        )
+        .await;
+        crate::tests::utils::setup_test_db::insert_comic_directory(
+            &inbound_pool,
+            1,
+            "Test",
+            inbound_dir.path().join("Test").to_str().unwrap(),
+        )
+        .await;
+
+        let outbound_path = outbound_dir.path().join("Cap 1.cbz");
+        let outbound_bytes = b"versao do outbound";
+        tokio::fs::write(&outbound_path, outbound_bytes).await.unwrap();
+        sqlx::query(
+            "INSERT INTO chapter_archive (id, chapter, path, chapter_sort, is_special, checksum, comic_directory_fk, last_modified) VALUES (1, 'Cap 1', ?, '1', 0, ?, 1, 0)",
+        )
+        .bind(outbound_path.to_str().unwrap())
+        .bind(sha256_hex(outbound_bytes))
+        .execute(&outbound_pool)
+        .await
+        .unwrap();
+
+        let inbound_path = inbound_dir.path().join("Cap 1.cbz");
+        let inbound_bytes = b"versao do inbound, diferente";
+        tokio::fs::write(&inbound_path, inbound_bytes).await.unwrap();
+        sqlx::query(
+            "INSERT INTO chapter_archive (id, chapter, path, chapter_sort, is_special, checksum, comic_directory_fk, last_modified) VALUES (1, 'Cap 1', ?, '1', 0, ?, 1, 0)",
+        )
+        .bind(inbound_path.to_str().unwrap())
+        .bind(sha256_hex(inbound_bytes))
+        .execute(&inbound_pool)
+        .await
+        .unwrap();
+
+        let outbound_root = outbound_dir.path().to_path_buf();
+        let inbound_root = inbound_dir.path().to_path_buf();
+        let outbound_service =
+            FileSyncService::new(outbound_pool.clone(), move || outbound_root.clone());
+        let inbound_service =
+            FileSyncService::new(inbound_pool.clone(), move || inbound_root.clone());
+        let outbound_metadata = Arc::new(MetadataService::new(outbound_pool.clone()));
+        let inbound_metadata = Arc::new(MetadataService::new(inbound_pool.clone()));
+
+        let outbound_guard = FileSyncSessionGuard::new();
+        let inbound_guard = FileSyncSessionGuard::new();
+        let registry = PendingComicSyncRegistry::new();
+        let (outbound_emit, outbound_events) = mock_emitter();
+        let (inbound_emit, _inbound_events) = mock_emitter();
+
+        let peer = PeerIdentity { id: "peer-comic-conflict".to_string(), device_id: None };
+        // Pull: outbound é quem calcula o diff (`is_sender == false`) e detecta o conflito.
+        registry.set(peer.id.clone(), "Test".to_string(), SyncDirection::Pull, vec![]);
+
+        let (outbound_transfer, inbound_transfer) = InMemoryChapterTransfer::shared_pair();
+
+        let outbound = ComicSyncOutbound::new(
+            outbound_emit,
+            outbound_service,
+            outbound_metadata,
+            SyncHistoryLogRepository::new(outbound_pool.clone()),
+            outbound_guard,
+            registry,
+            outbound_transfer,
+        );
+        let inbound = ComicSyncInbound::new(
+            inbound_emit,
+            inbound_service,
+            inbound_metadata,
+            SyncHistoryLogRepository::new(inbound_pool.clone()),
+            inbound_guard,
+            inbound_transfer,
+        );
+
+        let (client_io, server_io) = tokio::io::duplex(64 * 1024);
+        let (client_recv, client_send) = tokio::io::split(client_io);
+        let (server_recv, server_send) = tokio::io::split(server_io);
+
+        let (outbound_result, inbound_result) = tokio::join!(
+            outbound.handle(&peer, Box::new(client_send), Box::new(client_recv)),
+            inbound.handle(&peer, Box::new(server_send), Box::new(server_recv)),
+        );
+        outbound_result.expect("pull não deveria falhar mesmo havendo conflito");
+        inbound_result.expect("pull não deveria falhar mesmo havendo conflito");
+
+        let recorded = outbound_events.lock().unwrap();
+        let complete = recorded
+            .iter()
+            .find(|(name, _)| name == "sync:comic:complete")
+            .expect("outbound deveria ter emitido sync:comic:complete");
+        let payload: serde_json::Value = serde_json::from_str(&complete.1).unwrap();
+        assert_eq!(
+            payload["conflicts"], 1,
+            "checksum diferente do mesmo capítulo nos dois lados é um conflito real"
+        );
     }
 
     fn sha256_hex(bytes: &[u8]) -> String {

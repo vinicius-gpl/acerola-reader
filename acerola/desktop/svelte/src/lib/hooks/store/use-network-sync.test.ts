@@ -1353,6 +1353,62 @@ describe('useNetworkSync', () => {
 		});
 	});
 
+	it('comicComplete payload with conflicts populates entry.conflicts', async () => {
+		const { callbacks } = setupListeners();
+		invokeMock.mockResolvedValue(undefined);
+		const hook = await renderHook();
+		await hook.startListening();
+
+		callbacks.get(NETWORK_EVENTS.comicComplete)?.({
+			payload: JSON.stringify({ peerId: 'peer-conflict', comicName: 'Manga', conflicts: 2 })
+		});
+		await tick();
+
+		expect(hook.log[0]).toMatchObject({
+			peerId: 'peer-conflict',
+			kind: 'comic',
+			status: 'complete',
+			comicName: 'Manga',
+			conflicts: 2
+		});
+	});
+
+	it('filesComplete payload with conflicts populates entry.conflicts', async () => {
+		const { callbacks } = setupListeners();
+		invokeMock.mockResolvedValue(undefined);
+		const hook = await renderHook();
+		await hook.startListening();
+
+		callbacks.get(NETWORK_EVENTS.filesComplete)?.({
+			payload: JSON.stringify({ peerId: 'peer-files-conflict', conflicts: 3 })
+		});
+		await tick();
+
+		expect(hook.log[0]).toMatchObject({
+			peerId: 'peer-files-conflict',
+			kind: 'files',
+			status: 'complete',
+			conflicts: 3
+		});
+	});
+
+	it('filesComplete payload without conflicts (legacy raw peerId string) still works', async () => {
+		const { callbacks } = setupListeners();
+		invokeMock.mockResolvedValue(undefined);
+		const hook = await renderHook();
+		await hook.startListening();
+
+		callbacks.get(NETWORK_EVENTS.filesComplete)?.({ payload: 'peer-legacy' });
+		await tick();
+
+		expect(hook.log[0]).toMatchObject({
+			peerId: 'peer-legacy',
+			kind: 'files',
+			status: 'complete',
+			conflicts: undefined
+		});
+	});
+
 	it('completing a session moves the terminal entry to index 0 of log', async () => {
 		const { callbacks } = setupListeners();
 		invokeMock.mockResolvedValue(undefined);
