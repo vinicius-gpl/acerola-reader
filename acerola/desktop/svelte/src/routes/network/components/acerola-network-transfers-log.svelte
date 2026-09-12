@@ -74,7 +74,14 @@
 	});
 
 	function describeEntry(entry: TransferLogEntry): string {
-		return messageByKind[entry.kind][entry.status]?.(entry) ?? entry.message;
+		const base = messageByKind[entry.kind][entry.status]?.(entry) ?? entry.message;
+		// Sem toast/notificação própria pra isso (ver `use-network-sync.svelte.ts`) — o
+		// conflito só precisa aparecer aqui, na linha da sessão que já ia ser mostrada de
+		// qualquer forma, um total por sessão em vez de uma notificação por capítulo.
+		if (entry.status === 'complete' && entry.conflicts) {
+			return `${base} ${m['pages.network.transfers.conflicts_suffix']({ count: entry.conflicts })}`;
+		}
+		return base;
 	}
 </script>
 

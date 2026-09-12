@@ -21,6 +21,12 @@ export type TransferLogEntry = {
 	 *  sessão concluída afeta o quadrinho atualmente aberto, sem precisar assumir que qualquer
 	 *  sync individual é sobre ele. */
 	comicName?: string;
+	/** Só presente em entradas `status: 'complete'` de `kind: 'files'`/`'comic'` — quantos
+	 *  capítulos já existiam localmente com um checksum diferente do peer (conflito de
+	 *  verdade, ver `FileSyncService::diff_wanted`). `0`/`undefined` quando não houve nenhum.
+	 *  Não dispara toast nem notificação separada — só aparece nesta linha do log de
+	 *  transferências, pra não gerar uma notificação por capítulo em conflito. */
+	conflicts?: number;
 };
 
 type SyncKind = TransferLogEntry['kind'];
@@ -221,18 +227,27 @@ export function useNetworkSync() {
 		return label ? `${label}: ${message}` : message;
 	}
 
-	/// Extrai `{peerId, comicName}` do payload de `sync:comic:complete` — só esse evento carrega
-	/// `comicName` (ver `comic_handler.rs::COMPLETE_EVENT`); `sync:history:complete`/
-	/// `sync:files:complete` continuam carregando só o `peerId` puro como string, então o
-	/// fallback cobre esses dois sem quebrar.
-	function parseCompletePayload(payload: string): { peerId: string; comicName?: string } {
+	/// Extrai `{peerId, comicName?, conflicts?}` do payload de `sync:comic:complete`/
+	/// `sync:files:complete` (ver `comic_handler.rs`/`file_handler.rs::COMPLETE_EVENT`) —
+	/// `comicName` só vem no de `comic`. `sync:history:complete`/`sync:historyEntry:complete`
+	/// continuam carregando só o `peerId` puro como string (nunca tiveram conceito de
+	/// conflito de arquivo), então o fallback cobre esses dois sem quebrar.
+	function parseCompletePayload(payload: string): {
+		peerId: string;
+		comicName?: string;
+		conflicts?: number;
+	} {
 		try {
 			const parsed = JSON.parse(payload);
 			if (parsed && typeof parsed === 'object' && typeof parsed.peerId === 'string') {
-				return { peerId: parsed.peerId, comicName: parsed.comicName };
+				return {
+					peerId: parsed.peerId,
+					comicName: parsed.comicName,
+					conflicts: typeof parsed.conflicts === 'number' ? parsed.conflicts : undefined
+				};
 			}
 		} catch {
-			// `sync:history:complete`/`sync:files:complete`: payload é o peerId cru, não JSON.
+			// `sync:history:complete`/`sync:historyEntry:complete`: payload é o peerId cru, não JSON.
 		}
 		return { peerId: payload };
 	}
@@ -268,14 +283,16 @@ export function useNetworkSync() {
 		key: string,
 		status: TransferLogEntry['status'],
 		message: string,
-		comicName?: string
+		comicName?: string,
+		conflicts?: number
 	) {
 		const updated: TransferLogEntry = {
 			...log[index],
 			status,
 			message,
 			timestamp: Date.now(),
-			comicName: comicName ?? log[index].comicName
+			comicName: comicName ?? log[index].comicName,
+			conflicts: conflicts ?? log[index].conflicts
 		};
 		if (isTerminalStatus(status)) {
 			inFlightEntryId.delete(key);
@@ -295,7 +312,8 @@ export function useNetworkSync() {
 		key: string,
 		status: TransferLogEntry['status'],
 		message: string,
-		comicName?: string
+		comicName?: string,
+		conflicts?: number
 	) {
 		const entry: TransferLogEntry = {
 			id: nextId++,
@@ -304,7 +322,8 @@ export function useNetworkSync() {
 			status,
 			message,
 			timestamp: Date.now(),
-			comicName
+			comicName,
+			conflicts
 		};
 		// `files:progress`/`comic:progress` não carregam peer id (comentário de
 		// `inFlightEntryId` acima) — cada evento vira uma linha NOVA aqui, nunca some via
@@ -326,7 +345,8 @@ export function useNetworkSync() {
 		kind: SyncKind,
 		status: TransferLogEntry['status'],
 		message: string,
-		comicName?: string
+		comicName?: string,
+		conflicts?: number
 	) {
 		const key = syncKey(peerId, kind);
 		const existingId = peerId ? inFlightEntryId.get(key) : undefined;
@@ -340,9 +360,9 @@ export function useNetworkSync() {
 			existingId !== undefined ? log.findIndex((entry) => entry.id === existingId) : -1;
 
 		if (existingIndex !== -1) {
-			updateInFlightEntry(existingIndex, key, status, message, comicName);
+			updateInFlightEntry(existingIndex, key, status, message, comicName, conflicts);
 		} else {
-			appendNewEntry(peerId, kind, key, status, message, comicName);
+			appendNewEntry(peerId, kind, key, status, message, comicName, conflicts);
 		}
 	}
 
@@ -406,8 +426,9 @@ export function useNetworkSync() {
 				push('', 'files', 'progress', event.payload);
 			}),
 			await listen<string>(NETWORK_EVENTS.filesComplete, (event) => {
-				clearSyncing(event.payload, 'files');
-				push(event.payload, 'files', 'complete', event.payload);
+				const { peerId, conflicts } = parseCompletePayload(event.payload);
+				clearSyncing(peerId, 'files');
+				push(peerId, 'files', 'complete', peerId, undefined, conflicts);
 			}),
 			await listen<string>(NETWORK_EVENTS.filesError, (event) => {
 				const parsed = parseErrorPayload(event.payload);
@@ -441,9 +462,9 @@ export function useNetworkSync() {
 				push('', 'comic', 'progress', event.payload);
 			}),
 			await listen<string>(NETWORK_EVENTS.comicComplete, (event) => {
-				const { peerId, comicName } = parseCompletePayload(event.payload);
+				const { peerId, comicName, conflicts } = parseCompletePayload(event.payload);
 				clearSyncing(peerId, 'comic');
-				push(peerId, 'comic', 'complete', peerId, comicName);
+				push(peerId, 'comic', 'complete', peerId, comicName, conflicts);
 				settlePending(syncKey(peerId, 'comic'), true, peerId);
 			}),
 			await listen<string>(NETWORK_EVENTS.historyEntryStarted, (event) =>

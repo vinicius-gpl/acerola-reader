@@ -133,6 +133,11 @@ pub(crate) struct FileSyncStats {
     pub received_count: u32,
     pub sent_count: u32,
     pub failed_count: u32,
+    /// Quantos capítulos pedidos já existiam localmente com um checksum diferente do peer —
+    /// conflito de verdade, não só "eu não tinha ainda" (ver `missing_from` em `exchange.rs`).
+    /// Continuam sendo puxados normalmente (comportamento de sobrescrita inalterado); só
+    /// contados separadamente pra `sync:files:complete` poder reportar que aconteceu.
+    pub conflicts_count: u32,
 }
 
 /// Agrupa a lista plana de `get_file_manifest()` (FFI) em `FileManifest` aninhado por

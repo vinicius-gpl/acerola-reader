@@ -6,12 +6,6 @@
 
 ## Crítico
 
-- [ ] **Conflito de sync (quadrinho existente nos dois lados) está quebrado** — Testado ao
-  vivo: capítulos novos chegaram mas nenhum conflito real foi detectado/reportado, e ainda
-  assim apareceu "Erro ao sincronizar quadrinho: timeout waiting for frame" (falso negativo, a
-  sessão tinha terminado bem). Confirmado por auditoria: não existe nenhuma lógica de
-  detecção/resolução de conflito no código Kotlin nem no protocolo Rust compartilhado — só
-  badges de UI (`hasConflict`/`conflictCount`) sem nada alimentando eles.
 - [ ] **`FsStore` do iroh-blobs trava e vira ANR (mitigado, causa raiz aberta)** — Mitigado
   trocando `.blobs(IrohBlobsConfig::fs(...))` por `.mem()` em `native/rust/src/api.rs` —
   funciona, mas blobs não persistem entre reinícios do app. Causa raiz é do `iroh-blobs` em
@@ -26,8 +20,14 @@
   no próprio `restart()`. Fix aqui é só a chamada + passar `paired_peers()` do storage.
 - [ ] **Validar encerramento de conexões/blobs — sessões só voltam ao fechar o app** — Log ao
   vivo: `browse:library:error -> "stream failed: timed out reading library summary"`, sem
-  recuperação até reabrir o app. Suspeita: o Desktop inicia uma sessão
-  `acerola/browse-cover/1` e não a finaliza corretamente do lado dele. Ainda sem fix.
+  recuperação até reabrir o app. Suspeita original: o Desktop inicia uma sessão
+  `acerola/browse-cover/1` e não a finaliza corretamente do lado dele.
+  **Investigado (11/09/2026), teoria descartada:** nenhum `Handler` chama `finish()`/
+  `shutdown()` explícito no `SendStream`, mas `quinn::SendStream::drop` já faz isso sozinho
+  (só cai pra `reset()` se o peer já tinha mandado `STOP_SENDING`) — não é a causa. Também
+  descartada a hipótese de um handler travado bloquear os outros: `NetworkManager::handle_incoming`
+  roda cada conexão aceita numa `tokio::spawn` própria. Causa raiz continua desconhecida; precisa
+  de reprodução ao vivo com tracing na camada de conexão do iroh.
 - [ ] **`browse-library` — fix aplicado, aguardando confirmação ao vivo** — Causa raiz já
   corrigida no código (`LibraryBrowseOutbound`/`run_outbound` agora escreve um marcador `{}`
   antes de esperar resposta, respeitando a regra do quinn de `open_bi()`/`accept_bi()`).
@@ -70,3 +70,10 @@
 - `Protocolo de sync de arquivos não leva o quadrinho 100%` — **já corrigido**
   (`FileComicInfo` com cover/banner/ComicInfo.xml, `send_extras`/`receive_extras` em
   `exchange.rs`, commit `d0bcf7f1`). Não é mais um item em aberto.
+- `Conflito de sync (quadrinho existente nos dois lados) está quebrado` — **detecção/relato
+  corrigidos**: `missing_from` (`protocol/files/exchange.rs`) agora distingue "nunca vi esse
+  capítulo" de "já tenho, checksum diferente" (conflito de verdade), e `FileSyncComplete`
+  carrega `conflictsCount` até a notificação final de sync (`P2pSyncCoordinator`) — um total
+  por sessão, sem toast, sem notificação por capítulo. Continua sobrescrevendo com a versão do
+  peer (comportamento inalterado); resolução de conflito de verdade (escolher lado vencedor)
+  fica pra depois.

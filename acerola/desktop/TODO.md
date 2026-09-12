@@ -6,10 +6,6 @@
 
 ## Crítico
 
-- [ ] **Conflito de sync (quadrinho existente nos dois lados) está quebrado** — mesmo bug do
-      Android: nenhuma lógica de detecção/resolução de conflito existe no código Rust (`grep` por
-      "conflict" não encontra nada em `src-tauri/src`). Falso negativo de timeout em sessões que
-      terminaram com sucesso.
 - [ ] **`FsStore` do iroh-blobs trava ao abrir store em disco (mitigado)** — Mitigado com
       `.blobs(IrohBlobsConfig::mem())` em `bios/network.rs` — blobs não persistem entre
       reinícios. Causa raiz rastreada em [`lib/p2p/TODO.md`](../../lib/p2p/TODO.md).
@@ -18,8 +14,20 @@
 
 - [ ] **Validar encerramento de conexões/blobs — sessões só voltam ao fechar o app (lado
       Android)** — Log do Android: `timed out reading library summary`, sem recuperação até
-      reabrir o app. Suspeita: este lado (Desktop) inicia uma sessão `acerola/browse-cover/1` e
-      não a finaliza corretamente, deixando o Android preso esperando.
+      reabrir o app. Suspeita original: este lado (Desktop) inicia uma sessão
+      `acerola/browse-cover/1` e não a finaliza corretamente, deixando o Android preso
+      esperando.
+      **Investigado (11/09/2026), teoria descartada:** a suspeita de "stream nunca fechado"
+      não se sustenta — nenhum `Handler` (`cover_browse_handler.rs`, `library_browse_handler.rs`,
+      etc.) chama `finish()`/`shutdown()` explícito no `SendStream`, mas isso não é o problema:
+      `quinn::SendStream::drop` (`quinn-0.11.9/src/send_stream.rs:344`) já chama `finish()`
+      automaticamente ao ser descartado (só cai pra `reset()` se o peer já tinha mandado
+      `STOP_SENDING`). Também descartada a hipótese de um handler travado bloquear os outros:
+      `NetworkManager::handle_incoming` (`lib/p2p/src/core/network/manager.rs:238-289`) roda
+      cada conexão aceita em uma `tokio::spawn` própria — uma sessão presa não impede novas
+      conexões/streams de serem aceitas e despachadas. Causa raiz continua desconhecida; precisa
+      de reprodução ao vivo com tracing na camada de conexão do iroh (não dá pra ver daqui se é
+      exaustão de `max_concurrent_bidi_streams`, um lock específico do app, ou outra coisa).
 - [ ] **`browse-library` — fix aplicado no Android, aguardando confirmação ao vivo** — O lado
       Desktop (inbound) já estava correto; o fix foi só no Android (outbound). Pendente:
       rebuild+reinstall lá e confirmar.
@@ -59,3 +67,9 @@
 - `Protocolo de sync de arquivos não leva o quadrinho 100%` — **já corrigido**
   (`build_manifest`/`build_manifest_for_comic` já incluem cover/banner/ComicInfo.xml,
   `restrict_manifest_to_chapters` nunca filtra esses extras).
+- `Conflito de sync (quadrinho existente nos dois lados) está quebrado` — **detecção/relato
+  corrigidos**: `FileSyncService::diff_wanted` agora distingue "nunca vi esse capítulo" de "já
+  tenho, checksum diferente" (conflito de verdade), e `sync:files:complete`/
+  `sync:comic:complete` carregam `conflicts` até o log de transferências da tela de Rede — um
+  total por sessão, sem toast novo. Continua sobrescrevendo com a versão do peer (comportamento
+  inalterado); resolução de conflito de verdade (escolher lado vencedor) fica pra depois.

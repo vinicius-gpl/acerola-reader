@@ -853,6 +853,7 @@
 				"comic_progress": "Transferindo {item}...",
 				"comic_complete": "Quadrinho sincronizado com {peer}.",
 				"comic_error": "Erro ao sincronizar quadrinho: {msg}",
+				"conflicts_suffix": "— {count} conflito(s) (mantida a versão do peer)",
 				"refresh": "Atualizar",
 				"clear": {
 					"button": "Limpar",
