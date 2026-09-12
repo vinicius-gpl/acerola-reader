@@ -26,8 +26,14 @@
   no próprio `restart()`. Fix aqui é só a chamada + passar `paired_peers()` do storage.
 - [ ] **Validar encerramento de conexões/blobs — sessões só voltam ao fechar o app** — Log ao
   vivo: `browse:library:error -> "stream failed: timed out reading library summary"`, sem
-  recuperação até reabrir o app. Suspeita: o Desktop inicia uma sessão
-  `acerola/browse-cover/1` e não a finaliza corretamente do lado dele. Ainda sem fix.
+  recuperação até reabrir o app. Suspeita original: o Desktop inicia uma sessão
+  `acerola/browse-cover/1` e não a finaliza corretamente do lado dele.
+  **Investigado (11/09/2026), teoria descartada:** nenhum `Handler` chama `finish()`/
+  `shutdown()` explícito no `SendStream`, mas `quinn::SendStream::drop` já faz isso sozinho
+  (só cai pra `reset()` se o peer já tinha mandado `STOP_SENDING`) — não é a causa. Também
+  descartada a hipótese de um handler travado bloquear os outros: `NetworkManager::handle_incoming`
+  roda cada conexão aceita numa `tokio::spawn` própria. Causa raiz continua desconhecida; precisa
+  de reprodução ao vivo com tracing na camada de conexão do iroh.
 - [ ] **`browse-library` — fix aplicado, aguardando confirmação ao vivo** — Causa raiz já
   corrigida no código (`LibraryBrowseOutbound`/`run_outbound` agora escreve um marcador `{}`
   antes de esperar resposta, respeitando a regra do quinn de `open_bi()`/`accept_bi()`).
