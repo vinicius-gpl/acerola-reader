@@ -1,144 +1,72 @@
-# Acerola Android — TODO de Features
+# Acerola Android — TODO
 
----
+> Lista de features já implementadas removida daqui — histórico completo no `git log`. Este
+> arquivo lista só o que está realmente em aberto, com estado confirmado em auditoria de
+> código (11/09/2026).
 
-## 🏠 Home
+## Crítico
 
-- [x] **Exibir biblioteca em grade (grid)** - Cards com capa gerada pelo `CoverSaver` (salva como `cover.jpg` na pasta do quadrinho via SAF). O Coil carrega direto do URI local.
-- [x] **Exibir biblioteca em lista (list)** - Mesma fonte de dados, layout alternativo. Alternância persistida via `HomeLayoutType` no DataStore.
-- [x] **Buscar quadrinhos por título** - Filtro reativo em memória sobre o Flow do `ObserveLibraryUseCase`. Compara o título remoto (se existir) ou o nome da pasta.
-- [x] **Ordenar biblioteca** - `HomeFilterSheet` permite ordenar por: título (A-Z / Z-A), quantidade de capítulos ou data de última atualização. Configuração salva em estado local (sem DataStore).
-- [x] **Filtrar biblioteca** - Filtros rápidos: só bookmarks (por categoria), por fonte de metadados (`MetadataSource`: MangaDex / AniList / ComicInfo) ou quadrinhos sem metadados. Aplicados em memória sobre o Flow.
-- [x] **Continuar lendo direto da home** - Botão de play no card aparece quando existe `ReadingHistoryDto` para o quadrinho. Abre o `ReaderActivity` passando `CHAPTER_ID` e `INITIAL_PAGE` como Extras.
-- [x] **Menu de ações por quadrinho (long press / botão)** - `ComicActionsSheet` abre via `selectedMangaForActions`. Contém: favoritar com categoria, ocultar/mostrar e deletar (ambos com dialog de confirmação).
-- [x] **Favoritar quadrinho com categoria** - `ManageCategoriesUseCase` associa um `categoryId` ao quadrinho no banco. A `ComicCategorySheet` lista as categorias disponíveis com RadioButton e cor.
-- [x] **Ocultar / mostrar quadrinho** - `HideComicUseCase` chama `gateway.hideManga(comicId)`, que atualiza o campo `hidden` na entidade `ComicDirectory`. O quadrinho some da listagem principal mas o registro permanece.
-- [x] **Deletar quadrinho** - `DeleteComicUseCase` chama `gateway.deleteManga(comicId)`. Remove o registro do Room. Arquivos físicos no dispositivo **não** são apagados.
+- [ ] **Conflito de sync (quadrinho existente nos dois lados) está quebrado** — Testado ao
+  vivo: capítulos novos chegaram mas nenhum conflito real foi detectado/reportado, e ainda
+  assim apareceu "Erro ao sincronizar quadrinho: timeout waiting for frame" (falso negativo, a
+  sessão tinha terminado bem). Confirmado por auditoria: não existe nenhuma lógica de
+  detecção/resolução de conflito no código Kotlin nem no protocolo Rust compartilhado — só
+  badges de UI (`hasConflict`/`conflictCount`) sem nada alimentando eles.
+- [ ] **`FsStore` do iroh-blobs trava e vira ANR (mitigado, causa raiz aberta)** — Mitigado
+  trocando `.blobs(IrohBlobsConfig::fs(...))` por `.mem()` em `native/rust/src/api.rs` —
+  funciona, mas blobs não persistem entre reinícios do app. Causa raiz é do `iroh-blobs` em
+  si, rastreada em [`lib/p2p/TODO.md`](../../lib/p2p/TODO.md).
 
----
+## Alta
 
-## 📖 Tela do Quadrinho
+- [ ] **`P2PNode::restart` não reconecta com peers pareados** — Confirmado: `restart()`
+  (`native/rust/src/api.rs:414-431`) reconstrói o node do zero e nunca chama
+  `reconnect_known_peers` (zero referências no crate). A função já existe pronta, testada e
+  exportada do `acerola-p2p` (`api::network::reconnect_known_peers`) — o Desktop já chama ela
+  no próprio `restart()`. Fix aqui é só a chamada + passar `paired_peers()` do storage.
+- [ ] **Validar encerramento de conexões/blobs — sessões só voltam ao fechar o app** — Log ao
+  vivo: `browse:library:error -> "stream failed: timed out reading library summary"`, sem
+  recuperação até reabrir o app. Suspeita: o Desktop inicia uma sessão
+  `acerola/browse-cover/1` e não a finaliza corretamente do lado dele. Ainda sem fix.
+- [ ] **`browse-library` — fix aplicado, aguardando confirmação ao vivo** — Causa raiz já
+  corrigida no código (`LibraryBrowseOutbound`/`run_outbound` agora escreve um marcador `{}`
+  antes de esperar resposta, respeitando a regra do quinn de `open_bi()`/`accept_bi()`).
+  Pendente: rebuild + reinstall no celular pra confirmar em produção.
+- [ ] **`BlobNotFound` esporádico em sync ("Omoide Emanon" não trouxe todos os capítulos")** —
+  Causa raiz corrigida no `acerola-p2p` compartilhado (tag permanente do blob criada antes do
+  fetch, protegendo contra GC concorrente) e `cargo update -p acerola-p2p` já rodado.
+  Pendente: confirmar ao vivo que resolveu de vez.
+- [ ] **Trocar pra um relay que um peer pareado não compartilha corta o alcance sem aviso** —
+  Mesma limitação de desenho já documentada no Desktop: `RelayModeConfig::resolve` monta um
+  `RelayMap` fechado, então trocar de relay próprio deixa peers que não usam esse relay
+  inalcançáveis até ambos convergirem. Falta algum aviso na UI antes de trocar.
 
-- [x] **Exibir capa, título, autor e status** - Header (`Header.kt`) exibe: capa via URI local do `ComicDirectory.cover`, título do `ComicRemoteInfo.title` ou nome da pasta como fallback, autor de `ComicRemoteInfo.authors.name`, e status como `StatusBadge` lendo `ComicStatus.fromRawValue(remoteInfo.status)`.
-- [x] **Exibir badge da fonte de metadados** - `SourceBadge` lê `remoteInfo.syncSource` (`MetadataSource`). Cor diferente para MangaDex (tertiaryContainer), AniList (primaryContainer) e ComicInfo (secondaryContainer).
-- [x] **Exibir gêneros / tags como badges** - `GenreBadge` itera sobre `remoteInfo.genre` (lista de `Genre` vinda do banco, populada durante sync).
-- [x] **Exibir sinopse expansível** - `Text` com `maxLines = 3` por padrão. Clique no `Surface` que envolve alterna `isExpanded`, expandindo para `Int.MAX_VALUE` linhas com `animateContentSize()`.
-- [x] **Iniciar / Continuar / Reler** - Botão principal lê o `ReadingHistoryDto` do `ObserveComicHistoryUseCase`. Se `history == null` → "Começar", se `history.isCompleted == true` → "Reler", caso contrário → "Continuar". Abre o `ReaderActivity`.
-- [x] **Listar capítulos com status de leitura** - `ObserveCombinedChaptersUseCase` junta `ChapterArchive` com `ChapterRead` do banco. Cada `ChapterItem` exibe o número do capítulo e um ícone de check se `isRead == true`.
-- [x] **Marcar capítulo como lido / não lido** - `ComicChapterAction.ToggleReadStatus` dispara `TrackReadingProgressUseCase.toggleReadStatus()`. Se já lido → `historyRepository.unmarkChapterAsRead()`; se não lido → `markChapterAsRead()`.
-- [x] **Ordenar capítulos** - `ChapterSortSheet` permite ordenar por número do capítulo ou por data de atualização, em asc/desc. Usa `SortNormalizer` para comparação decimal correta (ex: `0.01` antes de `0.10`).
-- [x] **Agrupar capítulos por volume** - `ObserveVolumeChaptersUseCase` retorna capítulos agrupados por `VolumeArchive`. Header de volume (`VolumeHeader`) mostra nome e capa do volume.
-- [x] **Trocar estilo de exibição de capítulos/volumes** - `VolumeStylePreference` / `ComicAction.UpdateVolumeView` alterna entre `VolumeViewType.VOLUME` (agrupado) e `VolumeViewType.LIST` (plano). Persiste via `UpdateComicSettingsUseCase`.
-- [x] **Configurar paginação da lista de capítulos** - `PaginationPreference` / `ComicAction.UpdatePageSize` define `ChapterPageSizeType` (quantos capítulos por página). Salvo no banco via `UpdateComicSettingsUseCase`.
-- [x] **Atribuir categoria ao quadrinho** - `ComicAction.UpdateCategory` chama `ManageCategoriesUseCase` para vincular/desvincular a `categoryId` do quadrinho.
-- [x] **Ativar/desativar sync externo por quadrinho** - `ComicExternalSyncToggle` / `ComicAction.ToggleExternalSync` atualiza o campo `externalSyncEnabled` via `UpdateComicSettingsUseCase → gateway.updateMangaSettings()`.
-- [x] **Sincronizar capítulos locais (rescaneamento de arquivos)** - `ComicSyncAction.SyncChaptersLocal` → `ChapterArchiveViewModel.syncChaptersByMangaDirectory()` → `RescanComicChaptersUseCase`. Rescana a pasta do quadrinho no SAF e atualiza os `ChapterArchive` no Room.
-- [x] **Reescanear quadrinho completo** - `ComicSyncAction.RescanComic` → `RescanComicUseCase`. Refaz toda a leitura do diretório: detecta template de nome (`TemplateMatcher`), atualiza `ComicDirectory`, re-indexa capítulos.
-- [x] **Sincronizar metadados pelo MangaDex** - `ComicSyncAction.SyncMangadexInfo` → `SyncComicMetadataUseCase` com `MetadataSource.MANGADEX`. Busca título, sinopse, autor, status e gêneros via `MangadexMangaInfoSource` (Retrofit). Salva cover via `CoverSaver` e banner via `BannerSaver`. Exporta `ComicInfo.xml` via `MetadataExporter` se habilitado.
-- [x] **Sincronizar metadados pelo AniList** - `ComicSyncAction.SyncAnilistInfo` → `SyncComicMetadataUseCase` com `MetadataSource.ANILIST`. Busca via `AnilistMangaInfoSource` (Apollo GraphQL). Mesma pipeline de persistência.
-- [x] **Sincronizar metadados pelo ComicInfo.xml** - `ComicSyncAction.SyncComicInfo` → `SyncComicMetadataUseCase` com `MetadataSource.COMIC_INFO`. `ComicInfoParser` lê o XML local e popula o `ComicRemoteInfo` no banco.
-- [x] **Sincronizar capítulos pelo ComicInfo.xml** - `ComicSyncAction.SyncComicInfoChapters` → `ChapterMetadataViewModel.syncChaptersByComicInfo()` → `ComicInfoChapterEngine`. Lê entradas de capítulos do XML e cria/atualiza `ChapterMetadata` no banco.
-- [x] **Extrair primeira página de capítulo como capa do quadrinho** - `ComicSyncAction.ExtractFirstPageAsCover` → `CoverFromChapterUseCase` → `CoverExtractor.extractFirstPageAsCover()`. Abre o primeiro `ChapterArchive` da obra (ordenado Vol ASC → Ch ASC), decodifica a página 0 via `ChapterSourceFactory` (CBZ ou CBR), comprime como JPEG 90% e salva como `cover.jpg` na pasta raiz do quadrinho via SAF. Atualiza o campo `ComicDirectory.cover`.
-- [x] **Extrair capa do volume a partir do primeiro capítulo do volume** - `ComicSyncAction.ExtractVolumeCovers` → `ExtractAllVolumeCoversUseCase`. Itera todos os `VolumeArchive` do quadrinho. Para cada volume: `CoverExtractor.extractVolumeCover()` abre o primeiro capítulo daquele volume, extrai a página 0 e salva como `cover.jpg` dentro da pasta do volume. Atualiza `VolumeArchive.cover`.
+## Média
 
----
+- [ ] **Sync individual: UI ainda não dispara `syncHistoryEntry`** — O protocolo de sync de
+  uma única entrada de histórico (`acerola/sync-history-entry/1`) já está pronto e testado nos
+  dois lados, mas nenhuma tela chama ele ainda — falta decidir o gatilho de UX (automático ao
+  terminar de ler, ou botão manual).
+- [ ] **Melhorar busca/visualização da biblioteca remota** — Hoje está ruim de ver o conteúdo
+  que o outro dispositivo tem.
+- [ ] **"Reescanear quadrinho completo": unificar entre os dois apps** — Desktop tem, Android
+  não. Preferência: remover do Desktop em vez de adicionar aqui.
+- [ ] **Botão flutuante da Home: buscar quadrinhos no outro dispositivo + sincronizar tudo**
+  *(talvez)* — Dois botões: um pra buscar/puxar quadrinhos específicos de um peer, outro numa
+  sheet maior pra "sincronizar tudo que o peer tem" — esse último precisa de confirmação
+  explícita antes de disparar.
+- [ ] **Link estável de download do APK** — CI (`android-release.yml`) já sobe o APK pro
+  Cloudflare R2 quando o canal é `prod`, mas nenhuma tag até hoje usou `prod` (só `alpha`) —
+  esse caminho nunca rodou de verdade. Falta: confirmar o dry-run, e depois resolver o nome de
+  arquivo feio (`Content-Disposition` correto ou rota de redirect no `docs/web`).
 
-## 📕 Leitor
+## Baixa
 
-- [x] **Ler arquivos .cbz** - `ChapterSourceFactory` detecta extensão e cria `CbzPageResolver`. O `ZipFile` é aberto na pasta do capítulo via SAF, páginas são listadas e abertas como `InputStream` sob demanda.
-- [x] **Ler arquivos .cbr** - `ChapterSourceFactory` cria `CbrPageResolver`. Usa a lib `junrar` para descompressão de RAR. Páginas entregues como `InputStream` sob demanda.
-- [x] **Converter .pdf para .cbz antes de ler** - `ArchiveValidator` detecta `.pdf` ao abrir um capítulo. `PdfToCbzConverter` usa `PdfRenderer` do Android para renderizar cada página como Bitmap (escala 2×, fundo branco), comprime como JPEG 90% e empacota num `ZipOutputStream`. O `.cbz` resultante é salvo na mesma pasta do PDF via SAF.
-- [x] **Pré-carregar páginas adjacentes (prefetch)** - `ReaderProcessor.prefetchWindow()` pré-decodifica 2 páginas antes e 2 depois da página atual em `Dispatchers.IO`, controlado por `Semaphore(1)`. Resultados armazenados no `BitmapCacheHandler` (LRU).
-- [x] **Modo de leitura horizontal paginado** - `HorizontalPagedReader` com `HorizontalPager`. Clique na metade esquerda/direita da tela avança/volta página via `ReaderAction.ChangePage`.
-- [x] **Modo de leitura vertical paginado** - `VerticalPagedReader` com `VerticalPager`. Clique na metade superior/inferior avança/volta página.
-- [x] **Modo Webtoon (scroll vertical contínuo)** - `WebtoonReader` com `LazyColumn`. Cada página é um item; `ReaderAction.PageVisible` atualiza a página atual conforme o scroll.
-- [x] **Zoom nas páginas** - `ZoomablePageImage` implementa pinch-to-zoom e pan com `TransformableState`. Escala e offset são animados.
-- [x] **Alternar modo de leitura dentro do leitor** - `SettingsSheet` no leitor permite trocar `ReadingMode` (HORIZONTAL / VERTICAL / WEBTOON) via `ReaderAction.UpdateReadingMode`. Persiste no DataStore via `AppPreferences`.
-- [x] **Mostrar/ocultar controles do leitor** - Toque no centro da tela dispara `ReaderAction.ToggleUi`, que alterna visibilidade da `TopBar` e `BottomControls` com animação.
-- [x] **Salvar progresso de leitura automaticamente** - `ReaderAction.CurrentPageChanged` dispara `TrackReadingProgressUseCase.saveProgress()` com `ReadingHistoryDto` (comicId, chapterId, lastPage). Persiste na tabela `reading_history`.
-- [x] **Navegar para próximo/capítulo anterior** - `ReaderAction.LoadNextChapter` / `LoadPreviousChapter` carregam o capítulo adjacente via `ReaderUseCase.openChapter()`. O `ReaderProcessor` fecha o `PageSource` atual e abre o novo.
+- [ ] **Botão de limpar histórico na tela de histórico**
+- [ ] **Botão de sync de histórico na tela de histórico** *(talvez)*
 
----
+## Referência: itens que o doc dizia em aberto mas já estão corrigidos (auditoria 11/09/2026)
 
-## 🧠 Metadados
-
-- [x] **Sincronizar metadados de toda a biblioteca pelo MangaDex** - `ConfigAction.SyncMangadexMetadata` → `WorkManagerLibrarySyncScheduler` agenda o `MetadataSyncWorker` com `SOURCE_MANGADEX`. Worker roda como `ForegroundService` com notificação de progresso. Usa `MangadexSyncUseCase` que itera todos os `ComicDirectory` com `externalSyncEnabled = true`.
-- [x] **Sincronizar metadados de toda a biblioteca pelo AniList** - `ConfigAction.SyncAnilistMetadata` → `MetadataSyncWorker` com `SOURCE_ANILIST`. Usa `AnilistSyncUseCase`. Progresso notificado via `NotificationHelper.updateProgress()`.
-- [x] **Salvar capa na pasta do quadrinho** - `CoverSaver.processCover()` deleta capas existentes (`MediaFile.isCover()`), salva os bytes recebidos como `cover.jpg` via `FileStorageHandler`, atualiza `ComicDirectory.cover` e insere/atualiza a entidade `Cover` no banco (tabela `cover`).
-- [x] **Salvar banner na pasta do quadrinho** - `BannerSaver.processBanner()` mesma lógica do `CoverSaver`, para o arquivo `banner.jpg`. Atualiza `ComicDirectory.banner` e tabela `banner`.
-- [x] **Exportar metadados como ComicInfo.xml** - `MetadataExporter.exportFull()` só executa se `MetadataPreference.generateComicInfoFlow` retornar `true`. `ComicInfoParser.serialize()` gera o XML. Escrito via SAF na pasta do quadrinho. Atualiza `ComicRemoteInfo.hasComicInfo = true`.
-- [x] **Ler metadados de ComicInfo.xml** - `ComicInfoParser` usa um parser XML para popular `ComicMetadataDto` com título, sinopse, autor, status, gêneros. Usado tanto no sync individual quanto no worker global.
-
----
-
-## ⚙️ Configurações
-
-- [x] **Selecionar pasta raiz da coleção** - `ConfigAction.SelectFolder` recebe a `Uri` do SAF picker. `WorkManagerLibrarySyncScheduler` agenda o `LibrarySyncWorker` com `SYNC_TYPE_INCREMENTAL` e a `baseUri`. Persiste a URI no DataStore.
-- [x] **Scan incremental da biblioteca** - `ConfigAction.QuickSyncLibrary` → `LibrarySyncWorker` com `SYNC_TYPE_INCREMENTAL`. `SyncLibraryUseCase` compara o estado atual do SAF com os registros do Room, inserindo/atualizando/removendo apenas o que mudou.
-- [x] **Scan profundo (rebuild) da biblioteca** - `ConfigAction.DeepScanLibrary` → `LibrarySyncWorker` com `SYNC_TYPE_REBUILD`. Apaga todos os registros e re-escaneia do zero via `DirectoryScanner.buildLibrary()`.
-- [x] **Selecionar idioma global de metadados** - `LanguageSettings` / `ConfigAction.UpdateMetadataLanguage` salva o idioma no DataStore. Lido pelos adapters de MangaDex e AniList na hora do sync.
-- [x] **Ativar/desativar geração de ComicInfo.xml** - `MetadataExportSettings` / `ConfigAction.UpdateGenerateComicInfo` salva o booleano em `MetadataPreference`. Verificado por `MetadataExporter.exportFull()` antes de qualquer escrita.
-- [x] **Criar categoria** - `ConfigAction.CreateCategory(name, color)` → `ManageCategoriesUseCase` insere uma nova entidade `Category` com nome e cor ARGB no banco.
-- [x] **Deletar categoria** - `ConfigAction.DeleteCategory(id)` → `ManageCategoriesUseCase` remove a categoria. Quadrinhos vinculados têm `categoryId` setado para `null` por cascade.
-- [x] **Selecionar tema do app** - `ThemeSettings` / `ConfigAction.UpdateTheme` salva `AppTheme` no DataStore. Temas disponíveis: `CATPPUCCIN`, `DRACULA`, `ALUCARD`, `NORD`. Relido na composição raiz para trocar o `MaterialTheme`.
-- [x] **Navegar para configuração de templates** - `ConfigAction.NavigateToTemplateConfig` dispara navegação para a `FilePatternScreen`.
-
----
-
-## 🔣 Templates de Nomenclatura
-
-- [x] **Criar template** - `FilePatternAction.AddTemplate(label, pattern, type)` → `AddTemplateUseCase`. Insere um `ArchiveTemplate` no banco com o padrão e `SortType` (CHAPTER ou VOLUME). O padrão usa macros: `{chapter}`, `{decimal}`, `*` (curinga).
-- [x] **Editar template** - `FilePatternAction.EditTemplate(id, label, pattern, type)` → `UpdateTemplateUseCase`. Atualiza o registro existente.
-- [x] **Deletar template** - `FilePatternAction.DeleteTemplate(id)` → `RemoveTemplateUseCase`. Remove do banco.
-- [x] **Listar templates** - `ObserveTemplatesUseCase` retorna um `Flow<List<ArchiveTemplate>>`. `FilePatternScreen` exibe cada template com label, pattern e tipo.
-- [x] **Detecção automática de template no scan** - `DirectoryScanner` usa `TemplateMatcher.detect()` para identificar qual template cadastrado bate com o nome do primeiro arquivo encontrado na pasta. O `archiveTemplateFk` é salvo no `ComicDirectory`.
-
----
-
-## 🕐 Histórico
-
-- [x] **Exibir leituras recentes** - `ObserveHistoryUseCase` retorna `Flow<List<ReadingHistoryDto>>` da tabela `reading_history`, ordenada por `lastRead` desc. `HistoryScreen` exibe `HistoryHeroCard` com capa, título e última página lida.
-- [x] **Continuar pelo histórico** - Toque no `HistoryHeroCard` abre o `ReaderActivity` com `CHAPTER_ID` e `INITIAL_PAGE` do `ReadingHistoryDto`.
-
----
-
-## 🎓 Onboarding
-
-- [x] **Tutorial de primeira abertura** - `TutorialScreen` exibe páginas (`TutorialPage`) com instruções. Na última etapa abre o SAF picker para seleção de pasta, dispara o scan incremental e marca o tutorial como concluído no DataStore.
-
----
-
-## 📦 Distribuição
-
-- [ ] **[Média] Publicar APK no Cloudflare R2 com link estável de download** - Hoje o APK só é distribuído via GitHub Releases, cujo nome de asset muda a cada versão e não dá um link fixo pra usar no `docs/web`. Etapa 1: CD sobe o APK pro R2 (mesma conta Cloudflare do `docs/web`) e a página de instalação linka direto pra lá. Etapa 2 (depois): o nome do arquivo baixado ainda fica feio numa chave fixa tipo `latest.apk`; resolver com `Content-Disposition` correto no upload ou uma rota de redirect no SvelteKit apontando pro objeto versionado.
-
----
-
-## 🚧 Pendente
-
-- [ ] **Permitir que o app Android possa ser fechado e rodar em segundo plano o sync** *(Alta)* - Fazer um worker que permite o app mobile fazer todos os syncs em segundo plano sem interferir no usuário.
-- [ ] **[Crítica] `FsStore` do `iroh-blobs` trava a thread principal e vira ANR (mitigado, não corrigido)** - Descoberto em 22/08/2026, depois de habilitar `.blobs(IrohBlobsConfig::fs(blobs_dir))`: `P2PNode::new()` faz `runtime.block_on(...)` internamente, e esse `.build()` trava indefinidamente ao tentar abrir o blob store em disco — como `P2PNode::new()` é chamado de forma síncrona no `init{}` do `P2pService` (resolvido pelo Hilt na primeira tela, na THREAD PRINCIPAL), isso trava a UI inteira e vira ANR depois de 5s ("Input dispatching timed out... Waited 5000ms"). Confirmado isolado, fora do app: um teste mínimo em `acerola-p2p` (`core/blobs/iroh/mod.rs::tests::fs_store_load_does_not_hang`) chamando só `IrohBlobStore::new` com config `Fs` num diretório limpo trava e estoura 15s sozinho. **Mitigação aplicada:** trocado `.blobs(IrohBlobsConfig::fs(blobs_dir))` por `.blobs(IrohBlobsConfig::mem())` em `native/rust/src/api.rs` — destrava o app, mas blobs deixam de persistir entre reinícios do app. **Reforço aplicado (`P2pService.kt`):** `p2pNode` deixou de ser construído direto no `init{}` (bloqueava sincronamente qualquer thread que instanciasse o serviço, hoje a thread principal via Hilt) e virou `by lazy(SYNCHRONIZED)` disparado numa `Thread` dedicada — não corrige a causa raiz, mas remove o acoplamento que transformava qualquer lentidão nessa construção em ANR garantido. **Pendente:** achar a causa raiz do hang no `FsStore::load_with_opts` (`iroh-blobs`) e voltar pra `.fs(...)` depois.
-- [ ] **[Alta] `browse-library` — causa raiz encontrada, aguardando confirmação ao vivo** - O timeout era o outbound daqui (Android) nunca escrevendo nada no stream QUIC antes de esperar resposta (regra do quinn: quem chama `open_bi()` precisa escrever antes do lado que aceita conseguir `accept_bi()`) — o inbound do Desktop já estava correto. Corrigido (`LibraryBrowseOutbound`/`run_outbound` passou a escrever um marcador `{}` antes de esperar a resposta). **Pendente:** rebuild + reinstall do `.so` no celular pra valer em produção, depois confirmar ao vivo.
-- [ ] **[Alta] Sync de "Omoide Emanon" não trouxe todos os capítulos — causa raiz provável encontrada** - O sintoma (capítulos faltando, `UNIQUE constraint violated` no lado que recebe) bate com um bug de `BlobNotFound` esporádico já identificado e corrigido no `acerola-p2p` compartilhado: `fetch()` não protegia o blob baixado contra o GC periódico do store, e uma versão intermediária do fix ainda falhava sob fetches concorrentes ao mesmo peer. Fix definitivo publicado (`acerola-p2p` main) e `cargo update -p acerola-p2p` já rodado neste repo. **Pendente:** confirmar ao vivo que a transferência completa 100% dos capítulos numa nova tentativa. **Causa adicional encontrada e corrigida (05/09/2026, lado Desktop):** independente do `BlobNotFound`, `receive_files` (`transfer.rs`) chamava `persist_received_chapter(...).await?` sem capturar o erro — diferente dos outros 4 pontos de falha por item, isso abortava a sessão INTEIRA no primeiro capítulo que desse `UNIQUE constraint violated` (ou qualquer outra falha de persistência), em vez de pular só aquele item. Corrigido pra seguir o mesmo padrão catch/log/emite-evento/continua dos outros 4, com teste de regressão (`comic_handler.rs::receive_files_skips_a_chapter_that_fails_to_persist_instead_of_aborting_the_session`).
-- [x] **[Média] Callback visual/notificação de sync global** - Notificação do sistema quando uma sessão de `sync-files`/`sync-comic`/`sync-history` termina, com sucesso ou erro.
-- [x] **[Alta] Notificação/persistência de sync dependiam da `SyncViewModel` estar viva — perdia o resultado se o usuário saísse da tela** - `P2pEventBus` é um `SharedFlow` sem replay (`extraBufferCapacity` só amortece coletor já inscrito, não alimenta um que chega depois) — como só `SyncViewModel` (escopada à `NavBackStackEntry` da tela de Sync, destruída em `popBackStack()`) persistia o resultado (`SyncHistoryLogUseCase`) e disparava a notificação de conclusão/erro, sair da tela de Sync antes de uma sessão terminar (ou disparar o sync de outra tela — Histórico/Quadrinho/Biblioteca remota, que só atualizavam o próprio estado local) descartava o evento terminal pra sempre: sem notificação, sem linha no log persistido. Extraído pra `P2pSyncCoordinator` (`core`, `@Singleton`, instanciado junto com `P2pService` em `NetworkCaseModule`) — um único coletor sempre ativo, independente de qualquer ViewModel, que agora também liga/desliga o `P2pSyncForegroundService` pra QUALQUER sessão do app (antes só reagia a syncs disparados pela própria tela de Sync). `SyncViewModel` continua coletando o mesmo bus só pro estado de UI da própria tela (log em memória, spinner).
-- [ ] **[Alta] `P2PNode::restart` (`native/rust/src/api.rs`) não reconecta com peers pareados — mesmo bug já corrigido no Desktop** - Confirmado no código compartilhado: `NetworkState` começa vazio em CADA `AcerolaP2pBuilder::build()`, e não existe loop de reconexão automática em lugar nenhum — um restart (troca de relay, ou botão manual) devolve o node com zero conexões ativas, parado esperando ação manual do usuário. Já corrigido no Desktop com um módulo novo compartilhado (`lib/p2p/src/core/network/reconnect.rs::reconnect_known_peers`, exportado como `acerola_p2p::api::network::reconnect_known_peers`) que dispara handshake pra cada peer pareado logo após o restart. **Pendente:** chamar essa mesma função (já pronta, testada, sem trabalho novo no `acerola-p2p`) de dentro de `P2PNode::restart`, passando a lista de `paired_peers()` já lida pelo storage deste app.
-- [ ] **[Média] Melhorar busca/visualização da biblioteca remota** - Hoje está ruim de ver o conteúdo que o outro dispositivo tem.
-- [ ] **[Baixa] Botão de limpar histórico na tela de histórico** - Igual à versão Desktop.
-- [ ] **[Baixa] Botão de sync de histórico na tela de histórico** *(talvez)*
-- [ ] **[Média] Botão flutuante da Home: buscar quadrinhos no outro dispositivo + sincronizar todos** *(talvez)* - Dois botões: um pra buscar/puxar quadrinhos específicos de um peer, outro numa sheet maior pra "sincronizar tudo que o peer tem" — esse último precisa de confirmação explícita antes de disparar (pode puxar muito dado de uma vez).
-- [ ] **[Alta] Conflito (quadrinho existente nos dois lados): callbacks de erro e sucesso quebrados** - Testado ao vivo com um quadrinho que deveria dar conflito e trazer capítulos novos: os capítulos novos chegaram, mas nenhum conflito real foi detectado/reportado (um lado provavelmente ignorou ou sobrescreveu) — e mesmo assim o Android mostrou "Erro ao sincronizar quadrinho: stream failed: stream error: timeout waiting for frame", um falso negativo (não houve erro nenhum na sessão). Investigar por que o timeout aparece mesmo numa sessão que completou, e implementar a lógica de conflito de verdade (ver item combinado nos dois apps).
-- [x] **[Média] Protocolo de sync de UM único capítulo, sem precisar mandar o histórico da biblioteca inteira** - Espelha o Desktop: novo ALPN `acerola/sync-history-entry/1` (`protocol/history/{mod,exchange}.rs`) faz um push unidirecional de uma única entrada de progresso, com ack. `HistorySyncProvider` ganhou `getReadingProgressForComic(comicName)` (implementado em `HistorySyncProviderImpl.kt` via `ReadingHistoryDao.observeHistoryByDirectoryId`), e `P2PNode`/`P2pService`/`P2pUseCase` ganharam `syncHistoryEntry(peerAddress, comicName)`. **Pendente:** UI ainda não dispara isso em lugar nenhum — decisão de UX de quando (ex: automático ao terminar de ler, ou botão manual) fica pra quando alguém definir o fluxo.
-- [x] **[Alta] Botão "Enviar" da seleção de capítulos manda status de leitura, não o arquivo — precisa ADICIONAR o envio de arquivo, sem remover o que já existe** - `ComicSyncScope` (`protocol/files/model.rs`) ganhou `chapters: Vec<String>` (rótulos, vazio = quadrinho inteiro), aplicado via `restrict_manifest_to_chapters` (`exchange.rs`) antes do diff — espelha o Desktop. `P2PNode::sync_comic` (FFI) e `P2pService`/`P2pUseCase`/`SyncComicWithPeerUseCase` ganharam o parâmetro `chapters`. `ComicViewModel.sendSelectedChaptersToPeer` agora resolve `chapterSort -> rótulo` via `allChapters` (já carregado em memória) e chama `syncComicWithPeerUseCase(peerId, comicName, SyncDirection.PUSH, chapterNames)` em vez de `syncHistoryEntryWithPeerUseCase` — manda o(s) arquivo(s) de verdade e cria o quadrinho no destino se não existir. `syncHistoryEntry` continua intacto, só não é mais o que esse botão dispara.
-- [x] **[Alta] Menu de três pontinhos por capítulo (`ChapterItem`) precisa da ação "Enviar"** - Import de `Icons.AutoMirrored.Filled.Send` corrigido em `ChapterItem.kt`. Callback `onSendToPeer` propagado por `ChapterSection.kt` (ambos os branches, volume e flat) até `ComicScreen.kt`, que seleciona só aquele capítulo (`selectAllChapters(listOf(chapterSort))`) e abre o mesmo `PeerPickerSheet`/`SelectionActionDock` da barra de seleção múltipla — mesmo fluxo, agora mandando o arquivo (item acima).
-- [x] **[Média] Sync individual por quadrinho: push/pull explícito** - Hoje não existe uma forma clara de, dentro da tela de um quadrinho específico, escolher "puxar dele" ou "mandar pra ele" pra um peer — precisa ficar explícito, não só implícito pela direção que o manifest calcula.
-- [ ] **[Média] "Reescanear quadrinho completo": unificar entre os dois apps** - Desktop tem essa função, Android não. Preferência: remover do Desktop em vez de adicionar no Android.
-- [x] **[Média] Tela de configuração de relay (paridade com Desktop)** - Migrado o lado Rust (`native/rust/src/lib/relay_settings.rs::FfiRelaySettings::resolve`, espelhando `RelaySettings::resolve` do Desktop) e persistência Kotlin (`RelayPreference` combinável, com migração da chave legada `relay_url_override`). Novo `RelaySettingsCard` na tela de Rede (accordion com switches, listas de add/remove de relays próprios/Iroh, resumo ao vivo do modo resolvido) — mesmo comportamento do card do Desktop.
-- [ ] **[Alta] Protocolo de sync de arquivos não leva o quadrinho 100%** - Hoje não inclui `ComicInfo.xml` + cover + banner junto com os capítulos (sem metadados de fontes externas tipo MangaDex/AniList, só os arquivos locais) — corrigir pra levar o quadrinho completo numa sincronização.
-- [ ] **[Alta] Validar encerramento correto de conexões/blobs — sessões que só voltam ao fechar o app** - Log real ao vivo:
-  ```
-  browse:library:error -> "stream failed: timed out reading library summary"
-  outbound handler failed error=StreamFailed("timed out reading library summary")
-  outbound connection closed
-  ```
-  Só volta a funcionar fechando e reabrindo o app. Suspeita: o Desktop inicia uma sessão `acerola/browse-cover/1` e não a finaliza corretamente do lado dele, deixando este lado preso esperando. Investigar mais fundo como o `iroh` notifica o encerramento internamente (parece só notar quando finaliza normalmente, não quando trava).
+- `Protocolo de sync de arquivos não leva o quadrinho 100%` — **já corrigido**
+  (`FileComicInfo` com cover/banner/ComicInfo.xml, `send_extras`/`receive_extras` em
+  `exchange.rs`, commit `d0bcf7f1`). Não é mais um item em aberto.
