@@ -14,8 +14,20 @@
 
 - [ ] **Validar encerramento de conexões/blobs — sessões só voltam ao fechar o app (lado
       Android)** — Log do Android: `timed out reading library summary`, sem recuperação até
-      reabrir o app. Suspeita: este lado (Desktop) inicia uma sessão `acerola/browse-cover/1` e
-      não a finaliza corretamente, deixando o Android preso esperando.
+      reabrir o app. Suspeita original: este lado (Desktop) inicia uma sessão
+      `acerola/browse-cover/1` e não a finaliza corretamente, deixando o Android preso
+      esperando.
+      **Investigado (11/09/2026), teoria descartada:** a suspeita de "stream nunca fechado"
+      não se sustenta — nenhum `Handler` (`cover_browse_handler.rs`, `library_browse_handler.rs`,
+      etc.) chama `finish()`/`shutdown()` explícito no `SendStream`, mas isso não é o problema:
+      `quinn::SendStream::drop` (`quinn-0.11.9/src/send_stream.rs:344`) já chama `finish()`
+      automaticamente ao ser descartado (só cai pra `reset()` se o peer já tinha mandado
+      `STOP_SENDING`). Também descartada a hipótese de um handler travado bloquear os outros:
+      `NetworkManager::handle_incoming` (`lib/p2p/src/core/network/manager.rs:238-289`) roda
+      cada conexão aceita em uma `tokio::spawn` própria — uma sessão presa não impede novas
+      conexões/streams de serem aceitas e despachadas. Causa raiz continua desconhecida; precisa
+      de reprodução ao vivo com tracing na camada de conexão do iroh (não dá pra ver daqui se é
+      exaustão de `max_concurrent_bidi_streams`, um lock específico do app, ou outra coisa).
 - [ ] **`browse-library` — fix aplicado no Android, aguardando confirmação ao vivo** — O lado
       Desktop (inbound) já estava correto; o fix foi só no Android (outbound). Pendente:
       rebuild+reinstall lá e confirmar.
