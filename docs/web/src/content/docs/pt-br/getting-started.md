@@ -16,13 +16,7 @@ order: 1
 	import AndroidIcon from '$lib/assets/icons/android.svg?component';
 </script>
 
-<Callout type="note" title="Página de exemplo">
-
-Este conteúdo é um placeholder para validar o pipeline de documentação (mdsvex + componentes + i18n). A documentação real de cada plataforma ainda será escrita.
-
-</Callout>
-
-O Acerola é um leitor de quadrinhos e mangás locais com sincronização **100% P2P** entre dispositivos — sem servidor central, sem conta, sem nuvem.
+O Acerola é um leitor de quadrinhos e mangás locais com sincronização **100% P2P** entre dispositivos — sem servidor central, sem conta, sem nuvem. Esta página cobre a instalação em cada plataforma e o primeiro pareamento entre dois dispositivos.
 
 ## Instalando
 
@@ -44,9 +38,17 @@ Escolha a plataforma que você usa:
 
 </CardGrid>
 
+**Requisitos:** Windows 10/11 (64-bit) para o app Desktop; Android 8.0 (API 26) ou mais recente para o app mobile.
+
+<Callout type="note" title="Baixando fora da Microsoft Store">
+
+O pacote da Microsoft Store é o único assinado com certificado confiável. Se você baixar o instalador (`.exe`/`.msi`/`.msix`) direto do [GitHub Releases](https://github.com/Vinicius-Gabriel-P-Leitao/acerola-reader/releases) em vez de usar a Store, o Windows SmartScreen vai avisar que o executável não é reconhecido — isso é esperado, não é sinal de malware. O APK do Android é sempre assinado, mesmo baixado direto do GitHub Releases; ele só ainda não está publicado na Play Store, então o Android também vai pedir para confirmar a instalação de fontes desconhecidas.
+
+</Callout>
+
 ### Compilando a partir do código-fonte
 
-Prefere compilar você mesmo, ou precisa de macOS/Linux? O Acerola é um app Tauri — clone o repositório e rode direto:
+Prefere compilar você mesmo, ou precisa de macOS/Linux? O Acerola Desktop é um app Tauri — clone o repositório e rode direto:
 
 ```bash
 git clone https://github.com/Vinicius-Gabriel-P-Leitao/acerola-reader
@@ -54,6 +56,8 @@ cd acerola-reader/acerola/desktop
 npm install
 npm run tauri dev
 ```
+
+O Android exige o Android Studio + NDK pra compilar a parte nativa em Rust — o setup completo (toolchain, variáveis de ambiente, primeira build) está documentado na seção [Contribuindo](/pt-br/docs/contributing-android).
 
 ## Sincronizando dois dispositivos
 

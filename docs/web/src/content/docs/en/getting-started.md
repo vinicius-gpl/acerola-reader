@@ -16,13 +16,7 @@ order: 1
 	import AndroidIcon from '$lib/assets/icons/android.svg?component';
 </script>
 
-<Callout type="note" title="Example page">
-
-This content is a placeholder to validate the documentation pipeline (mdsvex + components + i18n). The real per-platform documentation is still being written.
-
-</Callout>
-
-Acerola is a local comic and manga reader with **100% P2P** sync between devices — no central server, no account, no cloud.
+Acerola is a local comic and manga reader with **100% P2P** sync between devices — no central server, no account, no cloud. This page covers installing on each platform and pairing two devices for the first time.
 
 ## Installing
 
@@ -44,9 +38,17 @@ Pick the platform you use:
 
 </CardGrid>
 
+**Requirements:** Windows 10/11 (64-bit) for the Desktop app; Android 8.0 (API 26) or newer for the mobile app.
+
+<Callout type="note" title="Downloading outside the Microsoft Store">
+
+The Microsoft Store package is the only one signed with a trusted certificate. If you download the installer (`.exe`/`.msi`/`.msix`) directly from [GitHub Releases](https://github.com/Vinicius-Gabriel-P-Leitao/acerola-reader/releases) instead of using the Store, Windows SmartScreen will warn that the executable isn't recognized — that's expected, not a sign of malware. The Android APK is always signed, even downloaded straight from GitHub Releases; it just isn't published on the Play Store yet, so Android will also ask you to confirm installing from an unknown source.
+
+</Callout>
+
 ### Building from source
 
-Prefer to build it yourself, or need macOS/Linux? Acerola is a Tauri app — clone the repo and run it directly:
+Prefer to build it yourself, or need macOS/Linux? Acerola Desktop is a Tauri app — clone the repo and run it directly:
 
 ```bash
 git clone https://github.com/Vinicius-Gabriel-P-Leitao/acerola-reader
@@ -54,6 +56,8 @@ cd acerola-reader/acerola/desktop
 npm install
 npm run tauri dev
 ```
+
+Android needs Android Studio + the NDK to build the native Rust side — the full setup (toolchain, environment variables, first build) is documented in the [Contributing](/en/docs/contributing-android) section.
 
 ## Syncing two devices
 

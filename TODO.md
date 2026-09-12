@@ -21,10 +21,9 @@ código real.
   Android e Desktop: nenhuma lógica real de detecção/resolução de conflito existe no código
   (confirmado por grep, não é desatualização de doc). Gera falso-negativo de erro mesmo em
   sessões que terminaram com sucesso. É o core da feature de sync P2P — ver TODO de cada app.
-- [ ] **[Crítico] Página de instalação dos docs é placeholder** —
-  `docs/web/src/content/docs/{en,pt-br}/getting-started.md` afirma explicitamente que o
-  conteúdo é rascunho. Os botões de download (APK/MSIX) já funcionam de verdade, só falta o
-  texto de instrução por plataforma antes de linkar a página pra fora.
+- [x] **Página de instalação dos docs é placeholder** — **corrigido**: conteúdo real (EN +
+  PT-BR) com requisitos por plataforma e aviso sobre SmartScreen/instalação de fonte
+  desconhecida, ver [`docs/web/TODO.md`](docs/web/TODO.md).
 - [ ] **README.md desatualizado** — ainda diz "docs/web (ainda vazio)"; não é mais verdade
   (docs já em produção, v1.0.13).
 - [ ] **Canais `beta`/`prod` da CI nunca foram exercitados** — toda tag até hoje usou o canal
