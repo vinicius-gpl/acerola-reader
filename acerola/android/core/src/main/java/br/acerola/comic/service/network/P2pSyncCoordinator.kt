@@ -130,7 +130,7 @@ class P2pSyncCoordinator
         }
 
         private fun notifyFileSyncComplete(event: P2pEvent.FileSyncComplete) {
-            val content =
+            val base =
                 if (event.failedCount > 0) {
                     context.getString(
                         R.string.notification_sync_files_complete_content_with_failures,
@@ -144,6 +144,18 @@ class P2pSyncCoordinator
                         event.receivedCount,
                         event.sentCount,
                     )
+                }
+            // Sem toast/notificação própria pra isso — um total por sessão anexado à mesma
+            // notificação que já ia aparecer, em vez de uma notificação por capítulo em conflito.
+            val content =
+                if (event.conflictsCount > 0) {
+                    base +
+                        context.getString(
+                            R.string.notification_sync_files_complete_conflicts_suffix,
+                            event.conflictsCount,
+                        )
+                } else {
+                    base
                 }
             notificationHelper.showFinishedNotification(
                 title = context.getString(R.string.notification_sync_files_complete_title),

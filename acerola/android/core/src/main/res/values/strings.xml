@@ -10,6 +10,7 @@
     <string name="notification_sync_files_complete_title">Sincronização de arquivos concluída</string>
     <string name="notification_sync_files_complete_content">%1$d recebido(s), %2$d enviado(s)</string>
     <string name="notification_sync_files_complete_content_with_failures">%1$d recebido(s), %2$d enviado(s) — %3$d falharam</string>
+    <string name="notification_sync_files_complete_conflicts_suffix"> — %1$d conflito(s) (mantida a versão do peer)</string>
     <string name="notification_sync_files_error_title">Sincronização de arquivos falhou</string>
 
     <!-- Contraparte de notification_sync_files_* para a sessão de sync-history. -->

@@ -853,6 +853,7 @@
 				"comic_progress": "Transferring {item}...",
 				"comic_complete": "Comic synced with {peer}.",
 				"comic_error": "Failed to sync comic: {msg}",
+				"conflicts_suffix": "— {count} conflict(s) (kept the peer's version)",
 				"refresh": "Refresh",
 				"clear": {
 					"button": "Clear",

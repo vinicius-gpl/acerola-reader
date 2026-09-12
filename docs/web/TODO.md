@@ -1,11 +1,10 @@
 # Acerola Docs (web) — TODO
 
-## Em aberto
+## Referência: itens já corrigidos (auditoria 11/09/2026)
 
-- [ ] **[Crítico] Escrever conteúdo real da página de instalação** —
-  `src/content/docs/{en,pt-br}/getting-started.md` ainda tem o aviso: "This content is a
-  placeholder to validate the documentation pipeline (mdsvex + components + i18n). The real
-  per-platform documentation is still being written." Os componentes de download
-  (`AcerolaMicrosoftStoreButton`, `AcerolaApkDownloadButton`, com fallback pro GitHub
-  Releases) já funcionam de verdade — falta só o texto de instrução por plataforma
-  (Android/Desktop) ao redor deles.
+- `Conteúdo real da página de instalação` — **corrigido**: removido o aviso de placeholder de
+  `src/content/docs/{en,pt-br}/getting-started.md`, com requisitos por plataforma (Windows
+  10/11, Android 8.0+), aviso sobre SmartScreen/instalação de fonte desconhecida fora das lojas
+  oficiais (consistente com o README), e link pra `contributing-android` no trecho de build a
+  partir do código-fonte. Validado com `npm run build` (23 páginas indexadas pelo pagefind, sem
+  erro).

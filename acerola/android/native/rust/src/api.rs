@@ -423,9 +423,33 @@ impl P2PNode {
         let resolved_relay_mode = relay_settings.resolve(iroh_services_ticket.as_deref());
 
         let context = Arc::clone(&self.context);
-        let fresh_node = self
-            .runtime
-            .block_on(async move { context.build(resolved_relay_mode).await });
+        let storage = Arc::clone(&self.storage);
+        let fresh_node = self.runtime.block_on(async move {
+            let fresh_node = context.build(resolved_relay_mode).await;
+
+            // Sem isso, um restart devolvia o node num estado limpo — identidade e storage
+            // preservados, mas ZERO conexões ativas — e nada tentava falar de novo com nenhum
+            // peer pareado até o usuário disparar alguma ação manual (browse library, sync,
+            // etc). Mesmo bug já corrigido no Desktop (`NetworkService::restart`,
+            // `core/services/network/mod.rs`); `reconnect_known_peers` só ENFILEIRA a tentativa
+            // (não espera confirmação) e é best-effort: uma falha ao carregar `paired_peers`
+            // não deve fazer o restart em si (já concluído com sucesso acima) parecer que
+            // falhou.
+            match storage.load_peers().await {
+                Ok(known_peers) => {
+                    acerola_p2p::api::network::reconnect_known_peers(&fresh_node, known_peers)
+                        .await;
+                },
+                Err(error) => {
+                    tracing::warn!(
+                        ?error,
+                        "failed to load paired peers for post-restart reconnect"
+                    );
+                },
+            }
+
+            fresh_node
+        });
 
         *self
             .node
