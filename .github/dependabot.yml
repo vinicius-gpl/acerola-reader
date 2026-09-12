@@ -8,6 +8,11 @@ updates:
     open-pull-requests-limit: 10
     commit-message:
       prefix: "[chore](p2p)"
+    labels:
+      - "dependencies"
+      - "rust"
+      - "chore"
+      - "p2p"
     groups:
       dependencies:
         patterns:
@@ -15,11 +20,17 @@ updates:
 
   - package-ecosystem: "cargo"
     directory: "/lib/relay"
+    target-branch: "develop"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10
     commit-message:
       prefix: "[chore](relay-lib)"
+    labels:
+      - "dependencies"
+      - "rust"
+      - "chore"
+      - "relay-lib"
     groups:
       dependencies:
         patterns:
@@ -27,17 +38,28 @@ updates:
 
   - package-ecosystem: "docker"
     directory: "/lib/relay/.config/docker"
+    target-branch: "develop"
     schedule:
       interval: "weekly"
     commit-message:
       prefix: "[chore](relay-lib)"
+    labels:
+      - "dependencies"
+      - "chore"
+      - "relay-lib"
 
   - package-ecosystem: "github-actions"
     directory: "/"
+    target-branch: "develop"
     schedule:
       interval: "weekly"
     commit-message:
-      prefix: "[chore]"
+      prefix: "[chore](monorepo)"
+    labels:
+      - "dependencies"
+      - "github_actions"
+      - "chore"
+      - "monorepo"
     groups:
       actions:
         patterns:
