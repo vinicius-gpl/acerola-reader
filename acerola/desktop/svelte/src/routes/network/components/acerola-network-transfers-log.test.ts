@@ -16,8 +16,15 @@ function entry(overrides: Partial<TransferLogEntry> = {}): TransferLogEntry {
 	};
 }
 
+// Expande o accordion clicando no cabeçalho — o mesmo gatilho que o usuário usa na tela de
+// Rede (ver acerola-network-transfers-log.svelte e acerola-network-relay-settings-card.test.ts,
+// mesmo padrão pro card vizinho de Configurações de Relay).
+async function expandCard(user: ReturnType<typeof userEvent.setup>) {
+	await user.click(screen.getByRole('button', { expanded: false }));
+}
+
 describe('AcerolaNetworkTransfersLog', () => {
-	it('shows the empty state when there are no entries', () => {
+	it('shows the empty state as the header summary when there are no entries', () => {
 		render(AcerolaNetworkTransfersLog, {
 			props: {
 				data: { entries: [], peerLabel: (id: string) => id }
@@ -27,7 +34,7 @@ describe('AcerolaNetworkTransfersLog', () => {
 		expect(screen.getByText(/No transfers|Nenhuma transfer/i)).toBeInTheDocument();
 	});
 
-	it('resolves the peer label for a "started" entry', () => {
+	it('resolves the peer label for a "started" entry in the header summary', () => {
 		render(AcerolaNetworkTransfersLog, {
 			props: {
 				data: {
@@ -93,6 +100,25 @@ describe('AcerolaNetworkTransfersLog', () => {
 		expect(screen.queryByText(/conflict|conflito/i)).not.toBeInTheDocument();
 	});
 
+	it('expands in line and lists every entry when the header is clicked', async () => {
+		const user = userEvent.setup();
+		render(AcerolaNetworkTransfersLog, {
+			props: {
+				data: {
+					entries: [
+						entry({ id: 1, status: 'started', message: 'peer-1' }),
+						entry({ id: 2, kind: 'files', status: 'error', message: 'connection reset' })
+					],
+					peerLabel: () => 'Meu Notebook'
+				}
+			}
+		});
+
+		await expandCard(user);
+
+		expect(screen.getByText(/connection reset/)).toBeInTheDocument();
+	});
+
 	it('calls onRefresh when the refresh button is clicked', async () => {
 		const user = userEvent.setup();
 		const onRefresh = vi.fn();
@@ -103,18 +129,22 @@ describe('AcerolaNetworkTransfersLog', () => {
 			}
 		});
 
+		await expandCard(user);
 		await user.click(screen.getByRole('button', { name: /Refresh|Atualizar/i }));
 
 		expect(onRefresh).toHaveBeenCalled();
 	});
 
-	it('hides the clear button when there are no entries', () => {
+	it('hides the clear button when there are no entries', async () => {
+		const user = userEvent.setup();
 		render(AcerolaNetworkTransfersLog, {
 			props: {
 				data: { entries: [], peerLabel: (id: string) => id },
 				events: { onRefresh: vi.fn(), onClear: vi.fn() }
 			}
 		});
+
+		await expandCard(user);
 
 		expect(screen.queryByRole('button', { name: /Clear|Limpar/i })).not.toBeInTheDocument();
 	});
@@ -131,6 +161,8 @@ describe('AcerolaNetworkTransfersLog', () => {
 				events: { onRefresh: vi.fn(), onClear }
 			}
 		});
+
+		await expandCard(user);
 
 		// bits-ui AlertDialog.Trigger envolve o elemento filho em seu próprio <button>, então dois
 		// botões com o mesmo nome acessível existem — o gatilho externo é o índice 0 (mesmo padrão
