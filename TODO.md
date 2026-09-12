@@ -17,10 +17,13 @@ componente ou o lançamento como um todo.
 Levantado em auditoria de release (11/09/2026), cruzando os três `TODO.md` antigos com o
 código real.
 
-- [ ] **[Crítico] Conflito de sync (quadrinho existente nos dois lados) está quebrado** —
-  Android e Desktop: nenhuma lógica real de detecção/resolução de conflito existe no código
-  (confirmado por grep, não é desatualização de doc). Gera falso-negativo de erro mesmo em
-  sessões que terminaram com sucesso. É o core da feature de sync P2P — ver TODO de cada app.
+- [x] **Conflito de sync (quadrinho existente nos dois lados) — detecção/relato corrigidos** —
+  Android e Desktop agora distinguem "capítulo ausente" de "capítulo já existe com checksum
+  diferente" (conflito de verdade) e reportam a contagem na notificação/log de transferências
+  da sessão, sem toast e sem uma notificação por capítulo. Decisão de escopo: continua
+  sobrescrevendo com a versão do peer (comportamento inalterado) — resolução de conflito de
+  verdade (escolher qual lado vence) fica pra depois, isso só resolve o falso-negativo
+  relatado (sessão que termina bem mas mostra erro).
 - [ ] **[Crítico] Página de instalação dos docs é placeholder** —
   `docs/web/src/content/docs/{en,pt-br}/getting-started.md` afirma explicitamente que o
   conteúdo é rascunho. Os botões de download (APK/MSIX) já funcionam de verdade, só falta o

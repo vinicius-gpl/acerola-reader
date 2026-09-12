@@ -6,10 +6,6 @@
 
 ## Crítico
 
-- [ ] **Conflito de sync (quadrinho existente nos dois lados) está quebrado** — mesmo bug do
-      Android: nenhuma lógica de detecção/resolução de conflito existe no código Rust (`grep` por
-      "conflict" não encontra nada em `src-tauri/src`). Falso negativo de timeout em sessões que
-      terminaram com sucesso.
 - [ ] **`FsStore` do iroh-blobs trava ao abrir store em disco (mitigado)** — Mitigado com
       `.blobs(IrohBlobsConfig::mem())` em `bios/network.rs` — blobs não persistem entre
       reinícios. Causa raiz rastreada em [`lib/p2p/TODO.md`](../../lib/p2p/TODO.md).
@@ -59,3 +55,9 @@
 - `Protocolo de sync de arquivos não leva o quadrinho 100%` — **já corrigido**
   (`build_manifest`/`build_manifest_for_comic` já incluem cover/banner/ComicInfo.xml,
   `restrict_manifest_to_chapters` nunca filtra esses extras).
+- `Conflito de sync (quadrinho existente nos dois lados) está quebrado` — **detecção/relato
+  corrigidos**: `FileSyncService::diff_wanted` agora distingue "nunca vi esse capítulo" de "já
+  tenho, checksum diferente" (conflito de verdade), e `sync:files:complete`/
+  `sync:comic:complete` carregam `conflicts` até o log de transferências da tela de Rede — um
+  total por sessão, sem toast novo. Continua sobrescrevendo com a versão do peer (comportamento
+  inalterado); resolução de conflito de verdade (escolher lado vencedor) fica pra depois.

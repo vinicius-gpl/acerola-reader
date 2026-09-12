@@ -267,9 +267,15 @@ async fn abort_extra_write(
     run_blocking(move || provider.abort_extra_write(handle)).await
 }
 
-/// Retorna `(comic_name, chapter)` que `peer` oferece e que `local` não tem (ausente, ou
-/// presente com checksum diferente — tratado como "faltando" também, sem tentar reconciliar).
-fn missing_from(local: &FileManifest, peer: &FileManifest) -> Vec<(String, String)> {
+/// Retorna `(missing, conflicts)`: `missing` é todo `(comic_name, chapter)` que `peer` oferece
+/// e que `local` não tem, com o mesmo conteúdo (ausente de vez, OU presente com checksum
+/// diferente — continua sendo puxado/sobrescrito normalmente, comportamento inalterado).
+/// `conflicts` é o subconjunto de `missing` onde o capítulo já EXISTIA localmente com um
+/// checksum registrado, só que diferente do peer — os dois lados divergiram de verdade, não é
+/// só "eu nunca tive esse capítulo". Espelha `FileSyncService::diff_wanted` do Desktop.
+fn missing_from(
+    local: &FileManifest, peer: &FileManifest,
+) -> (Vec<(String, String)>, Vec<(String, String)>) {
     let local_checksums: HashMap<(&str, &str), Option<&str>> = local
         .comics
         .iter()
@@ -283,20 +289,28 @@ fn missing_from(local: &FileManifest, peer: &FileManifest) -> Vec<(String, Strin
         })
         .collect();
 
-    peer.comics
-        .iter()
-        .flat_map(|comic| {
-            let local_checksums = &local_checksums;
-            comic.chapters.iter().filter_map(move |chapter| {
-                let key = (comic.comic_name.as_str(), chapter.chapter.as_str());
-                let missing = match local_checksums.get(&key) {
-                    Some(checksum) => *checksum != chapter.checksum.as_deref(),
-                    None => true,
-                };
-                missing.then(|| (comic.comic_name.clone(), chapter.chapter.clone()))
-            })
-        })
-        .collect()
+    let mut missing = Vec::new();
+    let mut conflicts = Vec::new();
+
+    for comic in &peer.comics {
+        for chapter in &comic.chapters {
+            let key = (comic.comic_name.as_str(), chapter.chapter.as_str());
+            let local_checksum = local_checksums.get(&key);
+            let is_missing = match local_checksum {
+                Some(checksum) => *checksum != chapter.checksum.as_deref(),
+                None => true,
+            };
+            if !is_missing {
+                continue;
+            }
+            if local_checksum.is_some_and(|checksum| checksum.is_some()) {
+                conflicts.push((comic.comic_name.clone(), chapter.chapter.clone()));
+            }
+            missing.push((comic.comic_name.clone(), chapter.chapter.clone()));
+        }
+    }
+
+    (missing, conflicts)
 }
 
 fn manifest_index(
@@ -1334,15 +1348,14 @@ async fn run_exchange_with_manifest(
 
     let peer_manifest = exchange_manifests(outbound_role, writer, reader, &local_manifest).await?;
 
-    let (wanted_locally, wanted_extras_locally) = if force_empty_wanted {
-        (Vec::new(), Vec::new())
+    let (wanted_locally, wanted_extras_locally, conflicts_locally) = if force_empty_wanted {
+        (Vec::new(), Vec::new(), Vec::new())
     } else {
-        (
-            missing_from(&local_manifest, &peer_manifest),
-            missing_extras_from(&local_manifest, &peer_manifest),
-        )
+        let (missing, conflicts) = missing_from(&local_manifest, &peer_manifest);
+        (missing, missing_extras_from(&local_manifest, &peer_manifest), conflicts)
     };
-    let wanted_by_peer = missing_from(&peer_manifest, &local_manifest);
+    stats.conflicts_count = conflicts_locally.len() as u32;
+    let (wanted_by_peer, _) = missing_from(&peer_manifest, &local_manifest);
     emit(
         "sync:files:manifest_exchanged",
         manifest_exchanged_payload(peer, wanted_locally.len(), wanted_by_peer.len()),
@@ -1540,6 +1553,7 @@ mod tests {
 
     use super::*;
     use crate::callbacks::FfiFileManifestEntry;
+    use crate::protocol::files::model::FileChapterInfo;
     use crate::protocol::files::transfer::InMemoryChapterTransfer;
 
     /// Um par de transports em memória que compartilham o mesmo hash->bytes — simula os dois
@@ -1570,6 +1584,64 @@ mod tests {
             checksum: Some("abc".to_string()),
             blob_hash: Some("hash".to_string()),
         }
+    }
+
+    fn manifest_with_chapter(comic: &str, chapter: &str, checksum: &str) -> FileManifest {
+        FileManifest {
+            comics: vec![FileComicInfo {
+                comic_name: comic.to_string(),
+                chapters: vec![FileChapterInfo {
+                    chapter: chapter.to_string(),
+                    file_name: format!("{chapter}.cbz"),
+                    checksum: Some(checksum.to_string()),
+                    size: 10,
+                }],
+                ..Default::default()
+            }],
+        }
+    }
+
+    /// Mesmo quadrinho/capítulo dos dois lados, checksum diferente — conflito de verdade
+    /// (bug relatado: "conflito não é detectado nem reportado"). Continua indo pra `missing`
+    /// (comportamento de sobrescrita inalterado), mas agora também aparece em `conflicts`.
+    #[test]
+    fn missing_from_reports_a_real_conflict_when_checksums_differ() {
+        let local = manifest_with_chapter("Test", "Cap 1", "checksum-local");
+        let peer = manifest_with_chapter("Test", "Cap 1", "checksum-peer");
+
+        let (missing, conflicts) = missing_from(&local, &peer);
+
+        assert_eq!(missing, vec![("Test".to_string(), "Cap 1".to_string())]);
+        assert_eq!(
+            conflicts,
+            vec![("Test".to_string(), "Cap 1".to_string())],
+            "checksum local diferente do peer é um conflito de verdade, não só uma atualização"
+        );
+    }
+
+    /// Quadrinho nunca visto localmente: vai pra `missing` (é isso que faz o download
+    /// acontecer), mas não é um conflito — não havia nada pra divergir.
+    #[test]
+    fn missing_from_does_not_report_a_conflict_for_a_chapter_never_seen_locally() {
+        let local = FileManifest { comics: vec![] };
+        let peer = manifest_with_chapter("Novo Quadrinho", "Cap 1", "checksum-peer");
+
+        let (missing, conflicts) = missing_from(&local, &peer);
+
+        assert_eq!(missing, vec![("Novo Quadrinho".to_string(), "Cap 1".to_string())]);
+        assert!(conflicts.is_empty(), "quadrinho nunca visto localmente não é um conflito");
+    }
+
+    /// Mesmo checksum dos dois lados: nem `missing` nem `conflicts` — já está sincronizado.
+    #[test]
+    fn missing_from_reports_nothing_when_checksums_match() {
+        let local = manifest_with_chapter("Test", "Cap 1", "same");
+        let peer = manifest_with_chapter("Test", "Cap 1", "same");
+
+        let (missing, conflicts) = missing_from(&local, &peer);
+
+        assert!(missing.is_empty());
+        assert!(conflicts.is_empty());
     }
 
     /// `write_failed: false` é o único caso em que `chapter_failed_payload` pode afirmar que a
@@ -2189,6 +2261,75 @@ mod tests {
         assert_eq!(
             received_from_a.bytes, outbound_payload,
             "bytes recebidos por B não batem byte-a-byte com o que A enviou"
+        );
+    }
+
+    /// Mesmo quadrinho/capítulo nos dois lados, conteúdo (checksum) diferente — cenário real do
+    /// bug relatado ("conflito não é detectado nem reportado" ao sincronizar um quadrinho já
+    /// existente nos dois devices). Prova que `FileSyncStats::conflicts_count` reflete isso nos
+    /// dois lados, com a sessão completando normalmente (comportamento de sobrescrita
+    /// inalterado — ver `missing_from`).
+    #[tokio::test]
+    async fn run_exchange_reports_a_real_conflict_when_both_sides_have_the_same_chapter_with_different_content(
+    ) {
+        let outbound_provider = Arc::new(InMemoryFileSyncProvider::with_readable(vec![(
+            "Test".to_string(),
+            "Cap 1".to_string(),
+            "Cap 1.cbz".to_string(),
+            b"versao do outbound".to_vec(),
+        )]));
+        let inbound_provider = Arc::new(InMemoryFileSyncProvider::with_readable(vec![(
+            "Test".to_string(),
+            "Cap 1".to_string(),
+            "Cap 1.cbz".to_string(),
+            b"versao do inbound, diferente".to_vec(),
+        )]));
+
+        let (client_io, server_io) = tokio::io::duplex(256 * 1024);
+        let (client_recv, client_send) = tokio::io::split(client_io);
+        let (server_recv, server_send) = tokio::io::split(server_io);
+
+        let peer = make_peer("peer-conflict");
+        let emit = no_op_emitter();
+        let (outbound_transfer, inbound_transfer) = test_transfer_pair();
+
+        let outbound_dyn: Arc<dyn FileSyncProvider> =
+            Arc::clone(&outbound_provider) as Arc<dyn FileSyncProvider>;
+        let inbound_dyn: Arc<dyn FileSyncProvider> =
+            Arc::clone(&inbound_provider) as Arc<dyn FileSyncProvider>;
+
+        let outbound_fut = run_exchange(
+            true,
+            &peer,
+            &emit,
+            &outbound_dyn,
+            &outbound_transfer,
+            Box::new(client_send) as Box<dyn AsyncWrite + Send + Unpin>,
+            Box::new(client_recv) as Box<dyn AsyncRead + Send + Unpin>,
+        );
+        let inbound_fut = run_exchange(
+            false,
+            &peer,
+            &emit,
+            &inbound_dyn,
+            &inbound_transfer,
+            Box::new(server_send) as Box<dyn AsyncWrite + Send + Unpin>,
+            Box::new(server_recv) as Box<dyn AsyncRead + Send + Unpin>,
+        );
+
+        let (outbound_result, inbound_result) = tokio::join!(outbound_fut, inbound_fut);
+        let outbound_stats =
+            outbound_result.expect("outbound não deveria falhar mesmo havendo conflito");
+        let inbound_stats =
+            inbound_result.expect("inbound não deveria falhar mesmo havendo conflito");
+
+        assert_eq!(
+            outbound_stats.conflicts_count, 1,
+            "outbound já tinha 'Cap 1' com checksum diferente do peer"
+        );
+        assert_eq!(
+            inbound_stats.conflicts_count, 1,
+            "inbound já tinha 'Cap 1' com checksum diferente do peer"
         );
     }
 

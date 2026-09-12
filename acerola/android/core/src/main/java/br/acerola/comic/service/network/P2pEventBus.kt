@@ -167,6 +167,7 @@ class P2pEventBus
                                 receivedCount = it.getInt("receivedCount"),
                                 sentCount = it.getInt("sentCount"),
                                 failedCount = it.getInt("failedCount"),
+                                conflictsCount = it.optInt("conflictsCount", 0),
                             )
                         }
 

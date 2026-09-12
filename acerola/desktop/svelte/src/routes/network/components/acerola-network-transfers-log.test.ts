@@ -67,6 +67,34 @@ describe('AcerolaNetworkTransfersLog', () => {
 		expect(screen.getByText('raw-fallback-text')).toBeInTheDocument();
 	});
 
+	it('appends the conflicts suffix to a "complete" entry that reports real conflicts', () => {
+		render(AcerolaNetworkTransfersLog, {
+			props: {
+				data: {
+					entries: [
+						entry({ kind: 'files', status: 'complete', message: 'peer-1', conflicts: 2 })
+					],
+					peerLabel: () => 'Meu Notebook'
+				}
+			}
+		});
+
+		expect(screen.getByText(/2 conflict|2 conflito/i)).toBeInTheDocument();
+	});
+
+	it('does not append the conflicts suffix when there were none', () => {
+		render(AcerolaNetworkTransfersLog, {
+			props: {
+				data: {
+					entries: [entry({ kind: 'files', status: 'complete', message: 'peer-1' })],
+					peerLabel: () => 'Meu Notebook'
+				}
+			}
+		});
+
+		expect(screen.queryByText(/conflict|conflito/i)).not.toBeInTheDocument();
+	});
+
 	it('calls onRefresh when the refresh button is clicked', async () => {
 		const user = userEvent.setup();
 		const onRefresh = vi.fn();

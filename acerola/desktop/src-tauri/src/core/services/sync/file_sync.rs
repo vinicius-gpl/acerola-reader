@@ -237,38 +237,49 @@ impl FileSyncService {
     /// Calcula o que EU quero, comparando o manifesto do peer contra a base local: capítulos
     /// ausentes ou com checksum diferente (arquivo desatualizado/corrompido localmente), mais
     /// os itens extra (capa/banner/ComicInfo.xml) ausentes ou desatualizados. Retorna
-    /// `(wanted, wanted_extras)` — capítulos e extras são conceitos independentes, então dois
-    /// vetores em vez de misturar tudo numa única lista com um discriminador.
+    /// `(wanted, wanted_extras, conflicts)` — capítulos e extras são conceitos independentes,
+    /// então vetores separados em vez de misturar tudo numa única lista com um discriminador.
+    /// `conflicts` é um subconjunto de `wanted`: capítulos que já EXISTEM localmente mas com um
+    /// checksum diferente do peer (os dois lados divergiram de verdade, não é só "eu não tenho
+    /// ainda") — continuam sendo puxados normalmente (sem mudar o comportamento de sobrescrita
+    /// atual), só passam a ser contados separadamente pra sessão poder reportar que um
+    /// conflito real aconteceu, em vez de tratar como uma atualização silenciosa qualquer.
     pub async fn diff_wanted(
         &self, peer_manifest: &FileManifest,
-    ) -> Result<(Vec<(String, String)>, Vec<(String, String)>), ComicError> {
+    ) -> Result<(Vec<(String, String)>, Vec<(String, String)>, Vec<(String, String)>), ComicError>
+    {
         let mut wanted = Vec::new();
         let mut wanted_extras = Vec::new();
+        let mut conflicts = Vec::new();
 
         for comic in &peer_manifest.comics {
             let local_comic = self.comic_repo.find_by_name(&comic.comic_name).await?;
 
             for chapter in &comic.chapters {
-                let already_have = match &local_comic {
+                let local_chapter = match &local_comic {
                     Some(existing) => {
-                        match self
-                            .chapter_repo
+                        self.chapter_repo
                             .find_by_comic_and_chapter(existing.id, &chapter.chapter)
                             .await?
-                        {
-                            Some(local_chapter) => {
-                                local_chapter.checksum.is_some()
-                                    && local_chapter.checksum == chapter.checksum
-                            },
-                            None => false,
-                        }
                     },
-                    None => false,
+                    None => None,
                 };
 
-                if !already_have {
-                    wanted.push((comic.comic_name.clone(), chapter.chapter.clone()));
+                let already_have = local_chapter
+                    .as_ref()
+                    .is_some_and(|local| local.checksum.is_some() && local.checksum == chapter.checksum);
+
+                if already_have {
+                    continue;
                 }
+
+                // Um capítulo local com checksum já registrado, mas diferente do que o peer
+                // tem, é um conflito de verdade — diferente de "nunca tive esse capítulo".
+                if local_chapter.as_ref().is_some_and(|local| local.checksum.is_some()) {
+                    conflicts.push((comic.comic_name.clone(), chapter.chapter.clone()));
+                }
+
+                wanted.push((comic.comic_name.clone(), chapter.chapter.clone()));
             }
 
             for (kind, peer_extra) in [
@@ -291,7 +302,7 @@ impl FileSyncService {
             }
         }
 
-        Ok((wanted, wanted_extras))
+        Ok((wanted, wanted_extras, conflicts))
     }
 
     async fn local_extra_info(&self, comic: &ComicDirectory, kind: &str) -> Option<FileExtraInfo> {
@@ -636,9 +647,10 @@ mod tests {
             }],
         };
 
-        let (wanted, wanted_extras) = service.diff_wanted(&peer_manifest).await.unwrap();
+        let (wanted, wanted_extras, conflicts) = service.diff_wanted(&peer_manifest).await.unwrap();
         assert!(wanted.is_empty());
         assert!(wanted_extras.is_empty());
+        assert!(conflicts.is_empty());
     }
 
     #[tokio::test]
@@ -658,8 +670,13 @@ mod tests {
             }],
         };
 
-        let (wanted, _) = service.diff_wanted(&peer_manifest).await.unwrap();
+        let (wanted, _, conflicts) = service.diff_wanted(&peer_manifest).await.unwrap();
         assert_eq!(wanted, vec![("Test".to_string(), "Cap 1".to_string())]);
+        assert_eq!(
+            conflicts,
+            vec![("Test".to_string(), "Cap 1".to_string())],
+            "checksum local diferente do peer é um conflito de verdade, não só uma atualização"
+        );
     }
 
     #[tokio::test]
@@ -679,8 +696,9 @@ mod tests {
             }],
         };
 
-        let (wanted, _) = service.diff_wanted(&peer_manifest).await.unwrap();
+        let (wanted, _, conflicts) = service.diff_wanted(&peer_manifest).await.unwrap();
         assert_eq!(wanted, vec![("Novo Quadrinho".to_string(), "Cap 1".to_string())]);
+        assert!(conflicts.is_empty(), "quadrinho nunca visto localmente não é um conflito");
     }
 
     #[tokio::test]
@@ -700,7 +718,7 @@ mod tests {
             }],
         };
 
-        let (_, wanted_extras) = service.diff_wanted(&peer_manifest).await.unwrap();
+        let (_, wanted_extras, _) = service.diff_wanted(&peer_manifest).await.unwrap();
         assert_eq!(wanted_extras, vec![("Test".to_string(), "cover".to_string())]);
     }
 

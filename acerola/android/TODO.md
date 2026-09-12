@@ -6,12 +6,6 @@
 
 ## Crítico
 
-- [ ] **Conflito de sync (quadrinho existente nos dois lados) está quebrado** — Testado ao
-  vivo: capítulos novos chegaram mas nenhum conflito real foi detectado/reportado, e ainda
-  assim apareceu "Erro ao sincronizar quadrinho: timeout waiting for frame" (falso negativo, a
-  sessão tinha terminado bem). Confirmado por auditoria: não existe nenhuma lógica de
-  detecção/resolução de conflito no código Kotlin nem no protocolo Rust compartilhado — só
-  badges de UI (`hasConflict`/`conflictCount`) sem nada alimentando eles.
 - [ ] **`FsStore` do iroh-blobs trava e vira ANR (mitigado, causa raiz aberta)** — Mitigado
   trocando `.blobs(IrohBlobsConfig::fs(...))` por `.mem()` em `native/rust/src/api.rs` —
   funciona, mas blobs não persistem entre reinícios do app. Causa raiz é do `iroh-blobs` em
@@ -70,3 +64,10 @@
 - `Protocolo de sync de arquivos não leva o quadrinho 100%` — **já corrigido**
   (`FileComicInfo` com cover/banner/ComicInfo.xml, `send_extras`/`receive_extras` em
   `exchange.rs`, commit `d0bcf7f1`). Não é mais um item em aberto.
+- `Conflito de sync (quadrinho existente nos dois lados) está quebrado` — **detecção/relato
+  corrigidos**: `missing_from` (`protocol/files/exchange.rs`) agora distingue "nunca vi esse
+  capítulo" de "já tenho, checksum diferente" (conflito de verdade), e `FileSyncComplete`
+  carrega `conflictsCount` até a notificação final de sync (`P2pSyncCoordinator`) — um total
+  por sessão, sem toast, sem notificação por capítulo. Continua sobrescrevendo com a versão do
+  peer (comportamento inalterado); resolução de conflito de verdade (escolher lado vencedor)
+  fica pra depois.

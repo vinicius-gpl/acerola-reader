@@ -120,6 +120,11 @@ sealed interface P2pEvent {
         val receivedCount: Int,
         val sentCount: Int,
         val failedCount: Int,
+        /** Quantos capítulos recebidos já existiam localmente com um checksum diferente do
+         *  peer — conflito de verdade (ver `missing_from` em `protocol/files/exchange.rs`).
+         *  Continuam sendo puxados normalmente; só reportados separadamente pra notificação
+         *  final poder mencionar que aconteceu, sem gerar uma notificação por capítulo. */
+        val conflictsCount: Int = 0,
     ) : P2pEvent
 
     data class LibraryBrowseResult(

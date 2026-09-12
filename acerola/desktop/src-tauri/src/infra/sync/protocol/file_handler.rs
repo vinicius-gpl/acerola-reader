@@ -56,18 +56,22 @@ impl FileSyncOutbound {
         Self { emit, service, metadata_service, log_repo, guard, transfer }
     }
 
-    /// Ver doc de `receive_files`/`send_files` (`transfer.rs`) — o `usize` retornado é a soma
-    /// de capítulos/extras que não foram transferidos de verdade nas quatro fases. `handle()`
-    /// usa isso pra não reportar a sessão como "completa" quando algo ficou faltando.
+    /// Ver doc de `receive_files`/`send_files` (`transfer.rs`) — o primeiro `usize` retornado é
+    /// a soma de capítulos/extras que não foram transferidos de verdade nas quatro fases,
+    /// usado por `handle()` pra não reportar a sessão como "completa" quando algo ficou
+    /// faltando. O segundo `usize` é quantos desses capítulos já existiam localmente com um
+    /// checksum diferente do peer — conflito de verdade, não só "eu não tinha ainda" (ver
+    /// `FileSyncService::diff_wanted`).
     async fn run(
         &self, peer: &PeerIdentity, writer: &mut FramedWriter, reader: &mut FramedReader,
-    ) -> Result<usize, P2pError> {
+    ) -> Result<(usize, usize), P2pError> {
         let local_manifest = self.service.build_manifest().await?;
         write_json(writer, &local_manifest).await?;
 
         let peer_manifest = read_or_busy(reader).await?;
 
-        let (my_wanted, my_wanted_extras) = self.service.diff_wanted(&peer_manifest).await?;
+        let (my_wanted, my_wanted_extras, my_conflicts) =
+            self.service.diff_wanted(&peer_manifest).await?;
         write_json(
             writer,
             &FileWantList { wanted: my_wanted.clone(), wanted_extras: my_wanted_extras.clone() },
@@ -121,7 +125,10 @@ impl FileSyncOutbound {
         )
         .await?;
 
-        Ok(received_skipped + received_extras_skipped + sent_skipped + sent_extras_skipped)
+        Ok((
+            received_skipped + received_extras_skipped + sent_skipped + sent_extras_skipped,
+            my_conflicts.len(),
+        ))
     }
 }
 
@@ -143,8 +150,11 @@ impl Handler for FileSyncOutbound {
         (self.emit)(STARTED_EVENT, peer.id.clone());
 
         match self.run(peer, &mut writer, &mut reader).await {
-            Ok(0) => {
-                (self.emit)(COMPLETE_EVENT, peer.id.clone());
+            Ok((0, conflicts)) => {
+                (self.emit)(
+                    COMPLETE_EVENT,
+                    serde_json::json!({ "peerId": peer.id, "conflicts": conflicts }).to_string(),
+                );
                 self.log_repo
                     .base
                     .insert(&SyncHistoryLogEntry::new(&peer.id, LOG_KIND, "complete", None))
@@ -152,7 +162,7 @@ impl Handler for FileSyncOutbound {
                     .ok();
                 Ok(())
             },
-            Ok(skipped) => {
+            Ok((skipped, _conflicts)) => {
                 let message =
                     format!("{skipped} chapter(s) not synced — see backend log for details");
                 tracing::warn!(peer = %peer.id, skipped, "[FileSync] session finished with missing chapters");
@@ -208,7 +218,7 @@ impl FileSyncInbound {
     /// Ver doc equivalente em `FileSyncOutbound::run`.
     async fn run(
         &self, peer: &PeerIdentity, writer: &mut FramedWriter, reader: &mut FramedReader,
-    ) -> Result<usize, P2pError> {
+    ) -> Result<(usize, usize), P2pError> {
         let peer_manifest = read_or_busy(reader).await?;
 
         let local_manifest = self.service.build_manifest().await?;
@@ -216,7 +226,8 @@ impl FileSyncInbound {
 
         let their_wanted: FileWantList = read_json(reader).await?;
 
-        let (my_wanted, my_wanted_extras) = self.service.diff_wanted(&peer_manifest).await?;
+        let (my_wanted, my_wanted_extras, my_conflicts) =
+            self.service.diff_wanted(&peer_manifest).await?;
         write_json(
             writer,
             &FileWantList { wanted: my_wanted.clone(), wanted_extras: my_wanted_extras.clone() },
@@ -268,7 +279,10 @@ impl FileSyncInbound {
         )
         .await?;
 
-        Ok(sent_skipped + sent_extras_skipped + received_skipped + received_extras_skipped)
+        Ok((
+            sent_skipped + sent_extras_skipped + received_skipped + received_extras_skipped,
+            my_conflicts.len(),
+        ))
     }
 }
 
@@ -290,8 +304,11 @@ impl Handler for FileSyncInbound {
         (self.emit)(STARTED_EVENT, peer.id.clone());
 
         match self.run(peer, &mut writer, &mut reader).await {
-            Ok(0) => {
-                (self.emit)(COMPLETE_EVENT, peer.id.clone());
+            Ok((0, conflicts)) => {
+                (self.emit)(
+                    COMPLETE_EVENT,
+                    serde_json::json!({ "peerId": peer.id, "conflicts": conflicts }).to_string(),
+                );
                 self.log_repo
                     .base
                     .insert(&SyncHistoryLogEntry::new(&peer.id, LOG_KIND, "complete", None))
@@ -299,7 +316,7 @@ impl Handler for FileSyncInbound {
                     .ok();
                 Ok(())
             },
-            Ok(skipped) => {
+            Ok((skipped, _conflicts)) => {
                 let message =
                     format!("{skipped} chapter(s) not synced — see backend log for details");
                 tracing::warn!(peer = %peer.id, skipped, "[FileSync] session finished with missing chapters");
@@ -444,5 +461,119 @@ mod tests {
 
         let recorded = events.lock().unwrap();
         assert!(recorded.iter().any(|(name, _)| name == "sync:files:started"));
+    }
+
+    fn sha256_hex(bytes: &[u8]) -> String {
+        use sha2::{Digest, Sha256};
+        format!("{:x}", Sha256::digest(bytes))
+    }
+
+    /// Mesmo quadrinho/capítulo nos dois lados, mas com bytes (logo checksum) diferentes — o
+    /// cenário real do bug relatado ("conflito não é detectado nem reportado"). Prova que o
+    /// payload de `sync:files:complete` carrega `conflicts >= 1`, mesmo com o comportamento de
+    /// puxar/sobrescrever a versão do peer inalterado (ver `FileSyncService::diff_wanted`).
+    #[tokio::test]
+    async fn complete_event_payload_carries_a_real_conflict_count() {
+        let outbound_pool = crate::tests::utils::setup_test_db::setup_test_db().await;
+        let inbound_pool = crate::tests::utils::setup_test_db::setup_test_db().await;
+        let outbound_dir = tempfile::tempdir().unwrap();
+        let inbound_dir = tempfile::tempdir().unwrap();
+
+        crate::tests::utils::setup_test_db::insert_comic_directory(
+            &outbound_pool,
+            1,
+            "Test",
+            outbound_dir.path().join("Test").to_str().unwrap(),
+        )
+        .await;
+        crate::tests::utils::setup_test_db::insert_comic_directory(
+            &inbound_pool,
+            1,
+            "Test",
+            inbound_dir.path().join("Test").to_str().unwrap(),
+        )
+        .await;
+
+        // Mesmo rótulo de capítulo ("Cap 1") nos dois lados, conteúdo (e checksum) diferente.
+        let outbound_path = outbound_dir.path().join("Cap 1.cbz");
+        let outbound_bytes = b"versao do outbound";
+        tokio::fs::write(&outbound_path, outbound_bytes).await.unwrap();
+        sqlx::query(
+            "INSERT INTO chapter_archive (id, chapter, path, chapter_sort, is_special, checksum, comic_directory_fk, last_modified) VALUES (1, 'Cap 1', ?, '1', 0, ?, 1, 0)",
+        )
+        .bind(outbound_path.to_str().unwrap())
+        .bind(sha256_hex(outbound_bytes))
+        .execute(&outbound_pool)
+        .await
+        .unwrap();
+
+        let inbound_path = inbound_dir.path().join("Cap 1.cbz");
+        let inbound_bytes = b"versao do inbound, diferente";
+        tokio::fs::write(&inbound_path, inbound_bytes).await.unwrap();
+        sqlx::query(
+            "INSERT INTO chapter_archive (id, chapter, path, chapter_sort, is_special, checksum, comic_directory_fk, last_modified) VALUES (1, 'Cap 1', ?, '1', 0, ?, 1, 0)",
+        )
+        .bind(inbound_path.to_str().unwrap())
+        .bind(sha256_hex(inbound_bytes))
+        .execute(&inbound_pool)
+        .await
+        .unwrap();
+
+        let outbound_root = outbound_dir.path().to_path_buf();
+        let inbound_root = inbound_dir.path().to_path_buf();
+        let outbound_service =
+            FileSyncService::new(outbound_pool.clone(), move || outbound_root.clone());
+        let inbound_service =
+            FileSyncService::new(inbound_pool.clone(), move || inbound_root.clone());
+        let outbound_metadata = Arc::new(MetadataService::new(outbound_pool.clone()));
+        let inbound_metadata = Arc::new(MetadataService::new(inbound_pool.clone()));
+
+        let outbound_guard = FileSyncSessionGuard::new();
+        let inbound_guard = FileSyncSessionGuard::new();
+        let (outbound_emit, outbound_events) = mock_emitter();
+        let (inbound_emit, inbound_events) = mock_emitter();
+        let peer = PeerIdentity { id: "peer-conflict".to_string(), device_id: None };
+        let (outbound_transfer, inbound_transfer) = InMemoryChapterTransfer::shared_pair();
+
+        let outbound = FileSyncOutbound::new(
+            outbound_emit,
+            outbound_service,
+            outbound_metadata,
+            SyncHistoryLogRepository::new(outbound_pool.clone()),
+            outbound_guard,
+            outbound_transfer,
+        );
+        let inbound = FileSyncInbound::new(
+            inbound_emit,
+            inbound_service,
+            inbound_metadata,
+            SyncHistoryLogRepository::new(inbound_pool.clone()),
+            inbound_guard,
+            inbound_transfer,
+        );
+
+        let (client_io, server_io) = tokio::io::duplex(64 * 1024);
+        let (client_recv, client_send) = tokio::io::split(client_io);
+        let (server_recv, server_send) = tokio::io::split(server_io);
+
+        let (outbound_result, inbound_result) = tokio::join!(
+            outbound.handle(&peer, Box::new(client_send), Box::new(client_recv)),
+            inbound.handle(&peer, Box::new(server_send), Box::new(server_recv)),
+        );
+        outbound_result.expect("sessão não deveria falhar mesmo havendo conflito");
+        inbound_result.expect("sessão não deveria falhar mesmo havendo conflito");
+
+        for (label, events) in [("outbound", &outbound_events), ("inbound", &inbound_events)] {
+            let recorded = events.lock().unwrap();
+            let complete = recorded
+                .iter()
+                .find(|(name, _)| name == "sync:files:complete")
+                .unwrap_or_else(|| panic!("{label} deveria ter emitido sync:files:complete"));
+            let payload: serde_json::Value = serde_json::from_str(&complete.1).unwrap();
+            assert_eq!(
+                payload["conflicts"], 1,
+                "{label}: checksum diferente do mesmo capítulo nos dois lados é um conflito real"
+            );
+        }
     }
 }
