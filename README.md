@@ -40,4 +40,4 @@ flowchart LR
 - Licença: [LICENSE](LICENSE) (MPL-2.0, para todo o monorepo)
 - TODO de cada plataforma: `acerola/android/TODO.md`, `acerola/desktop/TODO.md`, `lib/p2p/TODO.md`
 - Assets usados nos READMEs (GitHub): [`docs/github/`](docs/github/)
-- Futuro site de documentação: [`docs/web/`](docs/web/) (ainda vazio)
+- Site de documentação: [docs.acerola-comic.com](https://docs.acerola-comic.com) (código em [`docs/web/`](docs/web/))
