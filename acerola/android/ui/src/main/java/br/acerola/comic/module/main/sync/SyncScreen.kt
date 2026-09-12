@@ -1,5 +1,6 @@
 package br.acerola.comic.module.main.sync
 
+import android.content.Intent
 import android.content.res.Configuration
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -13,15 +14,12 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -132,11 +130,6 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-
-/** Altura máxima do corpo do log de transferências expandido — trava a lista num LazyColumn
- *  com rolagem própria em vez de deixar o accordion crescer até caber todas as
- *  MAX_LOG_ENTRIES linhas (ver SyncViewModel.kt) de uma vez. */
-private val TransferLogMaxHeight = 320.dp
 
 @Composable
 fun Main.Sync.Template.Screen(viewModel: SyncViewModel = hiltViewModel()) {
@@ -277,7 +270,7 @@ private fun SyncLayout(
                 onRemoveClick = { peerPendingRemoval = it },
             )
 
-            ActivityLogCard(uiState = uiState, onAction = onAction)
+            ActivityLogCard(uiState = uiState)
         }
 
         if (uiState.pendingConnect != null) {
@@ -1406,100 +1399,31 @@ private fun SecurityNote() {
     }
 }
 
-/** Accordion que expande em linha — mesmo componente já usado por [RelaySettingsCard] nessa
- *  tela, em vez de abrir um dialog/sheet à parte. Refresh/limpar ficam como ícones no topo do
- *  corpo expandido (só visíveis com o accordion aberto), mesmo espírito do `RestartSection`
- *  dentro de [RelaySettingsCard]. */
+/** Gatilho pro histórico completo — igual ao localSend: uma tela própria (ver
+ *  [TransferLogActivity]/[TransferLogScreen]), não um dialog/sheet/accordion espremido dentro
+ *  da tela de Rede. Aqui só mostra a última entrada conhecida como prévia. */
 @Composable
-private fun ActivityLogCard(
-    uiState: SyncUiState,
-    onAction: (SyncAction) -> Unit,
-) {
-    var expanded by remember { mutableStateOf(false) }
-    var showClearDialog by remember { mutableStateOf(false) }
+private fun ActivityLogCard(uiState: SyncUiState) {
+    val context = LocalContext.current
 
     val summary =
         uiState.transferLog.firstOrNull()?.let { describeEntry(it) }
             ?: stringResource(id = R.string.label_sync_activity_log_empty)
 
-    Acerola.Component.AccordionCard(
+    Acerola.Component.HeroButton(
         title = stringResource(id = R.string.title_sync_activity_log),
         description = summary,
         icon = Icons.Default.History,
-        accentColor = MaterialTheme.colorScheme.tertiary,
-        expanded = expanded,
-        onToggleExpanded = { expanded = !expanded },
         modifier = Modifier.fillMaxWidth(),
-    ) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            IconButton(onClick = { onAction(SyncAction.RefreshTransferLog) }) {
-                Icon(
-                    imageVector = Icons.Default.Refresh,
-                    contentDescription = stringResource(id = R.string.action_sync_activity_log_refresh),
-                    modifier = Modifier.size(SizeTokens.IconExtraSmall),
-                )
-            }
-            if (uiState.transferLog.isNotEmpty()) {
-                IconButton(onClick = { showClearDialog = true }) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = stringResource(id = R.string.action_sync_activity_log_clear),
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(SizeTokens.IconExtraSmall),
-                    )
-                }
-            }
-        }
-
-        if (uiState.transferLog.isEmpty()) {
-            Text(
-                text = stringResource(id = R.string.label_sync_activity_log_empty),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        } else {
-            // Altura travada + LazyColumn (não um Column().forEach cru) — o log tem até
-            // MAX_LOG_ENTRIES linhas (50, ver SyncViewModel.kt); sem isso o accordion cresceria
-            // até caber todas de uma vez (animateContentSize animando um salto gigante) e
-            // recomporia as 50 de uma vez mesmo fora de tela.
-            LazyColumn(modifier = Modifier.heightIn(max = TransferLogMaxHeight)) {
-                items(items = uiState.transferLog, key = { it.id }) { entry ->
-                    LogRow(entry = entry)
-                }
-            }
-        }
-    }
-
-    Acerola.Component.Dialog(
-        show = showClearDialog,
-        onDismiss = { showClearDialog = false },
-        title = stringResource(id = R.string.title_sync_activity_log_clear_confirm),
-        confirmButtonContent = {
-            Acerola.Component.DialogButton(
-                text = stringResource(id = R.string.action_sync_activity_log_clear_confirm),
-                contentColor = MaterialTheme.colorScheme.error,
-                onClick = {
-                    onAction(SyncAction.ClearTransferLog)
-                    showClearDialog = false
-                },
-            )
-        },
-        dismissButtonContent = {
-            Acerola.Component.DialogButton(
-                text = stringResource(id = R.string.action_cancel),
-                onClick = { showClearDialog = false },
-            )
-        },
-    ) {
-        Text(text = stringResource(id = R.string.description_sync_activity_log_clear_confirm))
-    }
+        onClick = { context.startActivity(Intent(context, TransferLogActivity::class.java)) },
+    )
 }
 
 /** Turns a raw [TransferLogEntry] into display text — the only place doing that resolution,
  *  so [SyncViewModel] never needs an Android [android.content.Context]-flavored dependency
- *  just to pre-render a string. */
+ *  just to pre-render a string. Compartilhado com [TransferLogScreen] (mesmo package). */
 @Composable
-private fun describeEntry(entry: TransferLogEntry): String =
+internal fun describeEntry(entry: TransferLogEntry): String =
     when ("${entry.kind}:${entry.status}") {
         "history:started" -> stringResource(id = R.string.log_sync_history_started)
         "history:complete" -> stringResource(id = R.string.log_sync_history_complete)
@@ -1518,8 +1442,9 @@ private fun describeEntry(entry: TransferLogEntry): String =
         else -> entry.message ?: entry.status
     }
 
+/** Compartilhado com [TransferLogScreen] (mesmo package). */
 @Composable
-private fun LogRow(entry: TransferLogEntry) {
+internal fun LogRow(entry: TransferLogEntry) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = SpacingTokens.ExtraSmall)) {
         when (entry.state) {
             LogState.IN_PROGRESS ->
