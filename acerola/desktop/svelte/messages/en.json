@@ -151,6 +151,9 @@
 			},
 			"partial_sync": {
 				"label": "Some chapters were not synced — check the history for details."
+			},
+			"comic_not_found": {
+				"label": "The other device doesn't have this comic yet."
 			}
 		}
 	},
@@ -316,7 +319,15 @@
 				"select": "Select",
 				"selected": "{count} selected",
 				"select_all": "Select all",
-				"cancel": "Cancel"
+				"cancel": "Cancel",
+				"send_to_peer": {
+					"button": "Send",
+					"toast": {
+						"start": "Sending to device...",
+						"success": "Sent!",
+						"error": "Failed to send: {msg}"
+					}
+				}
 			},
 			"metadata": {
 				"description": {
@@ -831,6 +842,9 @@
 				"history_started": "Syncing reading history with {peer}...",
 				"history_complete": "Reading history synced with {peer}.",
 				"history_error": "History sync failed: {msg}",
+				"history_entry_started": "Sending chapter(s) to {peer}...",
+				"history_entry_complete": "Chapter(s) sent to {peer}.",
+				"history_entry_error": "Failed to send chapter(s): {msg}",
 				"files_started": "Syncing files with {peer}...",
 				"files_progress": "Transferring {item}...",
 				"files_complete": "Files synced with {peer}.",

@@ -5,6 +5,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,18 +17,17 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.BookmarkRemove
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -42,9 +42,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import br.acerola.comic.common.state.SyncActionVisualState
 import br.acerola.comic.common.ux.Acerola
+import br.acerola.comic.common.ux.component.ActionListItem
 import br.acerola.comic.common.ux.component.Dialog
 import br.acerola.comic.common.ux.component.DialogButton
+import br.acerola.comic.common.ux.component.SyncActionIcon
 import br.acerola.comic.common.ux.theme.AcerolaTheme
 import br.acerola.comic.common.ux.tokens.ShapeTokens
 import br.acerola.comic.common.ux.tokens.SizeTokens
@@ -65,6 +68,8 @@ fun Comic.Component.ChapterItem(
     isSelectionMode: Boolean = false,
     onLongClick: () -> Unit = {},
     onClick: () -> Unit,
+    onSendToPeer: () -> Unit = {},
+    sendState: SyncActionVisualState = SyncActionVisualState.IDLE,
 ) {
     var showDetails by remember { mutableStateOf(value = false) }
 
@@ -93,6 +98,20 @@ fun Comic.Component.ChapterItem(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             when {
+                sendState != SyncActionVisualState.IDLE ->
+                    Acerola.Component.SyncActionIcon(
+                        state = sendState,
+                        containerSize = SizeTokens.ClickTargetSmall,
+                        iconSize = SizeTokens.IconSmall,
+                        defaultBackground = MaterialTheme.colorScheme.primaryContainer,
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Send,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(SizeTokens.IconSmall),
+                        )
+                    }
                 isSelectionMode && isSelected ->
                     ChapterLeadingIcon(
                         icon = Icons.Default.Check,
@@ -229,27 +248,40 @@ fun Comic.Component.ChapterItem(
                         value = chapterFileDto.name,
                     )
 
-                    Spacer(modifier = Modifier.height(SpacingTokens.Large))
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
                     Spacer(modifier = Modifier.height(SpacingTokens.Small))
 
-                    TextButton(
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = { onToggleRead() },
-                        colors =
-                            ButtonDefaults.textButtonColors(
-                                contentColor = if (isRead) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-                            ),
-                    ) {
-                        Text(
-                            text =
-                                if (isRead) {
-                                    stringResource(id = R.string.action_mark_as_unread)
-                                } else {
-                                    stringResource(id = R.string.action_mark_as_read)
+                    Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.Small)) {
+                        Surface(
+                            shape = ShapeTokens.Large,
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        ) {
+                            Acerola.Component.ActionListItem(
+                                icon = if (isRead) Icons.Default.BookmarkRemove else Icons.Default.Check,
+                                title =
+                                    stringResource(
+                                        id = if (isRead) R.string.action_mark_as_unread else R.string.action_mark_as_read,
+                                    ),
+                                tint = if (isRead) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                                isLast = true,
+                                onClick = { onToggleRead() },
+                            )
+                        }
+
+                        Surface(
+                            shape = ShapeTokens.Large,
+                            color = MaterialTheme.colorScheme.tertiaryContainer,
+                        ) {
+                            Acerola.Component.ActionListItem(
+                                icon = Icons.AutoMirrored.Filled.Send,
+                                title = stringResource(id = R.string.action_send_chapters_to_peer),
+                                tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                                isLast = true,
+                                onClick = {
+                                    showDetails = false
+                                    onSendToPeer()
                                 },
-                            fontWeight = FontWeight.SemiBold,
-                        )
+                            )
+                        }
                     }
                 }
             },
@@ -333,6 +365,19 @@ private fun ChapterItemConflictPreview() {
         Comic.Component.ChapterItem(
             chapterFileDto = ChapterFileDto(id = 1L, name = "Capítulo 5 (conflito-peer1)", path = "/path/5", chapterSort = "0005"),
             hasConflict = true,
+            onClick = {},
+        )
+    }
+}
+
+@Preview(name = "Sending - Light", showBackground = true)
+@Preview(name = "Sending - Dark", showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+private fun ChapterItemSendingPreview() {
+    AcerolaTheme {
+        Comic.Component.ChapterItem(
+            chapterFileDto = ChapterFileDto(id = 1L, name = "Capítulo 1", path = "/path/1", chapterSort = "0001"),
+            sendState = SyncActionVisualState.LOADING,
             onClick = {},
         )
     }

@@ -131,6 +131,12 @@
     <string name="message_sync_comic_already_syncing">Já existe uma sincronização em andamento com esse dispositivo.</string>
     <string name="error_sync_comic_timeout">A sincronização demorou demais e foi cancelada. Tente novamente.</string>
 
+    <string name="action_send_chapters_to_peer">Enviar</string>
+    <string name="title_send_chapters_peer_picker">Escolher dispositivo</string>
+    <string name="error_send_chapters_peer_not_paired">Esse dispositivo não está mais pareado.</string>
+    <string name="error_send_chapters_peer_failed">Falha ao enviar capítulo(s) para o dispositivo.</string>
+    <string name="message_send_chapters_peer_success">Capítulo(s) enviado(s)!</string>
+
     <string name="title_sync_remote_library">Biblioteca de \"%1$s\"</string>
     <string name="label_sync_remote_library_loading">Buscando quadrinhos…</string>
     <string name="label_sync_remote_library_empty">Nenhum quadrinho encontrado nesse dispositivo.</string>

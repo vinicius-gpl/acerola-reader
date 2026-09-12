@@ -196,11 +196,14 @@ class P2pService(
     }
 
     /** Sincroniza um único quadrinho com o peer, na [direction] explícita escolhida pelo
-     *  usuário — `PUSH` manda o quadrinho pro peer, `PULL` puxa dele. */
+     *  usuário — `PUSH` manda o quadrinho pro peer, `PULL` puxa dele. `chapters` (rótulos de
+     *  capítulo, vazio por padrão = quadrinho inteiro) escopa a sessão a um subconjunto de
+     *  capítulos — usado pelo botão "Enviar" da seleção múltipla/menu de três pontinhos. */
     fun syncComic(
         peerAddress: PeerAddress,
         comicName: String,
         direction: SyncDirection,
+        chapters: List<String> = emptyList(),
     ) {
         Log.d("P2pService", "Syncing comic '$comicName' with peer: ${peerAddress.id} ($direction)")
         val ffiAddr =
@@ -209,14 +212,16 @@ class P2pService(
                 deviceId = peerAddress.deviceId,
                 addrs = peerAddress.addrs,
             )
-        p2pNode.syncComic(ffiAddr, comicName, direction.toFfi())
+        p2pNode.syncComic(ffiAddr, comicName, direction.toFfi(), chapters)
     }
 
-    /** Empurra o progresso de leitura de UM único quadrinho pro peer — mais leve que
-     *  [syncHistory] (biblioteca inteira). Progresso via os eventos `sync:history-entry:*`. */
+    /** Empurra o progresso + marcadores de "lido" do(s) capítulo(s) selecionado(s)
+     *  (`chapterSorts`) de UM único quadrinho pro peer — mais leve que [syncHistory]
+     *  (biblioteca inteira). Progresso via os eventos `sync:history-entry:*`. */
     fun syncHistoryEntry(
         peerAddress: PeerAddress,
         comicName: String,
+        chapterSorts: List<String>,
     ) {
         Log.d("P2pService", "Syncing history entry for '$comicName' with peer: ${peerAddress.id}")
         val ffiAddr =
@@ -225,7 +230,7 @@ class P2pService(
                 deviceId = peerAddress.deviceId,
                 addrs = peerAddress.addrs,
             )
-        p2pNode.syncHistoryEntry(ffiAddr, comicName)
+        p2pNode.syncHistoryEntry(ffiAddr, comicName, chapterSorts)
     }
 
     /** Pede a lista de quadrinhos (nome + contagem de capítulos) da biblioteca do peer, sem

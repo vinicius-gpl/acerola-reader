@@ -45,6 +45,24 @@ fn sha256_hex(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
 }
 
+/// Restringe um manifesto (já escopado a UM quadrinho, via `build_manifest_for_comic`) aos
+/// rótulos de capítulo pedidos — lista vazia significa "sem filtro" (quadrinho inteiro),
+/// preservando o comportamento do sync completo (`sync_comic`/"Sincronizar com dispositivo").
+/// Itens extra (capa/banner/`ComicInfo.xml`) nunca são filtrados aqui: são metadado do
+/// quadrinho como um todo, não de um capítulo específico, então continuam acompanhando
+/// qualquer sessão escopada (útil pra exibir o quadrinho recém-criado no destino).
+pub fn restrict_manifest_to_chapters(
+    mut manifest: FileManifest, chapters: &[String],
+) -> FileManifest {
+    if chapters.is_empty() {
+        return manifest;
+    }
+    for comic in &mut manifest.comics {
+        comic.chapters.retain(|chapter| chapters.iter().any(|wanted| wanted == &chapter.chapter));
+    }
+    manifest
+}
+
 /// Monta e aplica manifestos de arquivos (os `.cbz`/`.cbr` reais) entre dois devices.
 ///
 /// Diferente do sync de histórico, este PODE criar quadrinhos novos localmente — é o
@@ -186,6 +204,34 @@ impl FileSyncService {
         let mut manifest = self.build_manifest().await?;
         manifest.comics.retain(|comic| comic.comic_name == comic_name);
         Ok(manifest)
+    }
+
+    /// Resolve `chapter_archive_id`s locais (a unidade que a UI de seleção múltipla já usa,
+    /// ex. `markChaptersReadBatch`/`HistoryEntryScope`) pros RÓTULOS de capítulo
+    /// (`FileChapterInfo.chapter`) — diferente de `HistorySyncService::resolve_chapter_sorts`,
+    /// que resolve pra `chapter_sort`: o sync de arquivos já usa o rótulo como chave
+    /// cross-device (ver contrato documentado em `persist_received_chapter`), então é essa a
+    /// chave que precisa viajar no `ComicSyncRequest.chapters`. IDs que não existem ou que
+    /// pertencem a outro quadrinho são ignorados silenciosamente, mesma postura de
+    /// `resolve_chapter_sorts`.
+    pub async fn resolve_chapter_labels(
+        &self, comic_name: &str, chapter_ids: &[i64],
+    ) -> Result<Vec<String>, ComicError> {
+        let Some(comic) = self.comic_repo.find_by_name(comic_name).await? else {
+            return Ok(Vec::new());
+        };
+
+        let mut labels = Vec::with_capacity(chapter_ids.len());
+        for &chapter_id in chapter_ids {
+            let Some(chapter) = self.chapter_repo.find_by_id(chapter_id).await? else {
+                continue;
+            };
+            if chapter.comic_directory_fk != comic.id {
+                continue;
+            }
+            labels.push(chapter.chapter);
+        }
+        Ok(labels)
     }
 
     /// Calcula o que EU quero, comparando o manifesto do peer contra a base local: capítulos

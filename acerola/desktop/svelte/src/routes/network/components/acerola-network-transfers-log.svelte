@@ -46,6 +46,15 @@
 				m['pages.network.transfers.history_complete']({ peer: data.peerLabel(entry.message) }),
 			error: (entry) => m['pages.network.transfers.history_error']({ msg: entry.message })
 		},
+		historyEntry: {
+			started: (entry) =>
+				m['pages.network.transfers.history_entry_started']({ peer: data.peerLabel(entry.message) }),
+			complete: (entry) =>
+				m['pages.network.transfers.history_entry_complete']({
+					peer: data.peerLabel(entry.message)
+				}),
+			error: (entry) => m['pages.network.transfers.history_entry_error']({ msg: entry.message })
+		},
 		files: {
 			started: (entry) =>
 				m['pages.network.transfers.files_started']({ peer: data.peerLabel(entry.message) }),

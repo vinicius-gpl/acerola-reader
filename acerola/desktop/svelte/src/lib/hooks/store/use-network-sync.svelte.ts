@@ -11,7 +11,7 @@ export type TransferLogEntry = {
 	id: number;
 	/** Vazio quando a origem não é resolvível (ex.: `files:progress`, que não carrega peer id). */
 	peerId: string;
-	kind: 'history' | 'files' | 'comic';
+	kind: 'history' | 'files' | 'comic' | 'historyEntry';
 	status: 'started' | 'progress' | 'complete' | 'error';
 	message: string;
 	timestamp: number;
@@ -446,6 +446,21 @@ export function useNetworkSync() {
 				push(peerId, 'comic', 'complete', peerId, comicName);
 				settlePending(syncKey(peerId, 'comic'), true, peerId);
 			}),
+			await listen<string>(NETWORK_EVENTS.historyEntryStarted, (event) =>
+				push(event.payload, 'historyEntry', 'started', event.payload)
+			),
+			await listen<string>(NETWORK_EVENTS.historyEntryComplete, (event) => {
+				clearSyncing(event.payload, 'historyEntry');
+				push(event.payload, 'historyEntry', 'complete', event.payload);
+				settlePending(syncKey(event.payload, 'historyEntry'), true, event.payload);
+			}),
+			await listen<string>(NETWORK_EVENTS.historyEntryError, (event) => {
+				const { peerId, message, code } = parseErrorPayload(event.payload);
+				const translated = translateSyncMessage(code, message);
+				if (peerId) clearSyncing(peerId, 'historyEntry');
+				push(peerId ?? '', 'historyEntry', 'error', translated);
+				if (peerId) settlePending(syncKey(peerId, 'historyEntry'), false, translated);
+			}),
 			await listen<string>(NETWORK_EVENTS.comicError, (event) => {
 				const parsed = parseErrorPayload(event.payload);
 				if (parsed.itemLevel) {
@@ -526,6 +541,12 @@ export function useNetworkSync() {
 	/// `comicName` é o mesmo nome (`comic_directory.name`) usado como chave natural em todo o
 	/// resto do protocolo de sync de arquivos.
 	///
+	/// `chapterIds` (mesmo `ChapterId` string da UI de seleção, ver `syncHistoryEntry`) escopa
+	/// a sessão a um subconjunto de capítulos — vazio (padrão) sincroniza o quadrinho inteiro,
+	/// comportamento de antes desta mudança usado pelo "Sincronizar com dispositivo". O botão
+	/// "Enviar" da seleção múltipla de capítulos usa a lista pra mandar só os arquivos
+	/// escolhidos, sem precisar mandar o resto do quadrinho.
+	///
 	/// Ao contrário de `syncHistory`/`syncFiles`/`syncAll`, a promise retornada só resolve
 	/// (ou rejeita) quando a sessão termina de verdade (`sync:comic:complete`/`error`, ou o
 	/// timeout de `markSyncing`) — o `invoke` do comando Tauri resolve assim que a conexão é
@@ -536,7 +557,8 @@ export function useNetworkSync() {
 		peerId: string,
 		addrs: number[],
 		comicName: string,
-		direction: SyncDirection
+		direction: SyncDirection,
+		chapterIds: string[] = []
 	): Promise<string> {
 		if (isSyncing(peerId, 'comic')) {
 			// Mesmo texto traduzido do `code: "busy"` que o backend manda — este guard é
@@ -555,7 +577,46 @@ export function useNetworkSync() {
 				peerId,
 				addrs,
 				comicName,
-				direction
+				direction,
+				chapterIds
+			});
+		} catch (err) {
+			pendingSettlement.delete(key);
+			throw err;
+		}
+
+		return settlement;
+	}
+
+	/// Push do(s) capítulo(s) selecionado(s) (progresso + marcador de "lido") de UM quadrinho pra
+	/// um peer — mais leve que `syncComic`, que troca o quadrinho inteiro. Usado tanto pelo envio
+	/// de um capítulo só quanto de vários selecionados de uma vez. `chapterIds` são os mesmos
+	/// `ChapterId` (string) usados pelo resto da UI de seleção (ver `useChapterSelection` /
+	/// `markChaptersReadBatch`) — o backend faz o parse e resolve pra `chapter_sort` (a chave
+	/// comparável entre devices) antes de montar o manifesto. Mesmo padrão de espera de
+	/// conclusão real de `syncComic`: o `invoke` só enfileira a conexão, a promise
+	/// resolve/rejeita com `sync:history-entry:complete`/`error`.
+	async function syncHistoryEntry(
+		peerId: string,
+		addrs: number[],
+		comicName: string,
+		chapterIds: string[]
+	): Promise<string> {
+		if (isSyncing(peerId, 'historyEntry')) {
+			throw new Error(m['tauri_errors.sync.session_busy.label']());
+		}
+
+		const key = syncKey(peerId, 'historyEntry');
+		const settlement = new Promise<string>((resolve, reject) => {
+			pendingSettlement.set(key, { resolve, reject });
+		});
+
+		try {
+			await withSyncGuard(peerId, ['historyEntry'], NETWORK_COMMANDS.syncHistoryEntry, {
+				peerId,
+				addrs,
+				comicName,
+				chapterIds
 			});
 		} catch (err) {
 			pendingSettlement.delete(key);
@@ -600,6 +661,7 @@ export function useNetworkSync() {
 		syncFiles,
 		syncAll,
 		syncComic,
+		syncHistoryEntry,
 		isSyncing,
 		lastSyncedAt,
 		activeSession,

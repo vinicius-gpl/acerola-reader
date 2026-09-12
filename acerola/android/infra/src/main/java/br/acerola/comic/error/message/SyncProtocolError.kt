@@ -33,16 +33,26 @@ sealed interface SyncProtocolError : UserMessage {
         override val uiMessage = UiText.StringResource(resId = R.string.error_sync_checksum_mismatch)
     }
 
+    /** `code` vem de `HistoryEntryAck.comic_known == false` (`acerola/sync-history-entry/1`) —
+     *  o peer respondeu que não tem o quadrinho referenciado, então nada foi aplicado do outro
+     *  lado. Histórico nunca cria quadrinho novo no destino, então isso é esperado quando o
+     *  outro lado ainda não sincronizou os arquivos desse quadrinho. */
+    data object ComicNotFound : SyncProtocolError {
+        override val uiMessage = UiText.StringResource(resId = R.string.error_sync_comic_not_found)
+    }
+
     companion object {
         /** Único lugar que interpreta o `code` cru do wire (`"busy"`/`"timeout"`/
-         *  `"connection_lost"`/`"checksum_mismatch"`) — `null` (causa não reconhecida) sinaliza
-         *  pra quem chama usar o `reason` cru como fallback, em vez de um `SyncProtocolError`. */
+         *  `"connection_lost"`/`"checksum_mismatch"`/`"comic_not_found"`) — `null` (causa não
+         *  reconhecida) sinaliza pra quem chama usar o `reason` cru como fallback, em vez de um
+         *  `SyncProtocolError`. */
         fun fromCode(code: String?): SyncProtocolError? =
             when (code) {
                 "busy" -> SessionBusy
                 "timeout" -> Timeout
                 "connection_lost" -> ConnectionLost
                 "checksum_mismatch" -> ChecksumMismatch
+                "comic_not_found" -> ComicNotFound
                 else -> null
             }
     }

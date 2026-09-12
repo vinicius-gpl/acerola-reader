@@ -71,6 +71,7 @@
 	let { data, events }: ComicVolumeListProps = $props();
 
 	let openMenuId = $state<string | null>(null);
+	let openingChapterId = $state<string | null>(null);
 
 	const volumes = $derived(data.volumes ?? []);
 	const pagesData = $derived(data.pagesData ?? []);
@@ -86,6 +87,18 @@
 
 	const ITEM_HEIGHT = 112;
 	const BUTTON_HEIGHT = 100;
+
+	function rowClass(chapter: VolumeChapter, isSelected: boolean, isOpening: boolean): string {
+		const base = 'h-full flex-nowrap overflow-hidden';
+		const selectedRing = isSelected
+			? ' ring-2 ring-primary ring-offset-2 ring-offset-background'
+			: '';
+		const openingState = isOpening ? ' pointer-events-none opacity-70' : '';
+		if (chapter.isRead) {
+			return `${base} border-primary/30 bg-primary/10 hover:bg-primary/20${selectedRing}${openingState}`;
+		}
+		return `${base} border-surface/40 bg-mantle/40 hover:bg-surface/30${selectedRing}${openingState}`;
+	}
 
 	const toggleVolume = (volumeId: string) => {
 		if (expandedVolumeId === volumeId) {
@@ -230,19 +243,29 @@
 													description: chapter.fileName
 												}}
 												events={{
-													onClick: () =>
-														data.isSelectionMode
-															? events.onToggleSelect?.(chapter)
-															: events.onOpenChapter?.(chapter)
+													onClick: () => {
+														if (data.isSelectionMode) {
+															events.onToggleSelect?.(chapter);
+														} else {
+															openingChapterId = chapter.id;
+															events.onOpenChapter?.(chapter);
+														}
+													}
 												}}
 												ui={{
-													class: chapter.isRead
-														? 'h-full flex-nowrap overflow-hidden border-primary/30 bg-primary/10 hover:bg-primary/20'
-														: 'h-full flex-nowrap overflow-hidden border-surface/40 bg-mantle/40 hover:bg-surface/30'
+													class: rowClass(
+														chapter,
+														data.isSelected?.(chapter.id) ?? false,
+														openingChapterId === chapter.id
+													)
 												}}
 											>
 												{#snippet icon()}
-													{#if data.isSelectionMode}
+													{#if openingChapterId === chapter.id && !data.isSelectionMode}
+														<div class="text-primary">
+															<RefreshCw size={24} class="animate-spin" />
+														</div>
+													{:else if data.isSelectionMode}
 														{#if data.isSelected?.(chapter.id)}
 															<div
 																class="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-crust"

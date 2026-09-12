@@ -24,3 +24,27 @@ pub(crate) struct HistorySyncStats {
     pub chapters_read_applied: u32,
     pub chapters_read_skipped: u32,
 }
+
+/// Primeira mensagem do protocolo `acerola/sync-history-entry/1`, escrita pelo lado outbound —
+/// declara explicitamente qual quadrinho e quais capítulos (`chapter_sort`) o manifesto que vem
+/// a seguir está escopado, em vez de o inbound só descobrir isso lendo o conteúdo do manifesto
+/// (que pode vir vazio se nenhum capítulo selecionado tiver progresso/marcador de "lido" — nesse
+/// caso o inbound não teria como saber nem qual quadrinho validar). Schema espelhado no Desktop
+/// (`infra/sync/messages.rs::HistoryEntryRequest`).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct HistoryEntryRequest {
+    pub comic_name: String,
+    pub chapter_sorts: Vec<String>,
+}
+
+/// Resposta do lado inbound de `acerola/sync-history-entry/1`, no lugar de um ack vazio —
+/// carrega o resultado real da aplicação. `comic_known` é o que permite o outbound diferenciar
+/// "enviei e o peer aplicou" de "enviei, mas o peer nem tinha esse quadrinho" (antes um falso
+/// positivo silencioso). Schema espelhado no Desktop
+/// (`infra/sync/messages.rs::HistoryEntryAck`).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct HistoryEntryAck {
+    pub comic_known: bool,
+    pub entries_applied: u32,
+    pub markers_applied: u32,
+}

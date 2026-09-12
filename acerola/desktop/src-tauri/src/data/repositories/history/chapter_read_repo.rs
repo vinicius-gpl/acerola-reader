@@ -120,6 +120,34 @@ impl ChapterReadRepository {
         Ok(rows)
     }
 
+    /// Mesmo que [`Self::find_all_with_natural_keys`], mas restrito a UM quadrinho e a um
+    /// subconjunto de `chapter_sort` — usado pelo push explícito de capítulo(s)
+    /// selecionado(s) pra um peer (`acerola/sync-history-entry/1`), que não deve vazar
+    /// marcadores de outros capítulos do mesmo quadrinho.
+    pub async fn find_natural_keys_for_chapters(
+        &self, comic_directory_id: i64, chapter_sorts: &[String],
+    ) -> Result<Vec<(String, i64)>, DbError> {
+        if chapter_sorts.is_empty() {
+            return Ok(vec![]);
+        }
+
+        let placeholders = chapter_sorts.iter().map(|_| "?").collect::<Vec<_>>().join(", ");
+        let sql = format!(
+            "SELECT ca.chapter_sort, cr.created_at
+             FROM chapter_read cr
+             JOIN chapter_archive ca ON cr.chapter_archive_id = ca.id
+             WHERE cr.comic_directory_id = ? AND ca.chapter_sort IN ({})",
+            placeholders
+        );
+
+        let mut query = sqlx::query_as::<_, (String, i64)>(&sql).bind(comic_directory_id);
+        for sort in chapter_sorts {
+            query = query.bind(sort);
+        }
+
+        Ok(query.fetch_all(&self.pool).await?)
+    }
+
     /// Remove todos os marcadores de "lido" de um quadrinho inteiro — usado ao excluir o
     /// quadrinho (o cascade de FK não roda em runtime, ver comentário em
     /// `VolumeRepository::delete_by_comic`). No-op se não houver nenhum capítulo marcado.
@@ -326,5 +354,29 @@ mod tests {
         let (_, repo) = setup().await;
         let removed = repo.delete_by_comic(999).await.unwrap();
         assert_eq!(removed, 0);
+    }
+
+    #[tokio::test]
+    async fn test_find_natural_keys_for_chapters_filters_by_comic_and_sort() {
+        let (pool, repo) = setup().await;
+        insert_comic_directory(&pool, 2, "Outro", "/outro").await;
+        inserir_capitulos(&pool, &[1, 2]).await;
+        sqlx::query("INSERT INTO chapter_archive (id, chapter, path, chapter_sort, is_special, comic_directory_fk, last_modified) VALUES (3, '3', 'path3', '3', 0, 2, 0)")
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        repo.insert_batch(1, &[1, 2], 1000).await.unwrap();
+        repo.insert_batch(2, &[3], 1000).await.unwrap();
+
+        let keys = repo.find_natural_keys_for_chapters(1, &["1".to_string()]).await.unwrap();
+        assert_eq!(keys, vec![("1".to_string(), 1000)]);
+    }
+
+    #[tokio::test]
+    async fn test_find_natural_keys_for_chapters_empty_list_returns_empty() {
+        let (_, repo) = setup().await;
+        let keys = repo.find_natural_keys_for_chapters(1, &[]).await.unwrap();
+        assert!(keys.is_empty());
     }
 }

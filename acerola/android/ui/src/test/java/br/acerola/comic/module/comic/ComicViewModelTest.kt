@@ -25,6 +25,7 @@ import br.acerola.comic.dto.archive.VolumeChapterGroupDto
 import br.acerola.comic.dto.metadata.comic.ComicMetadataDto
 import br.acerola.comic.logging.AcerolaLogger
 import br.acerola.comic.logging.LogSource
+import br.acerola.comic.service.SyncDirection
 import br.acerola.comic.service.cache.ChapterCacheHandler
 import br.acerola.comic.service.network.P2pEventBus
 import br.acerola.comic.usecase.chapter.ObserveChaptersUseCase
@@ -38,6 +39,7 @@ import br.acerola.comic.usecase.metadata.ExtractVolumeCoverUseCase
 import br.acerola.comic.usecase.metadata.ManageCategoriesUseCase
 import br.acerola.comic.usecase.network.P2pUseCase
 import br.acerola.comic.usecase.network.SyncComicWithPeerUseCase
+import br.acerola.comic.usecase.network.SyncHistoryEntryWithPeerUseCase
 import com.google.common.truth.Truth.assertThat
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -46,6 +48,7 @@ import io.mockk.mockk
 import io.mockk.mockkObject
 import io.mockk.mockkStatic
 import io.mockk.unmockkObject
+import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -86,6 +89,7 @@ class ComicViewModelTest {
     private val cacheHandler = mockk<ChapterCacheHandler>(relaxed = true)
     private val p2pUseCase = mockk<P2pUseCase>(relaxed = true)
     private val syncComicWithPeerUseCase = mockk<SyncComicWithPeerUseCase>(relaxed = true)
+    private val syncHistoryEntryWithPeerUseCase = mockk<SyncHistoryEntryWithPeerUseCase>(relaxed = true)
     private val p2pEventBus = mockk<P2pEventBus>(relaxed = true)
 
     private val localChaptersFlow = MutableStateFlow(ChapterPageDto(emptyList(), emptyList(), 20, 0, 0))
@@ -209,6 +213,7 @@ class ComicViewModelTest {
             cacheHandler = cacheHandler,
             p2pUseCase = p2pUseCase,
             syncComicWithPeerUseCase = syncComicWithPeerUseCase,
+            syncHistoryEntryWithPeerUseCase = syncHistoryEntryWithPeerUseCase,
             p2pEventBus = p2pEventBus,
         )
 
@@ -491,5 +496,36 @@ class ComicViewModelTest {
                     trackReadingProgressUseCase.markChapterAsRead(1L, chapter.chapterSort, chapter.id)
                 }
             }
+        }
+
+    @Test
+    fun `send selected chapters to peer resolves chapter labels and fires a scoped push sync`() =
+        runTest {
+            val fullChapters =
+                listOf(
+                    ChapterFileDto(id = 1L, name = "Cap 1", path = "", chapterSort = "1"),
+                    ChapterFileDto(id = 2L, name = "Cap 2", path = "", chapterSort = "2"),
+                )
+            allChaptersFlow.value = ChapterPageDto(fullChapters, emptyList(), 20, 0, 2)
+            localChaptersFlow.value = ChapterPageDto(fullChapters, emptyList(), 20, 0, 2)
+
+            viewModel.allChapters.test {
+                var item = awaitItem()
+                while (item.size < 2) item = awaitItem()
+                cancelAndIgnoreRemainingEvents()
+            }
+
+            // Seleciona só "Cap 1" (chapterSort "1") — "Cap 2" fica de fora.
+            viewModel.toggleChapterSelection("1")
+            viewModel.sendSelectedChaptersToPeer("peer-1")
+
+            // Escopa por RÓTULO ("Cap 1"), não por chapterSort — é a chave que o protocolo de
+            // arquivos usa (`FileChapterInfo.chapter`), diferente do push de histórico.
+            verify(exactly = 1) {
+                syncComicWithPeerUseCase("peer-1", any(), SyncDirection.PUSH, listOf("Cap 1"))
+            }
+            // Não deve mais usar o push de histórico pra este fluxo — ele continua existindo,
+            // só não é mais o que o botão "Enviar" dispara.
+            verify(exactly = 0) { syncHistoryEntryWithPeerUseCase(any(), any(), any()) }
         }
 }

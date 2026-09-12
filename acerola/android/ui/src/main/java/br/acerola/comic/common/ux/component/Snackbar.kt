@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import br.acerola.comic.common.ux.Acerola
+import br.acerola.comic.common.ux.theme.AcerolaExtendedTheme
 import br.acerola.comic.common.ux.theme.AcerolaTheme
 
 enum class SnackbarVariant { Error, Success, Warn }
@@ -52,6 +53,12 @@ fun Acerola.Component.SnackbarError(
     )
 }
 
+// `successContainer`/`onSuccessContainer` não `secondaryContainer`/`tertiaryContainer` do tema:
+// em Catppuccin, Nord, Dracula, Alucard e TokyoNight esses papéis mapeiam pra tons neutros de
+// superfície ou pra cores de destaque sem nada de verde — "sucesso" precisa ler como sucesso em
+// qualquer tema. Os papéis extras vêm de AcerolaExtendedTheme, derivados do próprio verde de
+// cada paleta (ver Theme.kt), então a cor muda de tom junto com o tema em vez de ser um verde
+// fixo que destoa do resto da UI.
 @Composable
 fun Acerola.Component.SnackbarSuccess(
     message: String,
@@ -59,8 +66,8 @@ fun Acerola.Component.SnackbarSuccess(
 ) {
     Snackbar(
         modifier = modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        containerColor = AcerolaExtendedTheme.colors.successContainer,
+        contentColor = AcerolaExtendedTheme.colors.onSuccessContainer,
         content = { Text(text = message) },
     )
 }

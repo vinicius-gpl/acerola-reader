@@ -21,9 +21,9 @@ pub(crate) const HISTORY_SYNC_ALPN: &[u8] = b"acerola/sync-history/1";
 /// ver `exchange::run_entry_exchange`. Complementar a `HISTORY_SYNC_ALPN`, não substitui.
 pub(crate) const HISTORY_ENTRY_SYNC_ALPN: &[u8] = b"acerola/sync-history-entry/1";
 
-/// `peer_id` -> `comic_name` pendente entre a chamada FFI `sync_history_entry` e
-/// `HistoryEntrySyncOutbound::handle` — mesma técnica de `protocol::files::PendingComicScope`.
-pub(crate) type PendingHistoryEntryScope = Arc<Mutex<HashMap<String, String>>>;
+/// `peer_id` -> `(comic_name, chapter_sorts)` pendente entre a chamada FFI `sync_history_entry`
+/// e `HistoryEntrySyncOutbound::handle` — mesma técnica de `protocol::files::PendingComicScope`.
+pub(crate) type PendingHistoryEntryScope = Arc<Mutex<HashMap<String, (String, Vec<String>)>>>;
 
 /// Papel outbound do protocolo `acerola/sync-history/1` — usado quando este lado é quem
 /// iniciou a conexão via `AcerolaP2p::connect`. Escreve seu manifesto primeiro (regra 4).
@@ -100,7 +100,11 @@ impl HistoryEntrySyncOutbound {
         provider: Arc<dyn HistorySyncProvider>,
         pending_scope: PendingHistoryEntryScope,
     ) -> Self {
-        Self { emit, provider, pending_scope }
+        Self {
+            emit,
+            provider,
+            pending_scope,
+        }
     }
 }
 
@@ -112,13 +116,13 @@ impl Handler for HistoryEntrySyncOutbound {
         send: Box<dyn AsyncWrite + Send + Unpin>,
         recv: Box<dyn AsyncRead + Send + Unpin>,
     ) -> Result<(), P2pError> {
-        let comic_name = self
+        let scope = self
             .pending_scope
             .lock()
             .expect("pending history entry scope mutex poisoned")
             .remove(&peer.id);
 
-        exchange::run_entry_exchange(true, comic_name, peer, &self.emit, &self.provider, send, recv)
+        exchange::run_entry_exchange(true, scope, peer, &self.emit, &self.provider, send, recv)
             .await
             .inspect_err(|err| (self.emit)("sync:history-entry:error", error_payload(peer, err)))
     }

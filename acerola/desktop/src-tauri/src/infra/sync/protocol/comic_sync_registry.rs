@@ -14,9 +14,19 @@ use crate::infra::sync::messages::SyncDirection;
 /// handler consome (`take`) esse valor assim que a sessão começa. Só o lado outbound precisa
 /// disso — o lado inbound recebe `comic_name`/`direction` pelo próprio `ComicSyncRequest` no
 /// wire.
+///
+/// `chapter_ids` (`chapter_archive_id`s locais, vazio = quadrinho inteiro) escopa a sessão a um
+/// subconjunto de capítulos — mesma unidade que `HistoryEntryScope::chapter_ids` usa pro push de
+/// histórico. `ComicSyncOutbound::run` resolve esses IDs pros rótulos (`FileChapterInfo.chapter`)
+/// antes de montar o `ComicSyncRequest`, porque só o outbound tem os IDs locais; o inbound recebe
+/// os rótulos já resolvidos pelo wire.
+/// `(comic_name, direction, chapter_ids)` pendente pra um peer — extraído num alias porque o
+/// clippy (`type_complexity`) reclama da tupla tripla aninhada direto em `Mutex<HashMap<...>>`.
+type PendingComicSync = (String, SyncDirection, Vec<i64>);
+
 #[derive(Default)]
 pub struct PendingComicSyncRegistry {
-    pending: Mutex<HashMap<String, (String, SyncDirection)>>,
+    pending: Mutex<HashMap<String, PendingComicSync>>,
 }
 
 impl PendingComicSyncRegistry {
@@ -24,17 +34,20 @@ impl PendingComicSyncRegistry {
         Arc::new(Self::default())
     }
 
-    pub fn set(&self, peer_id: String, comic_name: String, direction: SyncDirection) {
+    pub fn set(
+        &self, peer_id: String, comic_name: String, direction: SyncDirection,
+        chapter_ids: Vec<i64>,
+    ) {
         self.pending
             .lock()
             .expect("pending comic sync registry mutex poisoned")
-            .insert(peer_id, (comic_name, direction));
+            .insert(peer_id, (comic_name, direction, chapter_ids));
     }
 
-    /// Consome (remove) o `(comic_name, direction)` pendente pro peer — cada chamada de
-    /// `connect()` só serve pra uma sessão, então não faz sentido deixar o valor lá depois de
-    /// lido.
-    pub fn take(&self, peer_id: &str) -> Option<(String, SyncDirection)> {
+    /// Consome (remove) o `(comic_name, direction, chapter_ids)` pendente pro peer — cada
+    /// chamada de `connect()` só serve pra uma sessão, então não faz sentido deixar o valor lá
+    /// depois de lido.
+    pub fn take(&self, peer_id: &str) -> Option<PendingComicSync> {
         self.pending.lock().expect("pending comic sync registry mutex poisoned").remove(peer_id)
     }
 }
@@ -46,9 +59,12 @@ mod tests {
     #[test]
     fn take_removes_the_pending_entry() {
         let registry = PendingComicSyncRegistry::new();
-        registry.set("peer-1".to_string(), "Berserk".to_string(), SyncDirection::Push);
+        registry.set("peer-1".to_string(), "Berserk".to_string(), SyncDirection::Push, vec![]);
 
-        assert_eq!(registry.take("peer-1"), Some(("Berserk".to_string(), SyncDirection::Push)));
+        assert_eq!(
+            registry.take("peer-1"),
+            Some(("Berserk".to_string(), SyncDirection::Push, vec![]))
+        );
         assert_eq!(registry.take("peer-1"), None);
     }
 

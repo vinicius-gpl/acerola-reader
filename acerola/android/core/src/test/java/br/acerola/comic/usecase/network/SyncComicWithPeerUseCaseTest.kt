@@ -38,4 +38,15 @@ class SyncComicWithPeerUseCaseTest {
         assertThat(fired).isFalse()
         verify(exactly = 0) { p2pUseCase.syncComic(any(), any(), any()) }
     }
+
+    @Test
+    fun `should forward chapters to scope the session to specific chapters`() {
+        val peerAddress = PeerAddress(id = "peer-1", deviceId = "device-1", addrs = byteArrayOf())
+        every { p2pUseCase.getPairedPeers() } returns listOf(peerAddress)
+
+        val fired = useCase("peer-1", "One Piece", SyncDirection.PUSH, listOf("Cap 1", "Cap 2"))
+
+        assertThat(fired).isTrue()
+        verify { p2pUseCase.syncComic(peerAddress, "One Piece", SyncDirection.PUSH, listOf("Cap 1", "Cap 2")) }
+    }
 }

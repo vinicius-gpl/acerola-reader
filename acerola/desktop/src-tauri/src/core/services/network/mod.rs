@@ -427,110 +427,6 @@ mod tests {
         );
     }
 
-    /// Regressão de ponta a ponta do bug ao vivo: um restart (troca de relay, ou o botão manual)
-    /// devolvia um node com identidade/storage preservados mas ZERO conexões ativas — nada
-    /// tentava falar de novo com peers já pareados até o usuário disparar alguma ação manual
-    /// (browse library, sync, etc). Prova que `restart()` agora reconecta SOZINHO com um peer
-    /// real já pareado, sem nenhuma ação além da própria chamada de `restart()`.
-    #[tokio::test]
-    async fn restart_reconnects_to_previously_paired_peers_without_further_action() {
-        let (storage, trust, _dir) = open_storage();
-        let old_node = build_test_node().await;
-
-        let peer_node = build_test_node().await;
-        let peer_addr = peer_node.local_addr().unwrap();
-        let peer_id = PeerIdentity {
-            id: peer_node.local_id().to_string(),
-            device_id: peer_node.local_device_id().map(|s| s.to_string()),
-        };
-        storage.save_peer(&peer_addr).await.expect("seeding paired peer should succeed");
-
-        let rebuild_node: NodeBuilder =
-            Arc::new(|| Box::pin(async { Ok(build_test_node().await) }));
-
-        let service = NetworkService::new(
-            old_node,
-            Arc::clone(&storage),
-            trust,
-            std::env::temp_dir(),
-            rebuild_node,
-        );
-
-        service.restart().await.expect("restart should succeed");
-
-        let mut reconnected = false;
-        for _ in 0..50 {
-            let paired = service.paired_peers().await.expect("paired_peers should succeed");
-            if paired.iter().any(|(addr, info)| addr.id == peer_id && info.is_some()) {
-                reconnected = true;
-                break;
-            }
-            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-        }
-
-        assert!(
-            reconnected,
-            "restart() deveria ter reconectado sozinho com o peer já pareado, sem ação manual \
-             do usuário"
-        );
-    }
-
-    /// Caminho triste: um peer pareado pode ter saído da rede entre sessões (desligou o app,
-    /// perdeu conexão) — isso não pode fazer `restart()` falhar nem impedir a reconexão com
-    /// OUTRO peer pareado que continua acessível. `reconnect_known_peers` é best-effort por
-    /// design (ver doc em `lib/p2p`), mas só um teste no nível de integração (storage real +
-    /// dois peers reais, um deles desligado) prova que a composição dos dois lados não quebra
-    /// esse contrato.
-    #[tokio::test]
-    async fn restart_still_succeeds_and_reconnects_reachable_peer_when_another_paired_peer_is_offline(
-    ) {
-        let (storage, trust, _dir) = open_storage();
-        let old_node = build_test_node().await;
-
-        let reachable_peer = build_test_node().await;
-        let reachable_addr = reachable_peer.local_addr().unwrap();
-        let reachable_id = PeerIdentity {
-            id: reachable_peer.local_id().to_string(),
-            device_id: reachable_peer.local_device_id().map(|s| s.to_string()),
-        };
-
-        let offline_peer = build_test_node().await;
-        let offline_addr = offline_peer.local_addr().unwrap();
-        offline_peer.shutdown().await.expect("shutdown should succeed");
-
-        storage.save_peer(&reachable_addr).await.expect("seeding reachable peer should succeed");
-        storage.save_peer(&offline_addr).await.expect("seeding offline peer should succeed");
-
-        let rebuild_node: NodeBuilder =
-            Arc::new(|| Box::pin(async { Ok(build_test_node().await) }));
-
-        let service = NetworkService::new(
-            old_node,
-            Arc::clone(&storage),
-            trust,
-            std::env::temp_dir(),
-            rebuild_node,
-        );
-
-        service.restart().await.expect("restart should succeed mesmo com um peer pareado offline");
-
-        let mut reconnected = false;
-        for _ in 0..50 {
-            let paired = service.paired_peers().await.expect("paired_peers should succeed");
-            if paired.iter().any(|(addr, info)| addr.id == reachable_id && info.is_some()) {
-                reconnected = true;
-                break;
-            }
-            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-        }
-
-        assert!(
-            reconnected,
-            "um peer pareado offline no mesmo restart não pode impedir a reconexão com o peer \
-             que continua acessível"
-        );
-    }
-
     /// Se a closure de rebuild falhar, `restart()` propaga o erro em vez de mascarar um estado
     /// quebrado — o node antigo já foi desligado nesse ponto, então o usuário PRECISA saber que
     /// o restart não completou, não ver "sucesso" e descobrir só quando a rede não responder
@@ -616,70 +512,194 @@ mod tests {
         );
     }
 
-    /// Interação entre os dois fixes recentes (mutex serializando `restart()` +
-    /// `reconnect_known_peers` disparado no fim dele): a reconexão que a PRIMEIRA chamada
-    /// dispara roda contra o node que ELA construiu, mas se uma SEGUNDA chamada concorrente
-    /// entrar logo em seguida (esperando a primeira liberar o lock), o node da primeira já foi
-    /// desligado por essa segunda chamada antes de qualquer retry em background da reconexão
-    /// terminar. Isso não pode gerar pânico nem deixar o peer pareado sem NENHUMA tentativa de
-    /// reconexão no final — a reconexão disparada pela chamada que efetivamente venceu por
-    /// último (a mais recente a terminar) é a que precisa ter acontecido de verdade.
-    #[tokio::test]
-    async fn concurrent_restarts_with_a_paired_peer_do_not_panic_and_still_reconnect() {
-        let (storage, trust, _dir) = open_storage();
-        let old_node = build_test_node().await;
+    /// Testes que sobem nodes Iroh REAIS (mDNS/QUIC de verdade) e esperam reconexão dentro de um
+    /// timeout fixo (50 tentativas * 50ms = 2.5s) — rodando em paralelo com o resto da suíte (ou
+    /// entre si), a contenção de porta/mDNS sob carga pode fazer a reconexão legítima passar
+    /// desse timeout, derrubando o teste sem nenhum bug real envolvido (visto ao vivo em CI: 2-3
+    /// desses testes falham de forma alternada entre execuções). `[test-groups]
+    /// run-in-isolation` em `.config/nextest.toml` já existia pra isso (filtro
+    /// `test(::run_in_isolation::)`), mas nenhum teste usava o módulo ainda — mover os 3 testes
+    /// que dependem de reconexão cronometrada pra cá os serializa (`max-threads = 1`), tirando a
+    /// contenção que causava a flakiness. Módulo aninhado dentro de `tests` (não irmão) pra
+    /// reaproveitar os helpers privados (`build_test_node`/`open_storage`) via `use super::*`.
+    mod run_in_isolation {
+        use super::*;
 
-        let peer_node = build_test_node().await;
-        let peer_addr = peer_node.local_addr().unwrap();
-        let peer_id = PeerIdentity {
-            id: peer_node.local_id().to_string(),
-            device_id: peer_node.local_device_id().map(|s| s.to_string()),
-        };
-        storage.save_peer(&peer_addr).await.expect("seeding paired peer should succeed");
+        /// Regressão de ponta a ponta do bug ao vivo: um restart (troca de relay, ou o botão manual)
+        /// devolvia um node com identidade/storage preservados mas ZERO conexões ativas — nada
+        /// tentava falar de novo com peers já pareados até o usuário disparar alguma ação manual
+        /// (browse library, sync, etc). Prova que `restart()` agora reconecta SOZINHO com um peer
+        /// real já pareado, sem nenhuma ação além da própria chamada de `restart()`.
+        #[tokio::test]
+        async fn restart_reconnects_to_previously_paired_peers_without_further_action() {
+            let (storage, trust, _dir) = open_storage();
+            let old_node = build_test_node().await;
 
-        let rebuild_node: NodeBuilder = Arc::new(|| {
-            Box::pin(async {
-                // Mesmo espaçamento de `concurrent_restarts_are_serialized_instead_of_racing`
-                // — garante que a segunda chamada de fato espera a primeira estar em pleno
-                // rebuild antes de tentar entrar, exercitando a transição de node ANTES da
-                // reconexão da primeira chamada ter qualquer chance de resolver.
-                tokio::time::sleep(std::time::Duration::from_millis(30)).await;
-                Ok(build_test_node().await)
-            })
-        });
+            let peer_node = build_test_node().await;
+            let peer_addr = peer_node.local_addr().unwrap();
+            let peer_id = PeerIdentity {
+                id: peer_node.local_id().to_string(),
+                device_id: peer_node.local_device_id().map(|s| s.to_string()),
+            };
+            storage.save_peer(&peer_addr).await.expect("seeding paired peer should succeed");
 
-        let service = Arc::new(NetworkService::new(
-            old_node,
-            Arc::clone(&storage),
-            trust,
-            std::env::temp_dir(),
-            rebuild_node,
-        ));
+            let rebuild_node: NodeBuilder =
+                Arc::new(|| Box::pin(async { Ok(build_test_node().await) }));
 
-        let service_a = Arc::clone(&service);
-        let service_b = Arc::clone(&service);
-        let (result_a, result_b) =
-            tokio::join!(async move { service_a.restart().await }, async move {
-                service_b.restart().await
-            });
+            let service = NetworkService::new(
+                old_node,
+                Arc::clone(&storage),
+                trust,
+                std::env::temp_dir(),
+                rebuild_node,
+            );
 
-        result_a.expect("primeira chamada de restart deveria ter sucesso");
-        result_b.expect("segunda chamada de restart deveria ter sucesso");
+            service.restart().await.expect("restart should succeed");
 
-        let mut reconnected = false;
-        for _ in 0..50 {
-            let paired = service.paired_peers().await.expect("paired_peers should succeed");
-            if paired.iter().any(|(addr, info)| addr.id == peer_id && info.is_some()) {
-                reconnected = true;
-                break;
+            let mut reconnected = false;
+            for _ in 0..50 {
+                let paired = service.paired_peers().await.expect("paired_peers should succeed");
+                if paired.iter().any(|(addr, info)| addr.id == peer_id && info.is_some()) {
+                    reconnected = true;
+                    break;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(50)).await;
             }
-            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+            assert!(
+                reconnected,
+                "restart() deveria ter reconectado sozinho com o peer já pareado, sem ação manual \
+             do usuário"
+            );
         }
 
-        assert!(
-            reconnected,
-            "depois de dois restarts concorrentes, o node final ainda deveria ter reconectado \
+        /// Caminho triste: um peer pareado pode ter saído da rede entre sessões (desligou o app,
+        /// perdeu conexão) — isso não pode fazer `restart()` falhar nem impedir a reconexão com
+        /// OUTRO peer pareado que continua acessível. `reconnect_known_peers` é best-effort por
+        /// design (ver doc em `lib/p2p`), mas só um teste no nível de integração (storage real +
+        /// dois peers reais, um deles desligado) prova que a composição dos dois lados não quebra
+        /// esse contrato.
+        #[tokio::test]
+        async fn restart_still_succeeds_and_reconnects_reachable_peer_when_another_paired_peer_is_offline(
+        ) {
+            let (storage, trust, _dir) = open_storage();
+            let old_node = build_test_node().await;
+
+            let reachable_peer = build_test_node().await;
+            let reachable_addr = reachable_peer.local_addr().unwrap();
+            let reachable_id = PeerIdentity {
+                id: reachable_peer.local_id().to_string(),
+                device_id: reachable_peer.local_device_id().map(|s| s.to_string()),
+            };
+
+            let offline_peer = build_test_node().await;
+            let offline_addr = offline_peer.local_addr().unwrap();
+            offline_peer.shutdown().await.expect("shutdown should succeed");
+
+            storage
+                .save_peer(&reachable_addr)
+                .await
+                .expect("seeding reachable peer should succeed");
+            storage.save_peer(&offline_addr).await.expect("seeding offline peer should succeed");
+
+            let rebuild_node: NodeBuilder =
+                Arc::new(|| Box::pin(async { Ok(build_test_node().await) }));
+
+            let service = NetworkService::new(
+                old_node,
+                Arc::clone(&storage),
+                trust,
+                std::env::temp_dir(),
+                rebuild_node,
+            );
+
+            service
+                .restart()
+                .await
+                .expect("restart should succeed mesmo com um peer pareado offline");
+
+            let mut reconnected = false;
+            for _ in 0..50 {
+                let paired = service.paired_peers().await.expect("paired_peers should succeed");
+                if paired.iter().any(|(addr, info)| addr.id == reachable_id && info.is_some()) {
+                    reconnected = true;
+                    break;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            }
+
+            assert!(
+                reconnected,
+                "um peer pareado offline no mesmo restart não pode impedir a reconexão com o peer \
+             que continua acessível"
+            );
+        }
+
+        /// Interação entre os dois fixes recentes (mutex serializando `restart()` +
+        /// `reconnect_known_peers` disparado no fim dele): a reconexão que a PRIMEIRA chamada
+        /// dispara roda contra o node que ELA construiu, mas se uma SEGUNDA chamada concorrente
+        /// entrar logo em seguida (esperando a primeira liberar o lock), o node da primeira já foi
+        /// desligado por essa segunda chamada antes de qualquer retry em background da reconexão
+        /// terminar. Isso não pode gerar pânico nem deixar o peer pareado sem NENHUMA tentativa de
+        /// reconexão no final — a reconexão disparada pela chamada que efetivamente venceu por
+        /// último (a mais recente a terminar) é a que precisa ter acontecido de verdade.
+        #[tokio::test]
+        async fn concurrent_restarts_with_a_paired_peer_do_not_panic_and_still_reconnect() {
+            let (storage, trust, _dir) = open_storage();
+            let old_node = build_test_node().await;
+
+            let peer_node = build_test_node().await;
+            let peer_addr = peer_node.local_addr().unwrap();
+            let peer_id = PeerIdentity {
+                id: peer_node.local_id().to_string(),
+                device_id: peer_node.local_device_id().map(|s| s.to_string()),
+            };
+            storage.save_peer(&peer_addr).await.expect("seeding paired peer should succeed");
+
+            let rebuild_node: NodeBuilder = Arc::new(|| {
+                Box::pin(async {
+                    // Mesmo espaçamento de `concurrent_restarts_are_serialized_instead_of_racing`
+                    // — garante que a segunda chamada de fato espera a primeira estar em pleno
+                    // rebuild antes de tentar entrar, exercitando a transição de node ANTES da
+                    // reconexão da primeira chamada ter qualquer chance de resolver.
+                    tokio::time::sleep(std::time::Duration::from_millis(30)).await;
+                    Ok(build_test_node().await)
+                })
+            });
+
+            let service = Arc::new(NetworkService::new(
+                old_node,
+                Arc::clone(&storage),
+                trust,
+                std::env::temp_dir(),
+                rebuild_node,
+            ));
+
+            let service_a = Arc::clone(&service);
+            let service_b = Arc::clone(&service);
+            let (result_a, result_b) =
+                tokio::join!(async move { service_a.restart().await }, async move {
+                    service_b.restart().await
+                });
+
+            result_a.expect("primeira chamada de restart deveria ter sucesso");
+            result_b.expect("segunda chamada de restart deveria ter sucesso");
+
+            let mut reconnected = false;
+            for _ in 0..50 {
+                let paired = service.paired_peers().await.expect("paired_peers should succeed");
+                if paired.iter().any(|(addr, info)| addr.id == peer_id && info.is_some()) {
+                    reconnected = true;
+                    break;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            }
+
+            assert!(
+                reconnected,
+                "depois de dois restarts concorrentes, o node final ainda deveria ter reconectado \
              com o peer pareado — sem pânico nem perda silenciosa da tentativa de reconexão"
-        );
+            );
+        }
     }
 }

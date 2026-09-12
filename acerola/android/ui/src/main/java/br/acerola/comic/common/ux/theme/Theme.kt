@@ -10,6 +10,8 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalContext
@@ -28,19 +30,52 @@ import br.acerola.comic.common.ux.theme.color.TokyoNightDark
 import br.acerola.comic.common.ux.theme.color.TokyoNightDay
 import br.acerola.comic.config.preference.types.AppTheme
 
-// Alguns temas (Nord, Dracula/Alucard, TokyoNight) não definem uma cor de "container de erro"
-// própria na paleta original. Em vez de inventar um hex sem poder validar visualmente,
+// Alguns temas (Nord, Dracula/Alucard, TokyoNight) não definem uma cor de "container" própria
+// (erro ou sucesso) na paleta original. Em vez de inventar um hex sem poder validar visualmente,
 // derivamos essas cores a partir do restante da paleta do próprio tema, mantendo os papéis
-// completos do Material3 (error / errorContainer / onErrorContainer) para todos os temas.
-private fun deriveErrorContainer(
+// completos do Material3 (error/errorContainer/onErrorContainer) e o papel extra de sucesso
+// (successContainer/onSuccessContainer) para todos os temas.
+private fun deriveContainer(
     background: Color,
-    error: Color,
-): Color = lerp(start = background, stop = error, fraction = 0.35f)
+    accent: Color,
+): Color = lerp(start = background, stop = accent, fraction = 0.35f)
 
-private fun deriveOnErrorContainer(
+private fun deriveOnContainer(
     foreground: Color,
-    error: Color,
-): Color = lerp(start = foreground, stop = error, fraction = 0.55f)
+    accent: Color,
+): Color = lerp(start = foreground, stop = accent, fraction = 0.55f)
+
+// Material3 não tem papéis de "sucesso" nativos — cada tema expõe os seus via
+// LocalAcerolaExtraColors/AcerolaExtendedTheme, usando o próprio verde da paleta do tema em vez
+// de um verde fixo igual pra todo mundo (o que destoava de temas como Dracula ou TokyoNight).
+data class AcerolaExtraColors(
+    val successContainer: Color,
+    val onSuccessContainer: Color,
+)
+
+private fun successExtraColors(
+    background: Color,
+    foreground: Color,
+    green: Color,
+): AcerolaExtraColors =
+    AcerolaExtraColors(
+        successContainer = deriveContainer(background, green),
+        onSuccessContainer = deriveOnContainer(foreground, green),
+    )
+
+// Usado só quando o tema é o Dynamic Color real do Material You (Android 12+), que não tem
+// um "verde" próprio pra derivar a partir da paleta do usuário.
+private val DynamicSuccessGreen = Color(0xFF2E7D32)
+
+private val LocalAcerolaExtraColors =
+    staticCompositionLocalOf<AcerolaExtraColors> {
+        error("AcerolaExtraColors não fornecido — use dentro de AcerolaTheme")
+    }
+
+object AcerolaExtendedTheme {
+    val colors: AcerolaExtraColors
+        @Composable get() = LocalAcerolaExtraColors.current
+}
 
 private val CatppuccinDarkColorScheme =
     darkColorScheme(
@@ -74,6 +109,9 @@ private val CatppuccinDarkColorScheme =
         onErrorContainer = CatppuccinMocha.Text,
     )
 
+private val CatppuccinDarkExtraColors =
+    successExtraColors(CatppuccinMocha.Base, CatppuccinMocha.Text, CatppuccinMocha.Green)
+
 private val CatppuccinLightColorScheme =
     lightColorScheme(
         primary = CatppuccinLatte.Mauve,
@@ -106,6 +144,9 @@ private val CatppuccinLightColorScheme =
         onErrorContainer = CatppuccinLatte.Text,
     )
 
+private val CatppuccinLightExtraColors =
+    successExtraColors(CatppuccinLatte.Base, CatppuccinLatte.Text, CatppuccinLatte.Green)
+
 private val NordDarkColorScheme =
     darkColorScheme(
         primary = NordDark.Primary,
@@ -134,9 +175,12 @@ private val NordDarkColorScheme =
         outline = NordDark.Outline,
         error = NordDark.Error,
         onError = NordDark.Text,
-        errorContainer = deriveErrorContainer(NordDark.Background, NordDark.Error),
-        onErrorContainer = deriveOnErrorContainer(NordDark.Text, NordDark.Error),
+        errorContainer = deriveContainer(NordDark.Background, NordDark.Error),
+        onErrorContainer = deriveOnContainer(NordDark.Text, NordDark.Error),
     )
+
+private val NordDarkExtraColors =
+    successExtraColors(NordDark.Background, NordDark.Text, NordDark.Green)
 
 private val NordLightColorScheme =
     lightColorScheme(
@@ -166,9 +210,12 @@ private val NordLightColorScheme =
         outline = NordLight.Outline,
         error = NordLight.Error,
         onError = NordLight.Background,
-        errorContainer = deriveErrorContainer(NordLight.Background, NordLight.Error),
-        onErrorContainer = deriveOnErrorContainer(NordLight.Text, NordLight.Error),
+        errorContainer = deriveContainer(NordLight.Background, NordLight.Error),
+        onErrorContainer = deriveOnContainer(NordLight.Text, NordLight.Error),
     )
+
+private val NordLightExtraColors =
+    successExtraColors(NordLight.Background, NordLight.Text, NordLight.Green)
 
 private val DraculaColorScheme =
     darkColorScheme(
@@ -198,9 +245,12 @@ private val DraculaColorScheme =
         outline = Dracula.Comment,
         error = Dracula.Red,
         onError = Dracula.Foreground,
-        errorContainer = deriveErrorContainer(Dracula.Background, Dracula.Red),
-        onErrorContainer = deriveOnErrorContainer(Dracula.Foreground, Dracula.Red),
+        errorContainer = deriveContainer(Dracula.Background, Dracula.Red),
+        onErrorContainer = deriveOnContainer(Dracula.Foreground, Dracula.Red),
     )
+
+private val DraculaExtraColors =
+    successExtraColors(Dracula.Background, Dracula.Foreground, Dracula.Green)
 
 private val AlucardColorScheme =
     lightColorScheme(
@@ -230,9 +280,12 @@ private val AlucardColorScheme =
         outline = Alucard.Comment,
         error = Alucard.Red,
         onError = Alucard.Foreground,
-        errorContainer = deriveErrorContainer(Alucard.Background, Alucard.Red),
-        onErrorContainer = deriveOnErrorContainer(Alucard.Foreground, Alucard.Red),
+        errorContainer = deriveContainer(Alucard.Background, Alucard.Red),
+        onErrorContainer = deriveOnContainer(Alucard.Foreground, Alucard.Red),
     )
+
+private val AlucardExtraColors =
+    successExtraColors(Alucard.Background, Alucard.Foreground, Alucard.Green)
 
 private val TokyoNightDarkColorScheme =
     darkColorScheme(
@@ -262,9 +315,12 @@ private val TokyoNightDarkColorScheme =
         outline = TokyoNightDark.Comment,
         error = TokyoNightDark.Red,
         onError = TokyoNightDark.Foreground,
-        errorContainer = deriveErrorContainer(TokyoNightDark.Background, TokyoNightDark.Red),
-        onErrorContainer = deriveOnErrorContainer(TokyoNightDark.Foreground, TokyoNightDark.Red),
+        errorContainer = deriveContainer(TokyoNightDark.Background, TokyoNightDark.Red),
+        onErrorContainer = deriveOnContainer(TokyoNightDark.Foreground, TokyoNightDark.Red),
     )
+
+private val TokyoNightDarkExtraColors =
+    successExtraColors(TokyoNightDark.Background, TokyoNightDark.Foreground, TokyoNightDark.Green)
 
 private val TokyoNightLightColorScheme =
     lightColorScheme(
@@ -294,9 +350,12 @@ private val TokyoNightLightColorScheme =
         outline = TokyoNightDay.Comment,
         error = TokyoNightDay.Red,
         onError = TokyoNightDay.Background,
-        errorContainer = deriveErrorContainer(TokyoNightDay.Background, TokyoNightDay.Red),
-        onErrorContainer = deriveOnErrorContainer(TokyoNightDay.Foreground, TokyoNightDay.Red),
+        errorContainer = deriveContainer(TokyoNightDay.Background, TokyoNightDay.Red),
+        onErrorContainer = deriveOnContainer(TokyoNightDay.Foreground, TokyoNightDay.Red),
     )
+
+private val TokyoNightLightExtraColors =
+    successExtraColors(TokyoNightDay.Background, TokyoNightDay.Foreground, TokyoNightDay.Green)
 
 // Escala tipográfica completa do Material3, explícita para toda a hierarquia (antes só
 // bodyLarge era definido e o restante herdava o default do Material3 sem decisão consciente).
@@ -370,9 +429,26 @@ fun AcerolaTheme(
             AppTheme.TOKYO_NIGHT -> if (darkTheme) TokyoNightDarkColorScheme else TokyoNightLightColorScheme
         }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content,
-    )
+    val extraColors =
+        when (theme) {
+            AppTheme.DYNAMIC -> {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    successExtraColors(colorScheme.background, colorScheme.onBackground, DynamicSuccessGreen)
+                } else {
+                    if (darkTheme) CatppuccinDarkExtraColors else CatppuccinLightExtraColors
+                }
+            }
+            AppTheme.NORD -> if (darkTheme) NordDarkExtraColors else NordLightExtraColors
+            AppTheme.DRACULA -> if (darkTheme) DraculaExtraColors else AlucardExtraColors
+            AppTheme.CATPPUCCIN -> if (darkTheme) CatppuccinDarkExtraColors else CatppuccinLightExtraColors
+            AppTheme.TOKYO_NIGHT -> if (darkTheme) TokyoNightDarkExtraColors else TokyoNightLightExtraColors
+        }
+
+    CompositionLocalProvider(LocalAcerolaExtraColors provides extraColors) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = Typography,
+            content = content,
+        )
+    }
 }

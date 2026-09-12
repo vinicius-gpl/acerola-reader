@@ -23,4 +23,12 @@ describe('AcerolaSettingsHeader', () => {
 
 		expect(onBack).toHaveBeenCalledOnce();
 	});
+
+	it('renders without a back button when onBack is not provided', () => {
+		render(AcerolaSettingsHeader, {
+			props: { data: { title: 'Biblioteca' } }
+		});
+
+		expect(screen.queryByRole('button')).not.toBeInTheDocument();
+	});
 });

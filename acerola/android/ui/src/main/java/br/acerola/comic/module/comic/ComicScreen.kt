@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.RemoveDone
@@ -71,6 +72,8 @@ import br.acerola.comic.module.comic.template.Header
 import br.acerola.comic.module.comic.template.Tabs
 import br.acerola.comic.module.comic.template.chapterSection
 import br.acerola.comic.module.comic.template.configSection
+import br.acerola.comic.module.main.Main
+import br.acerola.comic.module.main.common.component.PeerPickerSheet
 import br.acerola.comic.module.reader.ReaderActivity
 import br.acerola.comic.ui.R
 import br.acerola.comic.worker.sync.MetadataSyncWorker
@@ -96,26 +99,32 @@ fun ComicScreen(
         comicViewModel.init(comicId = comic.remoteInfo?.id, folderId = comic.directory.id)
     }
 
-    // Coleta de eventos de UI para snackbars
+    // Coleta de eventos de UI para snackbars. A maioria desses canais só carrega erro, mas
+    // UserMessage.Raw pode marcar isSuccess (ex.: confirmação de envio de capítulo pra peer) —
+    // sem essa checagem, uma mensagem de sucesso aparecia com a cor/estilo de erro.
     LaunchedEffect(Unit) {
         launch {
             comicViewModel.uiEvents.collect { message ->
-                snackbarHostState.showSnackbar(message.uiMessage.asString(context), SnackbarVariant.Error)
+                val variant = if (message.isSuccess) SnackbarVariant.Success else SnackbarVariant.Error
+                snackbarHostState.showSnackbar(message.uiMessage.asString(context), variant)
             }
         }
         launch {
             comicDirectoryViewModel.uiEvents.collect { message ->
-                snackbarHostState.showSnackbar(message.uiMessage.asString(context), SnackbarVariant.Error)
+                val variant = if (message.isSuccess) SnackbarVariant.Success else SnackbarVariant.Error
+                snackbarHostState.showSnackbar(message.uiMessage.asString(context), variant)
             }
         }
         launch {
             chapterArchiveViewModel.uiEvents.collect { message ->
-                snackbarHostState.showSnackbar(message.uiMessage.asString(context), SnackbarVariant.Error)
+                val variant = if (message.isSuccess) SnackbarVariant.Success else SnackbarVariant.Error
+                snackbarHostState.showSnackbar(message.uiMessage.asString(context), variant)
             }
         }
         launch {
             comicMetadataViewModel.uiEvents.collect { message ->
-                snackbarHostState.showSnackbar(message.uiMessage.asString(context), SnackbarVariant.Error)
+                val variant = if (message.isSuccess) SnackbarVariant.Success else SnackbarVariant.Error
+                snackbarHostState.showSnackbar(message.uiMessage.asString(context), variant)
             }
         }
     }
@@ -145,6 +154,7 @@ fun ComicScreen(
 
     val isExtractingVolumeCovers by comicViewModel.isExtractingVolumeCovers.collectAsStateWithLifecycle(false)
     val isSyncingWithPeer by comicViewModel.isSyncingWithPeer.collectAsStateWithLifecycle(false)
+    val isSendingChaptersToPeer by comicViewModel.isSendingChaptersToPeer.collectAsStateWithLifecycle(false)
     val pairedPeers by comicViewModel.pairedPeers.collectAsStateWithLifecycle()
 
     val activeLibrarySyncType by comicDirectoryViewModel.activeSyncType.collectAsStateWithLifecycle(null)
@@ -218,6 +228,38 @@ fun ComicScreen(
             else -> SyncActionVisualState.IDLE
         }
 
+    // `sendSelectedChaptersToPeer` limpa a seleção assim que dispara o envio (não quando
+    // termina), então o conjunto de capítulos sendo enviados precisa ser capturado no
+    // momento do disparo (ver `onSelect` do `PeerPickerSheet` abaixo) — não dá pra derivar
+    // de `selectedChapterSorts` porque ele já volta vazio.
+    var sendingChapterSorts by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var sendChaptersSuccess by remember { mutableStateOf(false) }
+    var wasSendingChapters by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isSendingChaptersToPeer) {
+        if (isSendingChaptersToPeer) {
+            wasSendingChapters = true
+            return@LaunchedEffect
+        }
+
+        if (wasSendingChapters) {
+            wasSendingChapters = false
+            sendChaptersSuccess = true
+            delay(1800.milliseconds)
+            if (sendChaptersSuccess) {
+                sendChaptersSuccess = false
+                sendingChapterSorts = emptySet()
+            }
+        }
+    }
+
+    val sendChaptersVisualState =
+        when {
+            isSendingChaptersToPeer -> SyncActionVisualState.LOADING
+            sendChaptersSuccess -> SyncActionVisualState.SUCCESS
+            else -> SyncActionVisualState.IDLE
+        }
+
     val currentManga = comicState ?: comic
     val totalChapters = chapterDto?.archive?.total ?: 0
     val currentPage = chapterDto?.archive?.page ?: 0
@@ -272,6 +314,17 @@ fun ComicScreen(
     }
 
     var showSortSheet by remember { mutableStateOf(false) }
+    var showSendChaptersPeerPicker by remember { mutableStateOf(false) }
+
+    // Ação "Enviar" do menu de três pontinhos de UM capítulo (`ChapterItem`) — mesmo fluxo da
+    // barra de seleção múltipla acima (`SelectionActionDock`/`PeerPickerSheet`), só que
+    // selecionando primeiro (e só) esse capítulo via `selectAllChapters`, que substitui a
+    // seleção inteira em vez de alternar (evita depender do estado de seleção anterior).
+    val onSendChapterToPeer: (String) -> Unit = { chapterSort ->
+        comicViewModel.selectAllChapters(listOf(chapterSort))
+        comicViewModel.loadPairedPeers()
+        showSendChaptersPeerPicker = true
+    }
 
     val onChapterAction: (ComicChapterAction) -> Unit = { action ->
         when (action) {
@@ -398,8 +451,11 @@ fun ComicScreen(
                                 onChapterClick = { chapter -> onChapterAction(ComicChapterAction.ClickChapter(chapter, 0)) },
                                 selectedChapterSorts = selectedChapterSorts,
                                 isSelectionMode = isChapterSelectionMode,
+                                sendingChapterSorts = sendingChapterSorts,
+                                sendChaptersVisualState = sendChaptersVisualState,
                                 onToggleSelection = comicViewModel::toggleChapterSelection,
                                 onLongPressChapter = onChapterLongPress,
+                                onSendToPeer = onSendChapterToPeer,
                                 volumeViewMode = uiState.volumeViewMode,
                                 activeVolumeId = uiState.activeVolumeId,
                                 onSetActiveVolume = comicViewModel::setActiveVolume,
@@ -520,6 +576,14 @@ fun ComicScreen(
                                 ),
                             onClick = { comicViewModel.markSelectedChaptersReadStatus(!areAllSelectedRead) },
                         ),
+                        SelectionAction(
+                            icon = Icons.AutoMirrored.Filled.Send,
+                            label = stringResource(id = R.string.action_send_chapters_to_peer),
+                            onClick = {
+                                comicViewModel.loadPairedPeers()
+                                showSendChaptersPeerPicker = true
+                            },
+                        ),
                     ),
                 modifier =
                     Modifier
@@ -533,6 +597,18 @@ fun ComicScreen(
                 sortSettings = uiState.chapterSortSettings,
                 onSortChange = { comicViewModel.updateChapterSort(it) },
                 onDismiss = { showSortSheet = false },
+            )
+        }
+
+        if (showSendChaptersPeerPicker) {
+            Main.Common.Component.PeerPickerSheet(
+                peers = pairedPeers,
+                onSelect = { peerId ->
+                    showSendChaptersPeerPicker = false
+                    sendingChapterSorts = selectedChapterSorts
+                    comicViewModel.sendSelectedChaptersToPeer(peerId)
+                },
+                onDismiss = { showSendChaptersPeerPicker = false },
             )
         }
     }

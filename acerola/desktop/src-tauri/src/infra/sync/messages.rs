@@ -36,6 +36,29 @@ pub struct HistoryManifest {
     pub read_markers: Vec<ReadMarker>,
 }
 
+/// Primeira mensagem do protocolo `acerola/sync-history-entry/1`, escrita pelo lado outbound —
+/// declara explicitamente qual quadrinho e quais capítulos (`chapter_sort`) o manifesto que vem
+/// a seguir está escopado, em vez de o inbound só descobrir isso lendo o conteúdo do manifesto
+/// (que pode vir vazio se nenhum capítulo selecionado tiver progresso/marcador de "lido" — nesse
+/// caso o inbound não teria como saber nem qual quadrinho validar). Mesmo padrão de
+/// `ComicSyncRequest`, schema espelhado no Android (`protocol/history/model.rs`).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HistoryEntryRequest {
+    pub comic_name: String,
+    pub chapter_sorts: Vec<String>,
+}
+
+/// Resposta do lado inbound de `acerola/sync-history-entry/1`, no lugar do antigo ack vazio
+/// (`{}`) — carrega o resultado real da aplicação, não só "a sessão não caiu". `comic_known`
+/// é o que permite o outbound diferenciar "enviei e o peer aplicou" de "enviei, mas o peer nem
+/// tinha esse quadrinho" (antes um falso positivo silencioso). Schema espelhado no Android.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HistoryEntryAck {
+    pub comic_known: bool,
+    pub entries_applied: u32,
+    pub markers_applied: u32,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileChapterInfo {
     pub chapter: String,
@@ -148,6 +171,15 @@ pub enum SyncDirection {
 pub struct ComicSyncRequest {
     pub comic_name: String,
     pub direction: SyncDirection,
+    /// Rótulos de capítulo (mesma chave usada em `FileChapterInfo.chapter`) a escopar a
+    /// sessão — vazio significa "quadrinho inteiro", o comportamento de antes desta mudança
+    /// (preservado pro botão "Sincronizar com dispositivo"). Os dois lados filtram o próprio
+    /// manifesto local por essa lista antes de escrevê-lo (ver `ComicSyncOutbound`/
+    /// `ComicSyncInbound::run`), então o diff nunca enxerga capítulos fora do escopo pedido.
+    /// `#[serde(default)]` pra um peer sem essa versão do protocolo ainda desserializar como
+    /// lista vazia em vez de falhar.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub chapters: Vec<String>,
 }
 
 /// Marcador mínimo escrito pelo lado outbound de `acerola/browse-library/1` antes de ler a
@@ -285,6 +317,25 @@ mod wire_contract_tests {
         assert_eq!(decoded.entries[0].chapter, "12");
     }
 
+    /// Trava o schema de wire de `HistoryEntryRequest`/`HistoryEntryAck` (novas mensagens do
+    /// contrato padronizado de `acerola/sync-history-entry/1`) contra o formato espelhado no
+    /// Android (`protocol/history/model.rs::HistoryEntryRequest`/`HistoryEntryAck`) — nomes de
+    /// campo idênticos nos dois lados, sem `rename` (mensagens novas, sem legado a preservar).
+    #[test]
+    fn history_entry_request_and_ack_match_android_wire_shape() {
+        let request =
+            HistoryEntryRequest { comic_name: "Berserk".into(), chapter_sorts: vec!["12".into()] };
+        let value = serde_json::to_value(&request).unwrap();
+        assert_eq!(value, serde_json::json!({ "comic_name": "Berserk", "chapter_sorts": ["12"] }));
+
+        let android_ack_wire =
+            serde_json::json!({ "comic_known": false, "entries_applied": 0, "markers_applied": 0 });
+        let decoded: HistoryEntryAck = serde_json::from_value(android_ack_wire).unwrap();
+        assert!(!decoded.comic_known);
+        assert_eq!(decoded.entries_applied, 0);
+        assert_eq!(decoded.markers_applied, 0);
+    }
+
     /// `LibraryBrowseRequest` só precisa existir no wire (ver doc do tipo) — trava que o
     /// formato é um objeto vazio, então um peer antigo (design "conexão é o pedido", sem
     /// nenhuma leitura antes de responder) recebe um JSON inofensivo e ignorável, não algo
@@ -377,11 +428,16 @@ mod wire_contract_tests {
 
     /// Trava o schema de wire de `ComicSyncRequest`/`SyncDirection` contra o formato espelhado
     /// no Android (`protocol/files/model.rs::ComicSyncScope`/`SyncDirection`) — valores
-    /// `"push"`/`"pull"` em `snake_case`, sem tag de enum extra.
+    /// `"push"`/`"pull"` em `snake_case`, sem tag de enum extra. `chapters` vazio some do JSON
+    /// (`skip_serializing_if`), mantendo o wire idêntico a antes desta mudança quando a sessão
+    /// não é escopada a capítulos específicos.
     #[test]
     fn comic_sync_request_serializes_direction_as_snake_case_string() {
-        let request =
-            ComicSyncRequest { comic_name: "Berserk".into(), direction: SyncDirection::Push };
+        let request = ComicSyncRequest {
+            comic_name: "Berserk".into(),
+            direction: SyncDirection::Push,
+            chapters: vec![],
+        };
 
         let value = serde_json::to_value(&request).unwrap();
         assert_eq!(value, serde_json::json!({ "comic_name": "Berserk", "direction": "push" }));
@@ -389,6 +445,37 @@ mod wire_contract_tests {
         let android_wire = serde_json::json!({ "comic_name": "Berserk", "direction": "pull" });
         let decoded: ComicSyncRequest = serde_json::from_value(android_wire).unwrap();
         assert_eq!(decoded.direction, SyncDirection::Pull);
+        assert!(decoded.chapters.is_empty());
+    }
+
+    /// Trava que uma sessão escopada a capítulos específicos serializa/desserializa a lista de
+    /// rótulos corretamente, no formato espelhado no Android
+    /// (`protocol/files/model.rs::ComicSyncScope`).
+    #[test]
+    fn comic_sync_request_serializes_chapters_when_scoped() {
+        let request = ComicSyncRequest {
+            comic_name: "Berserk".into(),
+            direction: SyncDirection::Push,
+            chapters: vec!["Cap 1".into(), "Cap 2".into()],
+        };
+
+        let value = serde_json::to_value(&request).unwrap();
+        assert_eq!(
+            value,
+            serde_json::json!({
+                "comic_name": "Berserk",
+                "direction": "push",
+                "chapters": ["Cap 1", "Cap 2"]
+            })
+        );
+
+        let android_wire = serde_json::json!({
+            "comic_name": "Berserk",
+            "direction": "pull",
+            "chapters": ["Cap 1"]
+        });
+        let decoded: ComicSyncRequest = serde_json::from_value(android_wire).unwrap();
+        assert_eq!(decoded.chapters, vec!["Cap 1".to_string()]);
     }
 
     /// Trava o schema de wire de `FileExtraHeader` contra o formato espelhado no Android

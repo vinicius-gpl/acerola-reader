@@ -66,6 +66,12 @@ interface ReadingHistoryDao {
     @Query("SELECT * FROM chapter_read")
     fun observeAllChapterReads(): Flow<List<ChapterRead>>
 
+    @Query("SELECT * FROM chapter_read WHERE comic_directory_fk = :comicId AND chapter_sort IN (:chapterSorts)")
+    suspend fun getChapterReadsByDirectoryIdAndSorts(
+        comicId: Long,
+        chapterSorts: List<String>,
+    ): List<ChapterRead>
+
     @Query("DELETE FROM chapter_read WHERE comic_directory_fk = :comicId AND chapter_sort = :chapterSort")
     suspend fun deleteChapterRead(
         comicId: Long,
