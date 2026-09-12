@@ -4,23 +4,28 @@ import { locales, localizeHref } from '$lib/paraglide/runtime';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async () => {
-	const lastmod = new Date().toISOString().split('T')[0];
-
 	const paths = ['/', ...getFlatOrder(FALLBACK_LOCALE).map((doc) => `/docs/${doc.slug}`)];
 
 	const urls = paths
 		.map((path) => {
-			const alternates = locales
-				.map(
+			// x-default aponta pro fallback (pt-br) — mesma regra do <link rel="alternate"> em
+			// +layout.svelte, pra rastreadores que não reconhecem nenhum dos hreflang listados.
+			const alternates = [
+				...locales.map(
 					(locale) => `
         <xhtml:link rel="alternate" hreflang="${locale}" href="${SITE_URL}${localizeHref(path, { locale })}" />`
-				)
-				.join('');
+				),
+				`
+        <xhtml:link rel="alternate" hreflang="x-default" href="${SITE_URL}${localizeHref(path, { locale: FALLBACK_LOCALE })}" />`
+			].join('');
 
+			// Sem <lastmod>: não há por onde saber a data real de modificação de cada doc aqui,
+			// e mandar "hoje" pra toda URL em toda request é pior que omitir — Google trata um
+			// lastmod que nunca bate com a mudança real como sinal não confiável e passa a
+			// ignorá-lo pro site inteiro.
 			return `
     <url>
         <loc>${SITE_URL}${localizeHref(path, { locale: FALLBACK_LOCALE })}</loc>
-        <lastmod>${lastmod}</lastmod>
         <changefreq>weekly</changefreq>
         <priority>${path === '/' ? '1.0' : '0.8'}</priority>${alternates}
     </url>`;

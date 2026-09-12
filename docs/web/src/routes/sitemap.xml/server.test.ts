@@ -44,4 +44,27 @@ describe('GET /sitemap.xml', () => {
 			expect(url.querySelector('loc')?.textContent?.startsWith(SITE_URL)).toBe(true);
 		}
 	});
+
+	it('gives every page an x-default alternate, pointing at the fallback locale', async () => {
+		const response = await GET(fakeEvent);
+		const body = await response.text();
+		const doc = new DOMParser().parseFromString(body, 'application/xml');
+
+		const urls = [...doc.querySelectorAll('url')];
+		expect(urls.length).toBeGreaterThan(0);
+		for (const url of urls) {
+			const alternates = [...url.getElementsByTagName('xhtml:link')];
+			const defaultAlternate = alternates.find(
+				(link) => link.getAttribute('hreflang') === 'x-default'
+			);
+			expect(defaultAlternate?.getAttribute('href')).toBe(url.querySelector('loc')?.textContent);
+		}
+	});
+
+	it('does not emit <lastmod> — no per-doc modification date is tracked, so a fabricated one would be misleading', async () => {
+		const response = await GET(fakeEvent);
+		const body = await response.text();
+
+		expect(body).not.toContain('<lastmod>');
+	});
 });
