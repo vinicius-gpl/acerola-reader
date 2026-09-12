@@ -24,10 +24,7 @@ describe('AcerolaApkDownloadButton', () => {
 	it('links to the latest APK build while the availability check is pending or confirms it is up', () => {
 		render(AcerolaApkDownloadButton);
 
-		expect(screen.getByRole('link')).toHaveAttribute(
-			'href',
-			'https://binary.acerola-comic.com/android/latest.apk'
-		);
+		expect(screen.getByRole('link')).toHaveAttribute('href', '/api/apk-latest');
 	});
 
 	it('shows the default caption above "APK"', () => {
@@ -75,9 +72,6 @@ describe('AcerolaApkDownloadButton', () => {
 		// checar que o link continua o de download direto.
 		await new Promise((resolve) => setTimeout(resolve, 0));
 
-		expect(screen.getByRole('link')).toHaveAttribute(
-			'href',
-			'https://binary.acerola-comic.com/android/latest.apk'
-		);
+		expect(screen.getByRole('link')).toHaveAttribute('href', '/api/apk-latest');
 	});
 });

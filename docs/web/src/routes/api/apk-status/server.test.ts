@@ -12,7 +12,7 @@ describe('GET /api/apk-status', () => {
 
 		expect(await response.json()).toEqual({ available: true });
 		expect(fetchMock).toHaveBeenCalledWith(
-			'https://binary.acerola-comic.com/android/latest.apk',
+			'/api/apk-latest',
 			expect.objectContaining({ method: 'HEAD' })
 		);
 	});

@@ -11,6 +11,10 @@ routes = [
 binding = "ASSETS"
 directory = ".svelte-kit/cloudflare"
 
+[[r2_buckets]]
+binding = "APK_BUCKET"
+bucket_name = "acerola"
+
 [observability]
 enabled = false
 head_sampling_rate = 1
