@@ -19,11 +19,6 @@
 
 ## Alta
 
-- [ ] **`P2PNode::restart` não reconecta com peers pareados** — Confirmado: `restart()`
-  (`native/rust/src/api.rs:414-431`) reconstrói o node do zero e nunca chama
-  `reconnect_known_peers` (zero referências no crate). A função já existe pronta, testada e
-  exportada do `acerola-p2p` (`api::network::reconnect_known_peers`) — o Desktop já chama ela
-  no próprio `restart()`. Fix aqui é só a chamada + passar `paired_peers()` do storage.
 - [ ] **Validar encerramento de conexões/blobs — sessões só voltam ao fechar o app** — Log ao
   vivo: `browse:library:error -> "stream failed: timed out reading library summary"`, sem
   recuperação até reabrir o app. Suspeita: o Desktop inicia uma sessão
@@ -70,3 +65,8 @@
 - `Protocolo de sync de arquivos não leva o quadrinho 100%` — **já corrigido**
   (`FileComicInfo` com cover/banner/ComicInfo.xml, `send_extras`/`receive_extras` em
   `exchange.rs`, commit `d0bcf7f1`). Não é mais um item em aberto.
+- `P2PNode::restart não reconecta com peers pareados` — **corrigido**: `restart()`
+  (`native/rust/src/api.rs`) agora chama `acerola_p2p::api::network::reconnect_known_peers`
+  com `storage.load_peers()`, igual ao Desktop. Sem teste dedicado (`P2PNode` é glue FFI ligada
+  a `uniffi::Object`/`Runtime`, sem harness de teste hoje) — a função reconectada em si já é
+  testada no `lib/p2p`.
