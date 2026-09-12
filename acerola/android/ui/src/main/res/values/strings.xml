@@ -12,6 +12,7 @@
     <string name="navigation_template_config_activity">file_pattern</string>
     <string name="navigation_sync_activity">sync</string>
     <string name="navigation_remote_library_activity">remote_library</string>
+    <string name="navigation_transfer_log_activity">transfer_log</string>
 
     <!-- Screen label -->
     <string name="label_tutorial_activity">Tutorial</string>
@@ -24,6 +25,7 @@
     <string name="label_template_config_activity">Padrões de arquivos</string>
     <string name="label_sync_activity">Rede</string>
     <string name="label_remote_library_activity">Biblioteca remota</string>
+    <string name="label_transfer_log_activity">@string/title_sync_activity_log</string>
 
     <!-- Screen content description -->
     <string name="description_home_activity">Tela de início que lista os quadrinhos.</string>
@@ -34,6 +36,7 @@
     <string name="description_template_config_activity">Gerencie como o app identifica números de capítulos nos arquivos</string>
     <string name="description_sync_activity">Conecte outro dispositivo Acerola pra levar seu histórico de leitura e seus quadrinhos com você.</string>
     <string name="description_remote_library_activity">Tela de biblioteca remota de um dispositivo pareado.</string>
+    <string name="description_transfer_log_activity">Tela de histórico de transferências P2P.</string>
 
     <!-- Sync screen -->
     <string name="label_sync_copied">Copiado!</string>

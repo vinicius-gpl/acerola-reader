@@ -71,4 +71,10 @@ enum class Destination(
         route = R.string.navigation_remote_library_activity,
         contentDescriptionRes = R.string.description_remote_library_activity,
     ),
+    TRANSFER_LOG(
+        icon = Icons.Default.History,
+        label = R.string.label_transfer_log_activity,
+        route = R.string.navigation_transfer_log_activity,
+        contentDescriptionRes = R.string.description_transfer_log_activity,
+    ),
 }
