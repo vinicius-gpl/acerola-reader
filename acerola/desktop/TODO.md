@@ -52,6 +52,23 @@
       preparar/atualizar a submissão a cada release, parando antes do envio pra certificação.
 - [ ] **App conseguir ficar em segundo plano com ícone escondido** — Poder colapsar em
       segundo plano/bandeja do sistema pra tarefas demoradas sem precisar deixar a janela aberta.
+- [ ] **Sync MangaDex/AniList: corrida entre sync individual e "sync all" causa falso erro
+      "already exists"** — `sync_all_metadata_mangadex` roda como `tokio::spawn` solto (Config),
+      sem lock por quadrinho, e não compartilha estado com o sync individual de um quadrinho
+      (`use-metadata-sync.svelte.ts`, que só desabilita o próprio botão). Se o sync em lote
+      ainda tá processando um quadrinho e o usuário dispara o sync individual dele, os dois
+      fazem check-then-insert em `upsert_metadata` sem coordenação — o segundo bate na
+      constraint UNIQUE (`DbError::UniqueViolation`) e vira `ComicError::AlreadyExists`
+      (`infra/error/comic.rs:6-9`), a mesma mensagem genérica usada pra "quadrinho duplicado",
+      um caso bem diferente. Falta lock por `comic_directory_fk` (ou desabilitar sync individual
+      enquanto um lote tiver rodando).
+- [ ] **Toasts de erro mostram o texto cru em inglês em vez de traduzir** — Existe um
+      mapeamento certo `errorType → Paraglide` (`COMIC_ERROR_MESSAGES`/`resolveErrorMessage()`
+      em `lib/contracts/errors/errors.i18n.ts`), mas nenhum toast usa essa função. Os toasts de
+      `comic/[folderName]/+page.svelte` (MangaDex, AniList, P2P, send-to-peer) usam
+      `extractErrorMessage(err)` (`lib/utils/error.utils.ts:7`), que devolve `payload.message`
+      cru (o `Display` em inglês do Rust) e ignora o `errorType` tipado que já vem no mesmo
+      payload. Trocar essas chamadas por `resolveErrorMessage`.
 
 ## UI/UX
 
@@ -61,10 +78,20 @@
 - [ ] **Trazer o conceito de "hero button" do Android pro Desktop** — No Android, um botão
       marcado/ativo ganha contorno + ícone de destaque; hoje o estado "selecionado" no Desktop é
       mais discreto que isso.
-- [ ] **Padronizar visual de ícones (compartilhado com Android)** — Formato "contorno": fundo
-      colorido (ex.: rosa) + ícone branco por dentro, estilo heroicon. Tamanho maior/com borda
-      pra ações principais ("hero"), ícones pequenos pra ações secundárias — consistente nas
-      duas telas. Mesmo pedido no Android — ver
+- [ ] **Padronizar TODOS os ícones-de-ação com bg "contorno" — sem exceção (compartilhado com
+      Android)** — Escopo ampliado (13/09/2026): não é só "ícone rosa", é a mistura de estilos
+      que existe hoje — alguns ícones já têm bg colorido fixo, outros (ex.: `AcerolaButtonIcon`
+      de refresh/trash em `acerola-network-transfers-log.svelte`, e vários outros pela tela de
+      Rede/Config/header) não têm bg nenhum em repouso, só ganham cor no hover. Regra: **todo**
+      ícone de ação (`AcerolaButtonIcon`, ícone do `AcerolaHeroButton`, etc) precisa de chip com
+      bg colorido por padrão, não só no hover. Ícones semânticos (destructive = vermelho, status
+      do log de transferências = cor do status) usam a própria cor semântica como bg+ícone;
+      ícones sem semântica própria (refresh, editar, ações neutras) usam o token de accent novo
+      (`--accent-hero`, já adicionado em `feature/ui-ux-polish` nos 4 temas). Piloto já feito
+      nessa branch: ícone de Bookmark do `AcerolaComicActionDialog`. Falta o resto:
+      `acerola-network-transfers-log`, `acerola-network-peer-list`,
+      `acerola-network-relay-settings-card`, header (`+layout.svelte`), toolbar da tela de
+      Comic, Config, etc. Mesmo pedido no Android — ver
       [`acerola/android/TODO.md`](../android/TODO.md).
 
 ## Baixa
