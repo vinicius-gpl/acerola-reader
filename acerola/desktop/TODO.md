@@ -53,6 +53,20 @@
 - [ ] **App conseguir ficar em segundo plano com ícone escondido** — Poder colapsar em
       segundo plano/bandeja do sistema pra tarefas demoradas sem precisar deixar a janela aberta.
 
+## UI/UX
+
+- [ ] **Animações em botões de sync e afins** — Hoje o feedback de clique/loading é estático
+      (spinner parado), sem transição nenhuma.
+- [ ] **Melhorar os ícones do Desktop de forma geral**
+- [ ] **Trazer o conceito de "hero button" do Android pro Desktop** — No Android, um botão
+      marcado/ativo ganha contorno + ícone de destaque; hoje o estado "selecionado" no Desktop é
+      mais discreto que isso.
+- [ ] **Padronizar visual de ícones (compartilhado com Android)** — Formato "contorno": fundo
+      colorido (ex.: rosa) + ícone branco por dentro, estilo heroicon. Tamanho maior/com borda
+      pra ações principais ("hero"), ícones pequenos pra ações secundárias — consistente nas
+      duas telas. Mesmo pedido no Android — ver
+      [`acerola/android/TODO.md`](../android/TODO.md).
+
 ## Baixa
 
 - [ ] **Otimizar busca/navegação da biblioteca remota** — É webview, dá pra fazer melhor

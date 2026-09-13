@@ -68,6 +68,21 @@
 - [ ] **Botão de limpar histórico na tela de histórico**
 - [ ] **Botão de sync de histórico na tela de histórico** *(talvez)*
 
+## UI/UX
+
+- [ ] **Componente de Input/TextInput com visual próprio** — Hoje usa o estilo default do
+  Material; quero um formato diferente/mais autoral (mesmo esforço de padronização visual do
+  item de ícones abaixo).
+- [ ] **Capítulo: trocar o dialog de metadados por `AdaptiveSheet`** — Ao clicar num capítulo,
+  hoje abre um dialog de metadados; um `AdaptiveSheet` se encaixa melhor no padrão do resto do
+  app.
+- [ ] **Home: abrir quadrinho no `AdaptiveSheet` com mais metadados** — Na Home, ao abrir um
+  quadrinho no `AdaptiveSheet`, mostrar mais informações de metadado do que hoje.
+- [ ] **Padronizar visual de ícones (compartilhado com Desktop)** — Formato "contorno": fundo
+  colorido (ex.: rosa) + ícone branco por dentro, estilo heroicon. Tamanho maior/com borda pra
+  ações principais ("hero"), ícones pequenos pra ações secundárias — consistente nas duas
+  telas. Mesmo pedido no Desktop — ver [`acerola/desktop/TODO.md`](../desktop/TODO.md).
+
 ## Testes
 
 - [ ] **Cobertura de teste desigual no fluxo P2P — foi exatamente por isso que o gate de dados
