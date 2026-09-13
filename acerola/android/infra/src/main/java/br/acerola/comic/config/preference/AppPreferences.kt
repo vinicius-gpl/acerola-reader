@@ -101,6 +101,26 @@ object ComicDirectoryPreference {
     fun tutorialShownFlow(context: Context): Flow<Boolean> = context.dataStore.data.map { prefs -> prefs[TUTORIAL_SHOWN] ?: false }
 }
 
+/**
+ * `true` quando o usuário optou por pular a confirmação de "sincronizar usando dados móveis"
+ * (ver `SyncViewModel`/`NetworkConnectivity.isOnCellularConnection`) — default `false`: por
+ * padrão o app sempre pergunta antes de disparar uma sincronização P2P na rede celular.
+ */
+object MobileDataSyncPreference {
+    private val Context.dataStore by preferencesDataStore(name = "mobile_data_sync_prefs")
+    private val ALWAYS_ALLOW = booleanPreferencesKey(name = "always_allow_mobile_data_sync")
+
+    suspend fun setAlwaysAllow(
+        context: Context,
+        value: Boolean,
+    ) {
+        context.dataStore.edit { prefs -> prefs[ALWAYS_ALLOW] = value }
+    }
+
+    fun alwaysAllowFlow(context: Context): Flow<Boolean> =
+        context.dataStore.data.map { prefs -> prefs[ALWAYS_ALLOW] ?: false }
+}
+
 object DeviceAliasPreference {
     private val Context.dataStore by preferencesDataStore(name = "device_alias_prefs")
     private val DEVICE_ALIAS = stringPreferencesKey(name = "device_alias")

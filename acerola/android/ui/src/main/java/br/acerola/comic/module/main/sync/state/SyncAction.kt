@@ -93,4 +93,19 @@ sealed interface SyncAction {
      *  identidade/storage), estilo LocalSend. Escape hatch pra quando a troca ao vivo de relay
      *  não é suficiente (ex: conexão presa depois de uma troca de rede física do SO). */
     data object RestartP2p : SyncAction
+
+    /** Confirma disparar a sincronização pendente ([SyncUiState.pendingMobileDataSync]) mesmo
+     *  usando dados móveis — `remember == true` também salva a preferência pra não perguntar de
+     *  novo (ver `MobileDataSyncPreference`). */
+    data class ConfirmMobileDataSync(
+        val remember: Boolean,
+    ) : SyncAction
+
+    data object CancelMobileDataSync : SyncAction
+
+    /** Liga/desliga a preferência "sempre permitir com dados móveis" direto na tela de Rede,
+     *  sem precisar passar pelo diálogo de confirmação. */
+    data class ToggleAllowMobileDataSync(
+        val value: Boolean,
+    ) : SyncAction
 }
