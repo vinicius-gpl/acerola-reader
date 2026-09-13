@@ -26,7 +26,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentPaste
@@ -1442,39 +1441,6 @@ internal fun describeEntry(entry: TransferLogEntry): String =
         else -> entry.message ?: entry.status
     }
 
-/** Compartilhado com [TransferLogScreen] (mesmo package). */
-@Composable
-internal fun LogRow(entry: TransferLogEntry) {
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = SpacingTokens.ExtraSmall)) {
-        when (entry.state) {
-            LogState.IN_PROGRESS ->
-                CircularProgressIndicator(modifier = Modifier.size(SizeTokens.IconExtraSmall), strokeWidth = 2.dp)
-            LogState.SUCCESS ->
-                Icon(
-                    imageVector = Icons.Default.CheckCircle,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(SizeTokens.IconExtraSmall),
-                )
-            LogState.ERROR ->
-                Icon(
-                    imageVector = Icons.Default.Error,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.size(SizeTokens.IconExtraSmall),
-                )
-        }
-        Spacer(modifier = Modifier.width(SpacingTokens.Small))
-        Text(text = describeEntry(entry), style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
-        Spacer(modifier = Modifier.width(SpacingTokens.Small))
-        Text(
-            text = formatLogTimestamp(entry.timestamp),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
-
 @Composable
 private fun ConfirmConnectDialog(
     peerId: String,
@@ -1550,8 +1516,9 @@ private fun RemovePeerDialog(
     }
 }
 
-/** Same formatting used both in the activity log and in "last synced" per peer. */
-private fun formatLogTimestamp(timestampMillis: Long): String = SimpleDateFormat("dd/MM HH:mm", Locale.getDefault()).format(Date(timestampMillis))
+/** Same formatting used both in "last synced" per peer and in [TransferLogScreen] (mesmo
+ *  package). */
+internal fun formatLogTimestamp(timestampMillis: Long): String = SimpleDateFormat("dd/MM HH:mm", Locale.getDefault()).format(Date(timestampMillis))
 
 @Composable
 private fun SectionHeader(

@@ -6,22 +6,29 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -36,6 +43,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -43,6 +51,7 @@ import br.acerola.comic.common.ux.Acerola
 import br.acerola.comic.common.ux.component.Dialog
 import br.acerola.comic.common.ux.component.DialogButton
 import br.acerola.comic.common.ux.theme.AcerolaTheme
+import br.acerola.comic.common.ux.tokens.ShapeTokens
 import br.acerola.comic.common.ux.tokens.SizeTokens
 import br.acerola.comic.common.ux.tokens.SpacingTokens
 import br.acerola.comic.module.main.Main
@@ -169,9 +178,97 @@ private fun TransferLogList(
             )
         }
     } else {
-        LazyColumn(modifier = modifier, contentPadding = PaddingValues(horizontal = SpacingTokens.Large)) {
+        LazyColumn(
+            modifier = modifier,
+            contentPadding = PaddingValues(horizontal = SpacingTokens.Large, vertical = SpacingTokens.Small),
+            verticalArrangement = Arrangement.spacedBy(SpacingTokens.Small),
+        ) {
             items(items = entries, key = { it.id }) { entry ->
-                LogRow(entry = entry)
+                TransferLogCard(entry = entry)
+            }
+        }
+    }
+}
+
+/** Mini-card estilo localSend: avatar quadrado com o ícone de status + título/subtítulo em
+ *  duas linhas, em vez de ícone pequeno + texto + data jogados numa linha só (formato antigo
+ *  do accordion, ilegível numa tela dedicada a isso). */
+@Composable
+private fun TransferLogCard(entry: TransferLogEntry) {
+    val containerColor: Color
+    val contentColor: Color
+    when (entry.state) {
+        LogState.SUCCESS -> {
+            containerColor = MaterialTheme.colorScheme.primaryContainer
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+        }
+        LogState.ERROR -> {
+            containerColor = MaterialTheme.colorScheme.errorContainer
+            contentColor = MaterialTheme.colorScheme.onErrorContainer
+        }
+        LogState.IN_PROGRESS -> {
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+        }
+    }
+
+    Surface(
+        shape = ShapeTokens.Large,
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.padding(SpacingTokens.Medium),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Surface(
+                shape = ShapeTokens.Medium,
+                color = containerColor,
+                modifier = Modifier.size(SizeTokens.ClickTarget),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    when (entry.state) {
+                        LogState.IN_PROGRESS ->
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(SizeTokens.IconSmall),
+                                strokeWidth = 2.dp,
+                                color = contentColor,
+                            )
+                        LogState.SUCCESS ->
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = contentColor,
+                                modifier = Modifier.size(SizeTokens.IconMedium),
+                            )
+                        LogState.ERROR ->
+                            Icon(
+                                imageVector = Icons.Default.Error,
+                                contentDescription = null,
+                                tint = contentColor,
+                                modifier = Modifier.size(SizeTokens.IconMedium),
+                            )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.width(SpacingTokens.Medium))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = describeEntry(entry),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(modifier = Modifier.height(SpacingTokens.ExtraSmall))
+                Text(
+                    text = formatLogTimestamp(entry.timestamp),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }
