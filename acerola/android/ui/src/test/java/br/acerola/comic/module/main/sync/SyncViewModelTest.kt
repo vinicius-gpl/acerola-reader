@@ -2,28 +2,24 @@ package br.acerola.comic.module.main.sync
 
 import android.content.Context
 import br.acerola.comic.MainDispatcherRule
-import br.acerola.comic.config.network.isOnCellularConnection
 import br.acerola.comic.config.preference.DeviceAliasPreference
-import br.acerola.comic.config.preference.MobileDataSyncPreference
 import br.acerola.comic.config.preference.PeerNicknamePreference
 import br.acerola.comic.config.preference.RelayPreference
+import br.acerola.comic.module.main.sync.state.ConnectError
+import br.acerola.comic.module.main.sync.state.PendingConnect
 import br.acerola.comic.module.main.sync.state.SyncAction
+import br.acerola.comic.module.main.sync.state.SyncUiState
 import br.acerola.comic.service.NetworkMode
 import br.acerola.comic.service.PeerAddress
-import br.acerola.comic.service.SyncDirection
 import br.acerola.comic.service.network.P2pEventBus
 import br.acerola.comic.usecase.network.P2pUseCase
 import br.acerola.comic.usecase.network.SyncHistoryLogUseCase
 import com.google.common.truth.Truth.assertThat
 import io.mockk.coEvery
-import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkObject
-import io.mockk.mockkStatic
 import io.mockk.unmockkObject
-import io.mockk.unmockkStatic
-import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
@@ -35,13 +31,16 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 /**
- * Cobre só o gate de "confirmar antes de sincronizar em dados móveis" (ver
- * `SyncViewModel.runSyncActionOrConfirm`/`MobileDataSyncPreference`) — o resto do
- * `SyncViewModel` (pareamento, relay, log de transferências) ainda não tem testes.
+ * Cobre a reação do [SyncViewModel] a um `P2pUseCase.connect` recusado pelo
+ * `MobileDataSyncGate` (usuário cancelou o diálogo global de dados móveis) — sem isso, o
+ * spinner de "sincronizando"/"conectando" ficava preso esperando um evento que nunca chega
+ * (60s de timeout pra `syncingKeys`, ou o `CONNECT_TIMEOUT_MS` de 15s pro pareamento, ambos
+ * substituídos por uma reação imediata ao `false` retornado). O gate em si já é coberto por
+ * `P2pUseCaseTest`/`MobileDataSyncGateTest` (módulo `core`) — aqui só a reação da UI.
  *
- * Roda sob Robolectric (mesmo padrão de [br.acerola.comic.module.comic.ComicViewModelTest]) —
- * `refreshLocalInfo()` do `init` chama `PairingCode.encode`, que usa `android.util.Base64`
- * de verdade (stub puro de JVM devolve null e quebra com NPE).
+ * Roda sob Robolectric (mesmo motivo de [br.acerola.comic.module.comic.ComicViewModelTest]):
+ * `refreshLocalInfo()` do `init` chama `PairingCode.encode`, que usa `android.util.Base64` de
+ * verdade.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -61,14 +60,10 @@ class SyncViewModelTest {
         mockkObject(RelayPreference)
         mockkObject(DeviceAliasPreference)
         mockkObject(PeerNicknamePreference)
-        mockkObject(MobileDataSyncPreference)
-        mockkStatic("br.acerola.comic.config.network.NetworkConnectivityKt")
 
         every { RelayPreference.relaySettingsFlow(any()) } returns flowOf(RelayPreference.RelaySettings())
         every { DeviceAliasPreference.deviceAliasFlow(any()) } returns flowOf(null)
         every { PeerNicknamePreference.nicknamesFlow(any()) } returns flowOf(emptyMap())
-        every { MobileDataSyncPreference.alwaysAllowFlow(any()) } returns flowOf(false)
-        coEvery { MobileDataSyncPreference.setAlwaysAllow(any(), any()) } returns Unit
 
         every { p2pUseCase.getLocalAddress() } returns pairedPeer.copy(id = "local-id", deviceName = null)
         every { p2pUseCase.getLocalId() } returns "local-id"
@@ -81,90 +76,73 @@ class SyncViewModelTest {
 
     @After
     fun tearDown() {
-        unmockkObject(RelayPreference, DeviceAliasPreference, PeerNicknamePreference, MobileDataSyncPreference)
-        unmockkStatic("br.acerola.comic.config.network.NetworkConnectivityKt")
+        unmockkObject(RelayPreference, DeviceAliasPreference, PeerNicknamePreference)
     }
 
     private fun createViewModel() = SyncViewModel(p2pUseCase, p2pEventBus, syncHistoryLogUseCase, context)
 
+    /** `Thread.sleep` de verdade (não `delay()` — o trabalho que se está esperando roda em
+     *  `Dispatchers.IO` real, uma thread pool própria, não afetada pelo tempo virtual do
+     *  `TestDispatcher` deste teste) — só existe pra dar tempo do `viewModelScope.launch
+     *  (Dispatchers.IO)` correspondente terminar antes da asserção. */
+    private fun awaitState(
+        viewModel: SyncViewModel,
+        timeoutMs: Long = 2000,
+        predicate: (SyncUiState) -> Boolean,
+    ): SyncUiState {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (System.currentTimeMillis() < deadline) {
+            val state = viewModel.uiState.value
+            if (predicate(state)) return state
+            Thread.sleep(20)
+        }
+        return viewModel.uiState.value
+    }
+
     @Test
-    fun `dispara o sync na hora quando nao esta em dados moveis`() =
+    fun `triggerSync clears the spinner immediately when the mobile-data gate declines`() =
         runTest {
-            every { isOnCellularConnection(any()) } returns false
+            coEvery { p2pUseCase.connect(any(), any()) } returns false
             val viewModel = createViewModel()
 
             viewModel.onAction(SyncAction.SyncHistory(peerId = "peer-1"))
 
-            assertThat(viewModel.uiState.value.pendingMobileDataSync).isNull()
-            verify(timeout = 2000) { p2pUseCase.connect(match { it.id == "peer-1" }, any()) }
+            assertThat(viewModel.uiState.value.syncingKeys).contains("peer-1:history")
+
+            val finalState = awaitState(viewModel) { it.syncingKeys.isEmpty() }
+            assertThat(finalState.syncingKeys).isEmpty()
         }
 
     @Test
-    fun `pede confirmacao e NAO dispara o sync quando esta em dados moveis`() =
+    fun `triggerSync keeps the spinner on when the gate allows`() =
         runTest {
-            every { isOnCellularConnection(any()) } returns true
+            coEvery { p2pUseCase.connect(any(), any()) } returns true
             val viewModel = createViewModel()
 
             viewModel.onAction(SyncAction.SyncHistory(peerId = "peer-1"))
 
-            assertThat(viewModel.uiState.value.pendingMobileDataSync)
-                .isEqualTo(SyncAction.SyncHistory(peerId = "peer-1"))
-            verify(exactly = 0) { p2pUseCase.connect(any(), any()) }
+            val state = awaitState(viewModel) { "peer-1:history" in it.syncingKeys }
+            assertThat(state.syncingKeys).contains("peer-1:history")
         }
 
     @Test
-    fun `cancelar a confirmacao limpa o estado pendente sem disparar o sync`() =
+    fun `confirmConnect resets without an error when the mobile-data gate declines`() =
         runTest {
-            every { isOnCellularConnection(any()) } returns true
-            val viewModel = createViewModel()
-            viewModel.onAction(SyncAction.SyncFiles(peerId = "peer-1"))
-
-            viewModel.onAction(SyncAction.CancelMobileDataSync)
-
-            assertThat(viewModel.uiState.value.pendingMobileDataSync).isNull()
-            verify(exactly = 0) { p2pUseCase.connect(any(), any()) }
-        }
-
-    @Test
-    fun `confirmar sem lembrar dispara o sync mas nao salva a preferencia`() =
-        runTest {
-            every { isOnCellularConnection(any()) } returns true
-            val viewModel = createViewModel()
-            viewModel.onAction(SyncAction.SyncFiles(peerId = "peer-1"))
-
-            viewModel.onAction(SyncAction.ConfirmMobileDataSync(remember = false))
-
-            assertThat(viewModel.uiState.value.pendingMobileDataSync).isNull()
-            verify(timeout = 2000) { p2pUseCase.connect(match { it.id == "peer-1" }, any()) }
-            coVerify(exactly = 0) { MobileDataSyncPreference.setAlwaysAllow(any(), any()) }
-        }
-
-    @Test
-    fun `confirmar lembrando dispara o sync e salva a preferencia`() =
-        runTest {
-            every { isOnCellularConnection(any()) } returns true
-            val viewModel = createViewModel()
-            viewModel.onAction(SyncAction.SyncComic(peerId = "peer-1", comicName = "One Piece"))
-
-            viewModel.onAction(SyncAction.ConfirmMobileDataSync(remember = true))
-
-            assertThat(viewModel.uiState.value.pendingMobileDataSync).isNull()
-            coVerify { MobileDataSyncPreference.setAlwaysAllow(context, true) }
-            verify(timeout = 2000) {
-                p2pUseCase.syncComic(match { it.id == "peer-1" }, "One Piece", SyncDirection.PULL)
-            }
-        }
-
-    @Test
-    fun `sync procede direto quando a preferencia ja esta ligada`() =
-        runTest {
-            every { isOnCellularConnection(any()) } returns true
-            every { MobileDataSyncPreference.alwaysAllowFlow(any()) } returns flowOf(true)
+            coEvery { p2pUseCase.connect(any(), any()) } returns false
             val viewModel = createViewModel()
 
-            viewModel.onAction(SyncAction.SyncHistory(peerId = "peer-1"))
+            viewModel.onAction(SyncAction.ProposeConnect(encodePairingCode("peer-2")))
+            assertThat(viewModel.uiState.value.pendingConnect).isNotNull()
 
-            assertThat(viewModel.uiState.value.pendingMobileDataSync).isNull()
-            verify(timeout = 2000) { p2pUseCase.connect(match { it.id == "peer-1" }, any()) }
+            viewModel.onAction(SyncAction.ConfirmConnect)
+
+            val finalState = awaitState(viewModel) { !it.connecting }
+            assertThat(finalState.connecting).isFalse()
+            // Recusar dados móveis não é uma falha de conexão — mostrar `CONNECTION_FAILED`
+            // aqui seria enganoso (o próprio diálogo global já comunicou a escolha).
+            assertThat(finalState.connectError).isNull()
         }
+
+    private fun encodePairingCode(peerId: String) =
+        br.acerola.comic.util.p2p.PairingCode.encode(id = peerId, deviceId = null, addrs = byteArrayOf())
 }

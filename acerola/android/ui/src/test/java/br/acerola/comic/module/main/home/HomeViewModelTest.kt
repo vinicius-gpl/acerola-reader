@@ -15,8 +15,10 @@ import br.acerola.comic.config.preference.types.SortDirection
 import br.acerola.comic.dto.archive.ComicDirectoryDto
 import br.acerola.comic.dto.metadata.category.CategoryDto
 import br.acerola.comic.dto.metadata.comic.ComicMetadataDto
+import br.acerola.comic.error.UserMessage
 import br.acerola.comic.logging.AcerolaLogger
 import br.acerola.comic.module.main.home.state.FilterSettings
+import br.acerola.comic.service.SyncDirection
 import br.acerola.comic.usecase.chapter.GetChapterCountUseCase
 import br.acerola.comic.usecase.comic.DeleteComicUseCase
 import br.acerola.comic.usecase.comic.HideComicUseCase
@@ -26,8 +28,10 @@ import br.acerola.comic.usecase.metadata.ClearMetadataUseCase
 import br.acerola.comic.usecase.metadata.ManageCategoriesUseCase
 import br.acerola.comic.usecase.network.P2pUseCase
 import br.acerola.comic.usecase.network.SyncComicWithPeerUseCase
+import br.acerola.comic.usecase.network.SyncWithPeerResult
 import com.google.common.truth.Truth.assertThat
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkObject
@@ -326,5 +330,33 @@ class HomeViewModelTest {
             assertThat(viewModel.selectedComicIds.value).isEmpty()
             io.mockk.coVerify(exactly = 1) { deleteComicUseCase(100L) }
             io.mockk.coVerify(exactly = 1) { deleteComicUseCase(200L) }
+        }
+
+    @Test
+    fun `syncComicWithPeer sends an error when the peer is not paired`() =
+        runTest {
+            coEvery { syncComicWithPeerUseCase(any(), any(), any(), any()) } returns SyncWithPeerResult.NOT_PAIRED
+
+            viewModel.uiEvents.test {
+                viewModel.syncComicWithPeer("peer-1", "One Piece", SyncDirection.PULL)
+                assertThat(awaitItem()).isInstanceOf(UserMessage.Raw::class.java)
+            }
+        }
+
+    @Test
+    fun `syncComicWithPeer does nothing when the mobile-data gate declines`() =
+        runTest {
+            coEvery { syncComicWithPeerUseCase(any(), any(), any(), any()) } returns SyncWithPeerResult.DECLINED_MOBILE_DATA
+
+            viewModel.syncComicWithPeer("peer-1", "One Piece", SyncDirection.PULL)
+
+            // Confirma que a coroutine em `Dispatchers.IO` já rodou até o fim antes de checar
+            // "nada mais aconteceu" — sem isso a asserção abaixo poderia passar só por ainda
+            // não ter dado tempo.
+            coVerify(timeout = 2000) { syncComicWithPeerUseCase("peer-1", "One Piece", SyncDirection.PULL) }
+
+            viewModel.uiEvents.test {
+                expectNoEvents()
+            }
         }
 }
