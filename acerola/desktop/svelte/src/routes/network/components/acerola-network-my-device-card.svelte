@@ -128,6 +128,7 @@
 				title: safeData.deviceName ?? '...',
 				description: safeData.localId ? shortId(safeData.localId) : '...'
 			}}
+			ui={{ iconClass: 'bg-accent-hero text-accent-hero-foreground' }}
 		>
 			{#snippet icon()}
 				<MonitorIcon size={22} />
