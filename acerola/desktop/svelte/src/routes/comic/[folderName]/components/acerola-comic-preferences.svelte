@@ -21,6 +21,12 @@
 			/** `useMetadataSync().isSyncing` do chamador — true durante mangadex/anilist/comicInfo,
 			 *  desabilita os três botões pra evitar disparo duplo enquanto um já roda. */
 			metadataSyncing?: boolean;
+			/** Cada uma reflete o loading do respectivo `on*` abaixo — sem isso o ícone de
+			 *  refresh fica parado o tempo todo, sem nenhum feedback de que a ação está rodando. */
+			rescanning?: boolean;
+			deepRescanning?: boolean;
+			regeneratingCover?: boolean;
+			regeneratingVolumeCovers?: boolean;
 		};
 		events: {
 			onVolumeViewModeChange: (value: 'cover' | 'banner') => void;
@@ -351,7 +357,7 @@
 							title: m['pages.comic.preferences.file_sync.rescan.title'](),
 							description: m['pages.comic.preferences.file_sync.rescan.desc']()
 						}}
-						events={{ onClick: events.onRescanComic }}
+						events={{ onClick: preferences.rescanning ? undefined : events.onRescanComic }}
 						ui={{ iconClass: 'bg-chart-1 text-primary-foreground' }}
 					>
 						{#snippet icon()}
@@ -359,8 +365,10 @@
 						{/snippet}
 
 						{#snippet action()}
-							<AcerolaButtonIcon ui={{ tone: 'accent', class: 'rounded-full' }}>
-								<RefreshCw />
+							<AcerolaButtonIcon
+								ui={{ tone: 'accent', class: 'rounded-full', disabled: preferences.rescanning }}
+							>
+								<RefreshCw class={preferences.rescanning ? 'animate-spin' : ''} />
 							</AcerolaButtonIcon>
 						{/snippet}
 					</AcerolaHeroButton>
@@ -370,7 +378,9 @@
 							title: m['pages.comic.preferences.file_sync.deep_rescan.title'](),
 							description: m['pages.comic.preferences.file_sync.deep_rescan.desc']()
 						}}
-						events={{ onClick: () => (showDeepRescanDialog = true) }}
+						events={{
+							onClick: preferences.deepRescanning ? undefined : () => (showDeepRescanDialog = true)
+						}}
 						ui={{ iconClass: 'bg-destructive text-destructive-foreground' }}
 					>
 						{#snippet icon()}
@@ -378,8 +388,10 @@
 						{/snippet}
 
 						{#snippet action()}
-							<AcerolaButtonIcon ui={{ tone: 'accent', class: 'rounded-full' }}>
-								<RefreshCw />
+							<AcerolaButtonIcon
+								ui={{ tone: 'accent', class: 'rounded-full', disabled: preferences.deepRescanning }}
+							>
+								<RefreshCw class={preferences.deepRescanning ? 'animate-spin' : ''} />
 							</AcerolaButtonIcon>
 						{/snippet}
 					</AcerolaHeroButton>
@@ -530,7 +542,9 @@
 							title: m['pages.comic.preferences.cover.regenerate.title'](),
 							description: m['pages.comic.preferences.cover.regenerate.desc']()
 						}}
-						events={{ onClick: events.onRegenerateCover }}
+						events={{
+							onClick: preferences.regeneratingCover ? undefined : events.onRegenerateCover
+						}}
 						ui={{ iconClass: 'bg-chart-2 text-primary-foreground' }}
 					>
 						{#snippet icon()}
@@ -538,8 +552,14 @@
 						{/snippet}
 
 						{#snippet action()}
-							<AcerolaButtonIcon ui={{ tone: 'accent', class: 'rounded-full' }}>
-								<RefreshCw />
+							<AcerolaButtonIcon
+								ui={{
+									tone: 'accent',
+									class: 'rounded-full',
+									disabled: preferences.regeneratingCover
+								}}
+							>
+								<RefreshCw class={preferences.regeneratingCover ? 'animate-spin' : ''} />
 							</AcerolaButtonIcon>
 						{/snippet}
 					</AcerolaHeroButton>
@@ -550,7 +570,11 @@
 								title: m['pages.comic.preferences.cover.regenerate_volumes.title'](),
 								description: m['pages.comic.preferences.cover.regenerate_volumes.desc']()
 							}}
-							events={{ onClick: events.onRegenerateVolumeCovers }}
+							events={{
+								onClick: preferences.regeneratingVolumeCovers
+									? undefined
+									: events.onRegenerateVolumeCovers
+							}}
 							ui={{ iconClass: 'bg-chart-3 text-primary-foreground' }}
 						>
 							{#snippet icon()}
@@ -558,8 +582,14 @@
 							{/snippet}
 
 							{#snippet action()}
-								<AcerolaButtonIcon ui={{ tone: 'accent', class: 'rounded-full' }}>
-									<RefreshCw />
+								<AcerolaButtonIcon
+									ui={{
+										tone: 'accent',
+										class: 'rounded-full',
+										disabled: preferences.regeneratingVolumeCovers
+									}}
+								>
+									<RefreshCw class={preferences.regeneratingVolumeCovers ? 'animate-spin' : ''} />
 								</AcerolaButtonIcon>
 							{/snippet}
 						</AcerolaHeroButton>
