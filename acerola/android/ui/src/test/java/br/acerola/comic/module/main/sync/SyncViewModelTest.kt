@@ -107,8 +107,11 @@ class SyncViewModelTest {
 
             viewModel.onAction(SyncAction.SyncHistory(peerId = "peer-1"))
 
-            assertThat(viewModel.uiState.value.syncingKeys).contains("peer-1:history")
-
+            // Sem checar "contém a key logo após onAction": isso corre contra o próprio
+            // `viewModelScope.launch(Dispatchers.IO)` que decide remover a key — em CI (mais
+            // lento/contendido), esse IO pode terminar antes da asserção rodar, fazendo o
+            // teste falhar por um motivo que não é bug nenhum (o spinner só desligou rápido
+            // demais pra essa checagem ver). O que importa de verdade é o estado final.
             val finalState = awaitState(viewModel) { it.syncingKeys.isEmpty() }
             assertThat(finalState.syncingKeys).isEmpty()
         }
