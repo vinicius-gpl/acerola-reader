@@ -17,6 +17,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import br.acerola.comic.common.state.SyncActionVisualState
 import br.acerola.comic.common.ux.Acerola
+import br.acerola.comic.common.ux.component.ActionIcon
 import br.acerola.comic.common.ux.component.HeroButton
 import br.acerola.comic.common.ux.component.SyncActionIcon
 import br.acerola.comic.common.ux.theme.AcerolaTheme
@@ -58,18 +59,16 @@ fun Comic.Component.SyncWithPeerAction(
         action = {
             if (state != SyncActionVisualState.LOADING) {
                 Row {
-                    IconButton(onClick = onPush) {
-                        Icon(
-                            imageVector = Icons.Rounded.CloudUpload,
-                            contentDescription = stringResource(id = R.string.action_sync_comic_push),
-                        )
-                    }
-                    IconButton(onClick = onPull) {
-                        Icon(
-                            imageVector = Icons.Rounded.CloudDownload,
-                            contentDescription = stringResource(id = R.string.action_sync_comic_pull),
-                        )
-                    }
+                    Acerola.Component.ActionIcon(
+                        icon = Icons.Rounded.CloudUpload,
+                        onClick = onPush,
+                        contentDescription = stringResource(id = R.string.action_sync_comic_push),
+                    )
+                    Acerola.Component.ActionIcon(
+                        icon = Icons.Rounded.CloudDownload,
+                        onClick = onPull,
+                        contentDescription = stringResource(id = R.string.action_sync_comic_pull),
+                    )
                 }
             }
         },
