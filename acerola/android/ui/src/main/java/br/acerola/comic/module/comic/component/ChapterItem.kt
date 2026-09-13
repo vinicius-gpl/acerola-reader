@@ -11,7 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -23,6 +23,8 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.rounded.CollectionsBookmark
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -41,12 +43,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import br.acerola.comic.common.state.SyncActionVisualState
 import br.acerola.comic.common.ux.Acerola
 import br.acerola.comic.common.ux.component.ActionListItem
-import br.acerola.comic.common.ux.component.Dialog
-import br.acerola.comic.common.ux.component.DialogButton
+import br.acerola.comic.common.ux.component.AdaptiveSheet
 import br.acerola.comic.common.ux.component.SyncActionIcon
 import br.acerola.comic.common.ux.theme.AcerolaTheme
 import br.acerola.comic.common.ux.tokens.ShapeTokens
@@ -55,6 +57,9 @@ import br.acerola.comic.common.ux.tokens.SpacingTokens
 import br.acerola.comic.dto.archive.ChapterFileDto
 import br.acerola.comic.module.comic.Comic
 import br.acerola.comic.ui.R
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -231,61 +236,140 @@ fun Comic.Component.ChapterItem(
     }
 
     if (showDetails) {
-        Acerola.Component.Dialog(
-            show = true,
-            title = mainTitle,
-            onDismiss = { showDetails = false },
-            confirmButtonContent = {
-                Acerola.Component.DialogButton(
-                    text = stringResource(id = R.string.label_dialog_close),
-                    onClick = { showDetails = false },
+        val lastModifiedText =
+            remember(chapterFileDto.lastModified) {
+                if (chapterFileDto.lastModified > 0) {
+                    SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date(chapterFileDto.lastModified))
+                } else {
+                    null
+                }
+            }
+
+        Acerola.Component.AdaptiveSheet(
+            onDismissRequest = { showDetails = false },
+        ) {
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = SpacingTokens.ExtraLarge, vertical = SpacingTokens.Large),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                ChapterLeadingIcon(
+                    icon =
+                        when {
+                            hasConflict -> Icons.Default.Warning
+                            isRead -> Icons.Default.Check
+                            else -> Icons.Default.MenuBook
+                        },
+                    iconTint =
+                        when {
+                            hasConflict -> MaterialTheme.colorScheme.error
+                            isRead -> MaterialTheme.colorScheme.onPrimary
+                            else -> MaterialTheme.colorScheme.primary
+                        },
+                    circleColor =
+                        when {
+                            hasConflict -> MaterialTheme.colorScheme.error.copy(alpha = 0.15f)
+                            isRead -> MaterialTheme.colorScheme.primary
+                            else -> Color.Transparent
+                        },
+                    circleSize = SizeTokens.ClickTarget,
+                    iconSize = SizeTokens.IconMedium,
                 )
-            },
-            content = {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    DetailRow(
-                        label = stringResource(id = R.string.label_chapter_detail_file),
-                        value = chapterFileDto.name,
+
+                Spacer(modifier = Modifier.width(SpacingTokens.Large))
+
+                Column {
+                    Text(
+                        text = mainTitle,
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 2,
                     )
-
-                    Spacer(modifier = Modifier.height(SpacingTokens.Small))
-
-                    Column(verticalArrangement = Arrangement.spacedBy(SpacingTokens.Small)) {
-                        Surface(
-                            shape = ShapeTokens.Large,
-                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        ) {
-                            Acerola.Component.ActionListItem(
-                                icon = if (isRead) Icons.Default.BookmarkRemove else Icons.Default.Check,
-                                title =
-                                    stringResource(
-                                        id = if (isRead) R.string.action_mark_as_unread else R.string.action_mark_as_read,
-                                    ),
-                                tint = if (isRead) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-                                isLast = true,
-                                onClick = { onToggleRead() },
+                    val volumeName = chapterFileDto.volumeName
+                    if (!volumeName.isNullOrBlank()) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Rounded.CollectionsBookmark,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(SizeTokens.IconExtraSmall),
                             )
-                        }
-
-                        Surface(
-                            shape = ShapeTokens.Large,
-                            color = MaterialTheme.colorScheme.tertiaryContainer,
-                        ) {
-                            Acerola.Component.ActionListItem(
-                                icon = Icons.AutoMirrored.Filled.Send,
-                                title = stringResource(id = R.string.action_send_chapters_to_peer),
-                                tint = MaterialTheme.colorScheme.onTertiaryContainer,
-                                isLast = true,
-                                onClick = {
-                                    showDetails = false
-                                    onSendToPeer()
-                                },
+                            Spacer(modifier = Modifier.width(SpacingTokens.ExtraSmall))
+                            Text(
+                                text = volumeName,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
                 }
-            },
-        )
+            }
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+
+            Column(
+                modifier = Modifier.padding(SpacingTokens.Large),
+                verticalArrangement = Arrangement.spacedBy(SpacingTokens.Large),
+            ) {
+                Surface(
+                    shape = ShapeTokens.Large,
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                ) {
+                    Column(modifier = Modifier.padding(SpacingTokens.Large)) {
+                        DetailRow(
+                            label = stringResource(id = R.string.label_chapter_detail_file),
+                            value = chapterFileDto.name,
+                        )
+                        if (lastModifiedText != null) {
+                            DetailRow(
+                                label = stringResource(id = R.string.label_chapter_detail_last_modified),
+                                value = lastModifiedText,
+                                isLast = true,
+                            )
+                        }
+                    }
+                }
+
+                Surface(
+                    shape = ShapeTokens.Large,
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                ) {
+                    Acerola.Component.ActionListItem(
+                        icon = if (isRead) Icons.Default.BookmarkRemove else Icons.Default.Check,
+                        title =
+                            stringResource(
+                                id = if (isRead) R.string.action_mark_as_unread else R.string.action_mark_as_read,
+                            ),
+                        tint = if (isRead) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                        isLast = true,
+                        onClick = {
+                            showDetails = false
+                            onToggleRead()
+                        },
+                    )
+                }
+
+                Surface(
+                    shape = ShapeTokens.Large,
+                    color = MaterialTheme.colorScheme.tertiaryContainer,
+                ) {
+                    Acerola.Component.ActionListItem(
+                        icon = Icons.AutoMirrored.Filled.Send,
+                        title = stringResource(id = R.string.action_send_chapters_to_peer),
+                        tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                        isLast = true,
+                        onClick = {
+                            showDetails = false
+                            onSendToPeer()
+                        },
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.navigationBarsPadding())
+        }
     }
 }
 
@@ -294,11 +378,13 @@ private fun ChapterLeadingIcon(
     icon: ImageVector,
     iconTint: Color,
     circleColor: Color = Color.Transparent,
+    circleSize: Dp = SizeTokens.ClickTargetSmall,
+    iconSize: Dp = SizeTokens.IconSmall,
 ) {
     Box(
         modifier =
             Modifier
-                .size(SizeTokens.ClickTargetSmall)
+                .size(circleSize)
                 .background(color = circleColor, shape = CircleShape),
         contentAlignment = Alignment.Center,
     ) {
@@ -306,7 +392,7 @@ private fun ChapterLeadingIcon(
             imageVector = icon,
             contentDescription = null,
             tint = iconTint,
-            modifier = Modifier.size(SizeTokens.IconSmall),
+            modifier = Modifier.size(iconSize),
         )
     }
 }
@@ -315,9 +401,10 @@ private fun ChapterLeadingIcon(
 private fun DetailRow(
     label: String,
     value: String,
+    isLast: Boolean = false,
 ) {
     if (value.isBlank()) return
-    Column(modifier = Modifier.padding(bottom = SpacingTokens.Medium)) {
+    Column(modifier = Modifier.padding(bottom = if (isLast) 0.dp else SpacingTokens.Medium)) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelMedium,
