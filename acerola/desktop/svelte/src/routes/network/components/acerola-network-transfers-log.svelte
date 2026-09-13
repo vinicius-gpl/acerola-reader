@@ -96,6 +96,15 @@
 	let summary = $derived(
 		entries.length > 0 ? describeEntry(entries[0]) : m['pages.network.transfers.empty']()
 	);
+
+	// Fundo do círculo do ícone tintado pelo status (contorno colorido em volta do ícone, não
+	// o `bg-muted` genérico padrão do AcerolaHeroButton) — a cor do ícone em si continua vindo
+	// de cada branch do snippet `icon` abaixo.
+	function iconBackgroundClass(entry: TransferLogEntry): string {
+		if (entry.status === 'error') return 'bg-destructive/15';
+		if (entry.status === 'complete') return 'bg-chart-3/15';
+		return 'bg-muted';
+	}
 </script>
 
 <AcerolaAccordionCard
@@ -155,6 +164,7 @@
 						title: describeEntry(entry),
 						description: new Date(entry.timestamp).toLocaleTimeString()
 					}}
+					ui={{ iconClass: iconBackgroundClass(entry) }}
 				>
 					{#snippet icon()}
 						{#if entry.status === 'error'}
