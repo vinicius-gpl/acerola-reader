@@ -283,6 +283,7 @@
     <string name="description_icon_chapter_more_options">Mais opções</string>
     <string name="label_dialog_close">Fechar</string>
     <string name="label_chapter_detail_file">Arquivo</string>
+    <string name="label_chapter_detail_last_modified">Última modificação</string>
     <string name="label_chapter_detail_title">Título</string>
     <string name="label_chapter_detail_scanlation">Grupo de tradução</string>
     <string name="label_chapter_detail_pages">Páginas</string>
