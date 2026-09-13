@@ -59,13 +59,6 @@ data class SyncUiState(
      *  mesma versão duas vezes dentro da mesma sessão do app (ver
      *  [br.acerola.comic.module.main.sync.SyncViewModel]). */
     val remoteCoverPaths: Map<String, String> = emptyMap(),
-    /** Espelha `MobileDataSyncPreference.alwaysAllowFlow` — `true` pula a confirmação de dados
-     *  móveis abaixo. */
-    val allowMobileDataSync: Boolean = false,
-    /** Ação de sync (`SyncHistory`/`SyncFiles`/`SyncAll`/`SyncComic`) represada esperando a
-     *  confirmação de [MobileDataSyncDialog] — só existe enquanto o dispositivo está em dados
-     *  móveis e [allowMobileDataSync] é `false`. */
-    val pendingMobileDataSync: SyncAction.MobileDataGated? = null,
 )
 
 /**

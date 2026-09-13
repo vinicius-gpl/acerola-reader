@@ -34,6 +34,7 @@ import br.acerola.comic.usecase.metadata.ClearMetadataUseCase
 import br.acerola.comic.usecase.metadata.ManageCategoriesUseCase
 import br.acerola.comic.usecase.network.P2pUseCase
 import br.acerola.comic.usecase.network.SyncComicWithPeerUseCase
+import br.acerola.comic.usecase.network.SyncWithPeerResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -281,9 +282,8 @@ class HomeViewModel
                 mapOf("peerId" to peerId, "comicName" to comicName, "direction" to direction.name),
             )
 
-            val fired = syncComicWithPeerUseCase(peerId, comicName, direction)
-            if (!fired) {
-                viewModelScope.launch {
+            viewModelScope.launch(Dispatchers.IO) {
+                if (syncComicWithPeerUseCase(peerId, comicName, direction) == SyncWithPeerResult.NOT_PAIRED) {
                     _uiEvents.send(UserMessage.Raw(UiText.StringResource(R.string.error_sync_comic_peer_not_paired)))
                 }
             }
