@@ -6,6 +6,7 @@ import br.acerola.comic.adapter.contract.gateway.ComicGateway
 import br.acerola.comic.adapter.contract.gateway.HistoryGateway
 import br.acerola.comic.dto.archive.ComicDirectoryDto
 import br.acerola.comic.dto.metadata.comic.ComicMetadataDto
+import br.acerola.comic.error.UserMessage
 import br.acerola.comic.logging.AcerolaLogger
 import br.acerola.comic.module.main.history.HistoryViewModel
 import br.acerola.comic.service.network.P2pEventBus
@@ -15,7 +16,10 @@ import br.acerola.comic.usecase.history.ObserveHistoryUseCase
 import br.acerola.comic.usecase.metadata.ManageCategoriesUseCase
 import br.acerola.comic.usecase.network.P2pUseCase
 import br.acerola.comic.usecase.network.SyncHistoryWithPeerUseCase
+import br.acerola.comic.usecase.network.SyncWithPeerResult
 import com.google.common.truth.Truth.assertThat
+import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkObject
@@ -88,6 +92,36 @@ class HistoryViewModelTest {
         runTest {
             viewModel.historyItems.test {
                 assertThat(awaitItem()).isEmpty()
+            }
+        }
+
+    @Test
+    fun `syncHistoryWithPeer sends an error and does not mark syncing when the peer is not paired`() =
+        runTest {
+            coEvery { syncHistoryWithPeerUseCase(any()) } returns SyncWithPeerResult.NOT_PAIRED
+
+            viewModel.uiEvents.test {
+                viewModel.syncHistoryWithPeer("peer-1")
+                assertThat(awaitItem()).isInstanceOf(UserMessage.Raw::class.java)
+            }
+            assertThat(viewModel.isSyncingWithPeer.value).isFalse()
+        }
+
+    @Test
+    fun `syncHistoryWithPeer does nothing when the mobile-data gate declines`() =
+        runTest {
+            coEvery { syncHistoryWithPeerUseCase(any()) } returns SyncWithPeerResult.DECLINED_MOBILE_DATA
+
+            viewModel.syncHistoryWithPeer("peer-1")
+
+            // Confirma que a coroutine em `Dispatchers.IO` já rodou até o fim antes de checar
+            // "nada mais aconteceu" — sem isso a asserção abaixo poderia passar só por ainda
+            // não ter dado tempo.
+            coVerify(timeout = 2000) { syncHistoryWithPeerUseCase("peer-1") }
+
+            assertThat(viewModel.isSyncingWithPeer.value).isFalse()
+            viewModel.uiEvents.test {
+                expectNoEvents()
             }
         }
 }
