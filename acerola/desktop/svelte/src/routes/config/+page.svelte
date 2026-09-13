@@ -25,6 +25,7 @@
 	import { METADATA_COMMANDS } from '$lib/contracts/metadata/metadata.commands';
 	import { notificationStore } from '$lib/components/acerola-notification/acerola-notification.svelte';
 	import { extractErrorMessage } from '$lib/utils/error.utils';
+	import { bumpArtworkVersion } from '$lib/state/artwork-version.svelte';
 	import { LANGUAGES, type LanguageCode } from '$lib/constants/languages';
 	import { m } from '$lib/paraglide/messages';
 
@@ -132,6 +133,11 @@
 
 			unlistenComplete = await listen('metadata:sync_all:complete', () => {
 				syncingSource = null;
+				// Sync em lote baixa capa nova pra cada quadrinho sincronizado, mas o path no
+				// disco não muda — sem isso a Home (e qualquer outra tela com a lista de
+				// quadrinhos já montada) continuava mostrando a capa antiga em cache até um
+				// reload manual.
+				bumpArtworkVersion();
 				notify.success(m['pages.config.toast.sync.complete'](), { duration: 0 });
 				toast.success(m['pages.config.toast.sync.complete'](), { id: syncToastId });
 				syncToastId = undefined;
@@ -291,8 +297,10 @@
 					{/snippet}
 
 					{#snippet action()}
-						<AcerolaButtonIcon ui={{ tone: 'accent', class: 'rounded-full' }}>
-							<RefreshCw />
+						<AcerolaButtonIcon
+							ui={{ tone: 'accent', class: 'rounded-full', disabled: refreshScanner.scanning }}
+						>
+							<RefreshCw class={refreshScanner.scanning ? 'animate-spin' : ''} />
 						</AcerolaButtonIcon>
 					{/snippet}
 				</AcerolaHeroButton>
@@ -310,8 +318,10 @@
 					{/snippet}
 
 					{#snippet action()}
-						<AcerolaButtonIcon ui={{ tone: 'accent', class: 'rounded-full' }}>
-							<RefreshCw />
+						<AcerolaButtonIcon
+							ui={{ tone: 'accent', class: 'rounded-full', disabled: rebuildScanner.scanning }}
+						>
+							<RefreshCw class={rebuildScanner.scanning ? 'animate-spin' : ''} />
 						</AcerolaButtonIcon>
 					{/snippet}
 				</AcerolaHeroButton>
