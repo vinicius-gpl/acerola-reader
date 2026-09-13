@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { extractErrorMessage } from './error.utils';
 import type { ErrorPayload } from '$lib/contracts/shared/shared.payloads';
+import { m } from '$lib/paraglide/messages';
 
 describe('extractErrorMessage', () => {
 	it('returns a fallback message for null', () => {
@@ -19,17 +20,23 @@ describe('extractErrorMessage', () => {
 		expect(extractErrorMessage(new Error('boom'))).toBe('boom');
 	});
 
-	it('extracts the message from an ErrorPayload-shaped object', () => {
+	it('translates a recognized errorType instead of leaking the raw Rust message', () => {
 		const payload: ErrorPayload = { errorType: 'IoError', message: 'disk full' };
+
+		expect(extractErrorMessage(payload)).toBe(m['tauri_errors.comic.io_error.label']());
+	});
+
+	it('falls back to the raw message for an unrecognized errorType', () => {
+		const payload: ErrorPayload = { errorType: 'SomeUnknownRustVariant', message: 'disk full' };
 
 		expect(extractErrorMessage(payload)).toBe('disk full');
 	});
 
-	it('falls back to the raw (blank) message field when it is only whitespace', () => {
+	it('falls back to the raw (blank) message field when errorType is missing', () => {
 		// NOTE: pre-existing behavior — the blank-message guard only skips the FIRST check;
 		// the second check accepts any string type regardless of content, so a whitespace-only
 		// `message` field is returned as-is instead of falling back to String(error).
-		const payload = { errorType: 'IoError', message: '   ' };
+		const payload = { message: '   ' };
 
 		expect(extractErrorMessage(payload)).toBe('   ');
 	});
