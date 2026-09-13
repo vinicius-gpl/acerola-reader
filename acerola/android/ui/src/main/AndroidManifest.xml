@@ -19,6 +19,12 @@
             android:exported="false"
             android:label="@string/label_remote_library_activity"
             android:theme="@style/Theme.Acerola" />
+
+        <activity
+            android:name="br.acerola.comic.module.main.sync.TransferLogActivity"
+            android:exported="false"
+            android:label="@string/label_transfer_log_activity"
+            android:theme="@style/Theme.Acerola" />
     </application>
 
 </manifest>
