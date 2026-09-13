@@ -62,6 +62,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -259,6 +260,7 @@ private fun SyncLayout(
             RelaySettingsCard(
                 relaySettings = uiState.relaySettings,
                 irohServicesTicketError = uiState.irohServicesTicketError,
+                allowMobileDataSync = uiState.allowMobileDataSync,
                 onAction = onAction,
             )
 
@@ -284,6 +286,13 @@ private fun SyncLayout(
             TofuDialog(
                 peerId = uiState.trustedPeerDialogPeerId,
                 onDismiss = { onAction(SyncAction.DismissTrustDialog) },
+            )
+        }
+
+        if (uiState.pendingMobileDataSync != null) {
+            MobileDataSyncDialog(
+                onConfirm = { remember -> onAction(SyncAction.ConfirmMobileDataSync(remember)) },
+                onCancel = { onAction(SyncAction.CancelMobileDataSync) },
             )
         }
 
@@ -446,6 +455,7 @@ private fun ThisDeviceSection(
 private fun RelaySettingsCard(
     relaySettings: RelaySettingsUiState,
     irohServicesTicketError: Boolean,
+    allowMobileDataSync: Boolean,
     onAction: (SyncAction) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -565,6 +575,14 @@ private fun RelaySettingsCard(
                 )
             }
         }
+
+        Acerola.Component.ToggleCard(
+            title = stringResource(id = R.string.label_relay_settings_allow_mobile_data_sync),
+            subtitle = stringResource(id = R.string.label_relay_settings_allow_mobile_data_sync_desc),
+            active = allowMobileDataSync,
+            onClick = { onAction(SyncAction.ToggleAllowMobileDataSync(!allowMobileDataSync)) },
+            icon = { Icon(imageVector = Icons.Default.PhoneAndroid, contentDescription = null) },
+        )
 
         RestartSection(
             restarting = relaySettings.restarting,
@@ -1485,6 +1503,53 @@ private fun TofuDialog(
         },
     ) {
         Text(text = stringResource(id = R.string.description_sync_trust_dialog, peerId))
+    }
+}
+
+/** Pedida por [SyncViewModel.runSyncActionOrConfirm] antes de disparar história/arquivos/tudo/um
+ *  quadrinho quando o dispositivo está em dados móveis — o switch "sempre permitir" salva a
+ *  escolha em [SyncAction.ConfirmMobileDataSync] pra não perguntar de novo (ver
+ *  `MobileDataSyncPreference`). */
+@Composable
+private fun MobileDataSyncDialog(
+    onConfirm: (remember: Boolean) -> Unit,
+    onCancel: () -> Unit,
+) {
+    var rememberChoice by remember { mutableStateOf(false) }
+
+    Acerola.Component.Dialog(
+        show = true,
+        onDismiss = onCancel,
+        title = stringResource(id = R.string.title_sync_mobile_data_confirm),
+        confirmButtonContent = {
+            Acerola.Component.DialogButton(
+                text = stringResource(id = R.string.action_sync_mobile_data_confirm),
+                onClick = { onConfirm(rememberChoice) },
+            )
+        },
+        dismissButtonContent = {
+            Acerola.Component.DialogButton(
+                text = stringResource(id = R.string.action_cancel),
+                onClick = onCancel,
+            )
+        },
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(text = stringResource(id = R.string.description_sync_mobile_data_confirm))
+
+            Spacer(modifier = Modifier.height(SpacingTokens.Medium))
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(SpacingTokens.Small),
+            ) {
+                Text(
+                    text = stringResource(id = R.string.label_sync_mobile_data_remember),
+                    style = MaterialTheme.typography.labelMedium,
+                )
+                Switch(checked = rememberChoice, onCheckedChange = { rememberChoice = it })
+            }
+        }
     }
 }
 

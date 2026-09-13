@@ -4,7 +4,9 @@ import android.content.Context
 import android.os.Build
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import br.acerola.comic.config.network.isOnCellularConnection
 import br.acerola.comic.config.preference.DeviceAliasPreference
+import br.acerola.comic.config.preference.MobileDataSyncPreference
 import br.acerola.comic.config.preference.PeerNicknamePreference
 import br.acerola.comic.config.preference.RelayPreference
 import br.acerola.comic.error.message.SyncProtocolError
@@ -131,6 +133,12 @@ class SyncViewModel
                 }
             }
 
+            viewModelScope.launch {
+                MobileDataSyncPreference.alwaysAllowFlow(context).collect { allowed ->
+                    _uiState.update { it.copy(allowMobileDataSync = allowed) }
+                }
+            }
+
             // Apelido salvo já foi lido pra construir o node (`NetworkCaseModule`) — essa
             // segunda leitura é só pra refletir o mesmo valor aqui na UI, já que o node não
             // devolve o `DeviceInfo` que recebeu no boot. Depois disso, `localDeviceName` só
@@ -243,12 +251,8 @@ class SyncViewModel
                 is SyncAction.ProposeConnect -> proposeConnect(action.code)
                 SyncAction.ConfirmConnect -> confirmConnect()
                 SyncAction.CancelConnect -> _uiState.update { it.copy(pendingConnect = null) }
-                is SyncAction.SyncHistory -> triggerSync(action.peerId, HISTORY_SYNC_ALPN, SYNC_KIND_HISTORY)
-                is SyncAction.SyncFiles -> triggerSync(action.peerId, FILE_SYNC_ALPN, SYNC_KIND_FILES)
-                is SyncAction.SyncAll -> {
-                    triggerSync(action.peerId, HISTORY_SYNC_ALPN, SYNC_KIND_HISTORY)
-                    triggerSync(action.peerId, FILE_SYNC_ALPN, SYNC_KIND_FILES)
-                }
+                is SyncAction.SyncHistory, is SyncAction.SyncFiles, is SyncAction.SyncAll ->
+                    runSyncActionOrConfirm(action)
 
                 SyncAction.DismissTrustDialog -> _uiState.update { it.copy(trustedPeerDialogPeerId = null) }
                 SyncAction.DismissConnectError -> _uiState.update { it.copy(connectError = null) }
@@ -266,7 +270,7 @@ class SyncViewModel
                             browseLibraryErrorType = null,
                         )
                     }
-                is SyncAction.SyncComic -> syncComic(action.peerId, action.comicName)
+                is SyncAction.SyncComic -> runSyncActionOrConfirm(action)
 
                 is SyncAction.ToggleUseAcerolaRelay ->
                     viewModelScope.launch { RelayPreference.setUseAcerolaRelay(context, action.value) }
@@ -282,7 +286,46 @@ class SyncViewModel
                     _uiState.update { it.copy(irohServicesTicketError = false) }
 
                 SyncAction.RestartP2p -> restartP2p()
+
+                is SyncAction.ConfirmMobileDataSync -> confirmMobileDataSync(action.remember)
+                SyncAction.CancelMobileDataSync -> _uiState.update { it.copy(pendingMobileDataSync = null) }
+                is SyncAction.ToggleAllowMobileDataSync ->
+                    viewModelScope.launch { MobileDataSyncPreference.setAlwaysAllow(context, action.value) }
             }
+        }
+
+        /** Ponto único por onde `SyncHistory`/`SyncFiles`/`SyncAll`/`SyncComic` passam — represa
+         *  a ação em [SyncUiState.pendingMobileDataSync] pra confirmação (ver
+         *  [MobileDataSyncDialog] em `SyncScreen`) quando o dispositivo está em dados móveis e o
+         *  usuário ainda não marcou "sempre permitir"; senão, dispara na hora. */
+        private fun runSyncActionOrConfirm(action: SyncAction) {
+            if (!_uiState.value.allowMobileDataSync && isOnCellularConnection(context)) {
+                _uiState.update { it.copy(pendingMobileDataSync = action) }
+            } else {
+                performSyncAction(action)
+            }
+        }
+
+        private fun performSyncAction(action: SyncAction) {
+            when (action) {
+                is SyncAction.SyncHistory -> triggerSync(action.peerId, HISTORY_SYNC_ALPN, SYNC_KIND_HISTORY)
+                is SyncAction.SyncFiles -> triggerSync(action.peerId, FILE_SYNC_ALPN, SYNC_KIND_FILES)
+                is SyncAction.SyncAll -> {
+                    triggerSync(action.peerId, HISTORY_SYNC_ALPN, SYNC_KIND_HISTORY)
+                    triggerSync(action.peerId, FILE_SYNC_ALPN, SYNC_KIND_FILES)
+                }
+                is SyncAction.SyncComic -> syncComic(action.peerId, action.comicName)
+                else -> Unit
+            }
+        }
+
+        private fun confirmMobileDataSync(remember: Boolean) {
+            val pending = _uiState.value.pendingMobileDataSync ?: return
+            _uiState.update { it.copy(pendingMobileDataSync = null) }
+            if (remember) {
+                viewModelScope.launch { MobileDataSyncPreference.setAlwaysAllow(context, true) }
+            }
+            performSyncAction(pending)
         }
 
         /** Valida o formato no lado nativo antes de persistir — `p2pUseCase.setIrohServicesTicket`
