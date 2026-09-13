@@ -3,6 +3,7 @@ package br.acerola.comic.module.main.remotelibrary
 import app.cash.turbine.test
 import br.acerola.comic.MainDispatcherRule
 import br.acerola.comic.error.UserMessage
+import br.acerola.comic.module.main.remotelibrary.state.RemoteLibraryUiState
 import br.acerola.comic.service.PeerAddress
 import br.acerola.comic.service.SyncDirection
 import br.acerola.comic.service.network.P2pEventBus
@@ -42,6 +43,30 @@ class RemoteLibraryViewModelTest {
         viewModel.init(peerId = "peer-1", peerDisplayName = "Peer 1")
     }
 
+    /** `Thread.sleep` de verdade (não `delay()` — o trabalho que se está esperando roda em
+     *  `Dispatchers.IO` real, thread pool própria, não afetada pelo tempo virtual do
+     *  `TestDispatcher` deste teste). Necessário pro caminho `STARTED`: `syncComic` agenda um
+     *  `viewModelScope.launch` (timeout de 60s) logo depois de marcar `syncingComicName` — sem
+     *  esperar por esse `launch` já ter sido de fato disparado (não só a chamada mockada ter
+     *  sido observada por `coVerify`), o teste pode terminar e o `@get:Rule` resetar o
+     *  `Dispatchers.Main` ANTES dessa coroutine em `Dispatchers.IO` conseguir chegar lá — o que
+     *  crasha com "Dispatchers.Main was accessed... test dispatcher was unset" numa thread sem
+     *  handler, e esse erro não cai neste teste, cai no PRÓXIMO que rodar na mesma JVM (visto em
+     *  CI: apareceu como falha em `ReaderViewModelTest`, sem relação nenhuma). */
+    private fun awaitState(
+        viewModel: RemoteLibraryViewModel,
+        timeoutMs: Long = 2000,
+        predicate: (RemoteLibraryUiState) -> Boolean,
+    ): RemoteLibraryUiState {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (System.currentTimeMillis() < deadline) {
+            val state = viewModel.uiState.value
+            if (predicate(state)) return state
+            Thread.sleep(20)
+        }
+        return viewModel.uiState.value
+    }
+
     @Test
     fun `syncComic marks syncing when the mobile-data gate allows`() =
         runTest {
@@ -49,8 +74,9 @@ class RemoteLibraryViewModelTest {
 
             viewModel.syncComic("One Piece")
 
-            coVerify(timeout = 2000) { syncComicWithPeerUseCase("peer-1", "One Piece", SyncDirection.PULL) }
-            assertThat(viewModel.uiState.value.syncingComicName).isEqualTo("One Piece")
+            val state = awaitState(viewModel) { it.syncingComicName != null }
+            assertThat(state.syncingComicName).isEqualTo("One Piece")
+            coVerify { syncComicWithPeerUseCase("peer-1", "One Piece", SyncDirection.PULL) }
         }
 
     @Test
