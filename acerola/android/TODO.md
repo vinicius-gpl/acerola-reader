@@ -50,6 +50,11 @@
   *(talvez)* — Dois botões: um pra buscar/puxar quadrinhos específicos de um peer, outro numa
   sheet maior pra "sincronizar tudo que o peer tem" — esse último precisa de confirmação
   explícita antes de disparar.
+- [ ] **Melhorar responsividade mobile de alguns componentes** — Alguns componentes parecem ter
+  puxado o formato/layout do Desktop mais ou menos direto. **Disclaimer:** cuidado ao copiar
+  1:1 — o Desktop é pensado pra tela horizontal (landscape/wide), Android é majoritariamente
+  vertical (portrait), então o que funciona bem lá pode ficar ruim aqui sem adaptação. Falta
+  levantar quais componentes especificamente precisam de revisão.
 - [ ] **Link estável de download do APK** — CI (`android-release.yml`) já sobe o APK pro
   Cloudflare R2 quando o canal é `prod`, mas nenhuma tag até hoje usou `prod` (só `alpha`) —
   esse caminho nunca rodou de verdade. `android/latest/acerola-{version}.apk` +
@@ -62,6 +67,25 @@
 
 - [ ] **Botão de limpar histórico na tela de histórico**
 - [ ] **Botão de sync de histórico na tela de histórico** *(talvez)*
+
+## Testes
+
+- [ ] **Cobertura de teste desigual no fluxo P2P — foi exatamente por isso que o gate de dados
+  móveis (13/09/2026) só cobriu a tela de Sync na primeira tentativa** — antes dessa sessão,
+  `SyncViewModel`, os métodos de sync-com-peer de `HomeViewModel`/`HistoryViewModel` e o
+  `RemoteLibraryViewModel` inteiro não tinham teste nenhum; ninguém percebeu em revisão que
+  Home/Histórico/Quadrinho/Biblioteca remota disparam P2P por caminhos próprios. Parte já
+  coberta na sessão (`SyncViewModelTest`/`RemoteLibraryViewModelTest` novos; casos de recusa —
+  `DECLINED_MOBILE_DATA` — em `ComicViewModelTest`/`HomeViewModelTest`/`HistoryViewModelTest`).
+  Ainda em aberto:
+  - `SyncScreenTest`/`RemoteLibraryScreenTest`/`TransferLogScreenTest`/`TutorialScreenTest`
+    (`androidTest`) — nenhuma tela de rede/P2P tem teste de UI instrumentado hoje (todas as
+    outras telas principais têm).
+  - `MobileDataSyncViewModelTest`, `TransferLogViewModelTest`, `TutorialViewModelTest` — únicas
+    ViewModels sem teste unitário.
+  - `P2pSyncCoordinatorTest` (`core`) — singleton que persiste resultado de sync e dispara
+    notificação/foreground service independente de qualquer tela estar aberta; hoje só é
+    validado manualmente.
 
 ## Referência: itens que o doc dizia em aberto mas já estão corrigidos (auditoria 11/09/2026)
 
