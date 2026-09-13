@@ -117,7 +117,7 @@
 							events={{ onClick: cancelEditingNickname }}
 							ui={{
 								variant: 'ghost',
-								class: 'size-10',
+								tone: 'muted',
 								'aria-label': m['pages.network.peers.rename.cancel']()
 							}}
 						>

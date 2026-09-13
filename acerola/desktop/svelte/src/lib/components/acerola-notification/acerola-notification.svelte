@@ -82,7 +82,7 @@
 	}}
 >
 	{#snippet trigger()}
-		<AcerolaButtonIcon ui={{ class: 'relative hover:bg-muted/80' }}>
+		<AcerolaButtonIcon ui={{ tone: 'accent', class: 'relative' }}>
 			<BellIcon size={20} />
 			{#if notifications.length > 0}
 				<span

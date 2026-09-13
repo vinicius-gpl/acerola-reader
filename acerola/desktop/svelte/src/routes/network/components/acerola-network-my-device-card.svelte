@@ -114,7 +114,7 @@
 				events={{ onClick: cancelEditingName }}
 				ui={{
 					variant: 'ghost',
-					class: 'size-10',
+					tone: 'muted',
 					disabled: savingName,
 					'aria-label': m['pages.network.my_device.rename.cancel']()
 				}}
@@ -139,7 +139,7 @@
 						events={{ onClick: startEditingName }}
 						ui={{
 							variant: 'outline',
-							class: 'size-10',
+							tone: 'accent',
 							'aria-label': m['pages.network.my_device.rename.action']()
 						}}
 					>

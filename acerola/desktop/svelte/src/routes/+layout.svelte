@@ -299,7 +299,7 @@
 							}}
 						>
 							{#snippet trigger()}
-								<AcerolaButtonIcon ui={{ title: m['layout.language_picker.title']() }}>
+								<AcerolaButtonIcon ui={{ title: m['layout.language_picker.title'](), tone: 'accent' }}>
 									<GlobeIcon size={16} />
 								</AcerolaButtonIcon>
 							{/snippet}

@@ -31,7 +31,7 @@
 
 <AcerolaButtonIcon
 	events={{ onClick: nextMode }}
-	ui={{ title: m['components.mode_picker.title']() }}
+	ui={{ title: m['components.mode_picker.title'](), tone: 'accent' }}
 >
 	{#key themeCtx.mode}
 		{@const Icon = MODE_CONFIG[themeCtx.mode].icon}

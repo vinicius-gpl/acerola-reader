@@ -263,8 +263,8 @@
 								{#snippet action()}
 									<AcerolaButtonIcon
 										ui={{
-											class:
-												'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground',
+											tone: 'accent',
+											class: 'rounded-full',
 											disabled: preferences.metadataSyncing
 										}}
 									>
@@ -291,8 +291,8 @@
 								{#snippet action()}
 									<AcerolaButtonIcon
 										ui={{
-											class:
-												'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground',
+											tone: 'accent',
+											class: 'rounded-full',
 											disabled: preferences.metadataSyncing
 										}}
 									>
@@ -321,8 +321,8 @@
 						{#snippet action()}
 							<AcerolaButtonIcon
 								ui={{
-									class:
-										'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground',
+									tone: 'accent',
+									class: 'rounded-full',
 									disabled: preferences.metadataSyncing
 								}}
 							>
@@ -354,12 +354,7 @@
 						{/snippet}
 
 						{#snippet action()}
-							<AcerolaButtonIcon
-								ui={{
-									class:
-										'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground'
-								}}
-							>
+							<AcerolaButtonIcon ui={{ tone: 'accent', class: 'rounded-full' }}>
 								<RefreshCw />
 							</AcerolaButtonIcon>
 						{/snippet}
@@ -377,12 +372,7 @@
 						{/snippet}
 
 						{#snippet action()}
-							<AcerolaButtonIcon
-								ui={{
-									class:
-										'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground'
-								}}
-							>
+							<AcerolaButtonIcon ui={{ tone: 'accent', class: 'rounded-full' }}>
 								<RefreshCw />
 							</AcerolaButtonIcon>
 						{/snippet}
@@ -540,12 +530,7 @@
 						{/snippet}
 
 						{#snippet action()}
-							<AcerolaButtonIcon
-								ui={{
-									class:
-										'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground'
-								}}
-							>
+							<AcerolaButtonIcon ui={{ tone: 'accent', class: 'rounded-full' }}>
 								<RefreshCw />
 							</AcerolaButtonIcon>
 						{/snippet}
@@ -564,12 +549,7 @@
 							{/snippet}
 
 							{#snippet action()}
-								<AcerolaButtonIcon
-									ui={{
-										class:
-											'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground'
-									}}
-								>
+								<AcerolaButtonIcon ui={{ tone: 'accent', class: 'rounded-full' }}>
 									<RefreshCw />
 								</AcerolaButtonIcon>
 							{/snippet}

@@ -250,8 +250,8 @@
 								events={{ onClick: () => removeCustomUrl(url) }}
 								ui={{
 									variant: 'ghost',
-									class:
-										'size-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive',
+									tone: 'destructive',
+									class: 'size-8',
 									disabled: safeData.useIrohPublicNetwork || restarting,
 									'aria-label': m['pages.network.relay_settings.custom_relays.remove']()
 								}}
@@ -379,8 +379,8 @@
 									events={{ onClick: removeTicket }}
 									ui={{
 										variant: 'ghost',
-										class:
-											'size-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive',
+										tone: 'destructive',
+										class: 'size-8',
 										disabled: ticketSaving,
 										'aria-label':
 											m['pages.network.relay_settings.iroh_services_ticket.remove_button']()
