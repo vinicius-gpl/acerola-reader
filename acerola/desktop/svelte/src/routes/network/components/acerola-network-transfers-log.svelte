@@ -24,6 +24,7 @@
 	import AcerolaButtonIcon from '$lib/components/acerola-button/acerola-button-icon.svelte';
 	import AcerolaAlertDialog from '$lib/components/acerola-alert-dialog/acerola-alert-dialog.svelte';
 	import AcerolaAccordionCard from '$lib/components/acerola-accordion-card/acerola-accordion-card.svelte';
+	import AcerolaHeroButton from '$lib/components/acerola-hero-button/acerola-hero-button.svelte';
 
 	let { data, events }: NetworkTransfersLogProps = $props();
 
@@ -147,25 +148,27 @@
 			{m['pages.network.transfers.empty']()}
 		</p>
 	{:else}
-		<ul class="max-h-[28rem] space-y-1 overflow-y-auto">
+		<div class="max-h-[28rem] space-y-2 overflow-y-auto pr-1">
 			{#each entries as entry (entry.id)}
-				<li class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm hover:bg-muted/50">
-					{#if entry.status === 'error'}
-						<AlertCircleIcon size={14} class="shrink-0 text-destructive" />
-					{:else if entry.status === 'complete'}
-						<CheckIcon size={14} class="shrink-0 text-chart-3" />
-					{:else if entry.status === 'started'}
-						<RefreshCwIcon size={14} class="shrink-0 animate-spin text-muted-foreground" />
-					{:else}
-						<ArrowRightIcon size={14} class="shrink-0 text-muted-foreground" />
-					{/if}
-
-					<span class="flex-1 truncate text-foreground">{describeEntry(entry)}</span>
-					<span class="shrink-0 text-xs text-muted-foreground">
-						{new Date(entry.timestamp).toLocaleTimeString()}
-					</span>
-				</li>
+				<AcerolaHeroButton
+					data={{
+						title: describeEntry(entry),
+						description: new Date(entry.timestamp).toLocaleTimeString()
+					}}
+				>
+					{#snippet icon()}
+						{#if entry.status === 'error'}
+							<AlertCircleIcon size={20} class="text-destructive" />
+						{:else if entry.status === 'complete'}
+							<CheckIcon size={20} class="text-chart-3" />
+						{:else if entry.status === 'started'}
+							<RefreshCwIcon size={20} class="animate-spin text-muted-foreground" />
+						{:else}
+							<ArrowRightIcon size={20} class="text-muted-foreground" />
+						{/if}
+					{/snippet}
+				</AcerolaHeroButton>
 			{/each}
-		</ul>
+		</div>
 	{/if}
 </AcerolaAccordionCard>
