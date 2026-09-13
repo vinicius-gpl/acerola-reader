@@ -77,10 +77,18 @@
   opções" do capítulo alinhado ao padrão visual do `ComicActionsSheet` da Home.
 - [x] **Home: abrir quadrinho no `AdaptiveSheet` com mais metadados** — feito: bottom sheet da
   Home agora mostra autor/ano/status/gêneros do quadrinho.
-- [ ] **Padronizar visual de ícones (compartilhado com Desktop)** — Formato "contorno": fundo
-  colorido (ex.: rosa) + ícone branco por dentro, estilo heroicon. Tamanho maior/com borda pra
-  ações principais ("hero"), ícones pequenos pra ações secundárias — consistente nas duas
-  telas. Mesmo pedido no Desktop — ver [`acerola/desktop/TODO.md`](../desktop/TODO.md).
+- [ ] **Padronizar TODOS os ícones-de-ação com bg "contorno" — sem exceção (compartilhado com
+  Desktop)** — Escopo ampliado (13/09/2026): não é só "ícone rosa", é a mistura de estilos que
+  já existe hoje entre telas — `HeroButton` (bg colorido + contorno) só é usado no Settings;
+  fora dele, ícones de ação usam `Icon` cru ou o wrapper `ActionListItem` sem `iconBackground`
+  (sem bg nenhum). Regra: **todo** ícone de ação precisa de chip com bg colorido por padrão.
+  Ícones semânticos (destructive = vermelho, status = cor do status) usam a própria cor
+  semântica como bg+ícone; ícones sem semântica própria (refresh, editar, ações neutras) usam o
+  token de accent novo (`accentContainer`/`onAccentContainer`, já adicionado em
+  `feature/ui-ux-polish` nos 4 temas). Piloto já feito nessa branch: ações neutras do
+  `ComicActionsSheet` (Bookmark/Hide/Sync Push/Sync Pull) + Clear Metadata em vermelho. Falta o
+  resto: FabGroup da Home, ícones soltos em telas fora do Settings, etc. Mesmo pedido no
+  Desktop — ver [`acerola/desktop/TODO.md`](../desktop/TODO.md).
 
 ## Testes
 
