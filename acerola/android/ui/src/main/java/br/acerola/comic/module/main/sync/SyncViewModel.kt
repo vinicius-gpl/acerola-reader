@@ -251,8 +251,7 @@ class SyncViewModel
                 is SyncAction.ProposeConnect -> proposeConnect(action.code)
                 SyncAction.ConfirmConnect -> confirmConnect()
                 SyncAction.CancelConnect -> _uiState.update { it.copy(pendingConnect = null) }
-                is SyncAction.SyncHistory, is SyncAction.SyncFiles, is SyncAction.SyncAll ->
-                    runSyncActionOrConfirm(action)
+                is SyncAction.MobileDataGated -> runSyncActionOrConfirm(action)
 
                 SyncAction.DismissTrustDialog -> _uiState.update { it.copy(trustedPeerDialogPeerId = null) }
                 SyncAction.DismissConnectError -> _uiState.update { it.copy(connectError = null) }
@@ -270,8 +269,6 @@ class SyncViewModel
                             browseLibraryErrorType = null,
                         )
                     }
-                is SyncAction.SyncComic -> runSyncActionOrConfirm(action)
-
                 is SyncAction.ToggleUseAcerolaRelay ->
                     viewModelScope.launch { RelayPreference.setUseAcerolaRelay(context, action.value) }
                 is SyncAction.ToggleUseIrohPublicNetwork ->
@@ -298,7 +295,7 @@ class SyncViewModel
          *  a ação em [SyncUiState.pendingMobileDataSync] pra confirmação (ver
          *  [MobileDataSyncDialog] em `SyncScreen`) quando o dispositivo está em dados móveis e o
          *  usuário ainda não marcou "sempre permitir"; senão, dispara na hora. */
-        private fun runSyncActionOrConfirm(action: SyncAction) {
+        private fun runSyncActionOrConfirm(action: SyncAction.MobileDataGated) {
             if (!_uiState.value.allowMobileDataSync && isOnCellularConnection(context)) {
                 _uiState.update { it.copy(pendingMobileDataSync = action) }
             } else {
@@ -306,7 +303,7 @@ class SyncViewModel
             }
         }
 
-        private fun performSyncAction(action: SyncAction) {
+        private fun performSyncAction(action: SyncAction.MobileDataGated) {
             when (action) {
                 is SyncAction.SyncHistory -> triggerSync(action.peerId, HISTORY_SYNC_ALPN, SYNC_KIND_HISTORY)
                 is SyncAction.SyncFiles -> triggerSync(action.peerId, FILE_SYNC_ALPN, SYNC_KIND_FILES)
@@ -315,7 +312,6 @@ class SyncViewModel
                     triggerSync(action.peerId, FILE_SYNC_ALPN, SYNC_KIND_FILES)
                 }
                 is SyncAction.SyncComic -> syncComic(action.peerId, action.comicName)
-                else -> Unit
             }
         }
 

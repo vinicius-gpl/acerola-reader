@@ -65,7 +65,7 @@ data class SyncUiState(
     /** Ação de sync (`SyncHistory`/`SyncFiles`/`SyncAll`/`SyncComic`) represada esperando a
      *  confirmação de [MobileDataSyncDialog] — só existe enquanto o dispositivo está em dados
      *  móveis e [allowMobileDataSync] é `false`. */
-    val pendingMobileDataSync: SyncAction? = null,
+    val pendingMobileDataSync: SyncAction.MobileDataGated? = null,
 )
 
 /**
