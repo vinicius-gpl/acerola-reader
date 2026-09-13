@@ -73,11 +73,10 @@
 - [ ] **Componente de Input/TextInput com visual próprio** — Hoje usa o estilo default do
   Material; quero um formato diferente/mais autoral (mesmo esforço de padronização visual do
   item de ícones abaixo).
-- [ ] **Capítulo: trocar o dialog de metadados por `AdaptiveSheet`** — Ao clicar num capítulo,
-  hoje abre um dialog de metadados; um `AdaptiveSheet` se encaixa melhor no padrão do resto do
-  app.
-- [ ] **Home: abrir quadrinho no `AdaptiveSheet` com mais metadados** — Na Home, ao abrir um
-  quadrinho no `AdaptiveSheet`, mostrar mais informações de metadado do que hoje.
+- [x] **Capítulo: trocar o dialog de metadados por `AdaptiveSheet`** — feito: menu de "mais
+  opções" do capítulo alinhado ao padrão visual do `ComicActionsSheet` da Home.
+- [x] **Home: abrir quadrinho no `AdaptiveSheet` com mais metadados** — feito: bottom sheet da
+  Home agora mostra autor/ano/status/gêneros do quadrinho.
 - [ ] **Padronizar visual de ícones (compartilhado com Desktop)** — Formato "contorno": fundo
   colorido (ex.: rosa) + ícone branco por dentro, estilo heroicon. Tamanho maior/com borda pra
   ações principais ("hero"), ícones pequenos pra ações secundárias — consistente nas duas
