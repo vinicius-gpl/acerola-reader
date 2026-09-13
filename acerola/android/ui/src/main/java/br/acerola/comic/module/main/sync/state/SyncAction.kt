@@ -17,17 +17,22 @@ sealed interface SyncAction {
 
     data object CancelConnect : SyncAction
 
+    /** Ações de sync represadas em [SyncUiState.pendingMobileDataSync] quando o dispositivo
+     *  está em dados móveis (ver `SyncViewModel.runSyncActionOrConfirm`) — tipo próprio (em vez
+     *  de aceitar qualquer [SyncAction]) pra manter o `when` de `performSyncAction` exaustivo. */
+    sealed interface MobileDataGated : SyncAction
+
     data class SyncHistory(
         val peerId: String,
-    ) : SyncAction
+    ) : MobileDataGated
 
     data class SyncFiles(
         val peerId: String,
-    ) : SyncAction
+    ) : MobileDataGated
 
     data class SyncAll(
         val peerId: String,
-    ) : SyncAction
+    ) : MobileDataGated
 
     data object DismissTrustDialog : SyncAction
 
@@ -56,7 +61,7 @@ sealed interface SyncAction {
     data class SyncComic(
         val peerId: String,
         val comicName: String,
-    ) : SyncAction
+    ) : MobileDataGated
 
     /** Todas as ações de relay abaixo persistem no DataStore E aplicam na hora
      *  (`P2pUseCase.applyRelaySettings`, troca o modo de relay num `Endpoint` que continua
