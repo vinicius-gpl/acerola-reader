@@ -11,6 +11,10 @@
 		};
 		ui?: {
 			class?: string;
+			/** Sobrescreve o fundo/cor padrão (`bg-muted text-foreground`) do círculo do ícone —
+			 *  pra casos como um status (sucesso/erro) onde o fundo tintado é o próprio contorno
+			 *  colorido do ícone, não um `bg-muted` genérico. */
+			iconClass?: string;
 		};
 	};
 
@@ -43,7 +47,10 @@
 	<div class="flex min-w-0 flex-1 items-center gap-4">
 		{#if icon}
 			<Item.Media
-				class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-muted text-foreground transition-colors group-hover:text-primary"
+				class={cn(
+					'flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-muted text-foreground transition-colors group-hover:text-primary',
+					ui?.iconClass
+				)}
 			>
 				{@render icon()}
 			</Item.Media>
