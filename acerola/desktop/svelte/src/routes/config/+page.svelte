@@ -204,10 +204,10 @@
 			}}
 			state={{ expanded: expandedCategories.has('files') }}
 			events={{ onToggle: () => toggleCategory('files') }}
-			ui={{ class: CATEGORY_HOVER_BORDER.files }}
+			ui={{ class: CATEGORY_HOVER_BORDER.files, iconClass: 'bg-chart-5 text-primary-foreground' }}
 		>
 			{#snippet icon()}
-				<FolderIcon class="text-chart-5" size={24} />
+				<FolderIcon size={24} />
 			{/snippet}
 
 			{#snippet children()}
@@ -219,9 +219,10 @@
 						})
 					}}
 					events={{ onClick: folder.selectFolder }}
+					ui={{ iconClass: 'bg-chart-5 text-primary-foreground' }}
 				>
 					{#snippet icon()}
-						<FolderIcon class="text-chart-5" size={24} />
+						<FolderIcon size={24} />
 					{/snippet}
 
 					{#snippet action()}
@@ -242,9 +243,10 @@
 								!(comicInfoPreference.comicInfoPreference ?? false)
 							)
 					}}
+					ui={{ iconClass: 'bg-chart-2 text-primary-foreground' }}
 				>
 					{#snippet icon()}
-						<FileTextIcon class="text-chart-2" size={24} />
+						<FileTextIcon size={24} />
 					{/snippet}
 
 					{#snippet action()}
@@ -269,10 +271,10 @@
 			}}
 			state={{ expanded: expandedCategories.has('library') }}
 			events={{ onToggle: () => toggleCategory('library') }}
-			ui={{ class: CATEGORY_HOVER_BORDER.library }}
+			ui={{ class: CATEGORY_HOVER_BORDER.library, iconClass: 'bg-chart-3 text-primary-foreground' }}
 		>
 			{#snippet icon()}
-				<FolderSync class="text-chart-3" size={24} />
+				<FolderSync size={24} />
 			{/snippet}
 
 			{#snippet children()}
@@ -282,9 +284,10 @@
 						description: m['pages.config.file_system.sync.fast.desc']()
 					}}
 					events={{ onClick: () => refreshScanner.start() }}
+					ui={{ iconClass: 'bg-chart-3 text-primary-foreground' }}
 				>
 					{#snippet icon()}
-						<FolderSync class="text-chart-3" size={24} />
+						<FolderSync size={24} />
 					{/snippet}
 
 					{#snippet action()}
@@ -300,9 +303,10 @@
 						description: m['pages.config.file_system.sync.deep.desc']()
 					}}
 					events={{ onClick: () => rebuildScanner.start() }}
+					ui={{ iconClass: 'bg-chart-1 text-primary-foreground' }}
 				>
 					{#snippet icon()}
-						<FolderSync class="text-chart-1" size={24} />
+						<FolderSync size={24} />
 					{/snippet}
 
 					{#snippet action()}
@@ -318,9 +322,10 @@
 						description: m['pages.config.templates.nav.desc']()
 					}}
 					events={{ onClick: () => goto('/config/templates') }}
+					ui={{ iconClass: 'bg-chart-2 text-primary-foreground' }}
 				>
 					{#snippet icon()}
-						<FileCode2 class="text-chart-2" size={24} />
+						<FileCode2 size={24} />
 					{/snippet}
 
 					{#snippet action()}
@@ -342,10 +347,10 @@
 			}}
 			state={{ expanded: true }}
 			events={{ onToggle: () => {} }}
-			ui={{ collapsible: false }}
+			ui={{ collapsible: false, iconClass: 'bg-chart-1 text-primary-foreground' }}
 		>
 			{#snippet icon()}
-				<PaletteIcon class="text-chart-1" size={24} />
+				<PaletteIcon size={24} />
 			{/snippet}
 
 			{#snippet children()}
@@ -365,10 +370,10 @@
 			}}
 			state={{ expanded: expandedCategories.has('metadata') }}
 			events={{ onToggle: () => toggleCategory('metadata') }}
-			ui={{ class: CATEGORY_HOVER_BORDER.metadata }}
+			ui={{ class: CATEGORY_HOVER_BORDER.metadata, iconClass: 'bg-chart-4 text-primary-foreground' }}
 		>
 			{#snippet icon()}
-				<CloudSync class="text-chart-4" size={24} />
+				<CloudSync size={24} />
 			{/snippet}
 
 			{#snippet children()}
@@ -377,9 +382,10 @@
 						title: m['pages.config.metadata.lang.title'](),
 						description: m['pages.config.metadata.lang.desc']()
 					}}
+					ui={{ iconClass: 'bg-chart-4 text-primary-foreground' }}
 				>
 					{#snippet icon()}
-						<LanguagesIcon class="text-chart-4" size={24} />
+						<LanguagesIcon size={24} />
 					{/snippet}
 
 					{#snippet action()}
@@ -405,7 +411,7 @@
 								<div class="flex flex-col">
 									<div class="border-b border-border/40 bg-muted/20 px-4 py-3">
 										<div class="flex items-start gap-3">
-											<div class="rounded-xl bg-chart-4/10 p-2 text-chart-4">
+											<div class="rounded-xl bg-chart-4 p-2 text-primary-foreground">
 												<LanguagesIcon size={18} />
 											</div>
 											<div class="min-w-0">
@@ -511,10 +517,10 @@
 			}}
 			state={{ expanded: true }}
 			events={{ onToggle: () => {} }}
-			ui={{ collapsible: false }}
+			ui={{ collapsible: false, iconClass: 'bg-chart-2 text-primary-foreground' }}
 		>
 			{#snippet icon()}
-				<BookmarkIcon class="text-chart-2" size={24} />
+				<BookmarkIcon size={24} />
 			{/snippet}
 
 			{#snippet children()}

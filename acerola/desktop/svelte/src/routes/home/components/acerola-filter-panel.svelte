@@ -39,6 +39,7 @@
 	import Eye from '@lucide/svelte/icons/eye';
 	import Bookmark from '@lucide/svelte/icons/bookmark';
 	import AcerolaSwitch from '$lib/components/acerola-switch/acerola-switch.svelte';
+	import AcerolaButtonIcon from '$lib/components/acerola-button/acerola-button-icon.svelte';
 	import { m } from '$lib/paraglide/messages';
 
 	let { state: controlState, data, events }: FilterPanelProps = $props();
@@ -181,14 +182,17 @@
 					{/if}
 				</div>
 			</div>
-			<button
-				type="button"
-				aria-label={m['pages.home.filter_panel.close_aria']()}
-				class="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
-				onclick={events.onClose}
+			<AcerolaButtonIcon
+				events={{ onClick: events.onClose }}
+				ui={{
+					variant: 'ghost',
+					tone: 'muted',
+					class: 'h-8 w-8',
+					'aria-label': m['pages.home.filter_panel.close_aria']()
+				}}
 			>
 				<X size={18} />
-			</button>
+			</AcerolaButtonIcon>
 		</div>
 
 		<!-- Content - scrollable -->

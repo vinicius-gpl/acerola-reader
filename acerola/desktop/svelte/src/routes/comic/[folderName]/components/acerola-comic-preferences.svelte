@@ -119,10 +119,10 @@
 		}}
 		state={{ expanded: expandedCategories.has('reading') }}
 		events={{ onToggle: () => toggleCategory('reading') }}
-		ui={{ class: CATEGORY_HOVER_BORDER.reading }}
+		ui={{ class: CATEGORY_HOVER_BORDER.reading, iconClass: 'bg-chart-2 text-primary-foreground' }}
 	>
 		{#snippet icon()}
-			<Settings2 class="text-chart-2" size={24} />
+			<Settings2 size={24} />
 		{/snippet}
 
 		{#snippet children()}
@@ -133,9 +133,10 @@
 						title: m['pages.comic.preferences.volume_highlight.title'](),
 						description: m['pages.comic.preferences.volume_highlight.desc']()
 					}}
+					ui={{ iconClass: 'bg-chart-2 text-primary-foreground' }}
 				>
 					{#snippet icon()}
-						<Layers class="text-chart-2" size={24} />
+						<Layers size={24} />
 					{/snippet}
 
 					{#snippet action()}
@@ -173,9 +174,10 @@
 					title: m['pages.comic.preferences.bookmark.title'](),
 					description: m['pages.comic.preferences.bookmark.desc']()
 				}}
+				ui={{ iconClass: 'bg-chart-4 text-primary-foreground' }}
 			>
 				{#snippet icon()}
-					<BookmarkIcon class="text-chart-4" size={24} />
+					<BookmarkIcon size={24} />
 				{/snippet}
 
 				{#snippet action()}
@@ -209,10 +211,10 @@
 		}}
 		state={{ expanded: true }}
 		events={{ onToggle: () => {} }}
-		ui={{ collapsible: false }}
+		ui={{ collapsible: false, iconClass: 'bg-chart-1 text-primary-foreground' }}
 	>
 		{#snippet icon()}
-			<CloudSync class="text-chart-1" size={24} />
+			<CloudSync size={24} />
 		{/snippet}
 
 		{#snippet children()}
@@ -239,6 +241,7 @@
 						events={{
 							onClick: () => events.onExternalSyncChange(!preferences.externalSyncEnabled)
 						}}
+						ui={{ iconClass: 'bg-chart-4 text-primary-foreground' }}
 					>
 						{#snippet icon()}
 							<Link size={18} />
@@ -311,10 +314,11 @@
 						events={{
 							onClick: preferences.metadataSyncing ? undefined : events.onSyncComicInfo
 						}}
+						ui={{ iconClass: 'bg-chart-5 text-primary-foreground' }}
 					>
 						{#snippet icon()}
 							<span style="all: unset; display: inline-flex;">
-								<FileText class="h-6 w-6 text-foreground" />
+								<FileText class="h-6 w-6" />
 							</span>
 						{/snippet}
 
@@ -348,9 +352,10 @@
 							description: m['pages.comic.preferences.file_sync.rescan.desc']()
 						}}
 						events={{ onClick: events.onRescanComic }}
+						ui={{ iconClass: 'bg-chart-1 text-primary-foreground' }}
 					>
 						{#snippet icon()}
-							<FolderSync class="text-chart-1" size={24} />
+							<FolderSync size={24} />
 						{/snippet}
 
 						{#snippet action()}
@@ -366,9 +371,10 @@
 							description: m['pages.comic.preferences.file_sync.deep_rescan.desc']()
 						}}
 						events={{ onClick: () => (showDeepRescanDialog = true) }}
+						ui={{ iconClass: 'bg-destructive text-destructive-foreground' }}
 					>
 						{#snippet icon()}
-							<DatabaseZap class="text-destructive" size={24} />
+							<DatabaseZap size={24} />
 						{/snippet}
 
 						{#snippet action()}
@@ -399,9 +405,10 @@
 								title: m['pages.comic.preferences.p2p_sync.send.title'](),
 								description: m['pages.comic.preferences.p2p_sync.send.desc']()
 							}}
+							ui={{ iconClass: 'bg-chart-1 text-primary-foreground' }}
 						>
 							{#snippet icon()}
-								<Share2 class="text-chart-1" size={24} />
+								<Share2 size={24} />
 							{/snippet}
 
 							{#snippet action()}
@@ -431,7 +438,7 @@
 													class="flex items-center gap-3 rounded-2xl border border-border/50 bg-muted/30 p-3"
 												>
 													<div
-														class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted text-foreground"
+														class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-hero text-accent-hero-foreground"
 													>
 														<MonitorSmartphone size={20} />
 													</div>
@@ -451,7 +458,7 @@
 																ui={{
 																	variant: 'ghost',
 																	class:
-																		'size-9 rounded-xl bg-chart-1/10 text-chart-1 transition-colors hover:bg-chart-1 hover:text-primary-foreground',
+																		'size-9 rounded-xl bg-chart-1 text-primary-foreground transition-colors hover:bg-chart-1/85',
 																	title: m['pages.comic.preferences.p2p_sync.send.push']()
 																}}
 																events={{
@@ -467,7 +474,7 @@
 																ui={{
 																	variant: 'ghost',
 																	class:
-																		'size-9 rounded-xl bg-chart-3/10 text-chart-3 transition-colors hover:bg-chart-3 hover:text-primary-foreground',
+																		'size-9 rounded-xl bg-chart-3 text-primary-foreground transition-colors hover:bg-chart-3/85',
 																	title: m['pages.comic.preferences.p2p_sync.send.pull']()
 																}}
 																events={{
@@ -502,10 +509,10 @@
 		}}
 		state={{ expanded: expandedCategories.has('advanced') }}
 		events={{ onToggle: () => toggleCategory('advanced') }}
-		ui={{ class: CATEGORY_HOVER_BORDER.advanced }}
+		ui={{ class: CATEGORY_HOVER_BORDER.advanced, iconClass: 'bg-chart-3 text-primary-foreground' }}
 	>
 		{#snippet icon()}
-			<Image class="text-chart-3" size={24} />
+			<Image size={24} />
 		{/snippet}
 
 		{#snippet children()}
@@ -524,9 +531,10 @@
 							description: m['pages.comic.preferences.cover.regenerate.desc']()
 						}}
 						events={{ onClick: events.onRegenerateCover }}
+						ui={{ iconClass: 'bg-chart-2 text-primary-foreground' }}
 					>
 						{#snippet icon()}
-							<Image class="text-chart-2" size={24} />
+							<Image size={24} />
 						{/snippet}
 
 						{#snippet action()}
@@ -543,9 +551,10 @@
 								description: m['pages.comic.preferences.cover.regenerate_volumes.desc']()
 							}}
 							events={{ onClick: events.onRegenerateVolumeCovers }}
+							ui={{ iconClass: 'bg-chart-3 text-primary-foreground' }}
 						>
 							{#snippet icon()}
-								<Layers2 class="text-chart-3" size={24} />
+								<Layers2 size={24} />
 							{/snippet}
 
 							{#snippet action()}
@@ -573,9 +582,10 @@
 							description: m['pages.comic.preferences.danger_zone.clear_metadata.desc']()
 						}}
 						events={{ onClick: () => (showClearMetadataDialog = true) }}
+						ui={{ iconClass: 'bg-destructive text-destructive-foreground' }}
 					>
 						{#snippet icon()}
-							<Eraser class="text-destructive" size={24} />
+							<Eraser size={24} />
 						{/snippet}
 					</AcerolaHeroButton>
 				</div>

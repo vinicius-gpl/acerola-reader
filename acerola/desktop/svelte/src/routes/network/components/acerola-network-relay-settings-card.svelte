@@ -199,6 +199,7 @@
 	data={{ title: m['pages.network.relay_settings.title'](), description: summary }}
 	state={{ expanded }}
 	events={{ onToggle: () => (expanded = !expanded) }}
+	ui={{ iconClass: 'bg-accent-hero text-accent-hero-foreground' }}
 >
 	{#snippet icon()}
 		<WifiIcon size={20} />
@@ -215,7 +216,10 @@
 			}}
 			state={{ active: safeData.useAcerolaRelay }}
 			events={{ onClick: () => toggleAcerolaRelay(!safeData.useAcerolaRelay) }}
-			ui={{ disabled: safeData.useIrohPublicNetwork || restarting }}
+			ui={{
+				disabled: safeData.useIrohPublicNetwork || restarting,
+				iconClass: 'bg-chart-5 text-primary-foreground'
+			}}
 		>
 			{#snippet icon()}
 				<ServerIcon size={18} />
@@ -233,7 +237,10 @@
 			}}
 			state={{ active: safeData.customRelayUrls.length > 0, expanded: customExpanded }}
 			events={{ onClick: () => (customExpanded = !customExpanded) }}
-			ui={{ class: safeData.useIrohPublicNetwork ? 'opacity-50' : undefined }}
+			ui={{
+				class: safeData.useIrohPublicNetwork ? 'opacity-50' : undefined,
+				iconClass: 'bg-chart-2 text-primary-foreground'
+			}}
 		>
 			{#snippet icon()}
 				<NetworkIcon size={18} />
@@ -314,7 +321,7 @@
 				class="flex w-full items-center gap-3 p-4 text-left enabled:cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
 			>
 				<div
-					class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted text-foreground"
+					class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-chart-4 text-primary-foreground"
 				>
 					<GlobeIcon size={18} />
 				</div>

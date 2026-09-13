@@ -97,13 +97,13 @@
 		entries.length > 0 ? describeEntry(entries[0]) : m['pages.network.transfers.empty']()
 	);
 
-	// Fundo do círculo do ícone tintado pelo status (contorno colorido em volta do ícone, não
-	// o `bg-muted` genérico padrão do AcerolaHeroButton) — a cor do ícone em si continua vindo
-	// de cada branch do snippet `icon` abaixo.
+	// Fundo do círculo do ícone SÓLIDO tintado pelo status (o bg contorna o ícone, que fica
+	// numa cor de foreground neutra por cima) — não o `bg-muted` genérico padrão do
+	// AcerolaHeroButton.
 	function iconBackgroundClass(entry: TransferLogEntry): string {
-		if (entry.status === 'error') return 'bg-destructive/15';
-		if (entry.status === 'complete') return 'bg-chart-3/15';
-		return 'bg-muted';
+		if (entry.status === 'error') return 'bg-destructive text-destructive-foreground';
+		if (entry.status === 'complete') return 'bg-chart-3 text-primary-foreground';
+		return 'bg-muted text-muted-foreground';
 	}
 </script>
 
@@ -111,6 +111,7 @@
 	data={{ title: m['pages.network.transfers.title'](), description: summary }}
 	state={{ expanded }}
 	events={{ onToggle: () => (expanded = !expanded) }}
+	ui={{ iconClass: 'bg-accent-hero text-accent-hero-foreground' }}
 >
 	{#snippet icon()}
 		<ArrowLeftRightIcon size={20} />
@@ -170,13 +171,13 @@
 				>
 					{#snippet icon()}
 						{#if entry.status === 'error'}
-							<AlertCircleIcon size={20} class="text-destructive" />
+							<AlertCircleIcon size={20} />
 						{:else if entry.status === 'complete'}
-							<CheckIcon size={20} class="text-chart-3" />
+							<CheckIcon size={20} />
 						{:else if entry.status === 'started'}
-							<RefreshCwIcon size={20} class="animate-spin text-muted-foreground" />
+							<RefreshCwIcon size={20} class="animate-spin" />
 						{:else}
-							<ArrowRightIcon size={20} class="text-muted-foreground" />
+							<ArrowRightIcon size={20} />
 						{/if}
 					{/snippet}
 				</AcerolaHeroButton>

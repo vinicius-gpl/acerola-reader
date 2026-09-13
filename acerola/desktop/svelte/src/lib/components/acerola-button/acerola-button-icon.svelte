@@ -1,16 +1,21 @@
 <script module lang="ts">
 	import { Button, type ButtonProps } from '$lib/components/ui/button';
 
-	// Padrão "contorno": chip com bg colorido por padrão (não só no hover). `accent` é pra
-	// ações sem significado semântico próprio (refresh, editar, navegar); as outras cores
-	// carregam o significado da própria ação (perigo, sucesso, dispensar/cancelar).
+	// Padrão "contorno": bg SÓLIDO colorido por padrão (não só no hover) com o ícone na cor
+	// de foreground por cima — o bg contorna o ícone, não o contrário. `accent` é pra ações
+	// sem significado semântico próprio (refresh, editar, navegar); as outras cores carregam
+	// o significado da própria ação (perigo, sucesso, dispensar/cancelar).
 	export type AcerolaButtonIconTone = 'accent' | 'destructive' | 'success' | 'muted';
 
+	// hover:brightness-110 é o mesmo mecanismo usado no ícone do AcerolaHeroButton/
+	// AcerolaAccordionCard/AcerolaToggleCard — funciona igual pra qualquer cor de bg, sem
+	// precisar de uma variante /85 por tom.
 	const TONE_CLASS: Record<AcerolaButtonIconTone, string> = {
-		accent: 'bg-accent-hero/15 text-accent-hero hover:bg-accent-hero/25',
-		destructive: 'bg-destructive/15 text-destructive hover:bg-destructive/25',
-		success: 'bg-chart-4/15 text-chart-4 hover:bg-chart-4/25',
-		muted: 'bg-muted text-muted-foreground hover:bg-muted/70'
+		accent: 'bg-accent-hero text-accent-hero-foreground transition-[filter] hover:brightness-110',
+		destructive:
+			'bg-destructive text-destructive-foreground transition-[filter] hover:brightness-110',
+		success: 'bg-chart-4 text-primary-foreground transition-[filter] hover:brightness-110',
+		muted: 'bg-muted text-muted-foreground transition-[filter] hover:brightness-110'
 	};
 
 	export type AcerolaButtonIconProps = {

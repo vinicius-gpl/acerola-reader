@@ -20,6 +20,9 @@
 			 *  de relay colapsa e o resto fica direto na tela). Default `true` (comportamento
 			 *  de sempre, sem quebrar nenhum uso existente). */
 			collapsible?: boolean;
+			/** Sobrescreve o fundo/cor padrão (`bg-muted text-foreground`) do círculo do ícone —
+			 *  mesmo padrão do `ui.iconClass` do AcerolaHeroButton. */
+			iconClass?: string;
 		};
 	};
 
@@ -50,7 +53,7 @@
 {#snippet header()}
 	{#if icon}
 		<div
-			class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-muted text-foreground transition-colors group-hover:text-primary"
+			class={cn('flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-muted text-foreground transition-[filter] group-hover:brightness-110', ui?.iconClass)}
 		>
 			{@render icon()}
 		</div>

@@ -130,6 +130,7 @@
 							title: peer.nickname ?? peer.deviceName ?? shortId(peer.peerId),
 							description: data.statusLabel(peer)
 						}}
+						ui={{ iconClass: 'bg-accent-hero text-accent-hero-foreground' }}
 					>
 						{#snippet icon()}
 							<div class="relative flex h-full w-full items-center justify-center">
@@ -158,7 +159,7 @@
 								>
 									{#snippet trigger()}
 										<span
-											class="text-overlay flex size-8 items-center justify-center rounded-xl transition-colors hover:bg-surface/60 hover:text-primary"
+											class="flex size-8 items-center justify-center rounded-xl bg-accent-hero text-accent-hero-foreground transition-[filter] hover:brightness-110"
 										>
 											<MoreVerticalIcon size={16} />
 											<span class="sr-only">{m['pages.network.peers.more_actions']()}</span>

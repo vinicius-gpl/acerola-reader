@@ -48,7 +48,7 @@
 		{#if icon}
 			<Item.Media
 				class={cn(
-					'flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-muted text-foreground transition-colors group-hover:text-primary',
+					'flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-muted text-foreground transition-[filter] group-hover:brightness-110',
 					ui?.iconClass
 				)}
 			>

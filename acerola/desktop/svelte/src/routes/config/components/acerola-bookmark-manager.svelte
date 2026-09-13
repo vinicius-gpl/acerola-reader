@@ -42,6 +42,7 @@
 					data={{ title: m['pages.config.bookmarks.add']() }}
 					state={{ active: false, expanded: createExpanded }}
 					events={{ onClick: () => (createExpanded = !createExpanded) }}
+					ui={{ iconClass: 'bg-accent-hero text-accent-hero-foreground' }}
 				>
 					{#snippet icon()}
 						<PlusIcon size={18} />
