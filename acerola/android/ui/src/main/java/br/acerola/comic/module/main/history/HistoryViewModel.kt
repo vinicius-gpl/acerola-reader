@@ -21,6 +21,7 @@ import br.acerola.comic.usecase.history.ObserveHistoryUseCase
 import br.acerola.comic.usecase.metadata.ManageCategoriesUseCase
 import br.acerola.comic.usecase.network.P2pUseCase
 import br.acerola.comic.usecase.network.SyncHistoryWithPeerUseCase
+import br.acerola.comic.usecase.network.SyncWithPeerResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -99,15 +100,14 @@ class HistoryViewModel
         fun syncHistoryWithPeer(peerId: String) {
             AcerolaLogger.audit(TAG, "Syncing history with peer", LogSource.VIEWMODEL, mapOf("peerId" to peerId))
 
-            val fired = syncHistoryWithPeerUseCase(peerId)
-            if (!fired) {
-                viewModelScope.launch {
-                    _uiEvents.send(UserMessage.Raw(UiText.StringResource(R.string.error_sync_comic_peer_not_paired)))
+            viewModelScope.launch(Dispatchers.IO) {
+                when (syncHistoryWithPeerUseCase(peerId)) {
+                    SyncWithPeerResult.NOT_PAIRED ->
+                        _uiEvents.send(UserMessage.Raw(UiText.StringResource(R.string.error_sync_comic_peer_not_paired)))
+                    SyncWithPeerResult.DECLINED_MOBILE_DATA -> Unit
+                    SyncWithPeerResult.STARTED -> _syncingPeerId.value = peerId
                 }
-                return
             }
-
-            _syncingPeerId.value = peerId
         }
 
         @OptIn(ExperimentalCoroutinesApi::class)

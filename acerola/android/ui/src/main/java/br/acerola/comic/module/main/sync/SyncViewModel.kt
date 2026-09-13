@@ -453,7 +453,12 @@ class SyncViewModel
                 }
                 // Vem da navegação da biblioteca remota (`RemoteLibrarySheet`) — o usuário só
                 // pode escolher um quadrinho que ainda não tem, então é sempre pull.
-                p2pUseCase.syncComic(addr, comicName, SyncDirection.PULL)
+                val started = p2pUseCase.syncComic(addr, comicName, SyncDirection.PULL)
+                // Usuário recusou dados móveis (ver `MobileDataSyncGate`) — sem isso o spinner
+                // ficava preso até o timeout de 60s esperando um evento que nunca chega.
+                if (!started) {
+                    _uiState.update { it.copy(syncingKeys = it.syncingKeys - key) }
+                }
             }
         }
 
@@ -545,14 +550,24 @@ class SyncViewModel
                     }
 
                 val peerAddress = PeerAddress(id = pending.peerId, deviceId = pending.deviceId, addrs = pending.addrs)
-                withContext(Dispatchers.IO) {
-                    p2pUseCase.connect(peerAddress, HANDSHAKE_ALPN.toByteArray())
+                val started =
+                    withContext(Dispatchers.IO) {
+                        p2pUseCase.connect(peerAddress, HANDSHAKE_ALPN.toByteArray())
+                    }
+
+                // Usuário recusou dados móveis (ver `MobileDataSyncGate`) — nada foi disparado,
+                // e isso não é uma falha de conexão (mostrar `CONNECTION_FAILED` aqui seria
+                // enganoso). Cancela a espera pelo handshake em vez de deixá-la estourar os 15s
+                // de `CONNECT_TIMEOUT_MS` à toa.
+                if (!started) {
+                    handshakeCompleted.cancel()
+                    _uiState.update { it.copy(connecting = false) }
+                    return@launch
                 }
 
-                // `p2pUseCase.connect` is fire-and-forget over the FFI (no synchronous
-                // success/error return) — the handshake event is the most precise signal we
-                // have today that "this actually worked". Without it within the timeout, we
-                // treat it as a failure.
+                // `p2pUseCase.connect` é fire-and-forget sobre a FFI (sem retorno síncrono de
+                // sucesso/erro) — o evento de handshake é o sinal mais preciso que temos hoje de
+                // que isso realmente funcionou. Sem ele dentro do timeout, tratamos como falha.
                 val succeeded = handshakeCompleted.await() ?: false
 
                 _uiState.update {
@@ -586,7 +601,12 @@ class SyncViewModel
                     _uiState.update { it.copy(syncingKeys = it.syncingKeys - key) }
                     return@launch
                 }
-                p2pUseCase.connect(addr, alpn.toByteArray())
+                val started = p2pUseCase.connect(addr, alpn.toByteArray())
+                // Usuário recusou dados móveis (ver `MobileDataSyncGate`) — sem isso o spinner
+                // ficava preso até o timeout de 60s esperando um evento que nunca chega.
+                if (!started) {
+                    _uiState.update { it.copy(syncingKeys = it.syncingKeys - key) }
+                }
             }
         }
 
