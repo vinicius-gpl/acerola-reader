@@ -44,6 +44,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import br.acerola.comic.common.ux.Acerola
+import br.acerola.comic.common.ux.component.ActionIcon
 import br.acerola.comic.common.ux.component.BookmarkRibbon
 import br.acerola.comic.common.ux.component.ImageCard
 import br.acerola.comic.common.ux.theme.AcerolaTheme
@@ -388,20 +389,12 @@ fun Main.Common.Component.ComicListItem(
         }
 
         if (onShowActions != null) {
-            IconButton(
+            Acerola.Component.ActionIcon(
+                icon = Icons.Default.MoreVert,
                 onClick = onShowActions,
-                modifier =
-                    Modifier
-                        .align(Alignment.CenterVertically)
-                        .size(SpacingTokens.Giant),
-            ) {
-                Icon(
-                    imageVector = Icons.Default.MoreVert,
-                    contentDescription = stringResource(id = R.string.description_icon_chapter_more_options),
-                    modifier = Modifier.size(SizeTokens.IconSmall),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+                contentDescription = stringResource(id = R.string.description_icon_chapter_more_options),
+                modifier = Modifier.align(Alignment.CenterVertically),
+            )
         }
     }
 }

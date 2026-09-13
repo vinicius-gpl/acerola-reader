@@ -92,6 +92,7 @@ import br.acerola.comic.common.state.LocalSnackbarHostState
 import br.acerola.comic.common.state.SyncActionVisualState
 import br.acerola.comic.common.viewmodel.network.MobileDataSyncViewModel
 import br.acerola.comic.common.ux.Acerola
+import br.acerola.comic.common.ux.component.ActionIcon
 import br.acerola.comic.common.ux.component.AccordionCard
 import br.acerola.comic.common.ux.component.AdaptiveSheet
 import br.acerola.comic.common.ux.component.Dialog
@@ -102,6 +103,7 @@ import br.acerola.comic.common.ux.component.SnackbarVariant
 import br.acerola.comic.common.ux.component.SyncActionIcon
 import br.acerola.comic.common.ux.component.ToggleCard
 import br.acerola.comic.common.ux.component.showSnackbar
+import br.acerola.comic.common.ux.theme.AcerolaExtendedTheme
 import br.acerola.comic.common.ux.theme.AcerolaTheme
 import br.acerola.comic.common.ux.tokens.ShapeTokens
 import br.acerola.comic.common.ux.tokens.SizeTokens
@@ -373,22 +375,25 @@ private fun ThisDeviceSection(
                     singleLine = true,
                     modifier = Modifier.weight(1f),
                 )
-                IconButton(
+                Acerola.Component.ActionIcon(
+                    icon = Icons.Default.Check,
                     enabled = nameDraft.isNotBlank(),
                     onClick = {
                         onAction(SyncAction.RenameDevice(nameDraft))
                         scope.launch { snackbarHostState.showSnackbar(renamedMessage, SnackbarVariant.Success) }
                         editingName = false
                     },
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = stringResource(id = R.string.action_sync_rename_save),
-                    )
-                }
-                IconButton(onClick = { editingName = false }) {
-                    Icon(imageVector = Icons.Default.Close, contentDescription = stringResource(id = R.string.action_cancel))
-                }
+                    contentDescription = stringResource(id = R.string.action_sync_rename_save),
+                    iconTint = AcerolaExtendedTheme.colors.onSuccessContainer,
+                    iconBackground = AcerolaExtendedTheme.colors.successContainer,
+                )
+                Acerola.Component.ActionIcon(
+                    icon = Icons.Default.Close,
+                    onClick = { editingName = false },
+                    contentDescription = stringResource(id = R.string.action_cancel),
+                    iconTint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    iconBackground = MaterialTheme.colorScheme.surfaceVariant,
+                )
             }
         }
         return
@@ -408,15 +413,14 @@ private fun ThisDeviceSection(
         },
         action = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = {
-                    nameDraft = uiState.localDeviceName
-                    editingName = true
-                }) {
-                    Icon(
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = stringResource(id = R.string.action_sync_rename_device),
-                    )
-                }
+                Acerola.Component.ActionIcon(
+                    icon = Icons.Default.Edit,
+                    onClick = {
+                        nameDraft = uiState.localDeviceName
+                        editingName = true
+                    },
+                    contentDescription = stringResource(id = R.string.action_sync_rename_device),
+                )
                 OutlinedButton(onClick = {
                     clipboardManager.setText(AnnotatedString(uiState.localId))
                     scope.launch { snackbarHostState.showSnackbar(copiedMessage, SnackbarVariant.Success) }
@@ -845,14 +849,14 @@ private fun RelayUrlListEditor(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )
-                IconButton(enabled = enabled, onClick = { onRemove(url) }) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = removeContentDescription,
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(SizeTokens.IconSmall),
-                    )
-                }
+                Acerola.Component.ActionIcon(
+                    icon = Icons.Default.Delete,
+                    enabled = enabled,
+                    onClick = { onRemove(url) },
+                    contentDescription = removeContentDescription,
+                    iconTint = MaterialTheme.colorScheme.error,
+                    iconBackground = MaterialTheme.colorScheme.errorContainer,
+                )
             }
         }
 
@@ -871,7 +875,8 @@ private fun RelayUrlListEditor(
                 enabled = enabled,
                 modifier = Modifier.weight(1f),
             )
-            IconButton(
+            Acerola.Component.ActionIcon(
+                icon = Icons.Default.Add,
                 enabled = enabled && draft.isNotBlank(),
                 onClick = {
                     val trimmed = draft.trim()
@@ -883,9 +888,7 @@ private fun RelayUrlListEditor(
                         showError = true
                     }
                 },
-            ) {
-                Icon(imageVector = Icons.Default.Add, contentDescription = null)
-            }
+            )
         }
 
         if (showError) {
@@ -987,18 +990,23 @@ private fun PeerRow(
                         singleLine = true,
                         modifier = Modifier.weight(1f),
                     )
-                    IconButton(onClick = {
-                        onAction(SyncAction.RenamePeer(peer.peerId, nicknameDraft))
-                        editingNickname = false
-                    }) {
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = stringResource(id = R.string.action_sync_rename_save),
-                        )
-                    }
-                    IconButton(onClick = { editingNickname = false }) {
-                        Icon(imageVector = Icons.Default.Close, contentDescription = stringResource(id = R.string.action_cancel))
-                    }
+                    Acerola.Component.ActionIcon(
+                        icon = Icons.Default.Check,
+                        onClick = {
+                            onAction(SyncAction.RenamePeer(peer.peerId, nicknameDraft))
+                            editingNickname = false
+                        },
+                        contentDescription = stringResource(id = R.string.action_sync_rename_save),
+                        iconTint = AcerolaExtendedTheme.colors.onSuccessContainer,
+                        iconBackground = AcerolaExtendedTheme.colors.successContainer,
+                    )
+                    Acerola.Component.ActionIcon(
+                        icon = Icons.Default.Close,
+                        onClick = { editingNickname = false },
+                        contentDescription = stringResource(id = R.string.action_cancel),
+                        iconTint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        iconBackground = MaterialTheme.colorScheme.surfaceVariant,
+                    )
                 }
                 Text(
                     text = stringResource(id = R.string.label_sync_rename_peer_hint),
@@ -1072,12 +1080,11 @@ private fun PeerRow(
         action = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box {
-                    IconButton(onClick = { menuExpanded = true }) {
-                        Icon(
-                            imageVector = Icons.Default.MoreVert,
-                            contentDescription = stringResource(id = R.string.description_icon_sync_peer_more_actions),
-                        )
-                    }
+                    Acerola.Component.ActionIcon(
+                        icon = Icons.Default.MoreVert,
+                        onClick = { menuExpanded = true },
+                        contentDescription = stringResource(id = R.string.description_icon_sync_peer_more_actions),
+                    )
                     DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                         DropdownMenuItem(
                             text = { Text(stringResource(id = R.string.action_sync_history)) },
@@ -1343,9 +1350,11 @@ private fun ConnectTabContent(
             modifier = Modifier.weight(1f),
         )
 
-        IconButton(onClick = onScan) {
-            Icon(imageVector = Icons.Default.QrCodeScanner, contentDescription = stringResource(id = R.string.action_sync_scan_code))
-        }
+        Acerola.Component.ActionIcon(
+            icon = Icons.Default.QrCodeScanner,
+            onClick = onScan,
+            contentDescription = stringResource(id = R.string.action_sync_scan_code),
+        )
     }
 
     Spacer(modifier = Modifier.height(SpacingTokens.Small))

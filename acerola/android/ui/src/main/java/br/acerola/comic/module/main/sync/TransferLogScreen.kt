@@ -48,6 +48,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import br.acerola.comic.common.ux.Acerola
+import br.acerola.comic.common.ux.component.ActionIcon
 import br.acerola.comic.common.ux.component.Dialog
 import br.acerola.comic.common.ux.component.DialogButton
 import br.acerola.comic.common.ux.theme.AcerolaTheme
@@ -87,12 +88,11 @@ fun Main.Sync.Template.TransferLogScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(id = R.string.description_icon_navigation_back),
-                        )
-                    }
+                    Acerola.Component.ActionIcon(
+                        icon = Icons.AutoMirrored.Filled.ArrowBack,
+                        onClick = onBack,
+                        contentDescription = stringResource(id = R.string.description_icon_navigation_back),
+                    )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
             )

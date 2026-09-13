@@ -22,6 +22,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import br.acerola.comic.common.ux.Acerola
+import br.acerola.comic.common.ux.component.ActionIcon
 import br.acerola.comic.common.ux.component.AdaptiveSheet
 import br.acerola.comic.common.ux.theme.AcerolaTheme
 import br.acerola.comic.config.preference.types.ChapterSortPreferenceData
@@ -75,28 +76,26 @@ fun Comic.Component.ChapterSortSheet(
                         style = MaterialTheme.typography.bodyLarge,
                     )
                     if (sortSettings.type == type) {
-                        IconButton(onClick = {
-                            onSortChange(
-                                sortSettings.copy(
-                                    direction =
-                                        if (sortSettings.direction == SortDirection.ASCENDING) {
-                                            SortDirection.DESCENDING
-                                        } else {
-                                            SortDirection.ASCENDING
-                                        },
-                                ),
-                            )
-                        }) {
-                            Icon(
-                                imageVector =
-                                    if (sortSettings.direction == SortDirection.ASCENDING) {
-                                        Icons.Default.ArrowUpward
-                                    } else {
-                                        Icons.Default.ArrowDownward
-                                    },
-                                contentDescription = null,
-                            )
-                        }
+                        Acerola.Component.ActionIcon(
+                            icon =
+                                if (sortSettings.direction == SortDirection.ASCENDING) {
+                                    Icons.Default.ArrowUpward
+                                } else {
+                                    Icons.Default.ArrowDownward
+                                },
+                            onClick = {
+                                onSortChange(
+                                    sortSettings.copy(
+                                        direction =
+                                            if (sortSettings.direction == SortDirection.ASCENDING) {
+                                                SortDirection.DESCENDING
+                                            } else {
+                                                SortDirection.ASCENDING
+                                            },
+                                    ),
+                                )
+                            },
+                        )
                         Icon(
                             imageVector = Icons.Default.Check,
                             contentDescription = null,
