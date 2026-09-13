@@ -87,6 +87,9 @@
 			"already_exists": {
 				"label": "Este quadrinho já existe na sua biblioteca."
 			},
+			"sync_in_progress": {
+				"label": "Já existe uma sincronização em andamento para este quadrinho."
+			},
 			"not_found": {
 				"label": "Quadrinho não encontrado."
 			},

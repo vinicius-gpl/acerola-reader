@@ -87,6 +87,9 @@
 			"already_exists": {
 				"label": "This comic already exists in your library."
 			},
+			"sync_in_progress": {
+				"label": "A sync is already in progress for this comic."
+			},
 			"not_found": {
 				"label": "Comic not found."
 			},

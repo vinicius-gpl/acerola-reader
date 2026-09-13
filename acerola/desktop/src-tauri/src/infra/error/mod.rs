@@ -15,6 +15,9 @@ pub enum ComicError {
     #[error("Comic already exists in the library.")]
     AlreadyExists,
 
+    #[error("A sync is already in progress for this comic.")]
+    SyncInProgress,
+
     #[error("Comic not found.")]
     NotFound,
 

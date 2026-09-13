@@ -5,6 +5,7 @@ import type { ErrorPayload } from '$lib/contracts/shared/shared.payloads';
 // A chave é o valor exato do campo `errorType` vindo do payload do evento Tauri.
 export const COMIC_ERROR_MESSAGES: Record<string, () => string> = {
 	AlreadyExists: m['tauri_errors.comic.already_exists.label'],
+	SyncInProgress: m['tauri_errors.comic.sync_in_progress.label'],
 	NotFound: m['tauri_errors.comic.not_found.label'],
 	InvalidRequest: m['tauri_errors.comic.invalid_request.label'],
 	IntegrityViolation: m['tauri_errors.comic.integrity_violation.label'],
