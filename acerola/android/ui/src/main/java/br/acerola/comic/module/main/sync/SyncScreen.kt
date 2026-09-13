@@ -1,5 +1,6 @@
 package br.acerola.comic.module.main.sync
 
+import android.content.Intent
 import android.content.res.Configuration
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -7,7 +8,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -26,7 +26,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentPaste
@@ -270,7 +269,7 @@ private fun SyncLayout(
                 onRemoveClick = { peerPendingRemoval = it },
             )
 
-            ActivityLogCard(uiState = uiState, onAction = onAction)
+            ActivityLogCard(uiState = uiState)
         }
 
         if (uiState.pendingConnect != null) {
@@ -1399,78 +1398,31 @@ private fun SecurityNote() {
     }
 }
 
+/** Gatilho pro histórico completo — igual ao localSend: uma tela própria (ver
+ *  [TransferLogActivity]/[TransferLogScreen]), não um dialog/sheet/accordion espremido dentro
+ *  da tela de Rede. Aqui só mostra a última entrada conhecida como prévia. */
 @Composable
-private fun ActivityLogCard(
-    uiState: SyncUiState,
-    onAction: (SyncAction) -> Unit,
-) {
-    var showClearDialog by remember { mutableStateOf(false) }
+private fun ActivityLogCard(uiState: SyncUiState) {
+    val context = LocalContext.current
 
-    SectionCard(
+    val summary =
+        uiState.transferLog.firstOrNull()?.let { describeEntry(it) }
+            ?: stringResource(id = R.string.label_sync_activity_log_empty)
+
+    Acerola.Component.HeroButton(
         title = stringResource(id = R.string.title_sync_activity_log),
-        actions = {
-            IconButton(onClick = { onAction(SyncAction.RefreshTransferLog) }) {
-                Icon(
-                    imageVector = Icons.Default.Refresh,
-                    contentDescription = stringResource(id = R.string.action_sync_activity_log_refresh),
-                    modifier = Modifier.size(SizeTokens.IconExtraSmall),
-                )
-            }
-            if (uiState.transferLog.isNotEmpty()) {
-                IconButton(onClick = { showClearDialog = true }) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = stringResource(id = R.string.action_sync_activity_log_clear),
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(SizeTokens.IconExtraSmall),
-                    )
-                }
-            }
-        },
-    ) {
-        if (uiState.transferLog.isEmpty()) {
-            Text(
-                text = stringResource(id = R.string.label_sync_activity_log_empty),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        } else {
-            uiState.transferLog.forEach { entry ->
-                LogRow(entry = entry)
-            }
-        }
-    }
-
-    Acerola.Component.Dialog(
-        show = showClearDialog,
-        onDismiss = { showClearDialog = false },
-        title = stringResource(id = R.string.title_sync_activity_log_clear_confirm),
-        confirmButtonContent = {
-            Acerola.Component.DialogButton(
-                text = stringResource(id = R.string.action_sync_activity_log_clear_confirm),
-                contentColor = MaterialTheme.colorScheme.error,
-                onClick = {
-                    onAction(SyncAction.ClearTransferLog)
-                    showClearDialog = false
-                },
-            )
-        },
-        dismissButtonContent = {
-            Acerola.Component.DialogButton(
-                text = stringResource(id = R.string.action_cancel),
-                onClick = { showClearDialog = false },
-            )
-        },
-    ) {
-        Text(text = stringResource(id = R.string.description_sync_activity_log_clear_confirm))
-    }
+        description = summary,
+        icon = Icons.Default.History,
+        modifier = Modifier.fillMaxWidth(),
+        onClick = { context.startActivity(Intent(context, TransferLogActivity::class.java)) },
+    )
 }
 
 /** Turns a raw [TransferLogEntry] into display text — the only place doing that resolution,
  *  so [SyncViewModel] never needs an Android [android.content.Context]-flavored dependency
- *  just to pre-render a string. */
+ *  just to pre-render a string. Compartilhado com [TransferLogScreen] (mesmo package). */
 @Composable
-private fun describeEntry(entry: TransferLogEntry): String =
+internal fun describeEntry(entry: TransferLogEntry): String =
     when ("${entry.kind}:${entry.status}") {
         "history:started" -> stringResource(id = R.string.log_sync_history_started)
         "history:complete" -> stringResource(id = R.string.log_sync_history_complete)
@@ -1488,38 +1440,6 @@ private fun describeEntry(entry: TransferLogEntry): String =
         "files:complete" -> stringResource(id = R.string.log_sync_files_complete)
         else -> entry.message ?: entry.status
     }
-
-@Composable
-private fun LogRow(entry: TransferLogEntry) {
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = SpacingTokens.ExtraSmall)) {
-        when (entry.state) {
-            LogState.IN_PROGRESS ->
-                CircularProgressIndicator(modifier = Modifier.size(SizeTokens.IconExtraSmall), strokeWidth = 2.dp)
-            LogState.SUCCESS ->
-                Icon(
-                    imageVector = Icons.Default.CheckCircle,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(SizeTokens.IconExtraSmall),
-                )
-            LogState.ERROR ->
-                Icon(
-                    imageVector = Icons.Default.Error,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.size(SizeTokens.IconExtraSmall),
-                )
-        }
-        Spacer(modifier = Modifier.width(SpacingTokens.Small))
-        Text(text = describeEntry(entry), style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
-        Spacer(modifier = Modifier.width(SpacingTokens.Small))
-        Text(
-            text = formatLogTimestamp(entry.timestamp),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
 
 @Composable
 private fun ConfirmConnectDialog(
@@ -1596,8 +1516,9 @@ private fun RemovePeerDialog(
     }
 }
 
-/** Same formatting used both in the activity log and in "last synced" per peer. */
-private fun formatLogTimestamp(timestampMillis: Long): String = SimpleDateFormat("dd/MM HH:mm", Locale.getDefault()).format(Date(timestampMillis))
+/** Same formatting used both in "last synced" per peer and in [TransferLogScreen] (mesmo
+ *  package). */
+internal fun formatLogTimestamp(timestampMillis: Long): String = SimpleDateFormat("dd/MM HH:mm", Locale.getDefault()).format(Date(timestampMillis))
 
 @Composable
 private fun SectionHeader(
@@ -1611,24 +1532,6 @@ private fun SectionHeader(
         color = MaterialTheme.colorScheme.secondary,
         modifier = modifier,
     )
-}
-
-@Composable
-private fun SectionCard(
-    title: String,
-    actions: (@Composable () -> Unit)? = null,
-    content: @Composable ColumnScope.() -> Unit,
-) {
-    Card(shape = ShapeTokens.Medium, modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(SpacingTokens.Large)) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                SectionHeader(title = title, modifier = Modifier.weight(1f))
-                actions?.invoke()
-            }
-            Spacer(modifier = Modifier.height(SpacingTokens.Small))
-            content()
-        }
-    }
 }
 
 private fun previewUiState() =
