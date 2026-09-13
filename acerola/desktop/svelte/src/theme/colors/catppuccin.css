@@ -20,6 +20,7 @@
 	--muted-foreground: #a6adc8;
 	--accent: #45475a;
 	--accent-foreground: #cdd6f4;
+	--accent-hero: #f5c2e7;
 	--destructive: #f38ba8;
 	--border: #585b70;
 	--input: #45475a;
@@ -59,6 +60,7 @@
 	--muted-foreground: #6c6f85;
 	--accent: #bcc0cc;
 	--accent-foreground: #4c4f69;
+	--accent-hero: #ea76cb;
 	--destructive: #d20f39;
 	--border: #acb0be;
 	--input: #acb0be;
