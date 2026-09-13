@@ -33,6 +33,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
 import br.acerola.comic.common.state.LocalSnackbarHostState
 import br.acerola.comic.common.ux.Acerola
+import br.acerola.comic.common.ux.component.MobileDataSyncDialog
 import br.acerola.comic.common.ux.component.Scaffold
 import br.acerola.comic.common.ux.component.SnackbarError
 import br.acerola.comic.common.ux.component.SnackbarSuccess
@@ -40,6 +41,7 @@ import br.acerola.comic.common.ux.component.SnackbarVariant
 import br.acerola.comic.common.ux.component.SnackbarWarn
 import br.acerola.comic.common.ux.component.resolveSnackbarVariant
 import br.acerola.comic.common.ux.theme.AcerolaTheme
+import br.acerola.comic.common.viewmodel.network.MobileDataSyncViewModel
 import br.acerola.comic.common.viewmodel.theme.ThemeViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import dev.chrisbanes.haze.HazeState
@@ -53,6 +55,7 @@ abstract class BaseActivity : ComponentActivity() {
     open val applyScaffoldPadding: Boolean = true
 
     private val themeViewModel: ThemeViewModel by viewModels()
+    private val mobileDataSyncViewModel: MobileDataSyncViewModel by viewModels()
 
     open fun NavGraphBuilder.setupNavGraph(
         context: Context,
@@ -78,6 +81,19 @@ abstract class BaseActivity : ComponentActivity() {
                 CompositionLocalProvider(
                     value = LocalSnackbarHostState provides snackbarHostState,
                 ) {
+                    // Montado uma única vez aqui (raiz do app) — não em nenhuma tela específica
+                    // — porque Home/Histórico/Quadrinho/Biblioteca remota/Sync podem disparar
+                    // uma sincronização P2P cada uma pelo seu próprio caminho (ver
+                    // `MobileDataSyncGate`). Um diálogo só na tela de Sync não cobriria os
+                    // outros quatro.
+                    val awaitingMobileDataConfirmation by mobileDataSyncViewModel.awaitingConfirmation.collectAsState()
+                    if (awaitingMobileDataConfirmation) {
+                        Acerola.Component.MobileDataSyncDialog(
+                            onConfirm = { remember -> mobileDataSyncViewModel.confirm(remember) },
+                            onCancel = { mobileDataSyncViewModel.cancel() },
+                        )
+                    }
+
                     if (isLandscape) {
                         // Em modo landscape: sidebar fora do Scaffold para ocupar toda a altura
                         // (status bar + conteúdo + nav bar), igual ao Spotify

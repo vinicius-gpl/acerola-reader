@@ -14,6 +14,7 @@ import br.acerola.comic.type.UiText
 import br.acerola.comic.ui.R
 import br.acerola.comic.usecase.network.P2pUseCase
 import br.acerola.comic.usecase.network.SyncComicWithPeerUseCase
+import br.acerola.comic.usecase.network.SyncWithPeerResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -115,25 +116,26 @@ class RemoteLibraryViewModel
                 mapOf("peerId" to peerId, "comicName" to comicName),
             )
 
-            // Vem da navegação da biblioteca remota — o usuário só pode escolher um quadrinho
-            // que ainda não tem, então é sempre pull.
-            val fired = syncComicWithPeerUseCase(peerId, comicName, SyncDirection.PULL)
-            if (!fired) {
-                viewModelScope.launch {
-                    _uiEvents.send(UserMessage.Raw(UiText.StringResource(R.string.error_sync_comic_peer_not_paired)))
+            viewModelScope.launch(Dispatchers.IO) {
+                // Vem da navegação da biblioteca remota — o usuário só pode escolher um
+                // quadrinho que ainda não tem, então é sempre pull.
+                when (syncComicWithPeerUseCase(peerId, comicName, SyncDirection.PULL)) {
+                    SyncWithPeerResult.NOT_PAIRED ->
+                        _uiEvents.send(UserMessage.Raw(UiText.StringResource(R.string.error_sync_comic_peer_not_paired)))
+                    SyncWithPeerResult.DECLINED_MOBILE_DATA -> Unit
+                    SyncWithPeerResult.STARTED -> {
+                        _uiState.update { it.copy(syncingComicName = comicName) }
+
+                        syncTimeoutJob?.cancel()
+                        syncTimeoutJob =
+                            viewModelScope.launch {
+                                delay(SYNC_COMIC_TIMEOUT_MS)
+                                _uiState.update { it.copy(syncingComicName = null) }
+                                _uiEvents.send(UserMessage.Raw(UiText.StringResource(R.string.error_sync_comic_timeout)))
+                            }
+                    }
                 }
-                return
             }
-
-            _uiState.update { it.copy(syncingComicName = comicName) }
-
-            syncTimeoutJob?.cancel()
-            syncTimeoutJob =
-                viewModelScope.launch {
-                    delay(SYNC_COMIC_TIMEOUT_MS)
-                    _uiState.update { it.copy(syncingComicName = null) }
-                    _uiEvents.send(UserMessage.Raw(UiText.StringResource(R.string.error_sync_comic_timeout)))
-                }
         }
 
         private fun clearSyncTimeout() {

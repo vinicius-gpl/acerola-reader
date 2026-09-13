@@ -9,6 +9,7 @@ import br.acerola.comic.service.network.CoverBrowseProviderImpl
 import br.acerola.comic.service.network.FileSyncProviderImpl
 import br.acerola.comic.service.network.HistorySyncProviderImpl
 import br.acerola.comic.service.network.P2pEventBus
+import br.acerola.comic.service.network.MobileDataSyncGate
 import br.acerola.comic.service.network.P2pSyncCoordinator
 import br.acerola.comic.service.network.SecureBlobStoreImpl
 import br.acerola.comic.usecase.network.P2pUseCase
@@ -68,5 +69,8 @@ object NetworkCaseModule {
 
     @Provides
     @Singleton
-    fun provideP2pUseCase(p2pService: P2pService): P2pUseCase = P2pUseCase(p2pService)
+    fun provideP2pUseCase(
+        p2pService: P2pService,
+        mobileDataSyncGate: MobileDataSyncGate,
+    ): P2pUseCase = P2pUseCase(p2pService, mobileDataSyncGate)
 }

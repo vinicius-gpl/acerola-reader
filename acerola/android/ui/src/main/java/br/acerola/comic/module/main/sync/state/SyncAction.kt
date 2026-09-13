@@ -17,22 +17,17 @@ sealed interface SyncAction {
 
     data object CancelConnect : SyncAction
 
-    /** Ações de sync represadas em [SyncUiState.pendingMobileDataSync] quando o dispositivo
-     *  está em dados móveis (ver `SyncViewModel.runSyncActionOrConfirm`) — tipo próprio (em vez
-     *  de aceitar qualquer [SyncAction]) pra manter o `when` de `performSyncAction` exaustivo. */
-    sealed interface MobileDataGated : SyncAction
-
     data class SyncHistory(
         val peerId: String,
-    ) : MobileDataGated
+    ) : SyncAction
 
     data class SyncFiles(
         val peerId: String,
-    ) : MobileDataGated
+    ) : SyncAction
 
     data class SyncAll(
         val peerId: String,
-    ) : MobileDataGated
+    ) : SyncAction
 
     data object DismissTrustDialog : SyncAction
 
@@ -61,7 +56,7 @@ sealed interface SyncAction {
     data class SyncComic(
         val peerId: String,
         val comicName: String,
-    ) : MobileDataGated
+    ) : SyncAction
 
     /** Todas as ações de relay abaixo persistem no DataStore E aplicam na hora
      *  (`P2pUseCase.applyRelaySettings`, troca o modo de relay num `Endpoint` que continua
@@ -98,19 +93,4 @@ sealed interface SyncAction {
      *  identidade/storage), estilo LocalSend. Escape hatch pra quando a troca ao vivo de relay
      *  não é suficiente (ex: conexão presa depois de uma troca de rede física do SO). */
     data object RestartP2p : SyncAction
-
-    /** Confirma disparar a sincronização pendente ([SyncUiState.pendingMobileDataSync]) mesmo
-     *  usando dados móveis — `remember == true` também salva a preferência pra não perguntar de
-     *  novo (ver `MobileDataSyncPreference`). */
-    data class ConfirmMobileDataSync(
-        val remember: Boolean,
-    ) : SyncAction
-
-    data object CancelMobileDataSync : SyncAction
-
-    /** Liga/desliga a preferência "sempre permitir com dados móveis" direto na tela de Rede,
-     *  sem precisar passar pelo diálogo de confirmação. */
-    data class ToggleAllowMobileDataSync(
-        val value: Boolean,
-    ) : SyncAction
 }

@@ -169,10 +169,14 @@
     <string name="title_sync_trust_dialog">Novo dispositivo confiado</string>
     <string name="description_sync_trust_dialog">Você conectou com o dispositivo \"%1$s\" pela primeira vez. Esse acesso agora é permanente até que ele seja removido.</string>
 
-    <string name="title_sync_mobile_data_confirm">Sincronizar usando dados móveis?</string>
-    <string name="description_sync_mobile_data_confirm">Este dispositivo está conectado à internet pelos dados móveis. Continuar pode consumir a franquia do seu plano.</string>
-    <string name="label_sync_mobile_data_remember">Sempre permitir com dados móveis</string>
-    <string name="action_sync_mobile_data_confirm">Sincronizar mesmo assim</string>
+    <!-- Diálogo global de confirmação de dados móveis (ver `MobileDataSyncGate`) — aparece por
+         cima de QUALQUER tela que dispare uma sincronização P2P, não só a de Sync. -->
+    <string name="title_mobile_data_sync_confirm">Sincronizar usando dados móveis?</string>
+    <string name="description_mobile_data_sync_confirm">Este dispositivo está conectado à internet pelos dados móveis. Continuar pode consumir a franquia do seu plano.</string>
+    <string name="label_mobile_data_sync_remember">Sempre permitir com dados móveis</string>
+    <string name="action_mobile_data_sync_confirm">Sincronizar</string>
+
+    <!-- Tela de Sync ("Rede") — seção Conexão -->
     <string name="label_relay_settings_allow_mobile_data_sync">Sincronizar usando dados móveis</string>
     <string name="label_relay_settings_allow_mobile_data_sync_desc">Quando desativado, o app pede confirmação toda vez antes de sincronizar pela rede celular.</string>
 

@@ -4,9 +4,7 @@ import android.content.Context
 import android.os.Build
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import br.acerola.comic.config.network.isOnCellularConnection
 import br.acerola.comic.config.preference.DeviceAliasPreference
-import br.acerola.comic.config.preference.MobileDataSyncPreference
 import br.acerola.comic.config.preference.PeerNicknamePreference
 import br.acerola.comic.config.preference.RelayPreference
 import br.acerola.comic.error.message.SyncProtocolError
@@ -133,12 +131,6 @@ class SyncViewModel
                 }
             }
 
-            viewModelScope.launch {
-                MobileDataSyncPreference.alwaysAllowFlow(context).collect { allowed ->
-                    _uiState.update { it.copy(allowMobileDataSync = allowed) }
-                }
-            }
-
             // Apelido salvo já foi lido pra construir o node (`NetworkCaseModule`) — essa
             // segunda leitura é só pra refletir o mesmo valor aqui na UI, já que o node não
             // devolve o `DeviceInfo` que recebeu no boot. Depois disso, `localDeviceName` só
@@ -251,7 +243,12 @@ class SyncViewModel
                 is SyncAction.ProposeConnect -> proposeConnect(action.code)
                 SyncAction.ConfirmConnect -> confirmConnect()
                 SyncAction.CancelConnect -> _uiState.update { it.copy(pendingConnect = null) }
-                is SyncAction.MobileDataGated -> runSyncActionOrConfirm(action)
+                is SyncAction.SyncHistory -> triggerSync(action.peerId, HISTORY_SYNC_ALPN, SYNC_KIND_HISTORY)
+                is SyncAction.SyncFiles -> triggerSync(action.peerId, FILE_SYNC_ALPN, SYNC_KIND_FILES)
+                is SyncAction.SyncAll -> {
+                    triggerSync(action.peerId, HISTORY_SYNC_ALPN, SYNC_KIND_HISTORY)
+                    triggerSync(action.peerId, FILE_SYNC_ALPN, SYNC_KIND_FILES)
+                }
 
                 SyncAction.DismissTrustDialog -> _uiState.update { it.copy(trustedPeerDialogPeerId = null) }
                 SyncAction.DismissConnectError -> _uiState.update { it.copy(connectError = null) }
@@ -269,6 +266,8 @@ class SyncViewModel
                             browseLibraryErrorType = null,
                         )
                     }
+                is SyncAction.SyncComic -> syncComic(action.peerId, action.comicName)
+
                 is SyncAction.ToggleUseAcerolaRelay ->
                     viewModelScope.launch { RelayPreference.setUseAcerolaRelay(context, action.value) }
                 is SyncAction.ToggleUseIrohPublicNetwork ->
@@ -283,45 +282,7 @@ class SyncViewModel
                     _uiState.update { it.copy(irohServicesTicketError = false) }
 
                 SyncAction.RestartP2p -> restartP2p()
-
-                is SyncAction.ConfirmMobileDataSync -> confirmMobileDataSync(action.remember)
-                SyncAction.CancelMobileDataSync -> _uiState.update { it.copy(pendingMobileDataSync = null) }
-                is SyncAction.ToggleAllowMobileDataSync ->
-                    viewModelScope.launch { MobileDataSyncPreference.setAlwaysAllow(context, action.value) }
             }
-        }
-
-        /** Ponto único por onde `SyncHistory`/`SyncFiles`/`SyncAll`/`SyncComic` passam — represa
-         *  a ação em [SyncUiState.pendingMobileDataSync] pra confirmação (ver
-         *  [MobileDataSyncDialog] em `SyncScreen`) quando o dispositivo está em dados móveis e o
-         *  usuário ainda não marcou "sempre permitir"; senão, dispara na hora. */
-        private fun runSyncActionOrConfirm(action: SyncAction.MobileDataGated) {
-            if (!_uiState.value.allowMobileDataSync && isOnCellularConnection(context)) {
-                _uiState.update { it.copy(pendingMobileDataSync = action) }
-            } else {
-                performSyncAction(action)
-            }
-        }
-
-        private fun performSyncAction(action: SyncAction.MobileDataGated) {
-            when (action) {
-                is SyncAction.SyncHistory -> triggerSync(action.peerId, HISTORY_SYNC_ALPN, SYNC_KIND_HISTORY)
-                is SyncAction.SyncFiles -> triggerSync(action.peerId, FILE_SYNC_ALPN, SYNC_KIND_FILES)
-                is SyncAction.SyncAll -> {
-                    triggerSync(action.peerId, HISTORY_SYNC_ALPN, SYNC_KIND_HISTORY)
-                    triggerSync(action.peerId, FILE_SYNC_ALPN, SYNC_KIND_FILES)
-                }
-                is SyncAction.SyncComic -> syncComic(action.peerId, action.comicName)
-            }
-        }
-
-        private fun confirmMobileDataSync(remember: Boolean) {
-            val pending = _uiState.value.pendingMobileDataSync ?: return
-            _uiState.update { it.copy(pendingMobileDataSync = null) }
-            if (remember) {
-                viewModelScope.launch { MobileDataSyncPreference.setAlwaysAllow(context, true) }
-            }
-            performSyncAction(pending)
         }
 
         /** Valida o formato no lado nativo antes de persistir — `p2pUseCase.setIrohServicesTicket`
@@ -492,7 +453,12 @@ class SyncViewModel
                 }
                 // Vem da navegação da biblioteca remota (`RemoteLibrarySheet`) — o usuário só
                 // pode escolher um quadrinho que ainda não tem, então é sempre pull.
-                p2pUseCase.syncComic(addr, comicName, SyncDirection.PULL)
+                val started = p2pUseCase.syncComic(addr, comicName, SyncDirection.PULL)
+                // Usuário recusou dados móveis (ver `MobileDataSyncGate`) — sem isso o spinner
+                // ficava preso até o timeout de 60s esperando um evento que nunca chega.
+                if (!started) {
+                    _uiState.update { it.copy(syncingKeys = it.syncingKeys - key) }
+                }
             }
         }
 
@@ -584,14 +550,24 @@ class SyncViewModel
                     }
 
                 val peerAddress = PeerAddress(id = pending.peerId, deviceId = pending.deviceId, addrs = pending.addrs)
-                withContext(Dispatchers.IO) {
-                    p2pUseCase.connect(peerAddress, HANDSHAKE_ALPN.toByteArray())
+                val started =
+                    withContext(Dispatchers.IO) {
+                        p2pUseCase.connect(peerAddress, HANDSHAKE_ALPN.toByteArray())
+                    }
+
+                // Usuário recusou dados móveis (ver `MobileDataSyncGate`) — nada foi disparado,
+                // e isso não é uma falha de conexão (mostrar `CONNECTION_FAILED` aqui seria
+                // enganoso). Cancela a espera pelo handshake em vez de deixá-la estourar os 15s
+                // de `CONNECT_TIMEOUT_MS` à toa.
+                if (!started) {
+                    handshakeCompleted.cancel()
+                    _uiState.update { it.copy(connecting = false) }
+                    return@launch
                 }
 
-                // `p2pUseCase.connect` is fire-and-forget over the FFI (no synchronous
-                // success/error return) — the handshake event is the most precise signal we
-                // have today that "this actually worked". Without it within the timeout, we
-                // treat it as a failure.
+                // `p2pUseCase.connect` é fire-and-forget sobre a FFI (sem retorno síncrono de
+                // sucesso/erro) — o evento de handshake é o sinal mais preciso que temos hoje de
+                // que isso realmente funcionou. Sem ele dentro do timeout, tratamos como falha.
                 val succeeded = handshakeCompleted.await() ?: false
 
                 _uiState.update {
@@ -625,7 +601,12 @@ class SyncViewModel
                     _uiState.update { it.copy(syncingKeys = it.syncingKeys - key) }
                     return@launch
                 }
-                p2pUseCase.connect(addr, alpn.toByteArray())
+                val started = p2pUseCase.connect(addr, alpn.toByteArray())
+                // Usuário recusou dados móveis (ver `MobileDataSyncGate`) — sem isso o spinner
+                // ficava preso até o timeout de 60s esperando um evento que nunca chega.
+                if (!started) {
+                    _uiState.update { it.copy(syncingKeys = it.syncingKeys - key) }
+                }
             }
         }
 
