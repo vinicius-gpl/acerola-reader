@@ -90,6 +90,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import br.acerola.comic.common.state.LocalSnackbarHostState
 import br.acerola.comic.common.state.SyncActionVisualState
+import br.acerola.comic.common.viewmodel.network.MobileDataSyncViewModel
 import br.acerola.comic.common.ux.Acerola
 import br.acerola.comic.common.ux.component.AccordionCard
 import br.acerola.comic.common.ux.component.AdaptiveSheet
@@ -131,12 +132,18 @@ import java.util.Date
 import java.util.Locale
 
 @Composable
-fun Main.Sync.Template.Screen(viewModel: SyncViewModel = hiltViewModel()) {
+fun Main.Sync.Template.Screen(
+    viewModel: SyncViewModel = hiltViewModel(),
+    mobileDataSyncViewModel: MobileDataSyncViewModel = hiltViewModel(),
+) {
     val uiState by viewModel.uiState.collectAsState()
+    val allowMobileDataSync by mobileDataSyncViewModel.allowMobileDataSync.collectAsState()
 
     SyncLayout(
         uiState = uiState,
         onAction = viewModel::onAction,
+        allowMobileDataSync = allowMobileDataSync,
+        onToggleAllowMobileDataSync = mobileDataSyncViewModel::setAllowMobileDataSync,
     )
 }
 
@@ -145,6 +152,8 @@ fun Main.Sync.Template.Screen(viewModel: SyncViewModel = hiltViewModel()) {
 private fun SyncLayout(
     uiState: SyncUiState,
     onAction: (SyncAction) -> Unit,
+    allowMobileDataSync: Boolean,
+    onToggleAllowMobileDataSync: (Boolean) -> Unit,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -259,6 +268,8 @@ private fun SyncLayout(
             RelaySettingsCard(
                 relaySettings = uiState.relaySettings,
                 irohServicesTicketError = uiState.irohServicesTicketError,
+                allowMobileDataSync = allowMobileDataSync,
+                onToggleAllowMobileDataSync = onToggleAllowMobileDataSync,
                 onAction = onAction,
             )
 
@@ -446,6 +457,8 @@ private fun ThisDeviceSection(
 private fun RelaySettingsCard(
     relaySettings: RelaySettingsUiState,
     irohServicesTicketError: Boolean,
+    allowMobileDataSync: Boolean,
+    onToggleAllowMobileDataSync: (Boolean) -> Unit,
     onAction: (SyncAction) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -565,6 +578,14 @@ private fun RelaySettingsCard(
                 )
             }
         }
+
+        Acerola.Component.ToggleCard(
+            title = stringResource(id = R.string.label_relay_settings_allow_mobile_data_sync),
+            subtitle = stringResource(id = R.string.label_relay_settings_allow_mobile_data_sync_desc),
+            active = allowMobileDataSync,
+            onClick = { onToggleAllowMobileDataSync(!allowMobileDataSync) },
+            icon = { Icon(imageVector = Icons.Default.PhoneAndroid, contentDescription = null) },
+        )
 
         RestartSection(
             restarting = relaySettings.restarting,
@@ -1582,7 +1603,7 @@ private fun previewUiState() =
 private fun PreviewSyncLayout(uiState: SyncUiState) {
     AcerolaTheme {
         CompositionLocalProvider(LocalSnackbarHostState provides remember { SnackbarHostState() }) {
-            SyncLayout(uiState = uiState, onAction = {})
+            SyncLayout(uiState = uiState, onAction = {}, allowMobileDataSync = false, onToggleAllowMobileDataSync = {})
         }
     }
 }

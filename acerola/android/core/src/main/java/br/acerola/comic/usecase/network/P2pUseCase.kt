@@ -8,6 +8,7 @@ import br.acerola.comic.service.P2pService
 import br.acerola.comic.service.PeerAddress
 import br.acerola.comic.service.RelaySettings
 import br.acerola.comic.service.SyncDirection
+import br.acerola.comic.service.network.MobileDataSyncGate
 import java.io.Closeable
 import javax.inject.Inject
 
@@ -15,6 +16,7 @@ class P2pUseCase
     @Inject
     constructor(
         private val p2pService: P2pService,
+        private val mobileDataSyncGate: MobileDataSyncGate,
     ) : Closeable {
         fun getLocalId(): String {
             val id = p2pService.getLocalId()
@@ -33,39 +35,52 @@ class P2pUseCase
             p2pService.setLocalDeviceName(name)
         }
 
-        fun connect(
+        /** Suspende em [MobileDataSyncGate.ensureAllowed] antes de abrir a conexão — cobre tanto
+         *  o handshake de pareamento quanto os gatilhos de sync (histórico/arquivos), já que
+         *  ambos passam pelo mesmo `connect` genérico (a diferença é só o ALPN). Retorna `false`
+         *  sem abrir nada se o usuário recusar no diálogo — quem chama precisa checar isso pra
+         *  não deixar um spinner de "sincronizando" preso pra sempre esperando um evento que
+         *  nunca vai chegar (ver [SyncComicWithPeerUseCase]/[SyncHistoryEntryWithPeerUseCase]/
+         *  `SyncHistoryWithPeerUseCase`). */
+        suspend fun connect(
             peerAddress: PeerAddress,
             alpn: ByteArray,
-        ) {
+        ): Boolean {
+            if (!mobileDataSyncGate.ensureAllowed()) return false
             AcerolaLogger.i("P2pUseCase", "Connecting to peer: ${peerAddress.id}", LogSource.NETWORK)
             p2pService.connect(peerAddress, alpn)
+            return true
         }
 
-        fun syncComic(
+        suspend fun syncComic(
             peerAddress: PeerAddress,
             comicName: String,
             direction: SyncDirection,
             chapters: List<String> = emptyList(),
-        ) {
+        ): Boolean {
+            if (!mobileDataSyncGate.ensureAllowed()) return false
             AcerolaLogger.i(
                 "P2pUseCase",
                 "Syncing comic '$comicName' with peer: ${peerAddress.id} ($direction)",
                 LogSource.NETWORK,
             )
             p2pService.syncComic(peerAddress, comicName, direction, chapters)
+            return true
         }
 
-        fun syncHistoryEntry(
+        suspend fun syncHistoryEntry(
             peerAddress: PeerAddress,
             comicName: String,
             chapterSorts: List<String>,
-        ) {
+        ): Boolean {
+            if (!mobileDataSyncGate.ensureAllowed()) return false
             AcerolaLogger.i(
                 "P2pUseCase",
                 "Syncing history entry for '$comicName' with peer: ${peerAddress.id}",
                 LogSource.NETWORK,
             )
             p2pService.syncHistoryEntry(peerAddress, comicName, chapterSorts)
+            return true
         }
 
         fun browseLibrary(peerAddress: PeerAddress) {
