@@ -49,6 +49,7 @@
 			events={{ onClick: events.onBack }}
 			ui={{
 				variant: 'ghost',
+				tone: 'accent',
 				title: m['pages.reader.actions.back']()
 			}}
 		>
@@ -100,6 +101,7 @@
 			events={{ onClick: events.onOpenCommandPalette }}
 			ui={{
 				variant: 'ghost',
+				tone: 'accent',
 				title: `${m['pages.reader.actions.commands']()} (Ctrl+K)`
 			}}
 		>
@@ -111,6 +113,7 @@
 				events={{ onClick: () => events.onPreviousPage() }}
 				ui={{
 					variant: 'ghost',
+					tone: 'accent',
 					disabled: !data.canPreviousPage || data.pageControlsDisabled,
 					title: data.pageControlsDisabled
 						? m['pages.reader.actions.page.navigation_locked']()
@@ -124,6 +127,7 @@
 				events={{ onClick: () => events.onNextPage() }}
 				ui={{
 					variant: 'ghost',
+					tone: 'accent',
 					disabled: !data.canNextPage || data.pageControlsDisabled,
 					title: data.pageControlsDisabled
 						? m['pages.reader.actions.page.navigation_locked']()

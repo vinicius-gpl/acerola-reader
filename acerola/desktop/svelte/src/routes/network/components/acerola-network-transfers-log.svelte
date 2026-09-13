@@ -121,7 +121,8 @@
 			events={{ onClick: () => events?.onRefresh?.() }}
 			ui={{
 				variant: 'ghost',
-				class: 'size-8 text-muted-foreground hover:bg-muted hover:text-foreground',
+				tone: 'accent',
+				class: 'size-8',
 				'aria-label': m['pages.network.transfers.refresh']()
 			}}
 		>
@@ -142,7 +143,8 @@
 				<AcerolaButtonIcon
 					ui={{
 						variant: 'ghost',
-						class: 'size-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive',
+						tone: 'destructive',
+						class: 'size-8',
 						'aria-label': m['pages.network.transfers.clear.button']()
 					}}
 				>

@@ -694,7 +694,7 @@
 			<div
 				class="sticky top-0 z-50 flex h-20 items-center justify-between border-b border-surface/30 bg-base/90 px-6 py-2 backdrop-blur-md lg:hidden"
 			>
-				<AcerolaButtonIcon events={{ onClick: onBack }} ui={{ size: 'sm' }}>
+				<AcerolaButtonIcon events={{ onClick: onBack }} ui={{ size: 'sm', tone: 'accent' }}>
 					<ArrowLeft size={20} />
 				</AcerolaButtonIcon>
 

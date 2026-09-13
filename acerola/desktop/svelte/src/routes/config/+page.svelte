@@ -225,12 +225,7 @@
 					{/snippet}
 
 					{#snippet action()}
-						<AcerolaButtonIcon
-							ui={{
-								class:
-									'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground'
-							}}
-						>
+						<AcerolaButtonIcon ui={{ tone: 'accent', class: 'rounded-full' }}>
 							<PlayIcon />
 						</AcerolaButtonIcon>
 					{/snippet}
@@ -293,12 +288,7 @@
 					{/snippet}
 
 					{#snippet action()}
-						<AcerolaButtonIcon
-							ui={{
-								class:
-									'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground'
-							}}
-						>
+						<AcerolaButtonIcon ui={{ tone: 'accent', class: 'rounded-full' }}>
 							<RefreshCw />
 						</AcerolaButtonIcon>
 					{/snippet}
@@ -316,12 +306,7 @@
 					{/snippet}
 
 					{#snippet action()}
-						<AcerolaButtonIcon
-							ui={{
-								class:
-									'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground'
-							}}
-						>
+						<AcerolaButtonIcon ui={{ tone: 'accent', class: 'rounded-full' }}>
 							<RefreshCw />
 						</AcerolaButtonIcon>
 					{/snippet}
@@ -339,12 +324,7 @@
 					{/snippet}
 
 					{#snippet action()}
-						<AcerolaButtonIcon
-							ui={{
-								class:
-									'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground'
-							}}
-						>
+						<AcerolaButtonIcon ui={{ tone: 'accent', class: 'rounded-full' }}>
 							<ChevronRightIcon />
 						</AcerolaButtonIcon>
 					{/snippet}
@@ -490,11 +470,7 @@
 
 					{#snippet action()}
 						<AcerolaButtonIcon
-							ui={{
-								class:
-									'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground',
-								disabled: syncingSource !== null
-							}}
+							ui={{ tone: 'accent', class: 'rounded-full', disabled: syncingSource !== null }}
 						>
 							<RefreshCw class={syncingSource === 'mangadex' ? 'animate-spin' : ''} />
 						</AcerolaButtonIcon>
@@ -516,11 +492,7 @@
 
 					{#snippet action()}
 						<AcerolaButtonIcon
-							ui={{
-								class:
-									'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground',
-								disabled: syncingSource !== null
-							}}
+							ui={{ tone: 'accent', class: 'rounded-full', disabled: syncingSource !== null }}
 						>
 							<RefreshCw class={syncingSource === 'anilist' ? 'animate-spin' : ''} />
 						</AcerolaButtonIcon>

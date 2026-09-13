@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { Button } from '$lib/components/ui/button';
+	import AcerolaButtonIcon from '$lib/components/acerola-button/acerola-button-icon.svelte';
 	import { Input } from '$lib/components/ui/input';
 	import AcerolaToggleCard from '$lib/components/acerola-toggle-card/acerola-toggle-card.svelte';
 	import { useBookmarks } from '$lib/hooks/store/use-bookmarks.svelte';
@@ -121,14 +122,12 @@
 								></div>
 								<span class="font-medium">{bookmark.name}</span>
 							</div>
-							<Button
-								variant="ghost"
-								size="icon"
-								class="h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-								onclick={() => bookmarkStore.deleteBookmark(bookmark.id)}
+							<AcerolaButtonIcon
+								events={{ onClick: () => bookmarkStore.deleteBookmark(bookmark.id) }}
+								ui={{ variant: 'ghost', tone: 'destructive', class: 'h-8 w-8' }}
 							>
 								<Trash2Icon size={16} />
-							</Button>
+							</AcerolaButtonIcon>
 						</div>
 					{/each}
 				{/if}
