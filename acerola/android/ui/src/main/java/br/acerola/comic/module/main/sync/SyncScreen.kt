@@ -112,6 +112,7 @@ import br.acerola.comic.config.preference.RelayPreference
 import br.acerola.comic.logging.AcerolaLogger
 import br.acerola.comic.logging.LogSource
 import br.acerola.comic.module.main.Main
+import br.acerola.comic.module.main.sync.component.RemoteLibrarySheet
 import br.acerola.comic.module.main.sync.state.ConnectError
 import br.acerola.comic.module.main.sync.state.LogState
 import br.acerola.comic.module.main.sync.state.PairedPeer
@@ -120,6 +121,7 @@ import br.acerola.comic.module.main.sync.state.SyncAction
 import br.acerola.comic.module.main.sync.state.SyncResult
 import br.acerola.comic.module.main.sync.state.SyncUiState
 import br.acerola.comic.module.main.sync.state.TransferLogEntry
+import br.acerola.comic.module.main.transferlog.TransferLogActivity
 import br.acerola.comic.service.NetworkMode
 import br.acerola.comic.ui.R
 import br.acerola.comic.util.p2p.PairingCode
@@ -129,9 +131,6 @@ import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 @Composable
 fun Main.Sync.Template.Screen(
@@ -330,7 +329,7 @@ private fun SyncLayout(
             val peerDisplayName =
                 uiState.pairedPeers.find { it.peerId == peerId }?.let { it.nickname ?: it.deviceName }
                     ?: PairingCode.shortId(peerId)
-            RemoteLibrarySheet(
+            Main.Sync.Component.RemoteLibrarySheet(
                 peerDisplayName = peerDisplayName,
                 comics = uiState.remoteLibrary,
                 isLoading = !uiState.remoteLibraryLoaded && uiState.browseLibraryError == null,
@@ -1431,8 +1430,10 @@ private fun SecurityNote() {
 }
 
 /** Gatilho pro histórico completo — igual ao localSend: uma tela própria (ver
- *  [TransferLogActivity]/[TransferLogScreen]), não um dialog/sheet/accordion espremido dentro
- *  da tela de Rede. Aqui só mostra a última entrada conhecida como prévia. */
+ *  [br.acerola.comic.module.main.transferlog.TransferLogActivity]/
+ *  [br.acerola.comic.module.main.transferlog.TransferLogViewModel]), não um dialog/sheet/
+ *  accordion espremido dentro da tela de Rede. Aqui só mostra a última entrada conhecida como
+ *  prévia. */
 @Composable
 private fun ActivityLogCard(uiState: SyncUiState) {
     val context = LocalContext.current
@@ -1449,29 +1450,6 @@ private fun ActivityLogCard(uiState: SyncUiState) {
         onClick = { context.startActivity(Intent(context, TransferLogActivity::class.java)) },
     )
 }
-
-/** Turns a raw [TransferLogEntry] into display text — the only place doing that resolution,
- *  so [SyncViewModel] never needs an Android [android.content.Context]-flavored dependency
- *  just to pre-render a string. Compartilhado com [TransferLogScreen] (mesmo package). */
-@Composable
-internal fun describeEntry(entry: TransferLogEntry): String =
-    when ("${entry.kind}:${entry.status}") {
-        "history:started" -> stringResource(id = R.string.log_sync_history_started)
-        "history:complete" -> stringResource(id = R.string.log_sync_history_complete)
-        "history:error" -> stringResource(id = R.string.log_sync_history_error, entry.message.orEmpty())
-        "files:started" -> stringResource(id = R.string.log_sync_files_started)
-        "files:progress" ->
-            stringResource(id = R.string.log_sync_files_progress, entry.comicName.orEmpty(), entry.chapter.orEmpty())
-        "files:chapterFailed" ->
-            stringResource(
-                id = R.string.log_sync_files_chapter_failed,
-                entry.comicName.orEmpty(),
-                entry.chapter.orEmpty(),
-            )
-        "files:error" -> stringResource(id = R.string.log_sync_files_error, entry.message.orEmpty())
-        "files:complete" -> stringResource(id = R.string.log_sync_files_complete)
-        else -> entry.message ?: entry.status
-    }
 
 @Composable
 private fun ConfirmConnectDialog(
@@ -1547,10 +1525,6 @@ private fun RemovePeerDialog(
         Text(text = stringResource(id = R.string.description_sync_remove_peer_confirm))
     }
 }
-
-/** Same formatting used both in "last synced" per peer and in [TransferLogScreen] (mesmo
- *  package). */
-internal fun formatLogTimestamp(timestampMillis: Long): String = SimpleDateFormat("dd/MM HH:mm", Locale.getDefault()).format(Date(timestampMillis))
 
 @Composable
 private fun SectionHeader(

@@ -1,4 +1,4 @@
-package br.acerola.comic.module.main.sync
+package br.acerola.comic.module.main.transferlog
 
 import android.content.Context
 import androidx.compose.runtime.Composable
@@ -25,7 +25,7 @@ class TransferLogActivity(
         navController: NavHostController,
     ) {
         composable(route = context.getString(Destination.TRANSFER_LOG.route)) {
-            Main.Sync.Template.TransferLogScreen(onBack = { finish() })
+            Main.TransferLog.Template.Screen(onBack = { finish() })
         }
     }
 

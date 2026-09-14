@@ -1,9 +1,10 @@
-package br.acerola.comic.module.main.sync
+package br.acerola.comic.module.main.transferlog
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import br.acerola.comic.module.main.sync.state.LogState
 import br.acerola.comic.module.main.sync.state.TransferLogEntry
+import br.acerola.comic.module.main.transferlog.state.TransferLogUiState
 import br.acerola.comic.usecase.network.SyncHistoryLogUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -16,16 +17,13 @@ import javax.inject.Inject
 
 private const val MAX_ENTRIES = 50
 
-data class TransferLogUiState(
-    val entries: List<TransferLogEntry> = emptyList(),
-    val loaded: Boolean = false,
-)
-
 /**
  * ViewModel dedicado da tela cheia de histórico ([TransferLogActivity]) — de propósito leve,
- * só depende de [SyncHistoryLogUseCase]. Diferente de [SyncViewModel] (que sobe peers, relay e
- * o módulo P2P inteiro), essa tela só lista sessões já persistidas (`complete`/`error`);
- * sessões ao vivo continuam visíveis via os spinners por peer na aba de Rede ([PeerRow]).
+ * só depende de [SyncHistoryLogUseCase]. Diferente de
+ * [br.acerola.comic.module.main.sync.SyncViewModel] (que sobe peers, relay e o módulo P2P
+ * inteiro), essa tela só lista sessões já persistidas (`complete`/`error`); sessões ao vivo
+ * continuam visíveis via os spinners por peer na aba de Rede
+ * ([br.acerola.comic.module.main.sync.PeerRow]).
  */
 @HiltViewModel
 class TransferLogViewModel
