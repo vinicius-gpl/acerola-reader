@@ -169,7 +169,9 @@ class SyncViewModel
         /**
          * Carrega as sessões persistidas (mais recentes primeiro) na primeira abertura da tela —
          * só pra alimentar o resumo mostrado no hero button de [ActivityLogCard]; a lista
-         * completa mora numa tela própria ([TransferLogActivity]/[TransferLogViewModel], que
+         * completa mora numa tela própria
+         * ([br.acerola.comic.module.main.transferlog.TransferLogActivity]/
+         * [br.acerola.comic.module.main.transferlog.TransferLogViewModel], que
          * busca por conta própria). Só substitui a parte do log que veio de lá (`id < 0`) —
          * preserva qualquer entrada AO VIVO ainda em `id >= 0` (sessão `started`/`progress`
          * desta execução do app). Negative IDs so they never collide with the live IDs

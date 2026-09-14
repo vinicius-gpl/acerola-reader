@@ -1,4 +1,4 @@
-package br.acerola.comic.module.main.sync
+package br.acerola.comic.module.main.transferlog
 
 import android.content.res.Configuration
 import androidx.compose.foundation.layout.Arrangement
@@ -25,7 +25,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -56,8 +55,11 @@ import br.acerola.comic.common.ux.tokens.ShapeTokens
 import br.acerola.comic.common.ux.tokens.SizeTokens
 import br.acerola.comic.common.ux.tokens.SpacingTokens
 import br.acerola.comic.module.main.Main
+import br.acerola.comic.module.main.sync.describeEntry
+import br.acerola.comic.module.main.sync.formatLogTimestamp
 import br.acerola.comic.module.main.sync.state.LogState
 import br.acerola.comic.module.main.sync.state.TransferLogEntry
+import br.acerola.comic.module.main.transferlog.state.TransferLogUiState
 import br.acerola.comic.ui.R
 
 /**
@@ -67,13 +69,29 @@ import br.acerola.comic.ui.R
  * próximo item cortado na borda inferior já avisa que tem mais) e nunca compete por espaço com
  * o resto da UI da aba de Rede.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun Main.Sync.Template.TransferLogScreen(
+fun Main.TransferLog.Template.Screen(
     onBack: () -> Unit,
     viewModel: TransferLogViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
+
+    TransferLogScreenContent(
+        uiState = uiState,
+        onBack = onBack,
+        onRefresh = viewModel::refresh,
+        onClear = viewModel::clear,
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TransferLogScreenContent(
+    uiState: TransferLogUiState,
+    onBack: () -> Unit,
+    onRefresh: () -> Unit,
+    onClear: () -> Unit,
+) {
     var showClearDialog by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -106,7 +124,7 @@ fun Main.Sync.Template.TransferLogScreen(
                         .padding(horizontal = SpacingTokens.Large, vertical = SpacingTokens.Small),
                 horizontalArrangement = Arrangement.spacedBy(SpacingTokens.Small),
             ) {
-                FilledTonalButton(onClick = { viewModel.refresh() }) {
+                FilledTonalButton(onClick = onRefresh) {
                     Icon(
                         imageVector = Icons.Default.Refresh,
                         contentDescription = null,
@@ -148,7 +166,7 @@ fun Main.Sync.Template.TransferLogScreen(
                 text = stringResource(id = R.string.action_sync_activity_log_clear_confirm),
                 contentColor = MaterialTheme.colorScheme.error,
                 onClick = {
-                    viewModel.clear()
+                    onClear()
                     showClearDialog = false
                 },
             )
@@ -300,5 +318,46 @@ private fun TransferLogListPreview() {
 private fun TransferLogListEmptyPreview() {
     AcerolaTheme {
         TransferLogList(entries = emptyList())
+    }
+}
+
+@Preview(name = "Light", showBackground = true)
+@Preview(name = "Dark", showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+private fun TransferLogScreenContentPreview() {
+    AcerolaTheme {
+        TransferLogScreenContent(
+            uiState =
+                TransferLogUiState(
+                    entries =
+                        listOf(
+                            TransferLogEntry(id = 1, kind = "files", status = "complete", state = LogState.SUCCESS),
+                            TransferLogEntry(
+                                id = 2,
+                                kind = "history",
+                                status = "error",
+                                state = LogState.ERROR,
+                                message = "conexão perdida",
+                            ),
+                        ),
+                    loaded = true,
+                ),
+            onBack = {},
+            onRefresh = {},
+            onClear = {},
+        )
+    }
+}
+
+@Preview(name = "Empty screen", showBackground = true)
+@Composable
+private fun TransferLogScreenContentEmptyPreview() {
+    AcerolaTheme {
+        TransferLogScreenContent(
+            uiState = TransferLogUiState(entries = emptyList(), loaded = true),
+            onBack = {},
+            onRefresh = {},
+            onClear = {},
+        )
     }
 }

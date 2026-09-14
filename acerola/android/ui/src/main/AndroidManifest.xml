@@ -21,7 +21,7 @@
             android:theme="@style/Theme.Acerola" />
 
         <activity
-            android:name="br.acerola.comic.module.main.sync.TransferLogActivity"
+            android:name="br.acerola.comic.module.main.transferlog.TransferLogActivity"
             android:exported="false"
             android:label="@string/label_transfer_log_activity"
             android:theme="@style/Theme.Acerola" />
