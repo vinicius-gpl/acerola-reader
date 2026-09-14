@@ -99,8 +99,13 @@ import br.acerola.comic.common.ux.tokens.SizeTokens
 import br.acerola.comic.common.ux.tokens.SpacingTokens
 import br.acerola.comic.common.viewmodel.archive.FileSystemAccessViewModel
 import br.acerola.comic.common.viewmodel.library.archive.ComicDirectoryViewModel
+import br.acerola.comic.config.preference.types.ComicSortType
 import br.acerola.comic.config.preference.types.HomeLayoutType
+import br.acerola.comic.config.preference.types.HomeSortPreference
+import br.acerola.comic.config.preference.types.SortDirection
 import br.acerola.comic.dto.ComicDto
+import br.acerola.comic.dto.history.ReadingHistoryDto
+import br.acerola.comic.dto.metadata.category.CategoryDto
 import br.acerola.comic.module.comic.ComicActivity
 import br.acerola.comic.module.main.Main
 import br.acerola.comic.module.main.common.component.BatchComicCategorySheet
@@ -111,10 +116,13 @@ import br.acerola.comic.module.main.home.component.ComicGridItem
 import br.acerola.comic.module.main.home.component.HomeContinueBanner
 import br.acerola.comic.module.main.home.component.HomeFilterSheet
 import br.acerola.comic.module.main.home.component.HomeSearchBar
+import br.acerola.comic.module.main.home.state.FilterSettings
 import br.acerola.comic.module.main.home.state.HomeAction
 import br.acerola.comic.module.main.home.state.HomeUiState
 import br.acerola.comic.module.main.remotelibrary.RemoteLibraryActivity
+import br.acerola.comic.module.main.sync.state.PairedPeer
 import br.acerola.comic.module.reader.ReaderActivity
+import br.acerola.comic.service.SyncDirection
 import br.acerola.comic.ui.R
 import br.acerola.comic.util.p2p.PairingCode
 import kotlinx.coroutines.launch
@@ -133,7 +141,6 @@ fun Main.Home.Template.Screen(
 ) {
     val context = LocalContext.current
     val snackbarHostState = LocalSnackbarHostState.current
-    val haptic = LocalHapticFeedback.current
 
     LaunchedEffect(Unit) {
         launch {
@@ -203,16 +210,6 @@ fun Main.Home.Template.Screen(
             filter = filterSettings,
         )
 
-    var showFilterSheet by remember { mutableStateOf(false) }
-    var selectedMangaForActions by remember { mutableStateOf<ComicDto?>(null) }
-    var isBannerExpanded by remember { mutableStateOf(true) }
-    var showRemoteLibraryPeerPicker by remember { mutableStateOf(false) }
-
-    var showBatchCategorySheet by remember { mutableStateOf(false) }
-    var showBatchHideDialog by remember { mutableStateOf(false) }
-    var showBatchDeleteDialog by remember { mutableStateOf(false) }
-    var showBatchClearMetadataDialog by remember { mutableStateOf(false) }
-
     val onAction: (HomeAction) -> Unit = { action ->
         when (action) {
             is HomeAction.UpdateLayout -> homeViewModel.updateHomeLayout(action.layout)
@@ -236,6 +233,105 @@ fun Main.Home.Template.Screen(
             }
         }
     }
+
+    HomeScreenContent(
+        uiState = uiState,
+        allCategories = allCategories,
+        sortSettings = sortSettings,
+        filterSettings = filterSettings,
+        searchQuery = searchQuery,
+        isSearchExpanded = isSearchExpanded,
+        selectedComicIds = selectedComicIds,
+        pairedPeers = pairedPeers,
+        isSelectionMode = isSelectionMode,
+        areAllSelectedHidden = areAllSelectedHidden,
+        selectedCategoryCounts = selectedCategoryCounts,
+        lastRead = lastRead,
+        onAction = onAction,
+        onQuickSyncLibrary = comicDirectoryViewModel::syncLibrary,
+        onSelectFolder = { uri ->
+            if (uri != null) {
+                fileSystemAccessViewModel.saveFolderUri(uri)
+                comicDirectoryViewModel.syncLibrary()
+            }
+        },
+        onUpdateSearchQuery = homeViewModel::updateSearchQuery,
+        onSetSearchExpanded = homeViewModel::setSearchExpanded,
+        onClearComicSelection = homeViewModel::clearComicSelection,
+        onSelectAllComics = homeViewModel::selectAllComics,
+        onToggleComicSelection = homeViewModel::toggleComicSelection,
+        onLoadPairedPeers = homeViewModel::loadPairedPeers,
+        onBrowseRemoteLibrary = { peerId, peerDisplayName ->
+            val intent =
+                Intent(context, RemoteLibraryActivity::class.java).apply {
+                    putExtra(RemoteLibraryActivity.PeerExtra.PEER_ID, peerId)
+                    putExtra(RemoteLibraryActivity.PeerExtra.PEER_DISPLAY_NAME, peerDisplayName)
+                }
+            context.startActivity(intent)
+        },
+        onHideManga = homeViewModel::hideManga,
+        onDeleteComic = homeViewModel::deleteComic,
+        onClearMetadata = homeViewModel::clearMetadata,
+        onSetMangaCategory = homeViewModel::setMangaCategory,
+        onSyncComicWithPeer = homeViewModel::syncComicWithPeer,
+        onSetSelectedComicsCategory = homeViewModel::setSelectedComicsCategory,
+        onHideSelectedComics = homeViewModel::hideSelectedComics,
+        onUnhideSelectedComics = homeViewModel::unhideSelectedComics,
+        onDeleteSelectedComics = homeViewModel::deleteSelectedComics,
+        onClearMetadataForSelectedComics = homeViewModel::clearMetadataForSelectedComics,
+        onUpdateSortSettings = homeViewModel::updateSortSettings,
+        onUpdateFilterSettings = homeViewModel::updateFilterSettings,
+    )
+}
+
+@Composable
+private fun HomeScreenContent(
+    uiState: HomeUiState,
+    allCategories: List<CategoryDto>,
+    sortSettings: HomeSortPreference,
+    filterSettings: FilterSettings,
+    searchQuery: String,
+    isSearchExpanded: Boolean,
+    selectedComicIds: Set<Long>,
+    pairedPeers: List<PairedPeer>,
+    isSelectionMode: Boolean,
+    areAllSelectedHidden: Boolean,
+    selectedCategoryCounts: Map<Long, Int>,
+    lastRead: Triple<ComicDto, ReadingHistoryDto?, Int>?,
+    onAction: (HomeAction) -> Unit,
+    onQuickSyncLibrary: () -> Unit,
+    onSelectFolder: (Uri?) -> Unit,
+    onUpdateSearchQuery: (String) -> Unit,
+    onSetSearchExpanded: (Boolean) -> Unit,
+    onClearComicSelection: () -> Unit,
+    onSelectAllComics: (List<Long>) -> Unit,
+    onToggleComicSelection: (Long) -> Unit,
+    onLoadPairedPeers: () -> Unit,
+    onBrowseRemoteLibrary: (peerId: String, peerDisplayName: String) -> Unit,
+    onHideManga: (Long) -> Unit,
+    onDeleteComic: (Long) -> Unit,
+    onClearMetadata: (Long) -> Unit,
+    onSetMangaCategory: (Long, Long?) -> Unit,
+    onSyncComicWithPeer: (peerId: String, comicName: String, direction: SyncDirection) -> Unit,
+    onSetSelectedComicsCategory: (Long?) -> Unit,
+    onHideSelectedComics: () -> Unit,
+    onUnhideSelectedComics: () -> Unit,
+    onDeleteSelectedComics: () -> Unit,
+    onClearMetadataForSelectedComics: () -> Unit,
+    onUpdateSortSettings: (HomeSortPreference) -> Unit,
+    onUpdateFilterSettings: (FilterSettings) -> Unit,
+) {
+    val haptic = LocalHapticFeedback.current
+
+    var showFilterSheet by remember { mutableStateOf(false) }
+    var selectedMangaForActions by remember { mutableStateOf<ComicDto?>(null) }
+    var isBannerExpanded by remember { mutableStateOf(true) }
+    var showRemoteLibraryPeerPicker by remember { mutableStateOf(false) }
+
+    var showBatchCategorySheet by remember { mutableStateOf(false) }
+    var showBatchHideDialog by remember { mutableStateOf(false) }
+    var showBatchDeleteDialog by remember { mutableStateOf(false) }
+    var showBatchClearMetadataDialog by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         val comicList = uiState.comics
@@ -281,26 +377,21 @@ fun Main.Home.Template.Screen(
             comicList.isEmpty() ->
                 EmptyState(
                     isIndexing = uiState.isIndexing,
-                    onQuickSync = { comicDirectoryViewModel.syncLibrary() },
-                    onFolderSelected = { uri ->
-                        if (uri != null) {
-                            fileSystemAccessViewModel.saveFolderUri(uri)
-                            comicDirectoryViewModel.syncLibrary()
-                        }
-                    },
+                    onQuickSync = onQuickSyncLibrary,
+                    onFolderSelected = onSelectFolder,
                 )
             else -> {
                 Box(modifier = Modifier.fillMaxSize()) {
                     if (!isSelectionMode) {
                         Main.Home.Component.HomeSearchBar(
                             query = searchQuery,
-                            onQueryChange = { homeViewModel.updateSearchQuery(it) },
-                            onSearch = { homeViewModel.updateSearchQuery(it) },
+                            onQueryChange = onUpdateSearchQuery,
+                            onSearch = onUpdateSearchQuery,
                             expanded = isSearchExpanded,
-                            onExpandedChange = { homeViewModel.setSearchExpanded(it) },
+                            onExpandedChange = onSetSearchExpanded,
                             comics = comicList,
                             onComicClick = { comic ->
-                                homeViewModel.setSearchExpanded(false)
+                                onSetSearchExpanded(false)
                                 onAction(HomeAction.ClickManga(comic))
                             },
                             modifier =
@@ -337,12 +428,12 @@ fun Main.Home.Template.Screen(
                         Acerola.Component.SelectionTopBar(
                             selectedCount = selectedComicIds.size,
                             isAllSelected = isAllSelected,
-                            onClear = { homeViewModel.clearComicSelection() },
+                            onClear = onClearComicSelection,
                             onToggleSelectAll = {
                                 if (isAllSelected) {
-                                    homeViewModel.clearComicSelection()
+                                    onClearComicSelection()
                                 } else {
-                                    homeViewModel.selectAllComics(allIds)
+                                    onSelectAllComics(allIds)
                                 }
                             },
                             modifier = Modifier.fillMaxWidth(),
@@ -395,7 +486,7 @@ fun Main.Home.Template.Screen(
 
                             val onItemClick = {
                                 if (isSelectionMode) {
-                                    homeViewModel.toggleComicSelection(comic.directory.id)
+                                    onToggleComicSelection(comic.directory.id)
                                 } else {
                                     onAction(HomeAction.ClickManga(comic))
                                 }
@@ -403,12 +494,12 @@ fun Main.Home.Template.Screen(
 
                             val onItemLongClick = {
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                homeViewModel.toggleComicSelection(comic.directory.id)
+                                onToggleComicSelection(comic.directory.id)
                             }
 
                             val onShowItemActions = {
                                 if (isSelectionMode) {
-                                    homeViewModel.toggleComicSelection(comic.directory.id)
+                                    onToggleComicSelection(comic.directory.id)
                                 } else {
                                     selectedMangaForActions = comic
                                 }
@@ -504,7 +595,7 @@ fun Main.Home.Template.Screen(
                                 )
                             },
                             onClick = {
-                                homeViewModel.loadPairedPeers()
+                                onLoadPairedPeers()
                                 showRemoteLibraryPeerPicker = true
                             },
                         ),
@@ -518,12 +609,7 @@ fun Main.Home.Template.Screen(
                 onSelect = { peerId ->
                     showRemoteLibraryPeerPicker = false
                     val peerDisplayName = pairedPeers.find { it.peerId == peerId }?.deviceName ?: PairingCode.shortId(peerId)
-                    val intent =
-                        Intent(context, RemoteLibraryActivity::class.java).apply {
-                            putExtra(RemoteLibraryActivity.PeerExtra.PEER_ID, peerId)
-                            putExtra(RemoteLibraryActivity.PeerExtra.PEER_DISPLAY_NAME, peerDisplayName)
-                        }
-                    context.startActivity(intent)
+                    onBrowseRemoteLibrary(peerId, peerDisplayName)
                 },
                 onDismiss = { showRemoteLibraryPeerPicker = false },
             )
@@ -577,15 +663,15 @@ fun Main.Home.Template.Screen(
             Main.Common.Component.ComicActionsSheet(
                 comic = activeManga,
                 categories = allCategories,
-                onHide = { homeViewModel.hideManga(activeManga.directory.id) },
-                onDelete = { homeViewModel.deleteComic(activeManga.directory.id) },
-                onClearMetadata = { homeViewModel.clearMetadata(activeManga.directory.id) },
-                onBookmark = { categoryId -> homeViewModel.setMangaCategory(activeManga.directory.id, categoryId) },
+                onHide = { onHideManga(activeManga.directory.id) },
+                onDelete = { onDeleteComic(activeManga.directory.id) },
+                onClearMetadata = { onClearMetadata(activeManga.directory.id) },
+                onBookmark = { categoryId -> onSetMangaCategory(activeManga.directory.id, categoryId) },
                 onDismiss = { selectedMangaForActions = null },
                 pairedPeers = pairedPeers,
-                onLoadPairedPeers = homeViewModel::loadPairedPeers,
+                onLoadPairedPeers = onLoadPairedPeers,
                 onSyncWithPeer = { peerId, direction ->
-                    homeViewModel.syncComicWithPeer(peerId, activeManga.directory.name, direction)
+                    onSyncComicWithPeer(peerId, activeManga.directory.name, direction)
                 },
             )
         }
@@ -596,11 +682,11 @@ fun Main.Home.Template.Screen(
                 categoryCounts = selectedCategoryCounts,
                 totalSelectedCount = selectedComicIds.size,
                 onSelectCategory = { categoryId ->
-                    homeViewModel.setSelectedComicsCategory(categoryId)
+                    onSetSelectedComicsCategory(categoryId)
                     showBatchCategorySheet = false
                 },
                 onRemoveCategory = {
-                    homeViewModel.setSelectedComicsCategory(null)
+                    onSetSelectedComicsCategory(null)
                     showBatchCategorySheet = false
                 },
                 onDismiss = { showBatchCategorySheet = false },
@@ -622,9 +708,9 @@ fun Main.Home.Template.Screen(
                         onClick = {
                             showBatchHideDialog = false
                             if (areAllSelectedHidden) {
-                                homeViewModel.unhideSelectedComics()
+                                onUnhideSelectedComics()
                             } else {
-                                homeViewModel.hideSelectedComics()
+                                onHideSelectedComics()
                             }
                         },
                         containerColor = MaterialTheme.colorScheme.primary,
@@ -660,7 +746,7 @@ fun Main.Home.Template.Screen(
                         text = stringResource(id = R.string.action_delete),
                         onClick = {
                             showBatchDeleteDialog = false
-                            homeViewModel.deleteSelectedComics()
+                            onDeleteSelectedComics()
                         },
                         containerColor = MaterialTheme.colorScheme.error,
                         contentColor = MaterialTheme.colorScheme.onError,
@@ -688,7 +774,7 @@ fun Main.Home.Template.Screen(
                         text = stringResource(id = R.string.action_clear_metadata),
                         onClick = {
                             showBatchClearMetadataDialog = false
-                            homeViewModel.clearMetadataForSelectedComics()
+                            onClearMetadataForSelectedComics()
                         },
                         containerColor = MaterialTheme.colorScheme.error,
                         contentColor = MaterialTheme.colorScheme.onError,
@@ -712,8 +798,8 @@ fun Main.Home.Template.Screen(
                 filterSettings = filterSettings,
                 categories = allCategories,
                 onDismiss = { showFilterSheet = false },
-                onSortChange = { homeViewModel.updateSortSettings(it) },
-                onFilterChange = { homeViewModel.updateFilterSettings(it) },
+                onSortChange = onUpdateSortSettings,
+                onFilterChange = onUpdateFilterSettings,
             )
         }
     }
@@ -902,12 +988,56 @@ private fun EmptyState(
 @Preview(name = "Light", showBackground = true)
 @Preview(name = "Dark", showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
 @Composable
-private fun ScreenPreview() {
+private fun EmptyStatePreview() {
     AcerolaTheme {
         EmptyState(
             isIndexing = false,
             onQuickSync = {},
             onFolderSelected = {},
+        )
+    }
+}
+
+@Preview(name = "Light — empty library", showBackground = true)
+@Preview(name = "Dark — empty library", showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+private fun HomeScreenContentEmptyPreview() {
+    AcerolaTheme {
+        HomeScreenContent(
+            uiState = HomeUiState(comics = null),
+            allCategories = emptyList(),
+            sortSettings = HomeSortPreference(type = ComicSortType.TITLE, direction = SortDirection.ASCENDING),
+            filterSettings = FilterSettings(),
+            searchQuery = "",
+            isSearchExpanded = false,
+            selectedComicIds = emptySet(),
+            pairedPeers = emptyList(),
+            isSelectionMode = false,
+            areAllSelectedHidden = false,
+            selectedCategoryCounts = emptyMap(),
+            lastRead = null,
+            onAction = {},
+            onQuickSyncLibrary = {},
+            onSelectFolder = {},
+            onUpdateSearchQuery = {},
+            onSetSearchExpanded = {},
+            onClearComicSelection = {},
+            onSelectAllComics = {},
+            onToggleComicSelection = {},
+            onLoadPairedPeers = {},
+            onBrowseRemoteLibrary = { _, _ -> },
+            onHideManga = {},
+            onDeleteComic = {},
+            onClearMetadata = {},
+            onSetMangaCategory = { _, _ -> },
+            onSyncComicWithPeer = { _, _, _ -> },
+            onSetSelectedComicsCategory = {},
+            onHideSelectedComics = {},
+            onUnhideSelectedComics = {},
+            onDeleteSelectedComics = {},
+            onClearMetadataForSelectedComics = {},
+            onUpdateSortSettings = {},
+            onUpdateFilterSettings = {},
         )
     }
 }

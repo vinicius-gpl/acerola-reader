@@ -4,8 +4,6 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.rememberPagerState
@@ -32,6 +30,7 @@ import br.acerola.comic.common.ux.theme.AcerolaTheme
 import br.acerola.comic.config.preference.types.ReadingMode
 import br.acerola.comic.dto.archive.ChapterFileDto
 import br.acerola.comic.module.reader.state.ReaderAction
+import br.acerola.comic.module.reader.state.ReaderUiState
 import br.acerola.comic.module.reader.template.BottomControls
 import br.acerola.comic.module.reader.template.PageContent
 import br.acerola.comic.module.reader.template.SettingsSheet
@@ -104,6 +103,27 @@ fun ReaderScreen(
         }
     }
 
+    ReaderScreenContent(
+        state = state,
+        activeChapter = activeChapter,
+        initialPage = initialPage,
+        comicId = comicId,
+        chapter = chapter,
+        chapterId = chapterId,
+        onAction = onAction,
+    )
+}
+
+@Composable
+private fun ReaderScreenContent(
+    state: ReaderUiState,
+    activeChapter: ChapterFileDto?,
+    initialPage: Int,
+    comicId: Long,
+    chapter: ChapterFileDto?,
+    chapterId: Long,
+    onAction: (ReaderAction) -> Unit,
+) {
     if (state.isLoading || state.pageCount == 0) {
         Box(
             modifier = Modifier.fillMaxSize(),
@@ -215,25 +235,37 @@ fun ReaderScreen(
 @Preview(name = "Light", showBackground = true)
 @Preview(name = "Dark", showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
 @Composable
-private fun ReaderScreenPreview() {
+private fun ReaderScreenContentPreview() {
     AcerolaTheme {
-        Column(modifier = Modifier.fillMaxSize()) {
-            Reader.Template.TopBar(
-                title = "Capítulo 01",
-                subtitle = "Sample Comic",
-                isVisible = true,
-                onBackClick = {},
-                onSettingsClick = {},
-            )
-            Spacer(modifier = Modifier.weight(1f))
-            Reader.Template.BottomControls(
-                pageCount = 20,
-                currentPage = 5,
-                onPrevClick = {},
-                onNextClick = {},
-                onNextChapterClick = {},
-                onPreviousChapterClick = {},
-            )
-        }
+        ReaderScreenContent(
+            state =
+                ReaderUiState(
+                    pageCount = 20,
+                    currentPage = 5,
+                    isUiVisible = true,
+                ),
+            activeChapter = null,
+            initialPage = 5,
+            comicId = 1L,
+            chapter = null,
+            chapterId = -1L,
+            onAction = {},
+        )
+    }
+}
+
+@Preview(name = "Loading", showBackground = true)
+@Composable
+private fun ReaderScreenContentLoadingPreview() {
+    AcerolaTheme {
+        ReaderScreenContent(
+            state = ReaderUiState(isLoading = true),
+            activeChapter = null,
+            initialPage = 0,
+            comicId = 1L,
+            chapter = null,
+            chapterId = -1L,
+            onAction = {},
+        )
     }
 }
