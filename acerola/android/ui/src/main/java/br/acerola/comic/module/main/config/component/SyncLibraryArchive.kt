@@ -39,17 +39,13 @@ fun Main.Config.Component.SyncLibraryArchive(
         Acerola.Component.HeroButton(
             title = stringResource(id = R.string.description_text_home_deep_sync),
             description = stringResource(id = R.string.description_text_home_deep_sync_supporting),
-            iconBackground = MaterialTheme.colorScheme.primaryContainer,
             onClick = if (anyLoading) null else onDeepScan,
             icon = {
-                Acerola.Component.SyncActionIcon(
-                    state = deepScanState,
-                    defaultBackground = MaterialTheme.colorScheme.primaryContainer,
-                ) {
+                Acerola.Component.SyncActionIcon(state = deepScanState) {
                     Icon(
                         imageVector = Icons.Default.Folder,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        tint = MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier.size(SizeTokens.IconMedium),
                     )
                 }
@@ -59,17 +55,13 @@ fun Main.Config.Component.SyncLibraryArchive(
         Acerola.Component.HeroButton(
             title = stringResource(id = R.string.description_text_home_quick_sync),
             description = stringResource(id = R.string.description_text_home_quick_sync_supporting),
-            iconBackground = MaterialTheme.colorScheme.primaryContainer,
             onClick = if (anyLoading) null else onQuickSync,
             icon = {
-                Acerola.Component.SyncActionIcon(
-                    state = quickSyncState,
-                    defaultBackground = MaterialTheme.colorScheme.primaryContainer,
-                ) {
+                Acerola.Component.SyncActionIcon(state = quickSyncState) {
                     Icon(
                         imageVector = Icons.Default.Sync,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        tint = MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier.size(SizeTokens.IconMedium),
                     )
                 }

@@ -209,8 +209,8 @@ fun Main.Common.Component.ComicActionsSheet(
                 shape = ShapeTokens.Large,
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
             ) {
-                val accentContainer = AcerolaExtendedTheme.colors.accentContainer
-                val onAccentContainer = AcerolaExtendedTheme.colors.onAccentContainer
+                val accent = AcerolaExtendedTheme.colors.accent
+                val onAccent = AcerolaExtendedTheme.colors.onAccent
 
                 Column {
                     Acerola.Component.ActionListItem(
@@ -218,8 +218,8 @@ fun Main.Common.Component.ComicActionsSheet(
                         title = stringResource(id = R.string.action_bookmark),
                         subtitle = currentCategoryName ?: stringResource(id = R.string.label_no_bookmark),
                         onClick = { showCategorySheet = true },
-                        tint = onAccentContainer,
-                        iconBackground = accentContainer,
+                        tint = onAccent,
+                        iconBackground = accent,
                     )
 
                     Acerola.Component.ActionListItem(
@@ -233,8 +233,8 @@ fun Main.Common.Component.ComicActionsSheet(
                                 id = if (comic.directory.hidden) R.string.description_unhide else R.string.description_hide,
                             ),
                         onClick = { showHideDialog = true },
-                        tint = onAccentContainer,
-                        iconBackground = accentContainer,
+                        tint = onAccent,
+                        iconBackground = accent,
                     )
 
                     Acerola.Component.ActionListItem(
@@ -246,8 +246,8 @@ fun Main.Common.Component.ComicActionsSheet(
                             pendingDirection = SyncDirection.PUSH
                             showPeerPicker = true
                         },
-                        tint = onAccentContainer,
-                        iconBackground = accentContainer,
+                        tint = onAccent,
+                        iconBackground = accent,
                     )
 
                     Acerola.Component.ActionListItem(
@@ -259,8 +259,8 @@ fun Main.Common.Component.ComicActionsSheet(
                             pendingDirection = SyncDirection.PULL
                             showPeerPicker = true
                         },
-                        tint = onAccentContainer,
-                        iconBackground = accentContainer,
+                        tint = onAccent,
+                        iconBackground = accent,
                     )
 
                     Acerola.Component.ActionListItem(

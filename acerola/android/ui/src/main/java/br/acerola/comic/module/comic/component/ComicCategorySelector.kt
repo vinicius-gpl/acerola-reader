@@ -40,8 +40,8 @@ fun Comic.Component.ComicCategorySelector(
         title = stringResource(id = R.string.title_comic_category),
         description = selectedCategory?.name ?: stringResource(id = R.string.label_category_none_selected),
         icon = if (selectedCategory != null) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
-        iconTint = if (selectedCategory != null) Color(selectedCategory.color) else MaterialTheme.colorScheme.onPrimaryContainer,
-        iconBackground = MaterialTheme.colorScheme.primaryContainer,
+        iconTint = if (selectedCategory != null) Color(selectedCategory.color) else MaterialTheme.colorScheme.onPrimary,
+        iconBackground = MaterialTheme.colorScheme.primary,
         modifier = modifier,
         bottomContent =
             if (allCategories.isNotEmpty()) {

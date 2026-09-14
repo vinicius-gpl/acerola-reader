@@ -54,8 +54,6 @@ fun Main.Config.Component.SelectComicDirectory(
         title = stringResource(id = R.string.title_text_config_select_path_comic),
         description = description,
         icon = Icons.Filled.Folder,
-        iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
-        iconBackground = MaterialTheme.colorScheme.primaryContainer,
         modifier = modifier,
         onClick = { launcher.launch(input = null) },
         action = {

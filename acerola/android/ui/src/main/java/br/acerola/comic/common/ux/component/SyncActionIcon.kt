@@ -40,7 +40,8 @@ fun Acerola.Component.SyncActionIcon(
     modifier: Modifier = Modifier,
     containerSize: Dp = SizeTokens.ClickTarget,
     iconSize: Dp = SizeTokens.IconMedium,
-    defaultBackground: Color = MaterialTheme.colorScheme.primaryContainer,
+    defaultBackground: Color = MaterialTheme.colorScheme.primary,
+    onDefaultBackground: Color = MaterialTheme.colorScheme.onPrimary,
     successBackground: Color = Color(0xFF1B5E20),
     icon: @Composable () -> Unit,
 ) {
@@ -79,7 +80,7 @@ fun Acerola.Component.SyncActionIcon(
                     SyncActionVisualState.LOADING -> {
                         CircularProgressIndicator(
                             modifier = Modifier.size(iconSize),
-                            color = MaterialTheme.colorScheme.primary,
+                            color = onDefaultBackground,
                             strokeWidth = 2.5.dp,
                         )
                     }

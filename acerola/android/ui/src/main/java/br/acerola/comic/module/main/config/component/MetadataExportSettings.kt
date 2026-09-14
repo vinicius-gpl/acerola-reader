@@ -25,8 +25,6 @@ fun Main.Config.Component.MetadataExportSettings(
         title = stringResource(id = R.string.title_preference_metadata_comic_info),
         description = stringResource(id = R.string.description_preference_metadata_comic_info),
         icon = Icons.Filled.Description,
-        iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
-        iconBackground = MaterialTheme.colorScheme.primaryContainer,
         modifier = modifier,
         action = {
             Switch(

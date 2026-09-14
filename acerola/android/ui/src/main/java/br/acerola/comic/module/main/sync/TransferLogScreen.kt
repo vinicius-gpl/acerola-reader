@@ -199,12 +199,12 @@ private fun TransferLogCard(entry: TransferLogEntry) {
     val contentColor: Color
     when (entry.state) {
         LogState.SUCCESS -> {
-            containerColor = MaterialTheme.colorScheme.primaryContainer
-            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+            containerColor = MaterialTheme.colorScheme.primary
+            contentColor = MaterialTheme.colorScheme.onPrimary
         }
         LogState.ERROR -> {
-            containerColor = MaterialTheme.colorScheme.errorContainer
-            contentColor = MaterialTheme.colorScheme.onErrorContainer
+            containerColor = MaterialTheme.colorScheme.error
+            contentColor = MaterialTheme.colorScheme.onError
         }
         LogState.IN_PROGRESS -> {
             containerColor = MaterialTheme.colorScheme.surfaceVariant

@@ -376,14 +376,14 @@ fun Main.Common.Component.ComicListItem(
                         .align(Alignment.CenterVertically)
                         .padding(end = SpacingTokens.Small)
                         .background(
-                            color = MaterialTheme.colorScheme.secondaryContainer,
+                            color = MaterialTheme.colorScheme.secondary,
                             shape = ShapeTokens.Medium,
                         ),
             ) {
                 Icon(
                     imageVector = Icons.Default.PlayArrow,
                     contentDescription = stringResource(id = R.string.description_icon_continue_reading),
-                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                    tint = MaterialTheme.colorScheme.onSecondary,
                 )
             }
         }
