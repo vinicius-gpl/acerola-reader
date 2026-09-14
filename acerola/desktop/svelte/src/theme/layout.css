@@ -37,3 +37,11 @@ img {
 	transform: translateZ(0);
 	backface-visibility: hidden;
 }
+
+/* svelte-sonner alinha o ícone (`[data-icon]`) ao topo do toast por padrão — com título +
+   descrição de duas linhas isso deixa o ícone visivelmente mais alto que o texto. Centraliza
+   verticalmente em vez de alinhar pelo topo. */
+[data-sonner-toast] {
+	align-items: center;
+}
+

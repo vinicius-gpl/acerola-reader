@@ -124,6 +124,7 @@
 				variant: 'ghost',
 				tone: 'accent',
 				class: 'size-8',
+				title: m['pages.network.transfers.refresh'](),
 				'aria-label': m['pages.network.transfers.refresh']()
 			}}
 		>
@@ -146,6 +147,7 @@
 						variant: 'ghost',
 						tone: 'destructive',
 						class: 'size-8',
+						title: m['pages.network.transfers.clear.button'](),
 						'aria-label': m['pages.network.transfers.clear.button']()
 					}}
 				>

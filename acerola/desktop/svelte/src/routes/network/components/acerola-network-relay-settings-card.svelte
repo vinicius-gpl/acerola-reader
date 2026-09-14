@@ -260,6 +260,7 @@
 									tone: 'destructive',
 									class: 'size-8',
 									disabled: safeData.useIrohPublicNetwork || restarting,
+									title: m['pages.network.relay_settings.custom_relays.remove'](),
 									'aria-label': m['pages.network.relay_settings.custom_relays.remove']()
 								}}
 							>
@@ -389,6 +390,7 @@
 										tone: 'destructive',
 										class: 'size-8',
 										disabled: ticketSaving,
+										title: m['pages.network.relay_settings.iroh_services_ticket.remove_button'](),
 										'aria-label':
 											m['pages.network.relay_settings.iroh_services_ticket.remove_button']()
 									}}
