@@ -32,6 +32,7 @@ export function useReaderZoom() {
 
 	let isPanning = $state(false);
 	let viewport = $state<HTMLElement | null>(null);
+	let focusedImage = $state<HTMLImageElement | null>(null);
 
 	let panStartX = 0;
 	let panStartY = 0;
@@ -60,16 +61,49 @@ export function useReaderZoom() {
 		clampPan();
 	}
 
+	// A imagem em foco varia de tamanho/proporção por capítulo (1920x1080, 1720x1450, etc.) e é
+	// exibida com `object-contain`, então o retângulo realmente ocupado por ela dentro do viewport
+	// quase nunca é igual ao retângulo do viewport em si — usar o viewport puro como limite de pan
+	// deixava sobrar área vazia fora da imagem em quadrinhos com proporção diferente da tela.
+	function setFocusedImage(node: HTMLImageElement | null) {
+		if (focusedImage === node) return;
+
+		focusedImage = node;
+		clampPan();
+	}
+
 	function resetPan() {
 		panX = 0;
 		panY = 0;
 	}
 
-	function panBounds() {
+	// Calcula o retângulo que a imagem realmente ocupa dentro do viewport (mesma lógica do
+	// `object-contain` do CSS), usando o tamanho intrínseco da imagem — que independe de
+	// transform/scale, ao contrário de `getBoundingClientRect()` num elemento já escalado.
+	function fittedContentSize() {
 		const rect = viewport?.getBoundingClientRect();
+		const containerWidth = rect?.width ?? 0;
+		const containerHeight = rect?.height ?? 0;
 
-		const width = rect?.width ?? 0;
-		const height = rect?.height ?? 0;
+		const naturalWidth = focusedImage?.naturalWidth ?? 0;
+		const naturalHeight = focusedImage?.naturalHeight ?? 0;
+
+		if (!naturalWidth || !naturalHeight || !containerWidth || !containerHeight) {
+			return { width: containerWidth, height: containerHeight };
+		}
+
+		const containerRatio = containerWidth / containerHeight;
+		const naturalRatio = naturalWidth / naturalHeight;
+
+		if (naturalRatio > containerRatio) {
+			return { width: containerWidth, height: containerWidth / naturalRatio };
+		}
+
+		return { width: containerHeight * naturalRatio, height: containerHeight };
+	}
+
+	function panBounds() {
+		const { width, height } = fittedContentSize();
 
 		const extraX = Math.max(0, (width * (zoomLevel - MIN_ZOOM)) / 2);
 		const extraY = Math.max(0, (height * (zoomLevel - MIN_ZOOM)) / 2);
@@ -217,6 +251,7 @@ export function useReaderZoom() {
 
 	return {
 		setViewport,
+		setFocusedImage,
 		clampPan,
 		resetPan,
 		zoomIn,

@@ -13,6 +13,7 @@ function children() {
 function zoom(overrides: Partial<ReaderZoomController> = {}): ReaderZoomController {
 	return {
 		setViewport: vi.fn(),
+		setFocusedImage: vi.fn(),
 		clampPan: vi.fn(),
 		resetPan: vi.fn(),
 		zoomIn: vi.fn(),
