@@ -7,7 +7,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
@@ -60,6 +59,7 @@ import br.acerola.comic.common.ux.tokens.SpacingTokens
 import br.acerola.comic.common.viewmodel.library.archive.ChapterArchiveViewModel
 import br.acerola.comic.common.viewmodel.library.archive.ComicDirectoryViewModel
 import br.acerola.comic.common.viewmodel.library.metadata.ComicMetadataViewModel
+import br.acerola.comic.config.preference.types.ChapterSortPreferenceData
 import br.acerola.comic.dto.ComicDto
 import br.acerola.comic.dto.archive.ComicDirectoryDto
 import br.acerola.comic.module.comic.component.ChapterSortSheet
@@ -74,6 +74,7 @@ import br.acerola.comic.module.comic.template.chapterSection
 import br.acerola.comic.module.comic.template.configSection
 import br.acerola.comic.module.main.Main
 import br.acerola.comic.module.main.common.component.PeerPickerSheet
+import br.acerola.comic.module.main.sync.state.PairedPeer
 import br.acerola.comic.module.reader.ReaderActivity
 import br.acerola.comic.ui.R
 import br.acerola.comic.worker.sync.MetadataSyncWorker
@@ -130,11 +131,6 @@ fun ComicScreen(
     }
 
     var selectedTab by remember { mutableStateOf(value = MainTab.CHAPTERS) }
-
-    // Categorias da aba de preferências colapsam/expandem inline, mesmo padrão do
-    // Acerola.Component.AccordionCard usado na config principal — hoisted aqui porque
-    // `configSection` não é `@Composable` (só monta `scope.item {}`).
-    var expandedConfigCategories by remember { mutableStateOf(setOf<String>()) }
 
     val comicState by comicViewModel.comic.collectAsStateWithLifecycle()
     val chapterDto by comicViewModel.chapters.collectAsStateWithLifecycle()
@@ -230,7 +226,7 @@ fun ComicScreen(
 
     // `sendSelectedChaptersToPeer` limpa a seleção assim que dispara o envio (não quando
     // termina), então o conjunto de capítulos sendo enviados precisa ser capturado no
-    // momento do disparo (ver `onSelect` do `PeerPickerSheet` abaixo) — não dá pra derivar
+    // momento do disparo (ver `onSendSelectedChaptersToPeer` abaixo) — não dá pra derivar
     // de `selectedChapterSorts` porque ele já volta vazio.
     var sendingChapterSorts by remember { mutableStateOf<Set<String>>(emptySet()) }
     var sendChaptersSuccess by remember { mutableStateOf(false) }
@@ -295,9 +291,6 @@ fun ComicScreen(
             hasVolumeStructure = chapterDto?.hasVolumeStructure ?: false,
         )
 
-    val listState = rememberLazyListState()
-    val haptic = LocalHapticFeedback.current
-
     val isChapterSelectionMode = selectedChapterSorts.isNotEmpty()
     val allChapterSorts =
         remember(allChapters) {
@@ -307,24 +300,6 @@ fun ComicScreen(
         remember(readChapters, selectedChapterSorts) {
             selectedChapterSorts.isNotEmpty() && selectedChapterSorts.all { readChapters.contains(it) }
         }
-
-    val onChapterLongPress: (String) -> Unit = { chapterSort ->
-        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-        comicViewModel.toggleChapterSelection(chapterSort)
-    }
-
-    var showSortSheet by remember { mutableStateOf(false) }
-    var showSendChaptersPeerPicker by remember { mutableStateOf(false) }
-
-    // Ação "Enviar" do menu de três pontinhos de UM capítulo (`ChapterItem`) — mesmo fluxo da
-    // barra de seleção múltipla acima (`SelectionActionDock`/`PeerPickerSheet`), só que
-    // selecionando primeiro (e só) esse capítulo via `selectAllChapters`, que substitui a
-    // seleção inteira em vez de alternar (evita depender do estado de seleção anterior).
-    val onSendChapterToPeer: (String) -> Unit = { chapterSort ->
-        comicViewModel.selectAllChapters(listOf(chapterSort))
-        comicViewModel.loadPairedPeers()
-        showSendChaptersPeerPicker = true
-    }
 
     val onChapterAction: (ComicChapterAction) -> Unit = { action ->
         when (action) {
@@ -401,6 +376,88 @@ fun ComicScreen(
         }
     }
 
+    ComicScreenContent(
+        uiState = uiState,
+        selectedChapterSorts = selectedChapterSorts,
+        isChapterSelectionMode = isChapterSelectionMode,
+        allChapterSorts = allChapterSorts,
+        areAllSelectedRead = areAllSelectedRead,
+        pairedPeers = pairedPeers,
+        syncWithPeerState = syncWithPeerState,
+        sendChaptersVisualState = sendChaptersVisualState,
+        sendingChapterSorts = sendingChapterSorts,
+        getSyncActionVisualState = ::getSyncActionVisualState,
+        onAction = onAction,
+        onChapterAction = onChapterAction,
+        onSyncAction = onSyncAction,
+        onToggleChapterSelection = comicViewModel::toggleChapterSelection,
+        onClearChapterSelection = comicViewModel::clearChapterSelection,
+        onSelectAllChapters = comicViewModel::selectAllChapters,
+        onMarkSelectedChaptersReadStatus = comicViewModel::markSelectedChaptersReadStatus,
+        onSetActiveVolume = comicViewModel::setActiveVolume,
+        onLoadVolumeChaptersPage = comicViewModel::loadVolumeChaptersPage,
+        onExtractVolumeCover = comicViewModel::extractVolumeCover,
+        onUpdateChapterSort = comicViewModel::updateChapterSort,
+        onLoadPairedPeers = comicViewModel::loadPairedPeers,
+        onSendSelectedChaptersToPeer = { peerId ->
+            sendingChapterSorts = selectedChapterSorts
+            comicViewModel.sendSelectedChaptersToPeer(peerId)
+        },
+    )
+}
+
+@Composable
+private fun ComicScreenContent(
+    uiState: ComicUiState,
+    selectedChapterSorts: Set<String>,
+    isChapterSelectionMode: Boolean,
+    allChapterSorts: List<String>,
+    areAllSelectedRead: Boolean,
+    pairedPeers: List<PairedPeer>,
+    syncWithPeerState: SyncActionVisualState,
+    sendChaptersVisualState: SyncActionVisualState,
+    sendingChapterSorts: Set<String>,
+    getSyncActionVisualState: (ComicSyncAction) -> SyncActionVisualState,
+    onAction: (ComicAction) -> Unit,
+    onChapterAction: (ComicChapterAction) -> Unit,
+    onSyncAction: (ComicSyncAction) -> Unit,
+    onToggleChapterSelection: (String) -> Unit,
+    onClearChapterSelection: () -> Unit,
+    onSelectAllChapters: (List<String>) -> Unit,
+    onMarkSelectedChaptersReadStatus: (Boolean) -> Unit,
+    onSetActiveVolume: (Long?) -> Unit,
+    onLoadVolumeChaptersPage: (Long, Int) -> Unit,
+    onExtractVolumeCover: (Long) -> Unit,
+    onUpdateChapterSort: (ChapterSortPreferenceData) -> Unit,
+    onLoadPairedPeers: () -> Unit,
+    onSendSelectedChaptersToPeer: (String) -> Unit,
+) {
+    // Categorias da aba de preferências colapsam/expandem inline, mesmo padrão do
+    // Acerola.Component.AccordionCard usado na config principal — hoisted aqui porque
+    // `configSection` não é `@Composable` (só monta `scope.item {}`).
+    var expandedConfigCategories by remember { mutableStateOf(setOf<String>()) }
+
+    val listState = rememberLazyListState()
+    val haptic = LocalHapticFeedback.current
+
+    val onChapterLongPress: (String) -> Unit = { chapterSort ->
+        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        onToggleChapterSelection(chapterSort)
+    }
+
+    var showSortSheet by remember { mutableStateOf(false) }
+    var showSendChaptersPeerPicker by remember { mutableStateOf(false) }
+
+    // Ação "Enviar" do menu de três pontinhos de UM capítulo (`ChapterItem`) — mesmo fluxo da
+    // barra de seleção múltipla abaixo (`SelectionActionDock`/`PeerPickerSheet`), só que
+    // selecionando primeiro (e só) esse capítulo via `onSelectAllChapters`, que substitui a
+    // seleção inteira em vez de alternar (evita depender do estado de seleção anterior).
+    val onSendChapterToPeer: (String) -> Unit = { chapterSort ->
+        onSelectAllChapters(listOf(chapterSort))
+        onLoadPairedPeers()
+        showSendChaptersPeerPicker = true
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             modifier = Modifier.fillMaxSize(),
@@ -453,14 +510,14 @@ fun ComicScreen(
                                 isSelectionMode = isChapterSelectionMode,
                                 sendingChapterSorts = sendingChapterSorts,
                                 sendChaptersVisualState = sendChaptersVisualState,
-                                onToggleSelection = comicViewModel::toggleChapterSelection,
+                                onToggleSelection = onToggleChapterSelection,
                                 onLongPressChapter = onChapterLongPress,
                                 onSendToPeer = onSendChapterToPeer,
                                 volumeViewMode = uiState.volumeViewMode,
                                 activeVolumeId = uiState.activeVolumeId,
-                                onSetActiveVolume = comicViewModel::setActiveVolume,
-                                onLoadVolumeChaptersPage = comicViewModel::loadVolumeChaptersPage,
-                                onExtractVolumeCover = comicViewModel::extractVolumeCover,
+                                onSetActiveVolume = onSetActiveVolume,
+                                onLoadVolumeChaptersPage = onLoadVolumeChaptersPage,
+                                onExtractVolumeCover = onExtractVolumeCover,
                             )
                         }
                     }
@@ -478,10 +535,10 @@ fun ComicScreen(
                                         expandedConfigCategories + id
                                     }
                             },
-                            getSyncActionVisualState = ::getSyncActionVisualState,
+                            getSyncActionVisualState = getSyncActionVisualState,
                             pairedPeers = pairedPeers,
                             syncWithPeerState = syncWithPeerState,
-                            onLoadPairedPeers = comicViewModel::loadPairedPeers,
+                            onLoadPairedPeers = onLoadPairedPeers,
                             onAction = onAction,
                             onSyncAction = onSyncAction,
                         )
@@ -516,12 +573,12 @@ fun ComicScreen(
                 Acerola.Component.SelectionTopBar(
                     selectedCount = selectedChapterSorts.size,
                     isAllSelected = isAllChaptersSelected,
-                    onClear = { comicViewModel.clearChapterSelection() },
+                    onClear = onClearChapterSelection,
                     onToggleSelectAll = {
                         if (isAllChaptersSelected) {
-                            comicViewModel.clearChapterSelection()
+                            onClearChapterSelection()
                         } else {
-                            comicViewModel.selectAllChapters(allChapterSorts)
+                            onSelectAllChapters(allChapterSorts)
                         }
                     },
                 )
@@ -574,13 +631,13 @@ fun ComicScreen(
                                 stringResource(
                                     id = if (areAllSelectedRead) R.string.action_mark_as_unread else R.string.action_mark_as_read,
                                 ),
-                            onClick = { comicViewModel.markSelectedChaptersReadStatus(!areAllSelectedRead) },
+                            onClick = { onMarkSelectedChaptersReadStatus(!areAllSelectedRead) },
                         ),
                         SelectionAction(
                             icon = Icons.AutoMirrored.Filled.Send,
                             label = stringResource(id = R.string.action_send_chapters_to_peer),
                             onClick = {
-                                comicViewModel.loadPairedPeers()
+                                onLoadPairedPeers()
                                 showSendChaptersPeerPicker = true
                             },
                         ),
@@ -595,7 +652,7 @@ fun ComicScreen(
         if (showSortSheet) {
             Comic.Component.ChapterSortSheet(
                 sortSettings = uiState.chapterSortSettings,
-                onSortChange = { comicViewModel.updateChapterSort(it) },
+                onSortChange = onUpdateChapterSort,
                 onDismiss = { showSortSheet = false },
             )
         }
@@ -605,8 +662,7 @@ fun ComicScreen(
                 peers = pairedPeers,
                 onSelect = { peerId ->
                     showSendChaptersPeerPicker = false
-                    sendingChapterSorts = selectedChapterSorts
-                    comicViewModel.sendSelectedChaptersToPeer(peerId)
+                    onSendSelectedChaptersToPeer(peerId)
                 },
                 onDismiss = { showSendChaptersPeerPicker = false },
             )
@@ -614,36 +670,96 @@ fun ComicScreen(
     }
 }
 
+private fun previewComic(): ComicDto =
+    ComicDto(
+        directory =
+            ComicDirectoryDto(
+                id = 1L,
+                name = "Sample Comic",
+                path = "/path",
+                coverUri = null,
+                bannerUri = null,
+                lastModified = 0L,
+                archiveTemplateFk = null,
+            ),
+        category = null,
+        remoteInfo = null,
+    )
+
+private fun previewUiState(selectedTab: MainTab = MainTab.CHAPTERS): ComicUiState =
+    ComicUiState(
+        comic = previewComic(),
+        chapters = null,
+        selectedTab = selectedTab,
+        history = null,
+        readChapters = kotlinx.collections.immutable.persistentSetOf(),
+        totalChapters = 12,
+        currentPage = 0,
+        totalPages = 1,
+        selectedChapterPerPage = br.acerola.comic.config.preference.types.ChapterPageSizeType.MEDIUM,
+    )
+
 @Preview(name = "Light", showBackground = true)
 @Preview(name = "Dark", showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
 @Composable
-private fun ComicScreenPreview() {
+private fun ComicScreenContentPreview() {
     AcerolaTheme {
-        Column(modifier = Modifier.fillMaxSize()) {
-            Comic.Template.Header(
-                comic =
-                    ComicDto(
-                        directory =
-                            ComicDirectoryDto(
-                                id = 1L,
-                                name = "Sample Comic",
-                                path = "/path",
-                                coverUri = null,
-                                bannerUri = null,
-                                lastModified = 0L,
-                                archiveTemplateFk = null,
-                            ),
-                        category = null,
-                        remoteInfo = null,
-                    ),
-                history = null,
-                onContinueClick = { _, _ -> },
-            )
-            Comic.Template.Tabs(
-                totalChapters = 12,
-                activeTab = br.acerola.comic.module.comic.state.MainTab.CHAPTERS,
-                onTabSelected = {},
-            )
-        }
+        ComicScreenContent(
+            uiState = previewUiState(),
+            selectedChapterSorts = emptySet(),
+            isChapterSelectionMode = false,
+            allChapterSorts = emptyList(),
+            areAllSelectedRead = false,
+            pairedPeers = emptyList(),
+            syncWithPeerState = SyncActionVisualState.IDLE,
+            sendChaptersVisualState = SyncActionVisualState.IDLE,
+            sendingChapterSorts = emptySet(),
+            getSyncActionVisualState = { SyncActionVisualState.IDLE },
+            onAction = {},
+            onChapterAction = {},
+            onSyncAction = {},
+            onToggleChapterSelection = {},
+            onClearChapterSelection = {},
+            onSelectAllChapters = {},
+            onMarkSelectedChaptersReadStatus = {},
+            onSetActiveVolume = {},
+            onLoadVolumeChaptersPage = { _, _ -> },
+            onExtractVolumeCover = {},
+            onUpdateChapterSort = {},
+            onLoadPairedPeers = {},
+            onSendSelectedChaptersToPeer = {},
+        )
+    }
+}
+
+@Preview(name = "Selection mode", showBackground = true)
+@Composable
+private fun ComicScreenContentSelectionModePreview() {
+    AcerolaTheme {
+        ComicScreenContent(
+            uiState = previewUiState(),
+            selectedChapterSorts = setOf("1", "2"),
+            isChapterSelectionMode = true,
+            allChapterSorts = listOf("1", "2", "3"),
+            areAllSelectedRead = false,
+            pairedPeers = emptyList(),
+            syncWithPeerState = SyncActionVisualState.IDLE,
+            sendChaptersVisualState = SyncActionVisualState.IDLE,
+            sendingChapterSorts = emptySet(),
+            getSyncActionVisualState = { SyncActionVisualState.IDLE },
+            onAction = {},
+            onChapterAction = {},
+            onSyncAction = {},
+            onToggleChapterSelection = {},
+            onClearChapterSelection = {},
+            onSelectAllChapters = {},
+            onMarkSelectedChaptersReadStatus = {},
+            onSetActiveVolume = {},
+            onLoadVolumeChaptersPage = { _, _ -> },
+            onExtractVolumeCover = {},
+            onUpdateChapterSort = {},
+            onLoadPairedPeers = {},
+            onSendSelectedChaptersToPeer = {},
+        )
     }
 }
