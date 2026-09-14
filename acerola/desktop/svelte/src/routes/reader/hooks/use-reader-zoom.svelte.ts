@@ -7,8 +7,6 @@ const MAX_ZOOM = 3;
 const QUICK_ZOOM = 1.65;
 const ZOOM_STEP = 0.15;
 
-type ZoomAnchor = MouseEvent | WheelEvent;
-
 export function isReaderEditableTarget(target: EventTarget | null) {
 	if (!(target instanceof HTMLElement)) return false;
 
@@ -127,7 +125,11 @@ export function useReaderZoom() {
 		return Math.round(Math.max(MIN_ZOOM, Math.min(value, MAX_ZOOM)) * 100) / 100;
 	}
 
-	function zoomAnchorPoint(anchor?: ZoomAnchor) {
+	// O transform-origin do zoom sempre fica no centro do viewport, nunca no ponto exato do
+	// clique/scroll — `panBounds()` assume crescimento simétrico em torno do centro pra calcular
+	// os limites do pan, e ancorar num ponto fora do centro tornava o crescimento assimétrico,
+	// prendendo o usuário num "quadrado" de pan que não correspondia à imagem real.
+	function zoomAnchorPoint() {
 		if (!viewport) {
 			return {
 				x: window.innerWidth / 2,
@@ -137,27 +139,20 @@ export function useReaderZoom() {
 
 		const rect = viewport.getBoundingClientRect();
 
-		if (anchor) {
-			return {
-				x: viewport.scrollLeft + anchor.clientX - rect.left,
-				y: viewport.scrollTop + anchor.clientY - rect.top
-			};
-		}
-
 		return {
 			x: viewport.scrollLeft + rect.width / 2,
 			y: viewport.scrollTop + rect.height / 2
 		};
 	}
 
-	function setZoom(value: number, anchor?: ZoomAnchor) {
+	function setZoom(value: number) {
 		const currentZoom = zoomLevel;
 		const nextZoom = clampZoom(value);
 
 		if (nextZoom === currentZoom) return;
 
 		if (currentZoom === MIN_ZOOM && nextZoom > MIN_ZOOM) {
-			const point = zoomAnchorPoint(anchor);
+			const point = zoomAnchorPoint();
 
 			zoomOriginX = point.x;
 			zoomOriginY = point.y;
@@ -174,12 +169,12 @@ export function useReaderZoom() {
 		clampPan();
 	}
 
-	function zoomIn(anchor?: ZoomAnchor) {
-		setZoom(zoomLevel + ZOOM_STEP, anchor);
+	function zoomIn() {
+		setZoom(zoomLevel + ZOOM_STEP);
 	}
 
-	function zoomOut(anchor?: ZoomAnchor) {
-		setZoom(zoomLevel - ZOOM_STEP, anchor);
+	function zoomOut() {
+		setZoom(zoomLevel - ZOOM_STEP);
 	}
 
 	function resetZoom() {
@@ -194,8 +189,8 @@ export function useReaderZoom() {
 		isPanning = false;
 	}
 
-	function toggleQuickZoom(anchor?: ZoomAnchor) {
-		setZoom(isZoomed ? MIN_ZOOM : QUICK_ZOOM, anchor);
+	function toggleQuickZoom() {
+		setZoom(isZoomed ? MIN_ZOOM : QUICK_ZOOM);
 	}
 
 	function toggleZoomMode() {
@@ -214,7 +209,7 @@ export function useReaderZoom() {
 
 		if (!zoomMode) return;
 
-		setZoom(zoomLevel + (event.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP), event);
+		setZoom(zoomLevel + (event.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP));
 	}
 
 	function handlePointerDown(event: PointerEvent) {
