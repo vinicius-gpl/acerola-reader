@@ -384,8 +384,8 @@ private fun ThisDeviceSection(
                         editingName = false
                     },
                     contentDescription = stringResource(id = R.string.action_sync_rename_save),
-                    iconTint = AcerolaExtendedTheme.colors.onSuccessContainer,
-                    iconBackground = AcerolaExtendedTheme.colors.successContainer,
+                    iconTint = AcerolaExtendedTheme.colors.onSuccess,
+                    iconBackground = AcerolaExtendedTheme.colors.success,
                 )
                 Acerola.Component.ActionIcon(
                     icon = Icons.Default.Close,
@@ -407,7 +407,7 @@ private fun ThisDeviceSection(
             Icon(
                 imageVector = Icons.Default.PhoneAndroid,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                tint = MaterialTheme.colorScheme.onPrimary,
                 modifier = Modifier.size(SizeTokens.IconMedium),
             )
         },
@@ -854,8 +854,8 @@ private fun RelayUrlListEditor(
                     enabled = enabled,
                     onClick = { onRemove(url) },
                     contentDescription = removeContentDescription,
-                    iconTint = MaterialTheme.colorScheme.error,
-                    iconBackground = MaterialTheme.colorScheme.errorContainer,
+                    iconTint = MaterialTheme.colorScheme.onError,
+                    iconBackground = MaterialTheme.colorScheme.error,
                 )
             }
         }
@@ -997,8 +997,8 @@ private fun PeerRow(
                             editingNickname = false
                         },
                         contentDescription = stringResource(id = R.string.action_sync_rename_save),
-                        iconTint = AcerolaExtendedTheme.colors.onSuccessContainer,
-                        iconBackground = AcerolaExtendedTheme.colors.successContainer,
+                        iconTint = AcerolaExtendedTheme.colors.onSuccess,
+                        iconBackground = AcerolaExtendedTheme.colors.success,
                     )
                     Acerola.Component.ActionIcon(
                         icon = Icons.Default.Close,
@@ -1148,13 +1148,15 @@ private fun PeerRow(
                 Acerola.Component.SyncActionIcon(
                     state = syncIconState,
                     defaultBackground =
-                        if (isErrorIdle) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer,
+                        if (isErrorIdle) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                    onDefaultBackground =
+                        if (isErrorIdle) MaterialTheme.colorScheme.onError else MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier.clickable(enabled = !anySyncing) { onAction(SyncAction.SyncAll(peer.peerId)) },
                 ) {
                     Icon(
                         imageVector = if (isErrorIdle) Icons.Default.Error else Icons.Default.Sync,
                         contentDescription = stringResource(id = R.string.action_sync_all),
-                        tint = if (isErrorIdle) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onPrimaryContainer,
+                        tint = if (isErrorIdle) MaterialTheme.colorScheme.onError else MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier.size(SizeTokens.IconMedium),
                     )
                 }
@@ -1165,7 +1167,7 @@ private fun PeerRow(
                 Icon(
                     imageVector = Icons.Default.PhoneAndroid,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    tint = MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier.align(Alignment.Center).size(SizeTokens.IconMedium),
                 )
                 Box(

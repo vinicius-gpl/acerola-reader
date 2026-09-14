@@ -31,8 +31,8 @@ fun Comic.Component.VolumeStylePreference(
         title = stringResource(id = R.string.title_settings_volume_style),
         description = volumeStyleLabel(selected),
         icon = Icons.Default.LibraryBooks,
-        iconTint = MaterialTheme.colorScheme.onTertiaryContainer,
-        iconBackground = MaterialTheme.colorScheme.tertiaryContainer,
+        iconTint = MaterialTheme.colorScheme.onTertiary,
+        iconBackground = MaterialTheme.colorScheme.tertiary,
         modifier = modifier,
         bottomContent = {
             Acerola.Component.RadioGroup(

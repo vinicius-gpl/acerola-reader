@@ -109,12 +109,11 @@ fun Comic.Component.ChapterItem(
                         state = sendState,
                         containerSize = SizeTokens.ClickTargetSmall,
                         iconSize = SizeTokens.IconSmall,
-                        defaultBackground = MaterialTheme.colorScheme.primaryContainer,
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.Send,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            tint = MaterialTheme.colorScheme.onPrimary,
                             modifier = Modifier.size(SizeTokens.IconSmall),
                         )
                     }

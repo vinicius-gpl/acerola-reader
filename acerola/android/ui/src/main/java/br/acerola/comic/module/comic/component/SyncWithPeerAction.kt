@@ -42,16 +42,12 @@ fun Comic.Component.SyncWithPeerAction(
     Acerola.Component.HeroButton(
         title = stringResource(id = R.string.action_sync_comic_with_peer),
         description = stringResource(id = R.string.description_sync_comic_with_peer),
-        iconBackground = MaterialTheme.colorScheme.primaryContainer,
         icon = {
-            Acerola.Component.SyncActionIcon(
-                state = state,
-                defaultBackground = MaterialTheme.colorScheme.primaryContainer,
-            ) {
+            Acerola.Component.SyncActionIcon(state = state) {
                 Icon(
                     imageVector = Icons.Rounded.PhoneAndroid,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    tint = MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier.size(24.dp),
                 )
             }

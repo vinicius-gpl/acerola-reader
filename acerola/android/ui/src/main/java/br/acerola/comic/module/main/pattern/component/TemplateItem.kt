@@ -82,8 +82,8 @@ fun Main.Pattern.Component.TemplateItem(
                             icon = Icons.Default.Delete,
                             onClick = onDelete,
                             contentDescription = stringResource(id = R.string.description_icon_delete_template),
-                            iconTint = MaterialTheme.colorScheme.error,
-                            iconBackground = MaterialTheme.colorScheme.errorContainer,
+                            iconTint = MaterialTheme.colorScheme.onError,
+                            iconBackground = MaterialTheme.colorScheme.error,
                         )
                     }
                 } else {

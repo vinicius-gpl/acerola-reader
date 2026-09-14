@@ -160,7 +160,7 @@ fun HistoryScreenContent(
                 Icon(
                     imageVector = Icons.Default.Sync,
                     contentDescription = stringResource(id = R.string.description_icon_history_sync_with_peer),
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    tint = MaterialTheme.colorScheme.onPrimary,
                 )
             }
         },

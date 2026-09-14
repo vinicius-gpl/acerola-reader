@@ -49,17 +49,18 @@ fun Comic.Component.SyncMangaArchive(
         Acerola.Component.HeroButton(
             title = stringResource(id = R.string.title_sync_chapters),
             description = stringResource(id = R.string.description_sync_chapters_local),
-            iconBackground = MaterialTheme.colorScheme.secondaryContainer,
+            iconBackground = MaterialTheme.colorScheme.secondary,
             onClick = if (anyLoading) null else onSyncChapters,
             icon = {
                 Acerola.Component.SyncActionIcon(
                     state = syncChaptersState,
-                    defaultBackground = MaterialTheme.colorScheme.secondaryContainer,
+                    defaultBackground = MaterialTheme.colorScheme.secondary,
+                    onDefaultBackground = MaterialTheme.colorScheme.onSecondary,
                 ) {
                     Icon(
                         imageVector = Icons.Default.SyncAlt,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                        tint = MaterialTheme.colorScheme.onSecondary,
                         modifier = Modifier.size(SizeTokens.IconMedium),
                     )
                 }
@@ -71,17 +72,18 @@ fun Comic.Component.SyncMangaArchive(
         Acerola.Component.HeroButton(
             title = stringResource(id = R.string.title_sync_cover_banner),
             description = stringResource(id = R.string.description_sync_cover_banner),
-            iconBackground = MaterialTheme.colorScheme.secondaryContainer,
+            iconBackground = MaterialTheme.colorScheme.secondary,
             onClick = if (anyLoading) null else onRescanCover,
             icon = {
                 Acerola.Component.SyncActionIcon(
                     state = rescanCoverState,
-                    defaultBackground = MaterialTheme.colorScheme.secondaryContainer,
+                    defaultBackground = MaterialTheme.colorScheme.secondary,
+                    onDefaultBackground = MaterialTheme.colorScheme.onSecondary,
                 ) {
                     Icon(
                         imageVector = Icons.Default.Collections,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                        tint = MaterialTheme.colorScheme.onSecondary,
                         modifier = Modifier.size(SizeTokens.IconMedium),
                     )
                 }
@@ -93,17 +95,18 @@ fun Comic.Component.SyncMangaArchive(
         Acerola.Component.HeroButton(
             title = stringResource(id = R.string.title_extract_first_page_as_cover),
             description = stringResource(id = R.string.description_extract_first_page_as_cover),
-            iconBackground = MaterialTheme.colorScheme.secondaryContainer,
+            iconBackground = MaterialTheme.colorScheme.secondary,
             onClick = if (anyLoading) null else onExtractFirstPageAsCover,
             icon = {
                 Acerola.Component.SyncActionIcon(
                     state = extractFirstPageState,
-                    defaultBackground = MaterialTheme.colorScheme.secondaryContainer,
+                    defaultBackground = MaterialTheme.colorScheme.secondary,
+                    onDefaultBackground = MaterialTheme.colorScheme.onSecondary,
                 ) {
                     Icon(
                         imageVector = Icons.Default.ImageSearch,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                        tint = MaterialTheme.colorScheme.onSecondary,
                         modifier = Modifier.size(SizeTokens.IconMedium),
                     )
                 }
@@ -116,17 +119,18 @@ fun Comic.Component.SyncMangaArchive(
             Acerola.Component.HeroButton(
                 title = stringResource(id = R.string.title_extract_volume_covers),
                 description = stringResource(id = R.string.description_extract_volume_covers),
-                iconBackground = MaterialTheme.colorScheme.secondaryContainer,
+                iconBackground = MaterialTheme.colorScheme.secondary,
                 onClick = if (anyLoading) null else onExtractVolumeCovers,
                 icon = {
                     Acerola.Component.SyncActionIcon(
                         state = extractVolumeCoversState,
-                        defaultBackground = MaterialTheme.colorScheme.secondaryContainer,
+                        defaultBackground = MaterialTheme.colorScheme.secondary,
+                        onDefaultBackground = MaterialTheme.colorScheme.onSecondary,
                     ) {
                         Icon(
                             imageVector = Icons.Default.AutoAwesomeMotion,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                            tint = MaterialTheme.colorScheme.onSecondary,
                             modifier = Modifier.size(SizeTokens.IconMedium),
                         )
                     }
