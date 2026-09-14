@@ -188,6 +188,7 @@
 					variant: 'ghost',
 					tone: 'muted',
 					class: 'h-8 w-8',
+					title: m['pages.home.filter_panel.close_aria'](),
 					'aria-label': m['pages.home.filter_panel.close_aria']()
 				}}
 			>

@@ -118,6 +118,7 @@
 							ui={{
 								variant: 'ghost',
 								tone: 'muted',
+								title: m['pages.network.peers.rename.cancel'](),
 								'aria-label': m['pages.network.peers.rename.cancel']()
 							}}
 						>

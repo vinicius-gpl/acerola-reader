@@ -185,12 +185,12 @@
 										</div>
 									</div>
 
-									<button
-										class="flex size-6 shrink-0 items-center justify-center rounded-lg text-muted-foreground/40 opacity-0 transition-all group-hover:opacity-100 hover:bg-muted hover:text-foreground"
-										onclick={() => pop(notify.id)}
+									<AcerolaButtonIcon
+										events={{ onClick: () => pop(notify.id) }}
+										ui={{ variant: 'ghost', tone: 'muted', class: 'size-6' }}
 									>
 										<XIcon size={14} />
-									</button>
+									</AcerolaButtonIcon>
 								</div>
 
 								{#if notify.action}

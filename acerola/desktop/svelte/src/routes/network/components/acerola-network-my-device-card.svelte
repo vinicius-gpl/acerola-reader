@@ -116,6 +116,7 @@
 					variant: 'ghost',
 					tone: 'muted',
 					disabled: savingName,
+					title: m['pages.network.my_device.rename.cancel'](),
 					'aria-label': m['pages.network.my_device.rename.cancel']()
 				}}
 			>
@@ -141,6 +142,7 @@
 						ui={{
 							variant: 'outline',
 							tone: 'accent',
+							title: m['pages.network.my_device.rename.action'](),
 							'aria-label': m['pages.network.my_device.rename.action']()
 						}}
 					>
