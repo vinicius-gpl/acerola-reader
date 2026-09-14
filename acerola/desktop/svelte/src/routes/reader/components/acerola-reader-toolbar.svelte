@@ -36,6 +36,7 @@
 	import CommandIcon from '@lucide/svelte/icons/command';
 	import ZoomIn from '@lucide/svelte/icons/zoom-in';
 	import ZoomOut from '@lucide/svelte/icons/zoom-out';
+	import Focus from '@lucide/svelte/icons/focus';
 	import ReaderModeToggle from './acerola-reader-mode-toggle.svelte';
 
 	let { data, events, state }: ReaderToolbarProps = $props();
@@ -94,7 +95,7 @@
 				title: `${m['pages.reader.actions.zoom_mode']()} (Z)`
 			}}
 		>
-			<ZoomIn size={20} />
+			<Focus size={20} />
 		</AcerolaButtonIcon>
 
 		<AcerolaButtonIcon

@@ -21,7 +21,7 @@
 	import ArrowLeftRightIcon from '@lucide/svelte/icons/arrow-left-right';
 	import Trash2Icon from '@lucide/svelte/icons/trash-2';
 	import { m } from '$lib/paraglide/messages';
-	import AcerolaButtonIcon from '$lib/components/acerola-button/acerola-button-icon.svelte';
+	import AcerolaButton from '$lib/components/acerola-button/acerola-button.svelte';
 	import AcerolaAlertDialog from '$lib/components/acerola-alert-dialog/acerola-alert-dialog.svelte';
 	import AcerolaAccordionCard from '$lib/components/acerola-accordion-card/acerola-accordion-card.svelte';
 	import AcerolaHeroButton from '$lib/components/acerola-hero-button/acerola-hero-button.svelte';
@@ -118,18 +118,13 @@
 	{/snippet}
 
 	<div class="flex items-center justify-end gap-1">
-		<AcerolaButtonIcon
+		<AcerolaButton
 			events={{ onClick: () => events?.onRefresh?.() }}
-			ui={{
-				variant: 'ghost',
-				tone: 'accent',
-				class: 'size-8',
-				title: m['pages.network.transfers.refresh'](),
-				'aria-label': m['pages.network.transfers.refresh']()
-			}}
+			ui={{ variant: 'ghost', size: 'sm', class: 'h-8 gap-1.5 px-2.5 text-accent-hero' }}
 		>
 			<RefreshCwIcon size={14} />
-		</AcerolaButtonIcon>
+			{m['pages.network.transfers.refresh']()}
+		</AcerolaButton>
 
 		{#if entries.length > 0}
 			<AcerolaAlertDialog
@@ -142,17 +137,16 @@
 				ui={{ variant: 'destructive' }}
 				events={{ onAction: () => events?.onClear?.() }}
 			>
-				<AcerolaButtonIcon
+				<AcerolaButton
 					ui={{
 						variant: 'ghost',
-						tone: 'destructive',
-						class: 'size-8',
-						title: m['pages.network.transfers.clear.button'](),
-						'aria-label': m['pages.network.transfers.clear.button']()
+						size: 'sm',
+						class: 'h-8 gap-1.5 px-2.5 text-destructive hover:bg-destructive/10 hover:text-destructive'
 					}}
 				>
 					<Trash2Icon size={14} />
-				</AcerolaButtonIcon>
+					{m['pages.network.transfers.clear.button']()}
+				</AcerolaButton>
 			</AcerolaAlertDialog>
 		{/if}
 	</div>
