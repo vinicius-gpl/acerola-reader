@@ -38,7 +38,16 @@ fun Acerola.Component.ActionListItem(
     iconBackground: Color? = null,
     isLast: Boolean = false,
 ) {
-    val titleColor = if (tint == MaterialTheme.colorScheme.onSurfaceVariant) MaterialTheme.colorScheme.onSurface else tint
+    // Quando há `iconBackground`, `tint` é a cor de contraste do chip (ex.: onAccent) — serve só
+    // pro ícone, nunca pro texto, senão o título/subtítulo herda uma cor pensada pra ficar em cima
+    // do chip colorido e fica ilegível no fundo neutro do ListItem.
+    val titleColor =
+        when {
+            iconBackground != null -> MaterialTheme.colorScheme.onSurface
+            tint == MaterialTheme.colorScheme.onSurfaceVariant -> MaterialTheme.colorScheme.onSurface
+            else -> tint
+        }
+    val subtitleColor = if (iconBackground != null) MaterialTheme.colorScheme.onSurfaceVariant else tint
 
     ListItem(
         leadingContent = {
@@ -53,7 +62,7 @@ fun Acerola.Component.ActionListItem(
             }
         },
         headlineContent = { Text(text = title, color = titleColor) },
-        supportingContent = subtitle?.let { { Text(text = it, color = tint) } },
+        supportingContent = subtitle?.let { { Text(text = it, color = subtitleColor) } },
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         modifier = Modifier.clickable(onClick = onClick),
     )
