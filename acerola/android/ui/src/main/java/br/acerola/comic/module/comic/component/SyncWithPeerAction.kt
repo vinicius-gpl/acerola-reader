@@ -1,6 +1,7 @@
 package br.acerola.comic.module.comic.component
 
 import android.content.res.Configuration
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
@@ -21,6 +22,7 @@ import br.acerola.comic.common.ux.component.ActionIcon
 import br.acerola.comic.common.ux.component.HeroButton
 import br.acerola.comic.common.ux.component.SyncActionIcon
 import br.acerola.comic.common.ux.theme.AcerolaTheme
+import br.acerola.comic.common.ux.tokens.SpacingTokens
 import br.acerola.comic.module.comic.Comic
 import br.acerola.comic.ui.R
 
@@ -54,7 +56,7 @@ fun Comic.Component.SyncWithPeerAction(
         },
         action = {
             if (state != SyncActionVisualState.LOADING) {
-                Row {
+                Row(horizontalArrangement = Arrangement.spacedBy(SpacingTokens.Small)) {
                     Acerola.Component.ActionIcon(
                         icon = Icons.Rounded.CloudUpload,
                         onClick = onPush,
