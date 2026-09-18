@@ -566,9 +566,9 @@ mod tests {
 
     /// Regressão: `NetworkCommand::Shutdown` só saía do `select!` loop sem nunca chamar
     /// `transport.shutdown()` — em produção (`IrohTransport`) isso significava que o `Endpoint`
-    /// real nunca fechava (`lib/p2p/TODO.md`), deixando o socket UDP e a task de accept-loop
-    /// vivos pra sempre mesmo depois de um "shutdown" bem-sucedido. Prova que o transporte é
-    /// desligado de verdade, não só abandonado.
+    /// real nunca fechava, deixando o socket UDP e a task de accept-loop vivos pra sempre mesmo
+    /// depois de um "shutdown" bem-sucedido. Prova que o transporte é desligado de verdade, não
+    /// só abandonado.
     #[tokio::test]
     async fn shutdown_command_shuts_down_the_transport() {
         let (transport, transport_handle) = mock_transport();

@@ -38,6 +38,6 @@ flowchart LR
 - Como contribuir: [CONTRIBUTING.md](CONTRIBUTING.md)
 - Política de privacidade: [PRIVACY_POLICY.md](PRIVACY_POLICY.md)
 - Licença: [LICENSE](LICENSE) (MPL-2.0, para todo o monorepo)
-- TODO de cada plataforma: `acerola/android/TODO.md`, `acerola/desktop/TODO.md`, `lib/p2p/TODO.md`
+- TODO centralizado do monorepo (todos os componentes): [TODO.md](TODO.md)
 - Assets usados nos READMEs (GitHub): [`docs/github/`](docs/github/)
 - Site de documentação: [docs.acerola-comic.com](https://docs.acerola-comic.com) (código em [`docs/web/`](docs/web/))
