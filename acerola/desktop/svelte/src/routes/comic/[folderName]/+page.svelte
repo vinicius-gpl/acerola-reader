@@ -92,7 +92,6 @@
 	// feedback visual de que a ação (que pode demorar, ex. reescanear um quadrinho grande)
 	// estava rodando.
 	let rescanning = $state(false);
-	let deepRescanning = $state(false);
 	let regeneratingCover = $state(false);
 	let regeneratingVolumeCovers = $state(false);
 
@@ -361,28 +360,6 @@
 			// Erro já foi mostrado pelo toastAsync acima.
 		} finally {
 			regeneratingVolumeCovers = false;
-		}
-	}
-
-	async function handleDeepRescanComic() {
-		const id = activeComic.item?.relations.directoryId ?? data.comic?.relations.directoryId;
-		if (!id) return;
-		deepRescanning = true;
-		try {
-			await toastAsync(() => invoke(HOME_COMMANDS.deepRescanComic, { id: id.toString() }), {
-				loading: m['pages.comic.toast.sync.start_deep_rescan'](),
-				success: m['pages.comic.toast.sync.success'](),
-				error: (err) => m['pages.comic.toast.deep_rescan_error']({ msg: extractErrorMessage(err) })
-			});
-			// Ver comentário equivalente em `handleRescanComic`.
-			chapterStore.invalidate();
-			syncRefreshTrigger++;
-			bumpArtworkVersion();
-			await invalidateAll();
-		} catch {
-			// Erro já foi mostrado pelo toastAsync acima.
-		} finally {
-			deepRescanning = false;
 		}
 	}
 
@@ -977,7 +954,6 @@
 								syncingPeerIds,
 								metadataSyncing: metadataSync.isSyncing,
 								rescanning,
-								deepRescanning,
 								regeneratingCover,
 								regeneratingVolumeCovers
 							}}
@@ -1000,7 +976,6 @@
 								onSyncAnilist: handleSyncAnilist,
 								onSyncComicInfo: handleSyncComicInfo,
 								onRescanComic: handleRescanComic,
-								onDeepRescanComic: handleDeepRescanComic,
 								onRegenerateCover: handleRegenerateCover,
 								onRegenerateVolumeCovers: handleRegenerateVolumeCovers,
 								onClearMetadata: handleClearMetadata,

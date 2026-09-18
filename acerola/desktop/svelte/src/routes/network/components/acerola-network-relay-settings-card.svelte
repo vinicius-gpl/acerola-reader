@@ -38,6 +38,7 @@
 	import AcerolaInput from '$lib/components/acerola-input/acerola-input.svelte';
 	import AcerolaButton from '$lib/components/acerola-button/acerola-button.svelte';
 	import AcerolaButtonIcon from '$lib/components/acerola-button/acerola-button-icon.svelte';
+	import AcerolaAlertDialog from '$lib/components/acerola-alert-dialog/acerola-alert-dialog.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { cn } from '$lib/utils/cn.utils';
 	import { autoAnimateList } from '$lib/utils/auto-animate.utils';
@@ -84,6 +85,16 @@
 		} finally {
 			restarting = false;
 		}
+	}
+
+	// Trocar a fonte de relay ativa (Acerola próprio / rede pública Iroh) reconstrói o node
+	// P2P com um `RelayMap` diferente — peers pareados que não convergirem pro mesmo relay
+	// ficam inalcançáveis até isso acontecer. Sem aviso, o usuário não tem como saber disso
+	// antes de clicar.
+	let pendingSwitch = $state<(() => Promise<void>) | null>(null);
+
+	function confirmSwitch(action: () => Promise<void>) {
+		pendingSwitch = action;
 	}
 
 	let safeData = $derived(
@@ -141,11 +152,11 @@
 	}
 
 	function toggleAcerolaRelay(value: boolean) {
-		runRestartingAction(() => events.onToggleAcerolaRelay(value));
+		confirmSwitch(() => events.onToggleAcerolaRelay(value));
 	}
 
 	function toggleIrohPublicNetwork(value: boolean) {
-		runRestartingAction(() => events.onToggleIrohPublicNetwork(value));
+		confirmSwitch(() => events.onToggleIrohPublicNetwork(value));
 	}
 
 	function submitCustomUrl() {
@@ -446,3 +457,21 @@
 		</AcerolaButton>
 	</div>
 </AcerolaAccordionCard>
+
+<AcerolaAlertDialog
+	state={{ open: pendingSwitch !== null }}
+	data={{
+		title: m['pages.network.relay_settings.switch_confirm.title'](),
+		description: m['pages.network.relay_settings.switch_confirm.desc'](),
+		cancelText: m['pages.network.relay_settings.switch_confirm.cancel'](),
+		actionText: m['pages.network.relay_settings.switch_confirm.action']()
+	}}
+	events={{
+		onAction: () => {
+			const action = pendingSwitch;
+			pendingSwitch = null;
+			if (action) runRestartingAction(action);
+		},
+		onCancel: () => (pendingSwitch = null)
+	}}
+/>

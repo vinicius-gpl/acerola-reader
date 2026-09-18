@@ -312,8 +312,7 @@ impl ComicScannerService {
 
     /// Reescaneia pontualmente um único quadrinho já indexado, sem comparar contra o
     /// restante da biblioteca — insere/atualiza o que for encontrado na pasta e remove
-    /// os capítulos cujo arquivo tenha sumido do disco. Para invalidar tudo (inclusive
-    /// volumes), veja [`Self::deep_rescan_comic`].
+    /// os capítulos cujo arquivo tenha sumido do disco.
     pub async fn rescan_comic(
         &self, comic: ComicDirectory, on_progress: impl FnMut(String),
         on_converting: impl FnMut(String),
@@ -322,23 +321,10 @@ impl ComicScannerService {
             .await
     }
 
-    /// Invalida e reescaneia um único quadrinho do zero: apaga seus capítulos e volumes
-    /// indexados antes de re-processar a pasta, garantindo que nada órfão sobre no banco.
-    pub async fn deep_rescan_comic(
-        &self, comic: ComicDirectory, on_progress: impl FnMut(String),
-        on_converting: impl FnMut(String),
-    ) -> Result<(), ComicError> {
-        self.chapter_scanner.delete_by_comic(comic.id).await?;
-        self.volume_repo.delete_by_comic(comic.id).await?;
-
-        self.scan_comic_path(PathBuf::from(&comic.path), comic.id, on_progress, on_converting)
-            .await
-    }
-
-    /// Núcleo compartilhado de [`Self::rescan_comic`] e [`Self::deep_rescan_comic`]: processa
-    /// apenas as entradas encontradas dentro de `path`, sem tocar em quadrinhos de fora dele,
-    /// e ao final remove do banco qualquer capítulo de `comic_id` que não tenha sido
-    /// redescoberto (arquivo apagado via explorador de arquivos entre um rescan e outro).
+    /// Núcleo compartilhado de [`Self::rescan_comic`]: processa apenas as entradas
+    /// encontradas dentro de `path`, sem tocar em quadrinhos de fora dele, e ao final remove
+    /// do banco qualquer capítulo de `comic_id` que não tenha sido redescoberto (arquivo
+    /// apagado via explorador de arquivos entre um rescan e outro).
     async fn scan_comic_path(
         &self, path: PathBuf, comic_id: i64, mut on_progress: impl FnMut(String),
         mut on_converting: impl FnMut(String),
@@ -1111,42 +1097,6 @@ mod tests {
             1,
             "Orphaned chapter row must be removed by the light rescan too"
         );
-    }
-
-    #[tokio::test]
-    async fn deep_rescan_comic_removes_chapter_deleted_from_disk() {
-        let root = tempfile::tempdir().unwrap();
-        let (service, pool) = setup(&root).await;
-
-        let berserk_dir = create_comic_dir(&root, "Berserk", &["Ch. 1.cbz", "Ch. 2.cbz"]).await;
-        service.refresh_library(root.path().to_path_buf(), |_| {}, |_| {}).await.unwrap();
-        assert_eq!(count_chapters(&pool).await, 2);
-
-        fs::remove_file(berserk_dir.join("Ch. 2.cbz")).await.unwrap();
-        let berserk = find_comic_by_name(&pool, "Berserk").await;
-
-        service.deep_rescan_comic(berserk, |_| {}, |_| {}).await.unwrap();
-
-        assert_eq!(
-            count_chapters(&pool).await,
-            1,
-            "Orphaned chapter row must be removed by the deep rescan"
-        );
-    }
-
-    #[tokio::test]
-    async fn deep_rescan_comic_does_not_affect_other_comics_in_library() {
-        let root = tempfile::tempdir().unwrap();
-        let (service, pool) = setup(&root).await;
-
-        create_comic_dir(&root, "Berserk", &["Ch. 1.cbz"]).await;
-        create_comic_dir(&root, "Vinland Saga", &["Ch. 1.cbz"]).await;
-        service.refresh_library(root.path().to_path_buf(), |_| {}, |_| {}).await.unwrap();
-
-        let berserk = find_comic_by_name(&pool, "Berserk").await;
-        service.deep_rescan_comic(berserk, |_| {}, |_| {}).await.unwrap();
-
-        assert_eq!(count_comics(&pool).await, 2, "Other comics must remain untouched");
     }
 
     #[tokio::test]

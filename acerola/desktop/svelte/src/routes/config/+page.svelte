@@ -145,7 +145,7 @@
 
 			unlistenError = await listen<any>('metadata:sync_all:error', (event) => {
 				syncingSource = null;
-				const msg = event.payload?.message || event.payload;
+				const msg = extractErrorMessage(event.payload);
 				notify.error(m['pages.config.toast.sync.error']({ msg }), { duration: 0 });
 				toast.error(m['pages.config.toast.sync.error']({ msg }), { id: syncToastId });
 				syncToastId = undefined;

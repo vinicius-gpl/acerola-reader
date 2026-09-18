@@ -24,7 +24,6 @@
 			/** Cada uma reflete o loading do respectivo `on*` abaixo — sem isso o ícone de
 			 *  refresh fica parado o tempo todo, sem nenhum feedback de que a ação está rodando. */
 			rescanning?: boolean;
-			deepRescanning?: boolean;
 			regeneratingCover?: boolean;
 			regeneratingVolumeCovers?: boolean;
 		};
@@ -36,7 +35,6 @@
 			onSyncAnilist?: () => void;
 			onSyncComicInfo?: () => void;
 			onRescanComic?: () => void;
-			onDeepRescanComic?: () => void;
 			onRegenerateCover?: () => void;
 			onRegenerateVolumeCovers?: () => void;
 			onClearMetadata?: () => Promise<void> | void;
@@ -76,7 +74,6 @@
 	import MangaDexIcon from '$lib/assets/icons/mangadex.svg?component';
 	import AniListIcon from '$lib/assets/icons/anilist.svg?component';
 	import FolderSync from '@lucide/svelte/icons/folder-sync';
-	import DatabaseZap from '@lucide/svelte/icons/database-zap';
 	import Image from '@lucide/svelte/icons/image';
 	import Eraser from '@lucide/svelte/icons/eraser';
 	import Share2 from '@lucide/svelte/icons/share-2';
@@ -88,7 +85,6 @@
 	let { data, events, state: preferences }: ComicPreferencesProps = $props();
 
 	let showClearMetadataDialog = $state(false);
-	let showDeepRescanDialog = $state(false);
 	let showPeerMenu = $state(false);
 
 	// 3 categorias (Leitura / Sincronização / Avançado) em vez das 6 abas de antes, expandindo
@@ -372,29 +368,6 @@
 							</AcerolaButtonIcon>
 						{/snippet}
 					</AcerolaHeroButton>
-
-					<AcerolaHeroButton
-						data={{
-							title: m['pages.comic.preferences.file_sync.deep_rescan.title'](),
-							description: m['pages.comic.preferences.file_sync.deep_rescan.desc']()
-						}}
-						events={{
-							onClick: preferences.deepRescanning ? undefined : () => (showDeepRescanDialog = true)
-						}}
-						ui={{ iconClass: 'bg-destructive text-destructive-foreground' }}
-					>
-						{#snippet icon()}
-							<DatabaseZap size={24} />
-						{/snippet}
-
-						{#snippet action()}
-							<AcerolaButtonIcon
-								ui={{ tone: 'accent', class: 'rounded-full', disabled: preferences.deepRescanning }}
-							>
-								<RefreshCw class={preferences.deepRescanning ? 'animate-spin' : ''} />
-							</AcerolaButtonIcon>
-						{/snippet}
-					</AcerolaHeroButton>
 				</div>
 			</section>
 
@@ -638,24 +611,6 @@
 			showClearMetadataDialog = false;
 		},
 		onCancel: () => (showClearMetadataDialog = false)
-	}}
-	ui={{ variant: 'destructive' }}
-/>
-
-<AcerolaAlertDialog
-	state={{ open: showDeepRescanDialog }}
-	data={{
-		title: m['pages.comic.preferences.file_sync.deep_rescan.confirm.title'](),
-		description: m['pages.comic.preferences.file_sync.deep_rescan.confirm.desc'](),
-		cancelText: m['pages.comic.preferences.file_sync.deep_rescan.confirm.cancel'](),
-		actionText: m['pages.comic.preferences.file_sync.deep_rescan.confirm.action']()
-	}}
-	events={{
-		onAction: () => {
-			events.onDeepRescanComic?.();
-			showDeepRescanDialog = false;
-		},
-		onCancel: () => (showDeepRescanDialog = false)
 	}}
 	ui={{ variant: 'destructive' }}
 />

@@ -383,16 +383,6 @@
 					"rescan": {
 						"title": "Sync local chapters",
 						"desc": "Updates only the chapters that are new or changed in this folder."
-					},
-					"deep_rescan": {
-						"title": "Rescan entire comic",
-						"desc": "Wipes the indexed chapters and volumes and rebuilds everything from the folder.",
-						"confirm": {
-							"title": "Rescan this comic from scratch?",
-							"desc": "This wipes the indexed chapters and volumes for this comic and rebuilds them from the folder on disk. Reading history and bookmarks tied to removed chapters may be affected. This action cannot be undone.",
-							"cancel": "Cancel",
-							"action": "Rescan comic"
-						}
 					}
 				},
 				"p2p_sync": {
@@ -445,7 +435,6 @@
 				"mangadex_error": "MangaDex: {msg}",
 				"anilist_error": "AniList: {msg}",
 				"rescan_error": "Error syncing chapters: {msg}",
-				"deep_rescan_error": "Error rescanning comic: {msg}",
 				"regenerate_cover_error": "Error generating cover: {msg}",
 				"regenerate_volume_covers_error": "Error generating volume covers: {msg}",
 				"clear_metadata_error": "Error clearing metadata: {msg}",
@@ -459,7 +448,6 @@
 					"start_anilist": "Syncing metadata with AniList...",
 					"start_comic_info": "Syncing metadata with ComicInfo.xml...",
 					"start_rescan": "Syncing local chapters...",
-					"start_deep_rescan": "Rescanning comic...",
 					"start_regenerate_cover": "Generating cover from first page...",
 					"start_regenerate_volume_covers": "Generating volume covers...",
 					"start_clear_metadata": "Clearing metadata...",
@@ -782,6 +770,12 @@
 				"summary_mdns_only": "Local network only (mDNS) — no relay active, only devices on the same network can connect.",
 				"summary_iroh_public": "Using Iroh's public relay network.",
 				"summary_active": "{count} relay source(s) active.",
+				"switch_confirm": {
+					"title": "Switch relay?",
+					"desc": "This reconnects using a different relay. Paired devices that don't converge to the same relay may become unreachable until they do.",
+					"cancel": "Cancel",
+					"action": "Switch relay"
+				},
 				"restart": {
 					"button": "Restart P2P module",
 					"description": "Shuts down and relaunches the P2P connection from scratch — useful if the connection got stuck after switching networks or relays.",
