@@ -491,13 +491,17 @@ private fun RelaySettingsCard(
         // desktop.
         var customExpanded by remember { mutableStateOf(false) }
         var ticketExpanded by remember { mutableStateOf(!relaySettings.hasIrohServicesTicket) }
+        // Trocar a fonte de relay ativa reconstrói o node P2P com um `RelayMap` diferente —
+        // peers pareados que não convergirem pro mesmo relay ficam inalcançáveis até isso
+        // acontecer. Confirma antes de aplicar, em vez de trocar direto no clique.
+        var pendingRelayAction by remember { mutableStateOf<SyncAction?>(null) }
 
         Acerola.Component.ToggleCard(
             title = stringResource(id = R.string.label_relay_settings_use_acerola_relay),
             subtitle = stringResource(id = R.string.label_relay_settings_use_acerola_relay_desc, RelayPreference.DEFAULT_ACEROLA_RELAY_URL),
             active = relaySettings.useAcerolaRelay,
             enabled = !relaySettings.useIrohPublicNetwork,
-            onClick = { onAction(SyncAction.ToggleUseAcerolaRelay(!relaySettings.useAcerolaRelay)) },
+            onClick = { pendingRelayAction = SyncAction.ToggleUseAcerolaRelay(!relaySettings.useAcerolaRelay) },
             icon = { Icon(imageVector = Icons.Default.Wifi, contentDescription = null) },
         )
 
@@ -537,7 +541,9 @@ private fun RelaySettingsCard(
             active = relaySettings.useIrohPublicNetwork,
             enabled = relaySettings.hasIrohServicesTicket,
             expanded = true,
-            onClick = { onAction(SyncAction.ToggleUseIrohPublicNetwork(!relaySettings.useIrohPublicNetwork)) },
+            onClick = {
+                pendingRelayAction = SyncAction.ToggleUseIrohPublicNetwork(!relaySettings.useIrohPublicNetwork)
+            },
             icon = { Icon(imageVector = Icons.Default.Public, contentDescription = null) },
         ) {
             Row(
@@ -595,6 +601,43 @@ private fun RelaySettingsCard(
             restartError = relaySettings.restartError,
             onRestart = { onAction(SyncAction.RestartP2p) },
         )
+
+        pendingRelayAction?.let { action ->
+            SwitchRelayConfirmDialog(
+                onConfirm = {
+                    onAction(action)
+                    pendingRelayAction = null
+                },
+                onCancel = { pendingRelayAction = null },
+            )
+        }
+    }
+}
+
+/** Confirma antes de trocar a fonte de relay ativa — ver comentário em [RelaySettingsCard]. */
+@Composable
+private fun SwitchRelayConfirmDialog(
+    onConfirm: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    Acerola.Component.Dialog(
+        show = true,
+        onDismiss = onCancel,
+        title = stringResource(id = R.string.title_relay_settings_switch_confirm),
+        confirmButtonContent = {
+            Acerola.Component.DialogButton(
+                text = stringResource(id = R.string.action_relay_settings_switch_confirm),
+                onClick = onConfirm,
+            )
+        },
+        dismissButtonContent = {
+            Acerola.Component.DialogButton(
+                text = stringResource(id = R.string.action_cancel),
+                onClick = onCancel,
+            )
+        },
+    ) {
+        Text(text = stringResource(id = R.string.label_relay_settings_switch_confirm_desc))
     }
 }
 
@@ -966,6 +1009,9 @@ private fun PeerRow(
     val filesSyncing = syncKey(peer.peerId, SYNC_KIND_FILES) in syncingKeys
     val anySyncing = historySyncing || filesSyncing
     var menuExpanded by remember { mutableStateOf(false) }
+    // "Sincronizar tudo" dispara histórico + arquivos de uma vez — pedido explícito de
+    // confirmação antes, já que não dá pra saber de antemão o volume de dados envolvido.
+    var showSyncAllConfirm by remember { mutableStateOf(false) }
 
     // Apelido local — edição inline substitui o card do peer, mesmo padrão de
     // `ThisDeviceSection` pro nome do próprio dispositivo.
@@ -1150,7 +1196,7 @@ private fun PeerRow(
                         if (isErrorIdle) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                     onDefaultBackground =
                         if (isErrorIdle) MaterialTheme.colorScheme.onError else MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.clickable(enabled = !anySyncing) { onAction(SyncAction.SyncAll(peer.peerId)) },
+                    modifier = Modifier.clickable(enabled = !anySyncing) { showSyncAllConfirm = true },
                 ) {
                     Icon(
                         imageVector = if (isErrorIdle) Icons.Default.Error else Icons.Default.Sync,
@@ -1190,6 +1236,46 @@ private fun PeerRow(
             }
         },
     )
+
+    if (showSyncAllConfirm) {
+        SyncAllConfirmDialog(
+            peer = peer,
+            onConfirm = {
+                showSyncAllConfirm = false
+                onAction(SyncAction.SyncAll(peer.peerId))
+            },
+            onCancel = { showSyncAllConfirm = false },
+        )
+    }
+}
+
+/** Confirma antes de disparar histórico + arquivos de uma vez — ver comentário em [PeerRow]. */
+@Composable
+private fun SyncAllConfirmDialog(
+    peer: PairedPeer,
+    onConfirm: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    val peerLabel = peer.nickname ?: peer.deviceName ?: PairingCode.shortId(peer.peerId)
+    Acerola.Component.Dialog(
+        show = true,
+        onDismiss = onCancel,
+        title = stringResource(id = R.string.title_sync_all_confirm, peerLabel),
+        confirmButtonContent = {
+            Acerola.Component.DialogButton(
+                text = stringResource(id = R.string.action_sync_all),
+                onClick = onConfirm,
+            )
+        },
+        dismissButtonContent = {
+            Acerola.Component.DialogButton(
+                text = stringResource(id = R.string.action_cancel),
+                onClick = onCancel,
+            )
+        },
+    ) {
+        Text(text = stringResource(id = R.string.description_sync_all_confirm))
+    }
 }
 
 @Composable

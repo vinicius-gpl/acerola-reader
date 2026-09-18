@@ -48,6 +48,7 @@ import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.rounded.Bookmark
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.LayersClear
@@ -261,6 +262,7 @@ fun Main.Home.Template.Screen(
         onSelectAllComics = homeViewModel::selectAllComics,
         onToggleComicSelection = homeViewModel::toggleComicSelection,
         onLoadPairedPeers = homeViewModel::loadPairedPeers,
+        onSyncAllWithPeer = homeViewModel::syncAllWithPeer,
         onBrowseRemoteLibrary = { peerId, peerDisplayName ->
             val intent =
                 Intent(context, RemoteLibraryActivity::class.java).apply {
@@ -307,6 +309,7 @@ private fun HomeScreenContent(
     onSelectAllComics: (List<Long>) -> Unit,
     onToggleComicSelection: (Long) -> Unit,
     onLoadPairedPeers: () -> Unit,
+    onSyncAllWithPeer: (peerId: String) -> Unit,
     onBrowseRemoteLibrary: (peerId: String, peerDisplayName: String) -> Unit,
     onHideManga: (Long) -> Unit,
     onDeleteComic: (Long) -> Unit,
@@ -327,6 +330,10 @@ private fun HomeScreenContent(
     var selectedMangaForActions by remember { mutableStateOf<ComicDto?>(null) }
     var isBannerExpanded by remember { mutableStateOf(true) }
     var showRemoteLibraryPeerPicker by remember { mutableStateOf(false) }
+    var showSyncAllPeerPicker by remember { mutableStateOf(false) }
+    // Peer escolhido no picker, aguardando confirmação explícita antes de disparar (pode
+    // envolver bastante dados) — `null` = nenhuma confirmação pendente.
+    var syncAllConfirmPeer by remember { mutableStateOf<PairedPeer?>(null) }
 
     var showBatchCategorySheet by remember { mutableStateOf(false) }
     var showBatchHideDialog by remember { mutableStateOf(false) }
@@ -599,6 +606,18 @@ private fun HomeScreenContent(
                                 showRemoteLibraryPeerPicker = true
                             },
                         ),
+                        FabGroupItem(
+                            icon = {
+                                Icon(
+                                    imageVector = Icons.Default.Sync,
+                                    contentDescription = stringResource(id = R.string.description_icon_home_sync_all_peer),
+                                )
+                            },
+                            onClick = {
+                                onLoadPairedPeers()
+                                showSyncAllPeerPicker = true
+                            },
+                        ),
                     ),
             )
         }
@@ -613,6 +632,43 @@ private fun HomeScreenContent(
                 },
                 onDismiss = { showRemoteLibraryPeerPicker = false },
             )
+        }
+
+        if (showSyncAllPeerPicker) {
+            Main.Common.Component.PeerPickerSheet(
+                peers = pairedPeers,
+                onSelect = { peerId ->
+                    showSyncAllPeerPicker = false
+                    syncAllConfirmPeer = pairedPeers.find { it.peerId == peerId }
+                },
+                onDismiss = { showSyncAllPeerPicker = false },
+            )
+        }
+
+        syncAllConfirmPeer?.let { peer ->
+            val peerLabel = peer.nickname ?: peer.deviceName ?: PairingCode.shortId(peer.peerId)
+            Acerola.Component.Dialog(
+                show = true,
+                onDismiss = { syncAllConfirmPeer = null },
+                title = stringResource(id = R.string.title_sync_all_confirm, peerLabel),
+                confirmButtonContent = {
+                    Acerola.Component.DialogButton(
+                        text = stringResource(id = R.string.action_sync_all),
+                        onClick = {
+                            onSyncAllWithPeer(peer.peerId)
+                            syncAllConfirmPeer = null
+                        },
+                    )
+                },
+                dismissButtonContent = {
+                    Acerola.Component.DialogButton(
+                        text = stringResource(id = R.string.action_cancel),
+                        onClick = { syncAllConfirmPeer = null },
+                    )
+                },
+            ) {
+                Text(text = stringResource(id = R.string.description_sync_all_confirm))
+            }
         }
 
         AnimatedVisibility(
@@ -1025,6 +1081,7 @@ private fun HomeScreenContentEmptyPreview() {
             onSelectAllComics = {},
             onToggleComicSelection = {},
             onLoadPairedPeers = {},
+            onSyncAllWithPeer = {},
             onBrowseRemoteLibrary = { _, _ -> },
             onHideManga = {},
             onDeleteComic = {},

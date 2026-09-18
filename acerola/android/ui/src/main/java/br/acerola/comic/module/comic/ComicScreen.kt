@@ -23,6 +23,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.RemoveDone
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -403,6 +404,7 @@ fun ComicScreen(
             sendingChapterSorts = selectedChapterSorts
             comicViewModel.sendSelectedChaptersToPeer(peerId)
         },
+        onSendSelectedChaptersHistoryToPeer = comicViewModel::sendSelectedChaptersHistoryToPeer,
     )
 }
 
@@ -431,6 +433,7 @@ private fun ComicScreenContent(
     onUpdateChapterSort: (ChapterSortPreferenceData) -> Unit,
     onLoadPairedPeers: () -> Unit,
     onSendSelectedChaptersToPeer: (String) -> Unit,
+    onSendSelectedChaptersHistoryToPeer: (String) -> Unit,
 ) {
     // Categorias da aba de preferências colapsam/expandem inline, mesmo padrão do
     // Acerola.Component.AccordionCard usado na config principal — hoisted aqui porque
@@ -447,6 +450,7 @@ private fun ComicScreenContent(
 
     var showSortSheet by remember { mutableStateOf(false) }
     var showSendChaptersPeerPicker by remember { mutableStateOf(false) }
+    var showSendHistoryPeerPicker by remember { mutableStateOf(false) }
 
     // Ação "Enviar" do menu de três pontinhos de UM capítulo (`ChapterItem`) — mesmo fluxo da
     // barra de seleção múltipla abaixo (`SelectionActionDock`/`PeerPickerSheet`), só que
@@ -641,6 +645,14 @@ private fun ComicScreenContent(
                                 showSendChaptersPeerPicker = true
                             },
                         ),
+                        SelectionAction(
+                            icon = Icons.Default.History,
+                            label = stringResource(id = R.string.action_send_history_to_peer),
+                            onClick = {
+                                onLoadPairedPeers()
+                                showSendHistoryPeerPicker = true
+                            },
+                        ),
                     ),
                 modifier =
                     Modifier
@@ -665,6 +677,17 @@ private fun ComicScreenContent(
                     onSendSelectedChaptersToPeer(peerId)
                 },
                 onDismiss = { showSendChaptersPeerPicker = false },
+            )
+        }
+
+        if (showSendHistoryPeerPicker) {
+            Main.Common.Component.PeerPickerSheet(
+                peers = pairedPeers,
+                onSelect = { peerId ->
+                    showSendHistoryPeerPicker = false
+                    onSendSelectedChaptersHistoryToPeer(peerId)
+                },
+                onDismiss = { showSendHistoryPeerPicker = false },
             )
         }
     }
@@ -728,6 +751,7 @@ private fun ComicScreenContentPreview() {
             onUpdateChapterSort = {},
             onLoadPairedPeers = {},
             onSendSelectedChaptersToPeer = {},
+            onSendSelectedChaptersHistoryToPeer = {},
         )
     }
 }
@@ -760,6 +784,7 @@ private fun ComicScreenContentSelectionModePreview() {
             onUpdateChapterSort = {},
             onLoadPairedPeers = {},
             onSendSelectedChaptersToPeer = {},
+            onSendSelectedChaptersHistoryToPeer = {},
         )
     }
 }
