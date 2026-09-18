@@ -46,19 +46,6 @@ impl ComicService {
         scanner.rescan_comic(comic, |_| {}, |_| {}).await
     }
 
-    /// Invalida e reescaneia um único quadrinho do zero (capítulos e volumes inclusos).
-    pub async fn deep_rescan_comic(&self, id: i64) -> Result<(), ComicError> {
-        let comic = self
-            .repo
-            .find_by_id(id)
-            .await
-            .map_err(ComicError::from)?
-            .ok_or(ComicError::NotFound)?;
-        let scanner = ComicScannerService::new(PathBuf::from(&comic.path), self.pool.clone());
-
-        scanner.deep_rescan_comic(comic, |_| {}, |_| {}).await
-    }
-
     /// Atualiza o status de visibilidade de um quadrinho específico.
     pub async fn update_hidden_status(
         &self, id: i64, hidden: bool,

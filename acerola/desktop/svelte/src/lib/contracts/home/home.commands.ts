@@ -5,7 +5,6 @@ export const HOME_COMMANDS = {
 	deleteComics: 'delete_comics',
 	toggleComicExternalSync: 'toggle_comic_external_sync',
 	rescanComic: 'rescan_comic',
-	deepRescanComic: 'deep_rescan_comic',
 	regenerateComicCover: 'regenerate_comic_cover',
 	regenerateVolumeCovers: 'regenerate_volume_covers'
 } as const;

@@ -10,7 +10,7 @@ export const COMIC_ERROR_MESSAGES: Record<string, () => string> = {
 	InvalidRequest: m['tauri_errors.comic.invalid_request.label'],
 	IntegrityViolation: m['tauri_errors.comic.integrity_violation.label'],
 	SystemFailure: m['tauri_errors.comic.system_failure.label'],
-	IoError: m['tauri_errors.comic.io_error.label']
+	Io: m['tauri_errors.comic.io_error.label']
 };
 
 // Resolve a mensagem traduzida a partir do payload de erro.

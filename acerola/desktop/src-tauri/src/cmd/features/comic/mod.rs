@@ -126,24 +126,6 @@ pub async fn rescan_comic(
     result
 }
 
-/// Comando Tauri para invalidar e reescanear um único quadrinho do zero (sync profunda).
-#[tauri::command]
-pub async fn deep_rescan_comic(
-    id: String, pool: State<'_, SqlitePool>, chapter_cache: State<'_, ChapterCacheService>,
-) -> Result<(), ErrorPayload> {
-    let parsed_id = id.parse::<i64>().map_err(|err| {
-        ErrorPayload::from(&ComicError::SystemFailure(format!("Invalid ID: {}", err)))
-    })?;
-
-    let service = ComicService::new(pool.inner().clone());
-    let result =
-        service.deep_rescan_comic(parsed_id).await.map_err(|error| ErrorPayload::from(&error));
-
-    chapter_cache.invalidate_comic(parsed_id);
-
-    result
-}
-
 /// Comando Tauri para gerar a capa de um quadrinho a partir da página do primeiro capítulo.
 #[tauri::command]
 pub async fn regenerate_comic_cover(

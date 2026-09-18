@@ -21,7 +21,7 @@ describe('extractErrorMessage', () => {
 	});
 
 	it('translates a recognized errorType instead of leaking the raw Rust message', () => {
-		const payload: ErrorPayload = { errorType: 'IoError', message: 'disk full' };
+		const payload: ErrorPayload = { errorType: 'Io', message: 'disk full' };
 
 		expect(extractErrorMessage(payload)).toBe(m['tauri_errors.comic.io_error.label']());
 	});
