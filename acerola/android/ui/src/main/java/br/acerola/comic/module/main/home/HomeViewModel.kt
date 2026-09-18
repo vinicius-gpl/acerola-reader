@@ -34,6 +34,8 @@ import br.acerola.comic.usecase.metadata.ClearMetadataUseCase
 import br.acerola.comic.usecase.metadata.ManageCategoriesUseCase
 import br.acerola.comic.usecase.network.P2pUseCase
 import br.acerola.comic.usecase.network.SyncComicWithPeerUseCase
+import br.acerola.comic.usecase.network.SyncFilesWithPeerUseCase
+import br.acerola.comic.usecase.network.SyncHistoryWithPeerUseCase
 import br.acerola.comic.usecase.network.SyncWithPeerResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -74,6 +76,8 @@ class HomeViewModel
         @param:DirectoryCase private val directoryObserve: ObserveLibraryUseCase<ComicDirectoryDto>,
         private val p2pUseCase: P2pUseCase,
         private val syncComicWithPeerUseCase: SyncComicWithPeerUseCase,
+        private val syncHistoryWithPeerUseCase: SyncHistoryWithPeerUseCase,
+        private val syncFilesWithPeerUseCase: SyncFilesWithPeerUseCase,
     ) : ViewModel() {
         private val _uiEvents = Channel<UserMessage>(capacity = Channel.BUFFERED)
         val uiEvents: Flow<UserMessage> = _uiEvents.receiveAsFlow()
@@ -286,6 +290,30 @@ class HomeViewModel
                 if (syncComicWithPeerUseCase(peerId, comicName, direction) == SyncWithPeerResult.NOT_PAIRED) {
                     _uiEvents.send(UserMessage.Raw(UiText.StringResource(R.string.error_sync_comic_peer_not_paired)))
                 }
+            }
+        }
+
+        /** Sincroniza histórico + todos os capítulos que faltam com um peer — mesmos dois
+         *  protocolos que [br.acerola.comic.module.main.sync.state.SyncAction.SyncAll]
+         *  dispara na tela de Rede, reaproveitados aqui via [SyncHistoryWithPeerUseCase]/
+         *  [SyncFilesWithPeerUseCase] (compartilhados) em vez de duplicar os ALPNs. Cada
+         *  protocolo é independente: uma falha no histórico não impede o de arquivos (e
+         *  vice-versa). Confirmação explícita já é responsabilidade de quem chama (ver
+         *  `HomeScreen`), não desta função. */
+        fun syncAllWithPeer(peerId: String) {
+            AcerolaLogger.audit(
+                TAG,
+                "Syncing everything with peer",
+                LogSource.VIEWMODEL,
+                mapOf("peerId" to peerId),
+            )
+
+            viewModelScope.launch(Dispatchers.IO) {
+                if (syncHistoryWithPeerUseCase(peerId) == SyncWithPeerResult.NOT_PAIRED) {
+                    _uiEvents.send(UserMessage.Raw(UiText.StringResource(R.string.error_sync_comic_peer_not_paired)))
+                    return@launch
+                }
+                syncFilesWithPeerUseCase(peerId)
             }
         }
 
