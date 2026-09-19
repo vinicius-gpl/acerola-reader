@@ -228,7 +228,7 @@
 			>
 				<div class="flex min-w-0 flex-1 items-center gap-3 pr-2">
 					<div
-						class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary/20"
+						class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent-hero text-accent-hero-foreground transition-[filter] group-hover:brightness-110"
 					>
 						<Bookmark size={18} />
 					</div>

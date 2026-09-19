@@ -16,6 +16,7 @@
 	function zoom(overrides: Partial<ReaderZoomController> = {}): ReaderZoomController {
 		return {
 			setViewport: () => {},
+			setFocusedImage: () => {},
 			clampPan: () => {},
 			resetPan: () => {},
 			zoomIn: () => {},

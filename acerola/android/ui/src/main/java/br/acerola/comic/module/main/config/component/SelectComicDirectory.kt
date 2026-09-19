@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -21,7 +22,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import br.acerola.comic.common.ux.Acerola
 import br.acerola.comic.common.ux.component.HeroButton
-import br.acerola.comic.common.ux.component.IconButton
 import br.acerola.comic.common.ux.theme.AcerolaTheme
 import br.acerola.comic.common.ux.tokens.ShapeTokens
 import br.acerola.comic.common.ux.tokens.SizeTokens
@@ -54,34 +54,29 @@ fun Main.Config.Component.SelectComicDirectory(
         title = stringResource(id = R.string.title_text_config_select_path_comic),
         description = description,
         icon = Icons.Filled.Folder,
-        iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
-        iconBackground = MaterialTheme.colorScheme.primaryContainer,
         modifier = modifier,
         onClick = { launcher.launch(input = null) },
         action = {
-            Acerola.Component.IconButton(
-                onClick = { launcher.launch(input = null) },
-                icon = {
-                    Box(
-                        contentAlignment = Alignment.Center,
+            IconButton(onClick = { launcher.launch(input = null) }) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier =
+                        Modifier
+                            .size(size = SpacingTokens.Giant)
+                            .clip(ShapeTokens.Full)
+                            .background(color = MaterialTheme.colorScheme.primary),
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = stringResource(R.string.description_icon_select_folder_comics),
+                        tint = MaterialTheme.colorScheme.onPrimary,
                         modifier =
                             Modifier
-                                .size(size = SpacingTokens.Giant)
-                                .clip(ShapeTokens.Full)
-                                .background(color = MaterialTheme.colorScheme.primary),
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                            contentDescription = stringResource(R.string.description_icon_select_folder_comics),
-                            tint = MaterialTheme.colorScheme.onPrimary,
-                            modifier =
-                                Modifier
-                                    .size(size = SizeTokens.IconLarge)
-                                    .padding(all = SpacingTokens.ExtraSmall),
-                        )
-                    }
-                },
-            )
+                                .size(size = SizeTokens.IconLarge)
+                                .padding(all = SpacingTokens.ExtraSmall),
+                    )
+                }
+            }
         },
     )
 }

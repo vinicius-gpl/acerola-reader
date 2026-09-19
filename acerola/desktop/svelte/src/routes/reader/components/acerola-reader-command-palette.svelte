@@ -32,6 +32,7 @@
 	import ScrollText from '@lucide/svelte/icons/scroll-text';
 	import ZoomIn from '@lucide/svelte/icons/zoom-in';
 	import ZoomOut from '@lucide/svelte/icons/zoom-out';
+	import Focus from '@lucide/svelte/icons/focus';
 
 	let { data, events, state }: ReaderCommandPaletteProps = $props();
 
@@ -74,7 +75,7 @@
 								class="cursor-pointer"
 								onSelect={() => runCommand(events.onToggleZoomMode)}
 							>
-								<ZoomIn size={16} />
+								<Focus size={16} />
 								<span>
 									{data.zoomMode
 										? m['pages.reader.command.mode.disable_zoom']()

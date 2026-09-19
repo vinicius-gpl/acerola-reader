@@ -16,6 +16,8 @@ object NordDark {
 
     val Error = Color(0xFFBF616A)
     val Green = Color(0xFFA3BE8C)
+    // Nord não tem "pink" oficial — Aurora Purple (nord15) é o tom mais próximo, usado como accent.
+    val Accent = Color(0xFFB48EAD)
 }
 
 object NordLight {
@@ -33,4 +35,5 @@ object NordLight {
 
     val Error = Color(0xFFBF616A)
     val Green = Color(0xFFA3BE8C)
+    val Accent = Color(0xFFB48EAD)
 }

@@ -28,7 +28,17 @@ function events() {
 }
 
 async function expandCard() {
-	await fireEvent.click(screen.getByRole('button', { expanded: false }));
+	// Precisa do filtro por nome desde que o card passou a renderizar um `AcerolaAlertDialog`
+	// (confirmação antes de trocar de relay) — o trigger dele também é um <button
+	// aria-expanded="false">, então `{ expanded: false }` sozinho virou ambíguo.
+	await fireEvent.click(screen.getByRole('button', { name: /Connection|Conexão/i }));
+}
+
+/// Toggle da fonte de relay ativa (Acerola / Iroh público) agora abre um `AcerolaAlertDialog`
+/// de confirmação em vez de aplicar direto — precisa desse passo extra antes de checar o
+/// handler.
+async function confirmSwitch() {
+	await fireEvent.click(screen.getByRole('button', { name: /Switch relay|Trocar relay/i }));
 }
 
 function acerolaRelayCardButton() {
@@ -97,6 +107,7 @@ describe('AcerolaNetworkRelaySettingsCard', () => {
 		await expandCard();
 
 		await fireEvent.click(acerolaRelayCardButton());
+		await confirmSwitch();
 
 		expect(handlers.onToggleAcerolaRelay).toHaveBeenCalledWith(false);
 	});
@@ -118,6 +129,7 @@ describe('AcerolaNetworkRelaySettingsCard', () => {
 		await expandCard();
 
 		await fireEvent.click(irohCardButton());
+		await confirmSwitch();
 
 		expect(handlers.onToggleIrohPublicNetwork).toHaveBeenCalledWith(true);
 	});
@@ -137,6 +149,7 @@ describe('AcerolaNetworkRelaySettingsCard', () => {
 		await expandCard();
 
 		await fireEvent.click(acerolaRelayCardButton());
+		await confirmSwitch();
 
 		expect(handlers.onToggleAcerolaRelay).toHaveBeenCalledTimes(1);
 		expect(acerolaRelayCardButton()).toBeDisabled();

@@ -28,6 +28,8 @@ import br.acerola.comic.usecase.metadata.ClearMetadataUseCase
 import br.acerola.comic.usecase.metadata.ManageCategoriesUseCase
 import br.acerola.comic.usecase.network.P2pUseCase
 import br.acerola.comic.usecase.network.SyncComicWithPeerUseCase
+import br.acerola.comic.usecase.network.SyncFilesWithPeerUseCase
+import br.acerola.comic.usecase.network.SyncHistoryWithPeerUseCase
 import br.acerola.comic.usecase.network.SyncWithPeerResult
 import com.google.common.truth.Truth.assertThat
 import io.mockk.coEvery
@@ -62,6 +64,8 @@ class HomeViewModelTest {
     private val getChapterCountUseCase = mockk<GetChapterCountUseCase>(relaxed = true)
     private val p2pUseCase = mockk<P2pUseCase>(relaxed = true)
     private val syncComicWithPeerUseCase = mockk<SyncComicWithPeerUseCase>(relaxed = true)
+    private val syncHistoryWithPeerUseCase = mockk<SyncHistoryWithPeerUseCase>(relaxed = true)
+    private val syncFilesWithPeerUseCase = mockk<SyncFilesWithPeerUseCase>(relaxed = true)
 
     private lateinit var observeHistoryUseCase: ObserveHistoryUseCase
     private lateinit var mangadexObserve: ObserveLibraryUseCase<ComicMetadataDto>
@@ -129,6 +133,8 @@ class HomeViewModelTest {
             getChapterCountUseCase = getChapterCountUseCase,
             p2pUseCase = p2pUseCase,
             syncComicWithPeerUseCase = syncComicWithPeerUseCase,
+            syncHistoryWithPeerUseCase = syncHistoryWithPeerUseCase,
+            syncFilesWithPeerUseCase = syncFilesWithPeerUseCase,
         )
 
     @Test

@@ -213,8 +213,8 @@ fun Comic.Template.configSection(
                 title = stringResource(id = R.string.action_clear_metadata),
                 description = stringResource(id = R.string.description_clear_metadata),
                 icon = Icons.Rounded.LayersClear,
-                iconTint = MaterialTheme.colorScheme.onErrorContainer,
-                iconBackground = MaterialTheme.colorScheme.errorContainer,
+                iconTint = MaterialTheme.colorScheme.onError,
+                iconBackground = MaterialTheme.colorScheme.error,
                 onClick = { showClearMetadataDialog = true },
             )
 

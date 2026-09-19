@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import br.acerola.comic.common.state.SyncActionVisualState
 import br.acerola.comic.common.ux.Acerola
+import br.acerola.comic.common.ux.component.ActionIcon
 import br.acerola.comic.common.ux.component.ActionListItem
 import br.acerola.comic.common.ux.component.AdaptiveSheet
 import br.acerola.comic.common.ux.component.SyncActionIcon
@@ -108,12 +109,11 @@ fun Comic.Component.ChapterItem(
                         state = sendState,
                         containerSize = SizeTokens.ClickTargetSmall,
                         iconSize = SizeTokens.IconSmall,
-                        defaultBackground = MaterialTheme.colorScheme.primaryContainer,
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.Send,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            tint = MaterialTheme.colorScheme.onPrimary,
                             modifier = Modifier.size(SizeTokens.IconSmall),
                         )
                     }
@@ -225,13 +225,11 @@ fun Comic.Component.ChapterItem(
                 }
             }
 
-            IconButton(onClick = { if (isSelectionMode) onClick() else showDetails = true }) {
-                Icon(
-                    imageVector = Icons.Default.MoreVert,
-                    contentDescription = stringResource(id = R.string.description_icon_chapter_more_options),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            Acerola.Component.ActionIcon(
+                icon = Icons.Default.MoreVert,
+                onClick = { if (isSelectionMode) onClick() else showDetails = true },
+                contentDescription = stringResource(id = R.string.description_icon_chapter_more_options),
+            )
         }
     }
 

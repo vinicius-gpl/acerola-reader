@@ -296,7 +296,7 @@
 										>
 											{#snippet trigger()}
 												<span
-													class="text-overlay flex size-10 items-center justify-center rounded-xl transition-colors hover:bg-surface/60 hover:text-primary"
+													class="flex size-10 items-center justify-center rounded-xl bg-accent-hero text-accent-hero-foreground transition-[filter] hover:brightness-110"
 												>
 													<MoreVertical size={20} />
 												</span>

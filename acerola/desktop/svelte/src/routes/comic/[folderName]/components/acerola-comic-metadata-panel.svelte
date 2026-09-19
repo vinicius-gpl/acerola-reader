@@ -39,7 +39,10 @@
 	class="relative z-10 hidden h-full w-100 shrink-0 flex-col border-r border-surface/30 bg-mantle/60 backdrop-blur-3xl select-none lg:flex"
 >
 	<div class="flex h-full flex-col p-10">
-		<AcerolaButtonIcon events={{ onClick: events.onBack }} ui={{ class: 'group mb-10 shadow-lg' }}>
+		<AcerolaButtonIcon
+			events={{ onClick: events.onBack }}
+			ui={{ tone: 'accent', class: 'group mb-10 shadow-lg' }}
+		>
 			<ArrowLeft size={24} />
 		</AcerolaButtonIcon>
 

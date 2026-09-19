@@ -63,6 +63,7 @@ import br.acerola.comic.common.viewmodel.library.metadata.ComicMetadataViewModel
 import br.acerola.comic.common.viewmodel.metadata.MetadataSettingsViewModel
 import br.acerola.comic.common.viewmodel.theme.ThemeViewModel
 import br.acerola.comic.config.preference.types.AppTheme
+import br.acerola.comic.dto.metadata.category.CategoryDto
 import br.acerola.comic.module.main.Main
 import br.acerola.comic.module.main.config.component.GlobalCategoryManager
 import br.acerola.comic.module.main.config.component.LanguageSettings
@@ -94,7 +95,6 @@ fun Main.Config.Template.Screen(
 ) {
     val context = LocalContext.current
     val snackbarHostState = LocalSnackbarHostState.current
-    val scrollState = rememberScrollState()
 
     LaunchedEffect(Unit) {
         launch {
@@ -139,15 +139,6 @@ fun Main.Config.Template.Screen(
     var successSyncAction by remember { mutableStateOf<ConfigAction?>(null) }
     var isCurrentlyIndexing by remember { mutableStateOf(false) }
     val isAnyIndexing = isLibraryIndexing || isMetadataIndexing
-
-    // Categorias colapsam/expandem inline na própria lista, mesmo padrão da tela de config
-    // do desktop (ver acerola-accordion-card.svelte) — mais de uma pode ficar aberta ao
-    // mesmo tempo, por isso é um Set em vez de uma categoria única selecionada.
-    var expandedCategories by remember { mutableStateOf(setOf<String>()) }
-
-    fun toggleCategory(id: String) {
-        expandedCategories = if (id in expandedCategories) expandedCategories - id else expandedCategories + id
-    }
 
     LaunchedEffect(isAnyIndexing) {
         if (isAnyIndexing) {
@@ -220,6 +211,35 @@ fun Main.Config.Template.Screen(
             is ConfigAction.DeleteCategory -> comicDexViewModel.deleteCategory(action.id)
             ConfigAction.NavigateToTemplateConfig -> onNavigateToTemplates()
         }
+    }
+
+    ConfigScreenContent(
+        uiState = uiState,
+        allCategories = allCategories,
+        tutorialShown = tutorialShown,
+        getSyncActionVisualState = ::getSyncActionVisualState,
+        onAction = onAction,
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ConfigScreenContent(
+    uiState: ConfigUiState,
+    allCategories: List<CategoryDto>,
+    tutorialShown: Boolean,
+    getSyncActionVisualState: (ConfigAction) -> SyncActionVisualState,
+    onAction: (ConfigAction) -> Unit,
+) {
+    val scrollState = rememberScrollState()
+
+    // Categorias colapsam/expandem inline na própria lista, mesmo padrão da tela de config
+    // do desktop (ver acerola-accordion-card.svelte) — mais de uma pode ficar aberta ao
+    // mesmo tempo, por isso é um Set em vez de uma categoria única selecionada.
+    var expandedCategories by remember { mutableStateOf(setOf<String>()) }
+
+    fun toggleCategory(id: String) {
+        expandedCategories = if (id in expandedCategories) expandedCategories - id else expandedCategories + id
     }
 
     Scaffold(
@@ -426,11 +446,30 @@ private fun OnboardingGuideCard() {
 @Preview(name = "Light", showBackground = true)
 @Preview(name = "Dark", showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
 @Composable
-private fun ScreenPreview() {
+private fun ConfigScreenContentPreview() {
     AcerolaTheme {
-        Main.Config.Component.ThemeSettings(
-            currentTheme = AppTheme.CATPPUCCIN,
-            onThemeChange = {},
+        ConfigScreenContent(
+            uiState = ConfigUiState(selectedTheme = AppTheme.CATPPUCCIN),
+            allCategories = emptyList(),
+            tutorialShown = true,
+            getSyncActionVisualState = { SyncActionVisualState.IDLE },
+            onAction = {},
+        )
+    }
+}
+
+@Preview(name = "Onboarding + syncing", showBackground = true)
+@Composable
+private fun ConfigScreenContentOnboardingPreview() {
+    AcerolaTheme {
+        ConfigScreenContent(
+            uiState = ConfigUiState(selectedTheme = AppTheme.CATPPUCCIN),
+            allCategories = emptyList(),
+            tutorialShown = false,
+            getSyncActionVisualState = { action ->
+                if (action == ConfigAction.QuickSyncLibrary) SyncActionVisualState.LOADING else SyncActionVisualState.IDLE
+            },
+            onAction = {},
         )
     }
 }

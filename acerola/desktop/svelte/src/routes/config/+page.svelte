@@ -25,6 +25,7 @@
 	import { METADATA_COMMANDS } from '$lib/contracts/metadata/metadata.commands';
 	import { notificationStore } from '$lib/components/acerola-notification/acerola-notification.svelte';
 	import { extractErrorMessage } from '$lib/utils/error.utils';
+	import { bumpArtworkVersion } from '$lib/state/artwork-version.svelte';
 	import { LANGUAGES, type LanguageCode } from '$lib/constants/languages';
 	import { m } from '$lib/paraglide/messages';
 
@@ -132,6 +133,11 @@
 
 			unlistenComplete = await listen('metadata:sync_all:complete', () => {
 				syncingSource = null;
+				// Sync em lote baixa capa nova pra cada quadrinho sincronizado, mas o path no
+				// disco não muda — sem isso a Home (e qualquer outra tela com a lista de
+				// quadrinhos já montada) continuava mostrando a capa antiga em cache até um
+				// reload manual.
+				bumpArtworkVersion();
 				notify.success(m['pages.config.toast.sync.complete'](), { duration: 0 });
 				toast.success(m['pages.config.toast.sync.complete'](), { id: syncToastId });
 				syncToastId = undefined;
@@ -139,7 +145,7 @@
 
 			unlistenError = await listen<any>('metadata:sync_all:error', (event) => {
 				syncingSource = null;
-				const msg = event.payload?.message || event.payload;
+				const msg = extractErrorMessage(event.payload);
 				notify.error(m['pages.config.toast.sync.error']({ msg }), { duration: 0 });
 				toast.error(m['pages.config.toast.sync.error']({ msg }), { id: syncToastId });
 				syncToastId = undefined;
@@ -204,10 +210,10 @@
 			}}
 			state={{ expanded: expandedCategories.has('files') }}
 			events={{ onToggle: () => toggleCategory('files') }}
-			ui={{ class: CATEGORY_HOVER_BORDER.files }}
+			ui={{ class: CATEGORY_HOVER_BORDER.files, iconClass: 'bg-chart-5 text-primary-foreground' }}
 		>
 			{#snippet icon()}
-				<FolderIcon class="text-chart-5" size={24} />
+				<FolderIcon size={24} />
 			{/snippet}
 
 			{#snippet children()}
@@ -219,18 +225,14 @@
 						})
 					}}
 					events={{ onClick: folder.selectFolder }}
+					ui={{ iconClass: 'bg-chart-5 text-primary-foreground' }}
 				>
 					{#snippet icon()}
-						<FolderIcon class="text-chart-5" size={24} />
+						<FolderIcon size={24} />
 					{/snippet}
 
 					{#snippet action()}
-						<AcerolaButtonIcon
-							ui={{
-								class:
-									'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground'
-							}}
-						>
+						<AcerolaButtonIcon ui={{ tone: 'accent', class: 'rounded-full' }}>
 							<PlayIcon />
 						</AcerolaButtonIcon>
 					{/snippet}
@@ -247,9 +249,10 @@
 								!(comicInfoPreference.comicInfoPreference ?? false)
 							)
 					}}
+					ui={{ iconClass: 'bg-chart-2 text-primary-foreground' }}
 				>
 					{#snippet icon()}
-						<FileTextIcon class="text-chart-2" size={24} />
+						<FileTextIcon size={24} />
 					{/snippet}
 
 					{#snippet action()}
@@ -274,10 +277,10 @@
 			}}
 			state={{ expanded: expandedCategories.has('library') }}
 			events={{ onToggle: () => toggleCategory('library') }}
-			ui={{ class: CATEGORY_HOVER_BORDER.library }}
+			ui={{ class: CATEGORY_HOVER_BORDER.library, iconClass: 'bg-chart-3 text-primary-foreground' }}
 		>
 			{#snippet icon()}
-				<FolderSync class="text-chart-3" size={24} />
+				<FolderSync size={24} />
 			{/snippet}
 
 			{#snippet children()}
@@ -287,19 +290,17 @@
 						description: m['pages.config.file_system.sync.fast.desc']()
 					}}
 					events={{ onClick: () => refreshScanner.start() }}
+					ui={{ iconClass: 'bg-chart-3 text-primary-foreground' }}
 				>
 					{#snippet icon()}
-						<FolderSync class="text-chart-3" size={24} />
+						<FolderSync size={24} />
 					{/snippet}
 
 					{#snippet action()}
 						<AcerolaButtonIcon
-							ui={{
-								class:
-									'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground'
-							}}
+							ui={{ tone: 'accent', class: 'rounded-full', disabled: refreshScanner.scanning }}
 						>
-							<RefreshCw />
+							<RefreshCw class={refreshScanner.scanning ? 'animate-spin' : ''} />
 						</AcerolaButtonIcon>
 					{/snippet}
 				</AcerolaHeroButton>
@@ -310,19 +311,17 @@
 						description: m['pages.config.file_system.sync.deep.desc']()
 					}}
 					events={{ onClick: () => rebuildScanner.start() }}
+					ui={{ iconClass: 'bg-chart-1 text-primary-foreground' }}
 				>
 					{#snippet icon()}
-						<FolderSync class="text-chart-1" size={24} />
+						<FolderSync size={24} />
 					{/snippet}
 
 					{#snippet action()}
 						<AcerolaButtonIcon
-							ui={{
-								class:
-									'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground'
-							}}
+							ui={{ tone: 'accent', class: 'rounded-full', disabled: rebuildScanner.scanning }}
 						>
-							<RefreshCw />
+							<RefreshCw class={rebuildScanner.scanning ? 'animate-spin' : ''} />
 						</AcerolaButtonIcon>
 					{/snippet}
 				</AcerolaHeroButton>
@@ -333,18 +332,14 @@
 						description: m['pages.config.templates.nav.desc']()
 					}}
 					events={{ onClick: () => goto('/config/templates') }}
+					ui={{ iconClass: 'bg-chart-2 text-primary-foreground' }}
 				>
 					{#snippet icon()}
-						<FileCode2 class="text-chart-2" size={24} />
+						<FileCode2 size={24} />
 					{/snippet}
 
 					{#snippet action()}
-						<AcerolaButtonIcon
-							ui={{
-								class:
-									'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground'
-							}}
-						>
+						<AcerolaButtonIcon ui={{ tone: 'accent', class: 'rounded-full' }}>
 							<ChevronRightIcon />
 						</AcerolaButtonIcon>
 					{/snippet}
@@ -362,10 +357,10 @@
 			}}
 			state={{ expanded: true }}
 			events={{ onToggle: () => {} }}
-			ui={{ collapsible: false }}
+			ui={{ collapsible: false, iconClass: 'bg-chart-1 text-primary-foreground' }}
 		>
 			{#snippet icon()}
-				<PaletteIcon class="text-chart-1" size={24} />
+				<PaletteIcon size={24} />
 			{/snippet}
 
 			{#snippet children()}
@@ -385,10 +380,13 @@
 			}}
 			state={{ expanded: expandedCategories.has('metadata') }}
 			events={{ onToggle: () => toggleCategory('metadata') }}
-			ui={{ class: CATEGORY_HOVER_BORDER.metadata }}
+			ui={{
+				class: CATEGORY_HOVER_BORDER.metadata,
+				iconClass: 'bg-chart-4 text-primary-foreground'
+			}}
 		>
 			{#snippet icon()}
-				<CloudSync class="text-chart-4" size={24} />
+				<CloudSync size={24} />
 			{/snippet}
 
 			{#snippet children()}
@@ -397,9 +395,10 @@
 						title: m['pages.config.metadata.lang.title'](),
 						description: m['pages.config.metadata.lang.desc']()
 					}}
+					ui={{ iconClass: 'bg-chart-4 text-primary-foreground' }}
 				>
 					{#snippet icon()}
-						<LanguagesIcon class="text-chart-4" size={24} />
+						<LanguagesIcon size={24} />
 					{/snippet}
 
 					{#snippet action()}
@@ -425,7 +424,7 @@
 								<div class="flex flex-col">
 									<div class="border-b border-border/40 bg-muted/20 px-4 py-3">
 										<div class="flex items-start gap-3">
-											<div class="rounded-xl bg-chart-4/10 p-2 text-chart-4">
+											<div class="rounded-xl bg-chart-4 p-2 text-primary-foreground">
 												<LanguagesIcon size={18} />
 											</div>
 											<div class="min-w-0">
@@ -490,11 +489,7 @@
 
 					{#snippet action()}
 						<AcerolaButtonIcon
-							ui={{
-								class:
-									'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground',
-								disabled: syncingSource !== null
-							}}
+							ui={{ tone: 'accent', class: 'rounded-full', disabled: syncingSource !== null }}
 						>
 							<RefreshCw class={syncingSource === 'mangadex' ? 'animate-spin' : ''} />
 						</AcerolaButtonIcon>
@@ -516,11 +511,7 @@
 
 					{#snippet action()}
 						<AcerolaButtonIcon
-							ui={{
-								class:
-									'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground',
-								disabled: syncingSource !== null
-							}}
+							ui={{ tone: 'accent', class: 'rounded-full', disabled: syncingSource !== null }}
 						>
 							<RefreshCw class={syncingSource === 'anilist' ? 'animate-spin' : ''} />
 						</AcerolaButtonIcon>
@@ -539,10 +530,10 @@
 			}}
 			state={{ expanded: true }}
 			events={{ onToggle: () => {} }}
-			ui={{ collapsible: false }}
+			ui={{ collapsible: false, iconClass: 'bg-chart-2 text-primary-foreground' }}
 		>
 			{#snippet icon()}
-				<BookmarkIcon class="text-chart-2" size={24} />
+				<BookmarkIcon size={24} />
 			{/snippet}
 
 			{#snippet children()}

@@ -23,8 +23,6 @@ fun Main.Config.Component.TemplateManager(
         title = stringResource(id = R.string.title_chapter_naming_templates),
         description = stringResource(id = R.string.description_template_config_activity),
         icon = Icons.Default.SettingsSuggest,
-        iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
-        iconBackground = MaterialTheme.colorScheme.primaryContainer,
         onClick = onManageTemplates,
         modifier = modifier,
     )

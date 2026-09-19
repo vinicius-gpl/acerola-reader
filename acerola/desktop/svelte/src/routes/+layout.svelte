@@ -206,7 +206,7 @@
 			</button>
 
 			<button
-				class="hover:text-destructive-foreground inline-flex h-full w-11.5 cursor-pointer items-center justify-center transition-colors hover:bg-destructive"
+				class="inline-flex h-full w-11.5 cursor-pointer items-center justify-center transition-colors hover:bg-destructive hover:text-destructive-foreground"
 				aria-label={m['layout.buttons.close']()}
 				onclick={closeWindow}
 			>
@@ -299,7 +299,9 @@
 							}}
 						>
 							{#snippet trigger()}
-								<AcerolaButtonIcon ui={{ title: m['layout.language_picker.title']() }}>
+								<AcerolaButtonIcon
+									ui={{ title: m['layout.language_picker.title'](), tone: 'accent' }}
+								>
 									<GlobeIcon size={16} />
 								</AcerolaButtonIcon>
 							{/snippet}

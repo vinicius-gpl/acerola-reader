@@ -53,7 +53,7 @@
 	onpointerup={zoom.stopPan}
 	onpointercancel={zoom.stopPan}
 	onlostpointercapture={zoom.stopPan}
-	ondblclick={(event) => zoom.toggleQuickZoom(event)}
+	ondblclick={() => zoom.toggleQuickZoom()}
 >
 	<div
 		class={cn(
