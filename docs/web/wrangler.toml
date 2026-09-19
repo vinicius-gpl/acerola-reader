@@ -4,7 +4,7 @@ compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
 routes = [
-	{ pattern = "docs.acerola-comic.com", custom_domain = true }
+	{ pattern = "docs.acerola.app", custom_domain = true }
 ]
 
 [assets]
