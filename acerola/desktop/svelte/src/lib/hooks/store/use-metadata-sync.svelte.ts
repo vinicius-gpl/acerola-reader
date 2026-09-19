@@ -4,6 +4,7 @@ import { METADATA_COMMANDS } from '$lib/contracts/metadata/metadata.commands';
 import type { ComicMetadataEvent } from '$lib/contracts/metadata/metadata.payloads';
 import { load } from '@tauri-apps/plugin-store';
 import { STORE_FILE, STORE_KEYS } from '$lib/constants/store-plugin';
+import { isSyncingAll } from '$lib/state/metadata-sync-all.svelte';
 
 export function useMetadataSync() {
 	let isSyncing = $state(false);
@@ -79,7 +80,10 @@ export function useMetadataSync() {
 
 	return {
 		get isSyncing() {
-			return isSyncing;
+			// Também desabilita enquanto um sync em lote (tela de Config) estiver rodando —
+			// o lock de verdade é no backend (`SyncGuard`), isso só evita o usuário clicar e
+			// levar um toast de `SyncInProgress` por um comando que já sabíamos que ia falhar.
+			return isSyncing || isSyncingAll();
 		},
 		syncMangadex,
 		syncAnilist,

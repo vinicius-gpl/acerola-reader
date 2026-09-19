@@ -26,6 +26,7 @@
 	import { notificationStore } from '$lib/components/acerola-notification/acerola-notification.svelte';
 	import { extractErrorMessage } from '$lib/utils/error.utils';
 	import { bumpArtworkVersion } from '$lib/state/artwork-version.svelte';
+	import { setSyncingAll } from '$lib/state/metadata-sync-all.svelte';
 	import { LANGUAGES, type LanguageCode } from '$lib/constants/languages';
 	import { m } from '$lib/paraglide/messages';
 
@@ -56,6 +57,12 @@
 	// sync_all_metadata_mangadex/anilist no backend, que emitem o mesmo evento pras duas) —
 	// por isso só uma sincronização "all" roda por vez, nunca mangadex e anilist juntas.
 	let syncingSource = $state<'mangadex' | 'anilist' | null>(null);
+	// Espelha `syncingSource` num estado global — permite que a tela do quadrinho
+	// (`useMetadataSync()`) desabilite o sync individual enquanto o lote roda, sem precisar de
+	// nenhum outro ponto de sincronização entre as duas telas.
+	$effect(() => {
+		setSyncingAll(syncingSource !== null);
+	});
 	// Toast espelhando a mesma sincronização — atualizado in-place (mesmo `id`) em vez de
 	// empilhar um toast por evento de progresso. Sem isso, sincronizar metadados da biblioteca
 	// inteira só aparecia no sininho de notificações, não num toast.
