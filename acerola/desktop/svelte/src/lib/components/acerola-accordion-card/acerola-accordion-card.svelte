@@ -53,7 +53,10 @@
 {#snippet header()}
 	{#if icon}
 		<div
-			class={cn('flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-muted text-foreground transition-[filter] group-hover:brightness-110', ui?.iconClass)}
+			class={cn(
+				'flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-muted text-foreground transition-[filter] group-hover:brightness-110',
+				ui?.iconClass
+			)}
 		>
 			{@render icon()}
 		</div>
