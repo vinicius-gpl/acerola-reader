@@ -51,6 +51,7 @@ import br.acerola.comic.common.ux.component.ActionIcon
 import br.acerola.comic.common.ux.component.ActionListItem
 import br.acerola.comic.common.ux.component.AdaptiveSheet
 import br.acerola.comic.common.ux.component.SyncActionIcon
+import br.acerola.comic.common.ux.theme.AcerolaExtendedTheme
 import br.acerola.comic.common.ux.theme.AcerolaTheme
 import br.acerola.comic.common.ux.tokens.ShapeTokens
 import br.acerola.comic.common.ux.tokens.SizeTokens
@@ -340,7 +341,8 @@ fun Comic.Component.ChapterItem(
                             stringResource(
                                 id = if (isRead) R.string.action_mark_as_unread else R.string.action_mark_as_read,
                             ),
-                        tint = if (isRead) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                        tint = if (isRead) MaterialTheme.colorScheme.onError else MaterialTheme.colorScheme.onPrimary,
+                        iconBackground = if (isRead) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                         isLast = true,
                         onClick = {
                             showDetails = false
@@ -356,7 +358,8 @@ fun Comic.Component.ChapterItem(
                     Acerola.Component.ActionListItem(
                         icon = Icons.AutoMirrored.Filled.Send,
                         title = stringResource(id = R.string.action_send_chapters_to_peer),
-                        tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                        tint = AcerolaExtendedTheme.colors.onAccent,
+                        iconBackground = AcerolaExtendedTheme.colors.accent,
                         isLast = true,
                         onClick = {
                             showDetails = false

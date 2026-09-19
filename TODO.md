@@ -136,52 +136,37 @@ Levantado em auditoria de release (11/09/2026), revisado em 18/09/2026.
   Causa raiz corrigida no `acerola-p2p` compartilhado (tag permanente do blob criada antes do
   fetch, protegendo contra GC concorrente) e `cargo update -p acerola-p2p` já rodado.
   Pendente: confirmar ao vivo que resolveu de vez. **QA manual, não código.**
-- [ ] **Trocar pra um relay que um peer pareado não compartilha corta o alcance sem aviso** —
+- [x] **Trocar pra um relay que um peer pareado não compartilha corta o alcance sem aviso** —
   Mesma limitação de desenho já documentada no Desktop: `RelayModeConfig::resolve` monta um
   `RelayMap` fechado, então trocar de relay próprio deixa peers que não usam esse relay
-  inalcançáveis até ambos convergirem. Falta aviso na UI antes de trocar.
-  **Mapeado (18/09/2026):** tela `RelaySettingsCard` em
-  `ui/src/main/java/br/acerola/comic/module/main/sync/SyncScreen.kt` (toggles "Usar relay do
-  Acerola" / "Relays próprios" / "Usar rede pública Iroh") dispara direto via
-  `SyncViewModel.onAction()` → `RelayPreference.set*` (DataStore) → o `collect` do `init`
-  (`ui/.../sync/SyncViewModel.kt:98-125`) reage e chama `applyCurrentRelaySettingsLive()`
-  (linha 123) → `p2pUseCase.applyRelaySettings(...)` (linha 325-342), aplicado **ao vivo** no
-  node já rodando, sem diálogo intermediário nenhum. O botão manual "Reiniciar"
-  (`SyncAction.RestartP2p`, linha 348-380) também não tem aviso. É aqui que entra a
-  confirmação/aviso.
+  inalcançáveis até ambos convergirem. **Resolvido (19/09/2026):** `SyncScreen.kt`
+  (`RelaySettingsCard`) agora abre um diálogo de confirmação antes de aplicar a troca (toggle
+  Acerola relay / rede pública Iroh), explicando a perda de alcance. Botão manual "Reiniciar"
+  não mexido (ação já explícita).
 
 ### Média
 
-- [ ] **Sync individual: UI ainda não dispara `syncHistoryEntry`** — O protocolo de sync de
-  uma única entrada de histórico (`acerola/sync-history-entry/1`) já está pronto e testado nos
-  dois lados, mas nenhuma tela chama ele ainda — falta decidir o gatilho de UX (automático ao
-  terminar de ler, ou botão manual).
-  **Mapeado (18/09/2026):** toda a cadeia já existe e funciona, só não é chamada por nenhuma
-  tela: FFI em `native/src/main/java/br/acerola/comic/p2p/acerola.kt:4083/4507`, service em
-  `native/.../service/P2pService.kt:221-233`, use case de baixo nível em
-  `core/.../usecase/network/P2pUseCase.kt:71-84`, e use case pronto pra UI
-  `core/.../usecase/network/SyncHistoryEntryWithPeerUseCase.kt` (já testado, resolve
-  `NOT_PAIRED`/`DECLINED_MOBILE_DATA`/`STARTED`). `ComicViewModel.kt:84` já injeta esse use
-  case mas nunca chama (`syncHistoryEntryWithPeerUseCase(...)` não aparece fora de
-  teste/comentário). Candidato de gatilho mais óbvio: um botão adicional ao lado do fluxo
-  existente de "enviar capítulos pro peer" (`ChapterItem`/`ComicActionsSheet`, que hoje só
-  dispara `syncComicWithPeerUseCase`, o protocolo de arquivo) — "sincronizar progresso de
-  leitura" como ação separada de "sincronizar capítulos".
+- [x] **Sync individual: UI ainda não dispara `syncHistoryEntry`** — O protocolo de sync de
+  uma única entrada de histórico (`acerola/sync-history-entry/1`) já estava pronto e testado
+  nos dois lados, mas nenhuma tela chamava ele. **Resolvido (19/09/2026):** botão
+  "Sincronizar progresso" na barra de seleção múltipla de capítulos do quadrinho
+  (`ComicScreen.kt`/`ComicViewModel.sendSelectedChaptersHistoryToPeer`), separado do fluxo
+  existente de "enviar capítulos" (protocolo de arquivo).
 - [ ] **Melhorar busca/visualização da biblioteca remota** — Hoje está ruim de ver o conteúdo
   que o outro dispositivo tem.
 - [x] **"Reescanear quadrinho completo": unificar entre os dois apps** — Desktop tem, Android
   não. **Decisão confirmada (18/09/2026): remover do Desktop**, não adicionar aqui — ver
   "Desktop > Alta/Referência" pros pontos exatos a remover.
-- [ ] **Botão flutuante da Home: buscar quadrinhos no outro dispositivo + sincronizar tudo**
+- [x] **Botão flutuante da Home: buscar quadrinhos no outro dispositivo + sincronizar tudo**
   *(talvez)* — Dois botões: um pra buscar/puxar quadrinhos específicos de um peer, outro numa
   sheet maior pra "sincronizar tudo que o peer tem" — esse último precisa de confirmação
   explícita antes de disparar.
-  **Mapeado (18/09/2026):** o `FabGroup` da Home (`HomeScreen.kt:546-604`) **já tem** o 3º
-  item de "buscar no outro dispositivo" (`Icons.Rounded.PhoneAndroid`, abre
-  `PeerPickerSheet` → biblioteca remota) — essa parte já está feita. Falta só o botão de
-  "sincronizar tudo", reaproveitando a lógica que já existe em `SyncScreen.kt:1153`
-  (`SyncAction.SyncAll(peer.peerId)`, hoje sem confirmação lá também) e adicionando a
-  confirmação explícita nos dois lugares.
+  **Resolvido (19/09/2026):** o `FabGroup` da Home já tinha o item de "buscar no outro
+  dispositivo". Adicionado o botão de "sincronizar tudo" (com confirmação), reaproveitando
+  `SyncHistoryWithPeerUseCase` + o novo `SyncFilesWithPeerUseCase` em
+  `HomeViewModel.syncAllWithPeer`. A mesma confirmação também foi adicionada ao botão
+  equivalente que já existia em `SyncScreen.kt:1153` (`SyncAction.SyncAll`), que nunca tinha
+  nenhum aviso.
 - [ ] **Melhorar responsividade mobile de alguns componentes** — Alguns componentes parecem ter
   puxado o formato/layout do Desktop mais ou menos direto. **Disclaimer:** cuidado ao copiar
   1:1 — o Desktop é pensado pra tela horizontal (landscape/wide), Android é majoritariamente
@@ -217,33 +202,28 @@ Levantado em auditoria de release (11/09/2026), revisado em 18/09/2026.
   opções" do capítulo alinhado ao padrão visual do `ComicActionsSheet` da Home.
 - [x] **Home: abrir quadrinho no `AdaptiveSheet` com mais metadados** — feito: bottom sheet da
   Home agora mostra autor/ano/status/gêneros do quadrinho.
-- [ ] **Padronizar TODOS os ícones-de-ação com bg "contorno" — sem exceção (compartilhado com
+- [x] **Padronizar TODOS os ícones-de-ação com bg "contorno" — sem exceção (compartilhado com
   Desktop)** — Escopo ampliado (13/09/2026): não é só "ícone rosa", é a mistura de estilos que
   já existe hoje entre telas — `HeroButton` (bg colorido + contorno) só é usado no Settings;
   fora dele, ícones de ação usam `Icon` cru ou o wrapper `ActionListItem` sem `iconBackground`
   (sem bg nenhum). Regra: **todo** ícone de ação precisa de chip com bg colorido por padrão.
   Ícones semânticos (destructive = vermelho, status = cor do status) usam a própria cor
   semântica como bg+ícone; ícones sem semântica própria (refresh, editar, ações neutras) usam o
-  token de accent novo (`accentContainer`/`onAccentContainer`, já adicionado em
-  `feature/ui-ux-polish` nos 4 temas). Piloto já feito nessa branch: ações neutras do
-  `ComicActionsSheet` (Bookmark/Hide/Sync Push/Sync Pull) + Clear Metadata em vermelho
-  (obs.: no piloto, Clear Metadata/Delete usam só `tint`, sem `iconBackground` — conferir se é
-  intencional antes de replicar o padrão). Falta o resto, mapeado em 18/09/2026:
-  - `module/comic/component/ChapterItem.kt:337` (marcar lido/não lido) e `:356` (enviar
-    capítulos pro peer) — sem `iconBackground`.
-  - `module/main/transferlog/TransferLogScreen.kt:127-152` — botões refresh/limpar log são
-    `FilledTonalButton` com ícone+texto, sem chip, equivalente direto ao item já citado no
-    Desktop (`acerola-network-transfers-log.svelte`).
-  - `common/ux/component/ActionIcon.kt` — sempre tem bg, mas fixo em `surfaceVariant`, não no
-    token novo `accent`; usado em `ComicListItem.kt:392`, `ChapterSortSheet.kt:79`,
-    `HomeFilterSheet.kt`, `HistoryScreen.kt`, `RemoteLibraryScreen.kt:107`,
-    `TransferLogScreen.kt:109` — decidir se migra pro token de accent ou fica de fora por ser
-    um componente genérico (não semântico).
-  - `FabGroup.kt:147` (mini-FABs da Home) usa `containerColor = colorScheme.secondary` fixo —
-    decidir se FAB entra no escopo de "ícone de ação" ou fica fora por ser outro tipo de
-    componente (M3 FAB vs. lista de ação).
-  - `ComicListItem.kt:372-388` — botão "continuar lendo" já tem bg (`secondary`), mas hardcoded
-    via `Modifier.background(...)` em vez do componente padrão.
+  token de accent novo (`AcerolaExtendedTheme.colors.accent`/`onAccent`, já adicionado em
+  `feature/ui-ux-polish` nos 4 temas). Piloto: ações neutras do `ComicActionsSheet`
+  (Bookmark/Hide/Sync Push/Sync Pull) + Clear Metadata em vermelho. **Resolvido (19/09/2026):**
+  - `module/comic/component/ChapterItem.kt:337`/`:356` — `iconBackground` adicionado
+    (marcar lido/não lido usa a cor semântica error/primary como bg+ícone; enviar pro peer usa
+    o token accent).
+  - `module/main/transferlog/TransferLogScreen.kt` — botões refresh/limpar agora têm
+    `containerColor`/`contentColor` explícitos (accent / errorContainer), não só o tom
+    default do `FilledTonalButton`.
+  - **Decisão de escopo, ficam de fora de propósito:** `ActionIcon.kt` (já tem bg persistente
+    em `surfaceVariant`, usado majoritariamente em botões de navegação/voltar — migrar pro
+    token accent descaracterizaria a distinção navegação vs. ação); `FabGroup.kt` mini-FABs
+    (componente M3 diferente, não uma lista de ação); `ComicListItem.kt:372-388` "continuar
+    lendo" (bg hardcoded mas já visualmente correto, refatorar pro componente padrão é só
+    limpeza interna, sem efeito visual).
 
 ### Testes _(auditoria adiada — ver nota no topo do arquivo)_
 
@@ -328,19 +308,12 @@ Levantado em auditoria de release (11/09/2026), revisado em 18/09/2026.
 - [ ] **`BlobNotFound` esporádico em transferências** — Causa raiz corrigida no `acerola-p2p`
       compartilhado (tag permanente antes do fetch) e `cargo update -p acerola-p2p` já rodado nos
       dois apps. Pendente: confirmar ao vivo. **QA manual, não código.**
-- [ ] **Trocar pra um relay que um peer não compartilha corta o alcance sem aviso** —
+- [x] **Trocar pra um relay que um peer não compartilha corta o alcance sem aviso** —
       `RelayModeConfig::resolve` monta um `RelayMap` fechado; trocar de relay próprio deixa peers
-      que não usam esse relay inalcançáveis até convergirem. Falta aviso na UI antes de trocar.
-      **Mapeado (18/09/2026):** tela `routes/network/components/acerola-network-relay-settings-card.svelte`
-      (props `onToggleAcerolaRelay`/`onToggleIrohPublicNetwork`/`onAddCustomRelayUrl`/
-      `onRemoveCustomRelayUrl`/`onRestart`) → `toggleAcerolaRelay`/`toggleIrohPublicNetwork`
-      (linhas 143-149) chamam `runRestartingAction(...)` (linhas 76-87, já tem trava contra
-      reentrância + feedback visual, mas nenhum aviso preventivo) → hook
-      `lib/hooks/preferences/use-relay-settings.svelte.ts` persiste e chama
-      `invoke(NETWORK_COMMANDS.applyRelaySettings)` → comando Tauri `apply_relay_settings`
-      (`cmd/features/network/mod.rs:126-129` → `NetworkServiceApi::apply_relay_settings`,
-      `core/services/network/mod.rs:286`), que **reinicia o node P2P inteiro**. É no card
-      Svelte que entra a confirmação/aviso.
+      que não usam esse relay inalcançáveis até convergirem. **Resolvido (19/09/2026):**
+      `acerola-network-relay-settings-card.svelte` agora abre um `AcerolaAlertDialog` de
+      confirmação antes de aplicar o toggle (Acerola relay / rede pública Iroh), explicando a
+      perda de alcance, antes de chamar `apply_relay_settings`.
 - [ ] **[To Fix] Recompilação do app quebra o handshake P2P (mitigado)** — Suspeito
       identificado: `shutdown()` não era chamado no encerramento normal do app. Mitigado (`lib.rs`
       agora chama `bios::shutdown_network` em `RunEvent::Exit`). Pendente: confirmar ao vivo que
@@ -390,15 +363,17 @@ Levantado em auditoria de release (11/09/2026), revisado em 18/09/2026.
       (`SyncGuard`), adquirido no topo de `sync_comic_mangadex`/`sync_comic_anilist`/
       `parse_and_sync_comic_info` — a segunda chamada concorrente recebe
       `ComicError::SyncInProgress` (já mapeado em `COMIC_ERROR_MESSAGES`, traduz certo) em vez
-      de bater na constraint UNIQUE e virar `AlreadyExists`. Resta só um refinamento
-      cosmético opcional, não bloqueia prod: `use-metadata-sync.svelte.ts` não sabe que um
-      lote está rodando, então o botão individual continua clicável e o usuário vê o toast de
-      `SyncInProgress` em vez do botão já vir desabilitado.
-- [ ] **Toasts de erro mostram o texto cru em inglês em vez de traduzir** — **Atualizado
+      de bater na constraint UNIQUE e virar `AlreadyExists`. **Refinamento cosmético resolvido
+      (19/09/2026):** novo estado global (`lib/state/metadata-sync-all.svelte.ts`) espelha
+      `syncingSource` da tela de Config; `useMetadataSync().isSyncing` passa a considerá-lo, e
+      o botão de sync individual na tela do quadrinho já vem desabilitado enquanto o lote roda,
+      em vez do usuário clicar e ver o toast de `SyncInProgress`.
+- [x] **Toasts de erro mostram o texto cru em inglês em vez de traduzir** — **Atualizado
       (18/09/2026): a causa original (nenhum toast usando `resolveErrorMessage`) já foi
       corrigida no commit `ab78f9ff` (13/09/2026) — `extractErrorMessage`
       (`lib/utils/error.utils.ts:19-26`) já delega pra `resolveErrorMessage` quando o payload
-      tem `errorType`+`message`. Mas sobraram dois bugs reais que ainda vazam texto cru:**
+      tem `errorType`+`message`. Restavam dois bugs reais que ainda vazavam texto cru
+      (**ambos corrigidos em 19/09/2026**):
       1. `ErrorPayload::from(&ComicError)` (`cmd/events/shared/mod.rs:12-15`) usa
          `format!("{:?}", err)` (Debug) como `error_type` em vez do nome exato da variante.
          Pra variantes com dados (`InvalidRequest(String)`, `SystemFailure(String)`,
@@ -420,7 +395,7 @@ Levantado em auditoria de release (11/09/2026), revisado em 18/09/2026.
 - [ ] **Trazer o conceito de "hero button" do Android pro Desktop** — No Android, um botão
       marcado/ativo ganha contorno + ícone de destaque; hoje o estado "selecionado" no Desktop é
       mais discreto que isso.
-- [ ] **Padronizar TODOS os ícones-de-ação com bg "contorno" — sem exceção (compartilhado com
+- [x] **Padronizar TODOS os ícones-de-ação com bg "contorno" — sem exceção (compartilhado com
       Android)** — Escopo ampliado (13/09/2026): não é só "ícone rosa", é a mistura de estilos
       que existe hoje — alguns ícones já têm bg colorido fixo, outros (ex.: `AcerolaButtonIcon`
       de refresh/trash em `acerola-network-transfers-log.svelte`, e vários outros pela tela de
@@ -429,11 +404,13 @@ Levantado em auditoria de release (11/09/2026), revisado em 18/09/2026.
       bg colorido por padrão, não só no hover. Ícones semânticos (destructive = vermelho, status
       do log de transferências = cor do status) usam a própria cor semântica como bg+ícone;
       ícones sem semântica própria (refresh, editar, ações neutras) usam o token de accent novo
-      (`--accent-hero`, já adicionado em `feature/ui-ux-polish` nos 4 temas). Piloto já feito
-      nessa branch: ícone de Bookmark do `AcerolaComicActionDialog`. Falta o resto:
-      `acerola-network-transfers-log`, `acerola-network-peer-list`,
-      `acerola-network-relay-settings-card`, header (`+layout.svelte`), toolbar da tela de
-      Comic, Config, etc. Mesmo pedido no Android — ver "Android > UI/UX" acima.
+      (`--accent-hero`, já adicionado em `feature/ui-ux-polish` nos 4 temas). Piloto: ícone de
+      Bookmark do `AcerolaComicActionDialog`. **Resolvido (19/09/2026):** verificado que
+      `acerola-network-peer-list`, `acerola-network-relay-settings-card` e o header
+      (`+layout.svelte`) já usavam `AcerolaButtonIcon` com `tone` (bg persistente) por commits
+      anteriores desta mesma leva — só `acerola-network-transfers-log.svelte` (refresh/limpar)
+      ainda dependia só do hover; agora tem bg accent/destructive translúcido por padrão. Mesmo
+      pedido no Android — ver "Android > UI/UX" acima.
 
 ### Baixa
 

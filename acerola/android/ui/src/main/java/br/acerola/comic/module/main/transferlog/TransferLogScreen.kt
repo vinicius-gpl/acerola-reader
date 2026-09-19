@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
@@ -50,6 +51,7 @@ import br.acerola.comic.common.ux.Acerola
 import br.acerola.comic.common.ux.component.ActionIcon
 import br.acerola.comic.common.ux.component.Dialog
 import br.acerola.comic.common.ux.component.DialogButton
+import br.acerola.comic.common.ux.theme.AcerolaExtendedTheme
 import br.acerola.comic.common.ux.theme.AcerolaTheme
 import br.acerola.comic.common.ux.tokens.ShapeTokens
 import br.acerola.comic.common.ux.tokens.SizeTokens
@@ -124,7 +126,14 @@ private fun TransferLogScreenContent(
                         .padding(horizontal = SpacingTokens.Large, vertical = SpacingTokens.Small),
                 horizontalArrangement = Arrangement.spacedBy(SpacingTokens.Small),
             ) {
-                FilledTonalButton(onClick = onRefresh) {
+                FilledTonalButton(
+                    onClick = onRefresh,
+                    colors =
+                        ButtonDefaults.filledTonalButtonColors(
+                            containerColor = AcerolaExtendedTheme.colors.accent,
+                            contentColor = AcerolaExtendedTheme.colors.onAccent,
+                        ),
+                ) {
                     Icon(
                         imageVector = Icons.Default.Refresh,
                         contentDescription = null,
@@ -137,16 +146,21 @@ private fun TransferLogScreenContent(
                 }
 
                 if (uiState.entries.isNotEmpty()) {
-                    FilledTonalButton(onClick = { showClearDialog = true }) {
+                    FilledTonalButton(
+                        onClick = { showClearDialog = true },
+                        colors =
+                            ButtonDefaults.filledTonalButtonColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer,
+                                contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                            ),
+                    ) {
                         Icon(
                             imageVector = Icons.Default.Delete,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.error,
                             modifier = Modifier.size(SizeTokens.IconExtraSmall),
                         )
                         Text(
                             text = stringResource(id = R.string.action_sync_activity_log_clear),
-                            color = MaterialTheme.colorScheme.error,
                             modifier = Modifier.padding(start = SpacingTokens.ExtraSmall),
                         )
                     }

@@ -120,7 +120,11 @@
 	<div class="flex items-center justify-end gap-1">
 		<AcerolaButton
 			events={{ onClick: () => events?.onRefresh?.() }}
-			ui={{ variant: 'ghost', size: 'sm', class: 'h-8 gap-1.5 px-2.5 text-accent-hero' }}
+			ui={{
+				variant: 'ghost',
+				size: 'sm',
+				class: 'h-8 gap-1.5 bg-accent-hero/15 px-2.5 text-accent-hero hover:bg-accent-hero/25'
+			}}
 		>
 			<RefreshCwIcon size={14} />
 			{m['pages.network.transfers.refresh']()}
@@ -141,8 +145,7 @@
 					ui={{
 						variant: 'ghost',
 						size: 'sm',
-						class:
-							'h-8 gap-1.5 px-2.5 text-destructive hover:bg-destructive/10 hover:text-destructive'
+						class: 'h-8 gap-1.5 bg-destructive/15 px-2.5 text-destructive hover:bg-destructive/25'
 					}}
 				>
 					<Trash2Icon size={14} />
