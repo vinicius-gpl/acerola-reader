@@ -380,7 +380,10 @@
 			}}
 			state={{ expanded: expandedCategories.has('metadata') }}
 			events={{ onToggle: () => toggleCategory('metadata') }}
-			ui={{ class: CATEGORY_HOVER_BORDER.metadata, iconClass: 'bg-chart-4 text-primary-foreground' }}
+			ui={{
+				class: CATEGORY_HOVER_BORDER.metadata,
+				iconClass: 'bg-chart-4 text-primary-foreground'
+			}}
 		>
 			{#snippet icon()}
 				<CloudSync size={24} />

@@ -141,7 +141,8 @@
 					ui={{
 						variant: 'ghost',
 						size: 'sm',
-						class: 'h-8 gap-1.5 px-2.5 text-destructive hover:bg-destructive/10 hover:text-destructive'
+						class:
+							'h-8 gap-1.5 px-2.5 text-destructive hover:bg-destructive/10 hover:text-destructive'
 					}}
 				>
 					<Trash2Icon size={14} />
