@@ -27,13 +27,14 @@ fun Main.Config.Component.SyncAnilistData(
     Acerola.Component.HeroButton(
         title = stringResource(id = R.string.title_sync_anilist_remote_info),
         description = stringResource(id = R.string.description_sync_anilist_remote_info),
-        iconBackground = MaterialTheme.colorScheme.tertiaryContainer,
+        iconBackground = MaterialTheme.colorScheme.tertiary,
         onClick = if (state == SyncActionVisualState.LOADING) null else onRescan,
         modifier = modifier,
         icon = {
             Acerola.Component.SyncActionIcon(
                 state = state,
-                defaultBackground = MaterialTheme.colorScheme.tertiaryContainer,
+                defaultBackground = MaterialTheme.colorScheme.tertiary,
+                onDefaultBackground = MaterialTheme.colorScheme.onTertiary,
             ) {
                 Image(
                     painter = painterResource(id = R.drawable.anilist),

@@ -1,4 +1,4 @@
-package br.acerola.comic.module.main.sync
+package br.acerola.comic.module.main.sync.component
 
 import android.content.res.Configuration
 import androidx.compose.foundation.clickable
@@ -31,6 +31,7 @@ import br.acerola.comic.common.ux.component.AdaptiveSheet
 import br.acerola.comic.common.ux.theme.AcerolaTheme
 import br.acerola.comic.common.ux.tokens.SpacingTokens
 import br.acerola.comic.error.message.SyncProtocolError
+import br.acerola.comic.module.main.Main
 import br.acerola.comic.service.network.ComicSummary
 import br.acerola.comic.ui.R
 import coil.compose.AsyncImage
@@ -42,7 +43,7 @@ import coil.compose.AsyncImage
  * Comic Detail.
  */
 @Composable
-fun RemoteLibrarySheet(
+fun Main.Sync.Component.RemoteLibrarySheet(
     peerDisplayName: String,
     comics: List<ComicSummary>,
     isLoading: Boolean,
@@ -138,7 +139,7 @@ fun RemoteLibrarySheet(
 @Composable
 private fun RemoteLibrarySheetPreview() {
     AcerolaTheme {
-        RemoteLibrarySheet(
+        Main.Sync.Component.RemoteLibrarySheet(
             peerDisplayName = "Pixel 8",
             comics =
                 listOf(

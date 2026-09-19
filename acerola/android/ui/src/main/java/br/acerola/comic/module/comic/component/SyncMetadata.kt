@@ -124,7 +124,7 @@ private fun MangadexSection(
                 id = R.plurals.description_sync_mangadex_remote_info_supporting,
                 count = 1,
             ),
-        iconBackground = MaterialTheme.colorScheme.tertiaryContainer,
+        iconBackground = MaterialTheme.colorScheme.tertiary,
         onClick = if (anyLoading) null else onSyncInfo,
         action =
             if (isActive) {
@@ -142,7 +142,8 @@ private fun MangadexSection(
         icon = {
             Acerola.Component.SyncActionIcon(
                 state = infoState,
-                defaultBackground = MaterialTheme.colorScheme.tertiaryContainer,
+                defaultBackground = MaterialTheme.colorScheme.tertiary,
+                onDefaultBackground = MaterialTheme.colorScheme.onTertiary,
             ) {
                 Image(
                     painter = painterResource(id = R.drawable.mangadex_v2),
@@ -164,7 +165,8 @@ private fun AnilistSection(
         title = stringResource(id = R.string.title_sync_anilist_remote_info),
         subtitle = stringResource(id = R.string.description_sync_anilist_remote_info),
         iconPainter = painterResource(id = R.drawable.anilist),
-        iconBackground = MaterialTheme.colorScheme.tertiaryContainer,
+        iconBackground = MaterialTheme.colorScheme.tertiary,
+        iconTint = MaterialTheme.colorScheme.onTertiary,
         isActive = isActive,
         state = infoState,
         onClick = onSyncInfo,
@@ -197,14 +199,11 @@ private fun ComicInfoSection(
                 null
             },
         icon = {
-            Acerola.Component.SyncActionIcon(
-                state = infoState,
-                defaultBackground = MaterialTheme.colorScheme.primaryContainer,
-            ) {
+            Acerola.Component.SyncActionIcon(state = infoState) {
                 Icon(
                     imageVector = Icons.Rounded.Description,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    tint = MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier.size(24.dp),
                 )
             }
@@ -218,7 +217,8 @@ private fun SyncItem(
     subtitle: String,
     iconVector: ImageVector? = null,
     iconPainter: Painter? = null,
-    iconBackground: Color = MaterialTheme.colorScheme.primaryContainer,
+    iconBackground: Color = MaterialTheme.colorScheme.primary,
+    iconTint: Color = MaterialTheme.colorScheme.onPrimary,
     isActive: Boolean = false,
     state: SyncActionVisualState = SyncActionVisualState.IDLE,
     onClick: () -> Unit,
@@ -245,18 +245,14 @@ private fun SyncItem(
             Acerola.Component.SyncActionIcon(
                 state = state,
                 defaultBackground = iconBackground,
+                onDefaultBackground = iconTint,
             ) {
                 when {
                     iconVector != null ->
                         Icon(
                             imageVector = iconVector,
                             contentDescription = null,
-                            tint =
-                                if (iconBackground == MaterialTheme.colorScheme.tertiaryContainer) {
-                                    MaterialTheme.colorScheme.onTertiaryContainer
-                                } else {
-                                    MaterialTheme.colorScheme.onPrimaryContainer
-                                },
+                            tint = iconTint,
                             modifier = Modifier.size(24.dp),
                         )
                     iconPainter != null ->

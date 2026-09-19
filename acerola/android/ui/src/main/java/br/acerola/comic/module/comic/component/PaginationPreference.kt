@@ -31,8 +31,6 @@ fun Comic.Component.PaginationPreference(
         title = stringResource(id = R.string.title_settings_chapters_per_page),
         description = selected?.key?.lowercase(),
         icon = Icons.Default.AutoStories,
-        iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
-        iconBackground = MaterialTheme.colorScheme.primaryContainer,
         modifier = modifier,
         bottomContent = {
             Acerola.Component.RadioGroup(

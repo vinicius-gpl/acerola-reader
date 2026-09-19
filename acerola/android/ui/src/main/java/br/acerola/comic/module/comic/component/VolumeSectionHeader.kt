@@ -249,13 +249,13 @@ private fun VolumeCoverIdentity(
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.tertiaryContainer),
+                        .background(MaterialTheme.colorScheme.tertiary),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     imageVector = Icons.Default.LibraryBooks,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                    tint = MaterialTheme.colorScheme.onTertiary,
                     modifier = Modifier.size(SizeTokens.IconMedium),
                 )
             }

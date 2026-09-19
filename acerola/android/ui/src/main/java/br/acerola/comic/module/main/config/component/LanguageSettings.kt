@@ -46,8 +46,6 @@ fun Main.Config.Component.LanguageSettings(
                 title = stringResource(id = R.string.title_settings_metadata_language),
                 description = languageLabel,
                 icon = Icons.Filled.Language,
-                iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
-                iconBackground = MaterialTheme.colorScheme.primaryContainer,
                 modifier = modifier,
                 action = {
                     IconButton(onClick = onClick) {

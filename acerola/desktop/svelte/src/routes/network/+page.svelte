@@ -164,8 +164,9 @@
 				events={{ onClick: () => (keyringWarningDismissed = true) }}
 				ui={{
 					variant: 'ghost',
-					class:
-						'size-8 shrink-0 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground',
+					tone: 'muted',
+					class: 'size-8 shrink-0 rounded-md p-1',
+					title: m['pages.network.dismiss'](),
 					'aria-label': m['pages.network.dismiss']()
 				}}
 			>

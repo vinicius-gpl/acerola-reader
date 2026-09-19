@@ -36,6 +36,7 @@
 	import CommandIcon from '@lucide/svelte/icons/command';
 	import ZoomIn from '@lucide/svelte/icons/zoom-in';
 	import ZoomOut from '@lucide/svelte/icons/zoom-out';
+	import Focus from '@lucide/svelte/icons/focus';
 	import ReaderModeToggle from './acerola-reader-mode-toggle.svelte';
 
 	let { data, events, state }: ReaderToolbarProps = $props();
@@ -49,6 +50,7 @@
 			events={{ onClick: events.onBack }}
 			ui={{
 				variant: 'ghost',
+				tone: 'accent',
 				title: m['pages.reader.actions.back']()
 			}}
 		>
@@ -93,13 +95,14 @@
 				title: `${m['pages.reader.actions.zoom_mode']()} (Z)`
 			}}
 		>
-			<ZoomIn size={20} />
+			<Focus size={20} />
 		</AcerolaButtonIcon>
 
 		<AcerolaButtonIcon
 			events={{ onClick: events.onOpenCommandPalette }}
 			ui={{
 				variant: 'ghost',
+				tone: 'accent',
 				title: `${m['pages.reader.actions.commands']()} (Ctrl+K)`
 			}}
 		>
@@ -111,6 +114,7 @@
 				events={{ onClick: () => events.onPreviousPage() }}
 				ui={{
 					variant: 'ghost',
+					tone: 'accent',
 					disabled: !data.canPreviousPage || data.pageControlsDisabled,
 					title: data.pageControlsDisabled
 						? m['pages.reader.actions.page.navigation_locked']()
@@ -124,6 +128,7 @@
 				events={{ onClick: () => events.onNextPage() }}
 				ui={{
 					variant: 'ghost',
+					tone: 'accent',
 					disabled: !data.canNextPage || data.pageControlsDisabled,
 					title: data.pageControlsDisabled
 						? m['pages.reader.actions.page.navigation_locked']()

@@ -1,4 +1,5 @@
 import type { ErrorPayload } from '$lib/contracts/shared/shared.payloads';
+import { resolveErrorMessage } from '$lib/contracts/errors/errors.i18n';
 
 /**
  * Extracts a user-friendly error message from an unknown thrown error.
@@ -17,6 +18,12 @@ export function extractErrorMessage(error: unknown): string {
 	}
 	if (typeof error === 'object') {
 		const payload = error as Partial<ErrorPayload>;
+		// Payload vindo de um comando Tauri com `errorType` tipado (ComicError) — traduz via
+		// Paraglide em vez de vazar o `message` cru em inglês do Rust pra UI. Tipo não mapeado
+		// em COMIC_ERROR_MESSAGES cai no `message` cru mesmo (mesmo fallback de sempre).
+		if (typeof payload.errorType === 'string' && typeof payload.message === 'string') {
+			return resolveErrorMessage(payload as ErrorPayload);
+		}
 		// Stryker disable next-line ConditionalExpression,LogicalOperator,StringLiteral,EqualityOperator,BlockStatement,MethodExpression:
 		// esse branch e o fallback logo abaixo leem a mesma propriedade `message` do mesmo objeto
 		// (`payload` é só `error` com cast, não uma cópia), sem trim. Sempre que

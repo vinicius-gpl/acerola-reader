@@ -27,6 +27,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import br.acerola.comic.common.ux.Acerola
+import br.acerola.comic.common.ux.component.ActionIcon
 import br.acerola.comic.common.ux.theme.AcerolaTheme
 import br.acerola.comic.common.ux.tokens.ShapeTokens
 import br.acerola.comic.common.ux.tokens.SpacingTokens
@@ -66,12 +67,13 @@ fun Acerola.Component.SelectionTopBar(
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onClear) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = stringResource(id = R.string.action_cancel),
-                    )
-                }
+                Acerola.Component.ActionIcon(
+                    icon = Icons.Default.Close,
+                    onClick = onClear,
+                    contentDescription = stringResource(id = R.string.action_cancel),
+                    iconTint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    iconBackground = MaterialTheme.colorScheme.surfaceVariant,
+                )
                 Spacer(modifier = Modifier.width(SpacingTokens.Small))
                 Text(
                     text = stringResource(id = R.string.label_selection_count, selectedCount),

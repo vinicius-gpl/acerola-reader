@@ -33,9 +33,10 @@ class ButtonTest {
     @Test
     fun should_render_icon_button_with_content_description() {
         composeTestRule.setContent {
-            Acerola.Component.IconButton(
+            Acerola.Component.ActionIcon(
+                icon = Icons.Default.Add,
                 onClick = {},
-                icon = { Icon(Icons.Default.Add, contentDescription = "Add") },
+                contentDescription = "Add",
             )
         }
 

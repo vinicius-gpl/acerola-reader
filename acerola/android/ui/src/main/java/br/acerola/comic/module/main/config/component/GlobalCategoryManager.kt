@@ -89,8 +89,6 @@ fun Main.Config.Component.GlobalCategoryManager(
                 null
             },
         icon = Icons.Rounded.Add,
-        iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
-        iconBackground = MaterialTheme.colorScheme.primaryContainer,
         onClick = { showCreateDialog = true },
         modifier = modifier,
         action = {

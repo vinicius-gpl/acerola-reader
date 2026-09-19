@@ -31,10 +31,11 @@ import br.acerola.comic.common.ux.theme.color.TokyoNightDay
 import br.acerola.comic.config.preference.types.AppTheme
 
 // Alguns temas (Nord, Dracula/Alucard, TokyoNight) não definem uma cor de "container" própria
-// (erro ou sucesso) na paleta original. Em vez de inventar um hex sem poder validar visualmente,
-// derivamos essas cores a partir do restante da paleta do próprio tema, mantendo os papéis
-// completos do Material3 (error/errorContainer/onErrorContainer) e o papel extra de sucesso
-// (successContainer/onSuccessContainer) para todos os temas.
+// (erro/sucesso) na paleta original. Em vez de inventar um hex sem poder validar visualmente,
+// derivamos essas cores a partir do restante da paleta do próprio tema — usado pelos papéis
+// nativos do Material3 (errorContainer/onErrorContainer) e pelo container suave de sucesso
+// (Snackbar de sucesso segue o mesmo tom pastel do Error/Warn, que já usam container nativo),
+// nunca pelos ícones de ação.
 private fun deriveContainer(
     background: Color,
     accent: Color,
@@ -45,27 +46,45 @@ private fun deriveOnContainer(
     accent: Color,
 ): Color = lerp(start = foreground, stop = accent, fraction = 0.55f)
 
-// Material3 não tem papéis de "sucesso" nativos — cada tema expõe os seus via
-// LocalAcerolaExtraColors/AcerolaExtendedTheme, usando o próprio verde da paleta do tema em vez
-// de um verde fixo igual pra todo mundo (o que destoava de temas como Dracula ou TokyoNight).
+// Ícones de ação seguem o mesmo formato do desktop: fundo SÓLIDO na cor semântica/de destaque +
+// ícone numa cor neutra por cima (o fundo "contorna" o ícone, nunca o contrário) — por isso
+// success/accent aqui são a cor cheia da paleta, não um container translúcido. onSuccess/onAccent
+// recebem o `onPrimary` de cada tema (a cor que cada paleta escolheu pra contrastar com uma cor
+// saturada própria), do mesmo jeito que o desktop reaproveita `--primary-foreground` pros tokens
+// `--accent-hero-foreground`/`--destructive-foreground`. Material3 não tem papéis nativos de
+// "sucesso" nem de "accent vibrante", então cada tema expõe os seus via
+// LocalAcerolaExtraColors/AcerolaExtendedTheme. successContainer/onSuccessContainer são a exceção:
+// só o Snackbar de sucesso usa (banner cheio, não ícone-em-quadrado), pra bater com o tom pastel
+// do Error/Warn — por isso ainda dependem de background/foreground em vez do par sólido.
 data class AcerolaExtraColors(
+    val success: Color,
+    val onSuccess: Color,
+    val accent: Color,
+    val onAccent: Color,
     val successContainer: Color,
     val onSuccessContainer: Color,
 )
 
-private fun successExtraColors(
+private fun extraColors(
     background: Color,
     foreground: Color,
+    onPrimary: Color,
     green: Color,
+    accent: Color,
 ): AcerolaExtraColors =
     AcerolaExtraColors(
+        success = green,
+        onSuccess = onPrimary,
+        accent = accent,
+        onAccent = onPrimary,
         successContainer = deriveContainer(background, green),
         onSuccessContainer = deriveOnContainer(foreground, green),
     )
 
-// Usado só quando o tema é o Dynamic Color real do Material You (Android 12+), que não tem
-// um "verde" próprio pra derivar a partir da paleta do usuário.
+// Usados só quando o tema é o Dynamic Color real do Material You (Android 12+), que não tem um
+// "verde"/"rosa" próprios pra derivar a partir da paleta do usuário.
 private val DynamicSuccessGreen = Color(0xFF2E7D32)
+private val DynamicAccentPink = Color(0xFFE91E63)
 
 private val LocalAcerolaExtraColors =
     staticCompositionLocalOf<AcerolaExtraColors> {
@@ -110,7 +129,7 @@ private val CatppuccinDarkColorScheme =
     )
 
 private val CatppuccinDarkExtraColors =
-    successExtraColors(CatppuccinMocha.Base, CatppuccinMocha.Text, CatppuccinMocha.Green)
+    extraColors(CatppuccinMocha.Base, CatppuccinMocha.Text, CatppuccinMocha.Base, CatppuccinMocha.Green, CatppuccinMocha.Pink)
 
 private val CatppuccinLightColorScheme =
     lightColorScheme(
@@ -145,7 +164,7 @@ private val CatppuccinLightColorScheme =
     )
 
 private val CatppuccinLightExtraColors =
-    successExtraColors(CatppuccinLatte.Base, CatppuccinLatte.Text, CatppuccinLatte.Green)
+    extraColors(CatppuccinLatte.Base, CatppuccinLatte.Text, CatppuccinLatte.Base, CatppuccinLatte.Green, CatppuccinLatte.Pink)
 
 private val NordDarkColorScheme =
     darkColorScheme(
@@ -180,7 +199,7 @@ private val NordDarkColorScheme =
     )
 
 private val NordDarkExtraColors =
-    successExtraColors(NordDark.Background, NordDark.Text, NordDark.Green)
+    extraColors(NordDark.Background, NordDark.Text, NordDark.Background, NordDark.Green, NordDark.Accent)
 
 private val NordLightColorScheme =
     lightColorScheme(
@@ -215,7 +234,7 @@ private val NordLightColorScheme =
     )
 
 private val NordLightExtraColors =
-    successExtraColors(NordLight.Background, NordLight.Text, NordLight.Green)
+    extraColors(NordLight.Background, NordLight.Text, NordLight.Background, NordLight.Green, NordLight.Accent)
 
 private val DraculaColorScheme =
     darkColorScheme(
@@ -250,7 +269,7 @@ private val DraculaColorScheme =
     )
 
 private val DraculaExtraColors =
-    successExtraColors(Dracula.Background, Dracula.Foreground, Dracula.Green)
+    extraColors(Dracula.Background, Dracula.Foreground, Dracula.Background, Dracula.Green, Dracula.Pink)
 
 private val AlucardColorScheme =
     lightColorScheme(
@@ -285,7 +304,7 @@ private val AlucardColorScheme =
     )
 
 private val AlucardExtraColors =
-    successExtraColors(Alucard.Background, Alucard.Foreground, Alucard.Green)
+    extraColors(Alucard.Background, Alucard.Foreground, Alucard.Background, Alucard.Green, Alucard.Pink)
 
 private val TokyoNightDarkColorScheme =
     darkColorScheme(
@@ -320,7 +339,7 @@ private val TokyoNightDarkColorScheme =
     )
 
 private val TokyoNightDarkExtraColors =
-    successExtraColors(TokyoNightDark.Background, TokyoNightDark.Foreground, TokyoNightDark.Green)
+    extraColors(TokyoNightDark.Background, TokyoNightDark.Foreground, TokyoNightDark.Background, TokyoNightDark.Green, TokyoNightDark.Purple)
 
 private val TokyoNightLightColorScheme =
     lightColorScheme(
@@ -355,7 +374,7 @@ private val TokyoNightLightColorScheme =
     )
 
 private val TokyoNightLightExtraColors =
-    successExtraColors(TokyoNightDay.Background, TokyoNightDay.Foreground, TokyoNightDay.Green)
+    extraColors(TokyoNightDay.Background, TokyoNightDay.Foreground, TokyoNightDay.Background, TokyoNightDay.Green, TokyoNightDay.Purple)
 
 // Escala tipográfica completa do Material3, explícita para toda a hierarquia (antes só
 // bodyLarge era definido e o restante herdava o default do Material3 sem decisão consciente).
@@ -433,7 +452,13 @@ fun AcerolaTheme(
         when (theme) {
             AppTheme.DYNAMIC -> {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    successExtraColors(colorScheme.background, colorScheme.onBackground, DynamicSuccessGreen)
+                    extraColors(
+                        colorScheme.background,
+                        colorScheme.onBackground,
+                        colorScheme.onPrimary,
+                        DynamicSuccessGreen,
+                        DynamicAccentPink,
+                    )
                 } else {
                     if (darkTheme) CatppuccinDarkExtraColors else CatppuccinLightExtraColors
                 }
