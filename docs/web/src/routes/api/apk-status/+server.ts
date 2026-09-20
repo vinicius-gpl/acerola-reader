@@ -21,7 +21,7 @@ export const GET: RequestHandler = async ({ platform }) => {
 			: undefined;
 	// Chave fixa (não depende do request de quem chamou): só existe UM resultado possível
 	// pra essa rota — não há nada por-usuário/por-query-string pra variar o cache.
-	const cacheKey = new Request('https://internal-cache-key.acerola-comic.com/api/apk-status');
+	const cacheKey = new Request('https://internal-cache-key.acerola.app/api/apk-status');
 
 	if (edgeCache) {
 		const cached = await edgeCache.match(cacheKey);

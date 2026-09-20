@@ -189,7 +189,7 @@ object PeerNicknamePreference {
  * `P2PNode`, a lib não suporta trocar relay em runtime.
  */
 object RelayPreference {
-    const val DEFAULT_ACEROLA_RELAY_URL = "https://relay.acerola-comic.com"
+    const val DEFAULT_ACEROLA_RELAY_URL = "https://relay.acerola.app"
 
     private val Context.dataStore by preferencesDataStore(name = "relay_prefs")
     private val USE_ACEROLA_RELAY = booleanPreferencesKey(name = "use_acerola_relay")

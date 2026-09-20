@@ -20,7 +20,7 @@ This page mirrors [`PRIVACY_POLICY.md`](https://github.com/Vinicius-Gabriel-P-Le
 
 <Card title="Controller">Vinícius Gabriel Pereira Leitão, independent developer of the Acerola app.</Card>
 
-<AcerolaCopyCard label="Contact" value="contato@acerola-comic.com" href="mailto:contato@acerola-comic.com" />
+<AcerolaCopyCard label="Contact" value="contact@acerola.app" href="mailto:contact@acerola.app" />
 
 ## 1. Nature of the app
 
