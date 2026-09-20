@@ -260,7 +260,7 @@ describe('useRelaySettings', () => {
 
 	function relayInfo(overrides: Partial<RelayInfo> = {}): RelayInfo {
 		return {
-			acerolaRelayUrl: 'https://relay.acerola-comic.com',
+			acerolaRelayUrl: 'https://relay.acerola.app',
 			useAcerolaRelay: true,
 			useIrohPublicNetwork: false,
 			customRelayUrls: [],
@@ -276,7 +276,7 @@ describe('useRelaySettings', () => {
 		await hook.loadRelayInfo();
 
 		expect(invokeMock).toHaveBeenCalledWith(NETWORK_COMMANDS.getRelayInfo);
-		expect(hook.relayInfo?.acerolaRelayUrl).toBe('https://relay.acerola-comic.com');
+		expect(hook.relayInfo?.acerolaRelayUrl).toBe('https://relay.acerola.app');
 	});
 
 	it('reports isMdnsOnly as false while the acerola relay is active', async () => {
