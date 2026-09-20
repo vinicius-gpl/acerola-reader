@@ -33,7 +33,7 @@
 		<div class="max-w-md bg-surface p-8">
 			<AcerolaNetworkRelaySettingsCard
 				data={{
-					acerolaRelayUrl: 'https://relay.acerola-comic.com',
+					acerolaRelayUrl: 'https://relay.acerola.app',
 					useAcerolaRelay: true,
 					useIrohPublicNetwork: false,
 					customRelayUrls: [],
@@ -50,7 +50,7 @@
 		<div class="max-w-md bg-surface p-8">
 			<AcerolaNetworkRelaySettingsCard
 				data={{
-					acerolaRelayUrl: 'https://relay.acerola-comic.com',
+					acerolaRelayUrl: 'https://relay.acerola.app',
 					useAcerolaRelay: true,
 					useIrohPublicNetwork: false,
 					customRelayUrls: ['https://relay.example.com'],
@@ -67,7 +67,7 @@
 		<div class="max-w-md bg-surface p-8">
 			<AcerolaNetworkRelaySettingsCard
 				data={{
-					acerolaRelayUrl: 'https://relay.acerola-comic.com',
+					acerolaRelayUrl: 'https://relay.acerola.app',
 					useAcerolaRelay: true,
 					useIrohPublicNetwork: true,
 					customRelayUrls: [],
@@ -84,7 +84,7 @@
 		<div class="max-w-md bg-surface p-8">
 			<AcerolaNetworkRelaySettingsCard
 				data={{
-					acerolaRelayUrl: 'https://relay.acerola-comic.com',
+					acerolaRelayUrl: 'https://relay.acerola.app',
 					useAcerolaRelay: false,
 					useIrohPublicNetwork: false,
 					customRelayUrls: [],

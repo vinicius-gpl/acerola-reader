@@ -16,5 +16,5 @@ User-agent: Google-Extended
 Allow: /
 
 # Sitemap and LLM documentation locations
-Sitemap: https://docs.acerola-comic.com/sitemap.xml
-LLMs-Txt: https://docs.acerola-comic.com/llms.txt
+Sitemap: https://docs.acerola.app/sitemap.xml
+LLMs-Txt: https://docs.acerola.app/llms.txt

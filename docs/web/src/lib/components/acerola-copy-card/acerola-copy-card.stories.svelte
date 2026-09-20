@@ -29,7 +29,7 @@
 
 <Story
 	name="Default"
-	args={{ label: 'Contato', value: 'contato@acerola-comic.com' }}
+	args={{ label: 'Contato', value: 'contact@acerola.app' }}
 	parameters={{
 		docs: { description: { story: 'Valor exibido como texto simples, com botão de copiar.' } }
 	}}
@@ -39,8 +39,8 @@
 	name="WithLink"
 	args={{
 		label: 'Contato',
-		value: 'contato@acerola-comic.com',
-		href: 'mailto:contato@acerola-comic.com'
+		value: 'contact@acerola.app',
+		href: 'mailto:contact@acerola.app'
 	}}
 	parameters={{
 		docs: {

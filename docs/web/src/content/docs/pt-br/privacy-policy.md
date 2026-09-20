@@ -22,8 +22,8 @@ Esta página espelha o [`PRIVACY_POLICY.md`](https://github.com/Vinicius-Gabriel
 
 <AcerolaCopyCard
 	label="Contato"
-	value="contato@acerola-comic.com"
-	href="mailto:contato@acerola-comic.com"
+	value="contact@acerola.app"
+	href="mailto:contact@acerola.app"
 	copyLabel="Copiar"
 	copiedLabel="Copiado"
 />

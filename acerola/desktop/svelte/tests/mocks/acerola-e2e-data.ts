@@ -112,7 +112,7 @@ export const e2eLocalDeviceInfo: DeviceInfoPayload = {
 };
 
 export const e2eRelayInfo: RelayInfo = {
-	acerolaRelayUrl: 'relay.acerola-comic.com',
+	acerolaRelayUrl: 'relay.acerola.app',
 	useAcerolaRelay: true,
 	useIrohPublicNetwork: false,
 	customRelayUrls: [],

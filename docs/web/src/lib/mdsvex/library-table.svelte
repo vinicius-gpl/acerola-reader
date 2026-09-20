@@ -19,8 +19,8 @@
 	<Table.Root>
 		<Table.Header>
 			<Table.Row class="hover:bg-transparent">
-				<Table.Head>{nameLabel}</Table.Head>
-				<Table.Head>{licenseLabel}</Table.Head>
+				<Table.Head class="w-full">{nameLabel}</Table.Head>
+				<Table.Head class="whitespace-nowrap">{licenseLabel}</Table.Head>
 			</Table.Row>
 		</Table.Header>
 		<Table.Body>
@@ -36,7 +36,7 @@
 							{lib.name}
 						</a>
 					</Table.Cell>
-					<Table.Cell class="text-muted-foreground">
+					<Table.Cell class="whitespace-nowrap text-muted-foreground">
 						{lib.license}{#if lib.note}<sup class="ml-0.5">{lib.note}</sup>{/if}
 					</Table.Cell>
 				</Table.Row>

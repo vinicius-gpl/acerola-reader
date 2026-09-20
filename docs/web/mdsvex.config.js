@@ -54,6 +54,45 @@ function rehypeExternalLinks() {
 	};
 }
 
+// Tabelas geradas pelo remark-gfm são nós <table> puros sem wrapper. Para garantir
+// rolagem horizontal em telas menores sem quebrar o modelo de display (evitando display: block
+// diretamente na <table>, que impede as colunas e linhas de ocuparem 100% da largura),
+// envolvemos toda <table> bruta em um contêiner com overflow-x e borda idêntico ao Table.Root.
+function rehypeTableWrapper() {
+	return (tree) => {
+		visit(tree, 'element', (node, index, parent) => {
+			if (node.tagName !== 'table' || !parent || index === null) return;
+
+			const parentClass = parent.properties?.className;
+			const isAlreadyWrapped =
+				(Array.isArray(parentClass) &&
+					(parentClass.includes('table-wrapper') || parentClass.includes('table-container'))) ||
+				parent.properties?.dataSlot === 'table-container' ||
+				parent.properties?.['data-slot'] === 'table-container';
+			if (isAlreadyWrapped) return;
+
+			parent.children[index] = {
+				type: 'element',
+				tagName: 'div',
+				properties: {
+					className: [
+						'table-container',
+						'my-6',
+						'relative',
+						'w-full',
+						'overflow-x-auto',
+						'rounded-lg',
+						'border',
+						'border-border'
+					],
+					dataSlot: 'table-container'
+				},
+				children: [node]
+			};
+		});
+	};
+}
+
 /** @type {import('mdsvex').MdsvexOptions} */
 const config = {
 	extensions: ['.md'],
@@ -68,6 +107,7 @@ const config = {
 		[rehypeAutolinkHeadings, { behavior: 'wrap', properties: { class: 'heading-anchor' } }],
 		rehypeMermaid,
 		rehypeExternalLinks,
+		rehypeTableWrapper,
 		[
 			rehypePrettyCode,
 			{ theme: { light: 'github-light', dark: 'github-dark' }, keepBackground: false }
