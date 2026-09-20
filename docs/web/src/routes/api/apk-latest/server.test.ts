@@ -16,7 +16,7 @@ describe('GET /api/apk-latest', () => {
 			GET(fakeEvent([{ key: 'android/latest/acerola-1.0.15.apk' }]))
 		).rejects.toMatchObject({
 			status: 302,
-			location: 'https://binary.acerola-comic.com/android/latest/acerola-1.0.15.apk'
+			location: 'https://binary.acerola.app/android/latest/acerola-1.0.15.apk'
 		});
 	});
 
@@ -31,7 +31,7 @@ describe('GET /api/apk-latest', () => {
 			)
 		).rejects.toMatchObject({
 			status: 302,
-			location: 'https://binary.acerola-comic.com/android/latest/acerola-1.2.0.apk'
+			location: 'https://binary.acerola.app/android/latest/acerola-1.2.0.apk'
 		});
 	});
 
@@ -45,7 +45,7 @@ describe('GET /api/apk-latest', () => {
 			)
 		).rejects.toMatchObject({
 			status: 302,
-			location: 'https://binary.acerola-comic.com/android/latest/acerola-1.0.15.apk'
+			location: 'https://binary.acerola.app/android/latest/acerola-1.0.15.apk'
 		});
 	});
 

@@ -13,7 +13,7 @@ directory = ".svelte-kit/cloudflare"
 
 [[r2_buckets]]
 binding = "APK_BUCKET"
-bucket_name = "acerola"
+bucket_name = "acerola-reader"
 
 [observability]
 enabled = false

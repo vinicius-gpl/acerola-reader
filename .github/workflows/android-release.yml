@@ -127,7 +127,7 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: acerola/android
           command: >
-            r2 object put acerola/android/releases/acerola-${{ env.VERSION }}.apk
+            r2 object put acerola-reader/android/releases/acerola-${{ env.VERSION }}.apk
             --file=app/build/outputs/apk/release/acerola-${{ env.VERSION }}.apk
             --content-type=application/vnd.android.package-archive
             --remote
@@ -144,7 +144,7 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: acerola/android
           command: >
-            r2 object put acerola/android/latest/acerola-${{ env.VERSION }}.apk
+            r2 object put acerola-reader/android/latest/acerola-${{ env.VERSION }}.apk
             --file=app/build/outputs/apk/release/acerola-${{ env.VERSION }}.apk
             --content-type=application/vnd.android.package-archive
             --remote

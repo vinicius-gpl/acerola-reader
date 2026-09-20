@@ -5,5 +5,5 @@ export const SITE_URL = 'https://docs.acerola-comic.com';
 export const OG_IMAGE_URL = `${SITE_URL}/social/docs.acerola-comic.com.jpg`;
 export const STORYBOOK_WEB_URL = 'https://storybook-web.acerola-comic.com';
 export const STORYBOOK_DESKTOP_URL = 'https://storybook-desktop.acerola-comic.com';
-export const APK_BINARY_BASE_URL = 'https://binary.acerola-comic.com';
+export const APK_BINARY_BASE_URL = 'https://binary.acerola.app';
 export const APK_URL = '/api/apk-latest';
