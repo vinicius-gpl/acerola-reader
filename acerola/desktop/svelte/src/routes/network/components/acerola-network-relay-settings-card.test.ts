@@ -6,7 +6,7 @@ import AcerolaNetworkRelaySettingsCard, {
 
 function data(overrides: Partial<NetworkRelaySettingsCardData> = {}): NetworkRelaySettingsCardData {
 	return {
-		acerolaRelayUrl: 'https://relay.acerola-comic.com',
+		acerolaRelayUrl: 'https://relay.acerola.app',
 		useAcerolaRelay: true,
 		useIrohPublicNetwork: false,
 		customRelayUrls: [],

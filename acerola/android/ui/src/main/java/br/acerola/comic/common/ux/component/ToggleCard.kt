@@ -166,7 +166,7 @@ private fun ToggleCardActivePreview() {
     AcerolaTheme {
         Acerola.Component.ToggleCard(
             title = "Usar o relay do Acerola",
-            subtitle = "Gerenciado automaticamente (relay.acerola-comic.com).",
+            subtitle = "Gerenciado automaticamente (relay.acerola.app).",
             active = true,
             onClick = {},
             icon = { Icon(Icons.Default.Star, contentDescription = null) },

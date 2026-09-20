@@ -5,7 +5,7 @@
 	"license": "MPL-2.0",
 	"author": {
 		"name": "Vinícius Gabriel Pereira Leitão",
-		"email": "contato@acerola-comic.com"
+		"email": "contact@acerola.app"
 	},
 	"description": "Aplicativo para ler e gerenciar bibliotecas de quadrinhos locais.",
 	"scripts": {

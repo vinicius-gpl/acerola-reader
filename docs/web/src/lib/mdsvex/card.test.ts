@@ -41,7 +41,7 @@ describe('Card (mdsvex)', () => {
 
 	it('opens external links in a new tab without leaking a referrer', () => {
 		render(Card, {
-			props: { title: 'Storybook', href: 'https://storybook-web.acerola-comic.com' }
+			props: { title: 'Storybook', href: 'https://storybook-web.acerola.app' }
 		});
 
 		const link = screen.getByRole('link');
