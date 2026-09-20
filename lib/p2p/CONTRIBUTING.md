@@ -48,7 +48,7 @@ Se você encontrou um bug ou comportamento inesperado:
 Ideias para melhorar a performance, adicionar suporte a novos transports ou estender os protocolos internos são bem-vindas:
 1. Abra uma **Issue** do tipo *Feature Request*.
 2. Explique o caso de uso e a utilidade da funcionalidade proposta.
-3. Alinhe com o mapa de desenvolvimento (`TODO.md`) para garantir consonância com os objetivos do projeto.
+3. Alinhe com o mapa de desenvolvimento (`../../TODO.md`, centralizado na raiz do monorepo) para garantir consonância com os objetivos do projeto.
 
 ### Enviando Pull Requests
 

@@ -51,6 +51,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import br.acerola.comic.common.ux.Acerola
+import br.acerola.comic.common.ux.component.ActionIcon
 import br.acerola.comic.common.ux.theme.AcerolaTheme
 import br.acerola.comic.ui.R
 
@@ -92,13 +93,11 @@ fun <T> Acerola.Component.SearchBar(
                 },
                 leadingIcon = {
                     if (expanded) {
-                        IconButton(onClick = internalBackClick) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = stringResource(R.string.common_back),
-                                tint = MaterialTheme.colorScheme.onSurface,
-                            )
-                        }
+                        Acerola.Component.ActionIcon(
+                            icon = Icons.AutoMirrored.Filled.ArrowBack,
+                            onClick = internalBackClick,
+                            contentDescription = stringResource(R.string.common_back),
+                        )
                     } else {
                         Icon(
                             imageVector = Icons.Default.Search,
@@ -109,13 +108,13 @@ fun <T> Acerola.Component.SearchBar(
                 },
                 trailingIcon = {
                     if (expanded && query.isNotEmpty()) {
-                        IconButton(onClick = { onQueryChange("") }) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = stringResource(R.string.common_clear),
-                                tint = MaterialTheme.colorScheme.onSurface,
-                            )
-                        }
+                        Acerola.Component.ActionIcon(
+                            icon = Icons.Default.Close,
+                            onClick = { onQueryChange("") },
+                            contentDescription = stringResource(R.string.common_clear),
+                            iconTint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            iconBackground = MaterialTheme.colorScheme.surfaceVariant,
+                        )
                     }
                 },
             )

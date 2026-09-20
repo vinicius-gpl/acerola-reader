@@ -1,6 +1,7 @@
 package br.acerola.comic.module.comic.component
 
 import android.content.res.Configuration
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
@@ -17,9 +18,11 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import br.acerola.comic.common.state.SyncActionVisualState
 import br.acerola.comic.common.ux.Acerola
+import br.acerola.comic.common.ux.component.ActionIcon
 import br.acerola.comic.common.ux.component.HeroButton
 import br.acerola.comic.common.ux.component.SyncActionIcon
 import br.acerola.comic.common.ux.theme.AcerolaTheme
+import br.acerola.comic.common.ux.tokens.SpacingTokens
 import br.acerola.comic.module.comic.Comic
 import br.acerola.comic.ui.R
 
@@ -41,35 +44,29 @@ fun Comic.Component.SyncWithPeerAction(
     Acerola.Component.HeroButton(
         title = stringResource(id = R.string.action_sync_comic_with_peer),
         description = stringResource(id = R.string.description_sync_comic_with_peer),
-        iconBackground = MaterialTheme.colorScheme.primaryContainer,
         icon = {
-            Acerola.Component.SyncActionIcon(
-                state = state,
-                defaultBackground = MaterialTheme.colorScheme.primaryContainer,
-            ) {
+            Acerola.Component.SyncActionIcon(state = state) {
                 Icon(
                     imageVector = Icons.Rounded.PhoneAndroid,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    tint = MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier.size(24.dp),
                 )
             }
         },
         action = {
             if (state != SyncActionVisualState.LOADING) {
-                Row {
-                    IconButton(onClick = onPush) {
-                        Icon(
-                            imageVector = Icons.Rounded.CloudUpload,
-                            contentDescription = stringResource(id = R.string.action_sync_comic_push),
-                        )
-                    }
-                    IconButton(onClick = onPull) {
-                        Icon(
-                            imageVector = Icons.Rounded.CloudDownload,
-                            contentDescription = stringResource(id = R.string.action_sync_comic_pull),
-                        )
-                    }
+                Row(horizontalArrangement = Arrangement.spacedBy(SpacingTokens.Small)) {
+                    Acerola.Component.ActionIcon(
+                        icon = Icons.Rounded.CloudUpload,
+                        onClick = onPush,
+                        contentDescription = stringResource(id = R.string.action_sync_comic_push),
+                    )
+                    Acerola.Component.ActionIcon(
+                        icon = Icons.Rounded.CloudDownload,
+                        onClick = onPull,
+                        contentDescription = stringResource(id = R.string.action_sync_comic_pull),
+                    )
                 }
             }
         },

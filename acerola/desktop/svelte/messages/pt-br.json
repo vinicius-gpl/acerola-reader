@@ -87,6 +87,9 @@
 			"already_exists": {
 				"label": "Este quadrinho já existe na sua biblioteca."
 			},
+			"sync_in_progress": {
+				"label": "Já existe uma sincronização em andamento para este quadrinho."
+			},
 			"not_found": {
 				"label": "Quadrinho não encontrado."
 			},
@@ -380,16 +383,6 @@
 					"rescan": {
 						"title": "Sincronizar capítulos locais",
 						"desc": "Atualiza apenas os capítulos novos ou alterados nesta pasta."
-					},
-					"deep_rescan": {
-						"title": "Reescanear quadrinho completo",
-						"desc": "Apaga os capítulos e volumes indexados e reconstrói tudo a partir da pasta.",
-						"confirm": {
-							"title": "Reescanear este quadrinho do zero?",
-							"desc": "Isso apaga os capítulos e volumes indexados deste quadrinho e reconstrói tudo a partir da pasta no disco. Histórico de leitura e bookmarks vinculados a capítulos removidos podem ser afetados. Essa ação não pode ser desfeita.",
-							"cancel": "Cancelar",
-							"action": "Reescanear quadrinho"
-						}
 					}
 				},
 				"p2p_sync": {
@@ -442,7 +435,6 @@
 				"mangadex_error": "MangaDex: {msg}",
 				"anilist_error": "AniList: {msg}",
 				"rescan_error": "Erro ao sincronizar capítulos: {msg}",
-				"deep_rescan_error": "Erro ao reescanear quadrinho: {msg}",
 				"regenerate_cover_error": "Erro ao gerar capa: {msg}",
 				"regenerate_volume_covers_error": "Erro ao gerar capas dos volumes: {msg}",
 				"clear_metadata_error": "Erro ao limpar metadados: {msg}",
@@ -456,7 +448,6 @@
 					"start_anilist": "Sincronizando metadados com AniList...",
 					"start_comic_info": "Sincronizando metadados com ComicInfo.xml...",
 					"start_rescan": "Sincronizando capítulos locais...",
-					"start_deep_rescan": "Reescaneando quadrinho...",
 					"start_regenerate_cover": "Gerando capa a partir da primeira página...",
 					"start_regenerate_volume_covers": "Gerando capas dos volumes...",
 					"start_clear_metadata": "Limpando metadados...",
@@ -779,6 +770,12 @@
 				"summary_mdns_only": "Só rede local (mDNS) — nenhum relay ativo, só dispositivos na mesma rede conseguem conectar.",
 				"summary_iroh_public": "Usando a rede pública de relays do Iroh.",
 				"summary_active": "{count} fonte(s) de relay ativa(s).",
+				"switch_confirm": {
+					"title": "Trocar de relay?",
+					"desc": "Isso reconecta usando um relay diferente. Dispositivos pareados que não convergirem pro mesmo relay podem ficar inalcançáveis até que isso aconteça.",
+					"cancel": "Cancelar",
+					"action": "Trocar relay"
+				},
 				"restart": {
 					"button": "Reiniciar módulo P2P",
 					"description": "Desliga e religa a conexão P2P do zero — útil se a conexão ficou travada depois de trocar de rede ou de relay.",

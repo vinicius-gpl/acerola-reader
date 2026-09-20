@@ -1,5 +1,6 @@
 package br.acerola.comic.module.main.sync
 
+import android.content.Intent
 import android.content.res.Configuration
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -7,7 +8,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -26,7 +26,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentPaste
@@ -91,7 +90,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import br.acerola.comic.common.state.LocalSnackbarHostState
 import br.acerola.comic.common.state.SyncActionVisualState
+import br.acerola.comic.common.viewmodel.network.MobileDataSyncViewModel
 import br.acerola.comic.common.ux.Acerola
+import br.acerola.comic.common.ux.component.ActionIcon
 import br.acerola.comic.common.ux.component.AccordionCard
 import br.acerola.comic.common.ux.component.AdaptiveSheet
 import br.acerola.comic.common.ux.component.Dialog
@@ -102,6 +103,7 @@ import br.acerola.comic.common.ux.component.SnackbarVariant
 import br.acerola.comic.common.ux.component.SyncActionIcon
 import br.acerola.comic.common.ux.component.ToggleCard
 import br.acerola.comic.common.ux.component.showSnackbar
+import br.acerola.comic.common.ux.theme.AcerolaExtendedTheme
 import br.acerola.comic.common.ux.theme.AcerolaTheme
 import br.acerola.comic.common.ux.tokens.ShapeTokens
 import br.acerola.comic.common.ux.tokens.SizeTokens
@@ -110,6 +112,7 @@ import br.acerola.comic.config.preference.RelayPreference
 import br.acerola.comic.logging.AcerolaLogger
 import br.acerola.comic.logging.LogSource
 import br.acerola.comic.module.main.Main
+import br.acerola.comic.module.main.sync.component.RemoteLibrarySheet
 import br.acerola.comic.module.main.sync.state.ConnectError
 import br.acerola.comic.module.main.sync.state.LogState
 import br.acerola.comic.module.main.sync.state.PairedPeer
@@ -118,6 +121,7 @@ import br.acerola.comic.module.main.sync.state.SyncAction
 import br.acerola.comic.module.main.sync.state.SyncResult
 import br.acerola.comic.module.main.sync.state.SyncUiState
 import br.acerola.comic.module.main.sync.state.TransferLogEntry
+import br.acerola.comic.module.main.transferlog.TransferLogActivity
 import br.acerola.comic.service.NetworkMode
 import br.acerola.comic.ui.R
 import br.acerola.comic.util.p2p.PairingCode
@@ -127,17 +131,20 @@ import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 @Composable
-fun Main.Sync.Template.Screen(viewModel: SyncViewModel = hiltViewModel()) {
+fun Main.Sync.Template.Screen(
+    viewModel: SyncViewModel = hiltViewModel(),
+    mobileDataSyncViewModel: MobileDataSyncViewModel = hiltViewModel(),
+) {
     val uiState by viewModel.uiState.collectAsState()
+    val allowMobileDataSync by mobileDataSyncViewModel.allowMobileDataSync.collectAsState()
 
     SyncLayout(
         uiState = uiState,
         onAction = viewModel::onAction,
+        allowMobileDataSync = allowMobileDataSync,
+        onToggleAllowMobileDataSync = mobileDataSyncViewModel::setAllowMobileDataSync,
     )
 }
 
@@ -146,6 +153,8 @@ fun Main.Sync.Template.Screen(viewModel: SyncViewModel = hiltViewModel()) {
 private fun SyncLayout(
     uiState: SyncUiState,
     onAction: (SyncAction) -> Unit,
+    allowMobileDataSync: Boolean,
+    onToggleAllowMobileDataSync: (Boolean) -> Unit,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -260,6 +269,8 @@ private fun SyncLayout(
             RelaySettingsCard(
                 relaySettings = uiState.relaySettings,
                 irohServicesTicketError = uiState.irohServicesTicketError,
+                allowMobileDataSync = allowMobileDataSync,
+                onToggleAllowMobileDataSync = onToggleAllowMobileDataSync,
                 onAction = onAction,
             )
 
@@ -270,7 +281,7 @@ private fun SyncLayout(
                 onRemoveClick = { peerPendingRemoval = it },
             )
 
-            ActivityLogCard(uiState = uiState, onAction = onAction)
+            ActivityLogCard(uiState = uiState)
         }
 
         if (uiState.pendingConnect != null) {
@@ -318,7 +329,7 @@ private fun SyncLayout(
             val peerDisplayName =
                 uiState.pairedPeers.find { it.peerId == peerId }?.let { it.nickname ?: it.deviceName }
                     ?: PairingCode.shortId(peerId)
-            RemoteLibrarySheet(
+            Main.Sync.Component.RemoteLibrarySheet(
                 peerDisplayName = peerDisplayName,
                 comics = uiState.remoteLibrary,
                 isLoading = !uiState.remoteLibraryLoaded && uiState.browseLibraryError == null,
@@ -363,22 +374,25 @@ private fun ThisDeviceSection(
                     singleLine = true,
                     modifier = Modifier.weight(1f),
                 )
-                IconButton(
+                Acerola.Component.ActionIcon(
+                    icon = Icons.Default.Check,
                     enabled = nameDraft.isNotBlank(),
                     onClick = {
                         onAction(SyncAction.RenameDevice(nameDraft))
                         scope.launch { snackbarHostState.showSnackbar(renamedMessage, SnackbarVariant.Success) }
                         editingName = false
                     },
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = stringResource(id = R.string.action_sync_rename_save),
-                    )
-                }
-                IconButton(onClick = { editingName = false }) {
-                    Icon(imageVector = Icons.Default.Close, contentDescription = stringResource(id = R.string.action_cancel))
-                }
+                    contentDescription = stringResource(id = R.string.action_sync_rename_save),
+                    iconTint = AcerolaExtendedTheme.colors.onSuccess,
+                    iconBackground = AcerolaExtendedTheme.colors.success,
+                )
+                Acerola.Component.ActionIcon(
+                    icon = Icons.Default.Close,
+                    onClick = { editingName = false },
+                    contentDescription = stringResource(id = R.string.action_cancel),
+                    iconTint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    iconBackground = MaterialTheme.colorScheme.surfaceVariant,
+                )
             }
         }
         return
@@ -392,21 +406,20 @@ private fun ThisDeviceSection(
             Icon(
                 imageVector = Icons.Default.PhoneAndroid,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                tint = MaterialTheme.colorScheme.onPrimary,
                 modifier = Modifier.size(SizeTokens.IconMedium),
             )
         },
         action = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = {
-                    nameDraft = uiState.localDeviceName
-                    editingName = true
-                }) {
-                    Icon(
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = stringResource(id = R.string.action_sync_rename_device),
-                    )
-                }
+                Acerola.Component.ActionIcon(
+                    icon = Icons.Default.Edit,
+                    onClick = {
+                        nameDraft = uiState.localDeviceName
+                        editingName = true
+                    },
+                    contentDescription = stringResource(id = R.string.action_sync_rename_device),
+                )
                 OutlinedButton(onClick = {
                     clipboardManager.setText(AnnotatedString(uiState.localId))
                     scope.launch { snackbarHostState.showSnackbar(copiedMessage, SnackbarVariant.Success) }
@@ -447,6 +460,8 @@ private fun ThisDeviceSection(
 private fun RelaySettingsCard(
     relaySettings: RelaySettingsUiState,
     irohServicesTicketError: Boolean,
+    allowMobileDataSync: Boolean,
+    onToggleAllowMobileDataSync: (Boolean) -> Unit,
     onAction: (SyncAction) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -476,13 +491,17 @@ private fun RelaySettingsCard(
         // desktop.
         var customExpanded by remember { mutableStateOf(false) }
         var ticketExpanded by remember { mutableStateOf(!relaySettings.hasIrohServicesTicket) }
+        // Trocar a fonte de relay ativa reconstrói o node P2P com um `RelayMap` diferente —
+        // peers pareados que não convergirem pro mesmo relay ficam inalcançáveis até isso
+        // acontecer. Confirma antes de aplicar, em vez de trocar direto no clique.
+        var pendingRelayAction by remember { mutableStateOf<SyncAction?>(null) }
 
         Acerola.Component.ToggleCard(
             title = stringResource(id = R.string.label_relay_settings_use_acerola_relay),
             subtitle = stringResource(id = R.string.label_relay_settings_use_acerola_relay_desc, RelayPreference.DEFAULT_ACEROLA_RELAY_URL),
             active = relaySettings.useAcerolaRelay,
             enabled = !relaySettings.useIrohPublicNetwork,
-            onClick = { onAction(SyncAction.ToggleUseAcerolaRelay(!relaySettings.useAcerolaRelay)) },
+            onClick = { pendingRelayAction = SyncAction.ToggleUseAcerolaRelay(!relaySettings.useAcerolaRelay) },
             icon = { Icon(imageVector = Icons.Default.Wifi, contentDescription = null) },
         )
 
@@ -522,7 +541,9 @@ private fun RelaySettingsCard(
             active = relaySettings.useIrohPublicNetwork,
             enabled = relaySettings.hasIrohServicesTicket,
             expanded = true,
-            onClick = { onAction(SyncAction.ToggleUseIrohPublicNetwork(!relaySettings.useIrohPublicNetwork)) },
+            onClick = {
+                pendingRelayAction = SyncAction.ToggleUseIrohPublicNetwork(!relaySettings.useIrohPublicNetwork)
+            },
             icon = { Icon(imageVector = Icons.Default.Public, contentDescription = null) },
         ) {
             Row(
@@ -567,11 +588,56 @@ private fun RelaySettingsCard(
             }
         }
 
+        Acerola.Component.ToggleCard(
+            title = stringResource(id = R.string.label_relay_settings_allow_mobile_data_sync),
+            subtitle = stringResource(id = R.string.label_relay_settings_allow_mobile_data_sync_desc),
+            active = allowMobileDataSync,
+            onClick = { onToggleAllowMobileDataSync(!allowMobileDataSync) },
+            icon = { Icon(imageVector = Icons.Default.PhoneAndroid, contentDescription = null) },
+        )
+
         RestartSection(
             restarting = relaySettings.restarting,
             restartError = relaySettings.restartError,
             onRestart = { onAction(SyncAction.RestartP2p) },
         )
+
+        pendingRelayAction?.let { action ->
+            SwitchRelayConfirmDialog(
+                onConfirm = {
+                    onAction(action)
+                    pendingRelayAction = null
+                },
+                onCancel = { pendingRelayAction = null },
+            )
+        }
+    }
+}
+
+/** Confirma antes de trocar a fonte de relay ativa — ver comentário em [RelaySettingsCard]. */
+@Composable
+private fun SwitchRelayConfirmDialog(
+    onConfirm: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    Acerola.Component.Dialog(
+        show = true,
+        onDismiss = onCancel,
+        title = stringResource(id = R.string.title_relay_settings_switch_confirm),
+        confirmButtonContent = {
+            Acerola.Component.DialogButton(
+                text = stringResource(id = R.string.action_relay_settings_switch_confirm),
+                onClick = onConfirm,
+            )
+        },
+        dismissButtonContent = {
+            Acerola.Component.DialogButton(
+                text = stringResource(id = R.string.action_cancel),
+                onClick = onCancel,
+            )
+        },
+    ) {
+        Text(text = stringResource(id = R.string.label_relay_settings_switch_confirm_desc))
     }
 }
 
@@ -825,14 +891,14 @@ private fun RelayUrlListEditor(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )
-                IconButton(enabled = enabled, onClick = { onRemove(url) }) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = removeContentDescription,
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(SizeTokens.IconSmall),
-                    )
-                }
+                Acerola.Component.ActionIcon(
+                    icon = Icons.Default.Delete,
+                    enabled = enabled,
+                    onClick = { onRemove(url) },
+                    contentDescription = removeContentDescription,
+                    iconTint = MaterialTheme.colorScheme.onError,
+                    iconBackground = MaterialTheme.colorScheme.error,
+                )
             }
         }
 
@@ -851,7 +917,8 @@ private fun RelayUrlListEditor(
                 enabled = enabled,
                 modifier = Modifier.weight(1f),
             )
-            IconButton(
+            Acerola.Component.ActionIcon(
+                icon = Icons.Default.Add,
                 enabled = enabled && draft.isNotBlank(),
                 onClick = {
                     val trimmed = draft.trim()
@@ -863,9 +930,7 @@ private fun RelayUrlListEditor(
                         showError = true
                     }
                 },
-            ) {
-                Icon(imageVector = Icons.Default.Add, contentDescription = null)
-            }
+            )
         }
 
         if (showError) {
@@ -944,6 +1009,9 @@ private fun PeerRow(
     val filesSyncing = syncKey(peer.peerId, SYNC_KIND_FILES) in syncingKeys
     val anySyncing = historySyncing || filesSyncing
     var menuExpanded by remember { mutableStateOf(false) }
+    // "Sincronizar tudo" dispara histórico + arquivos de uma vez — pedido explícito de
+    // confirmação antes, já que não dá pra saber de antemão o volume de dados envolvido.
+    var showSyncAllConfirm by remember { mutableStateOf(false) }
 
     // Apelido local — edição inline substitui o card do peer, mesmo padrão de
     // `ThisDeviceSection` pro nome do próprio dispositivo.
@@ -967,18 +1035,23 @@ private fun PeerRow(
                         singleLine = true,
                         modifier = Modifier.weight(1f),
                     )
-                    IconButton(onClick = {
-                        onAction(SyncAction.RenamePeer(peer.peerId, nicknameDraft))
-                        editingNickname = false
-                    }) {
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = stringResource(id = R.string.action_sync_rename_save),
-                        )
-                    }
-                    IconButton(onClick = { editingNickname = false }) {
-                        Icon(imageVector = Icons.Default.Close, contentDescription = stringResource(id = R.string.action_cancel))
-                    }
+                    Acerola.Component.ActionIcon(
+                        icon = Icons.Default.Check,
+                        onClick = {
+                            onAction(SyncAction.RenamePeer(peer.peerId, nicknameDraft))
+                            editingNickname = false
+                        },
+                        contentDescription = stringResource(id = R.string.action_sync_rename_save),
+                        iconTint = AcerolaExtendedTheme.colors.onSuccess,
+                        iconBackground = AcerolaExtendedTheme.colors.success,
+                    )
+                    Acerola.Component.ActionIcon(
+                        icon = Icons.Default.Close,
+                        onClick = { editingNickname = false },
+                        contentDescription = stringResource(id = R.string.action_cancel),
+                        iconTint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        iconBackground = MaterialTheme.colorScheme.surfaceVariant,
+                    )
                 }
                 Text(
                     text = stringResource(id = R.string.label_sync_rename_peer_hint),
@@ -1052,12 +1125,11 @@ private fun PeerRow(
         action = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box {
-                    IconButton(onClick = { menuExpanded = true }) {
-                        Icon(
-                            imageVector = Icons.Default.MoreVert,
-                            contentDescription = stringResource(id = R.string.description_icon_sync_peer_more_actions),
-                        )
-                    }
+                    Acerola.Component.ActionIcon(
+                        icon = Icons.Default.MoreVert,
+                        onClick = { menuExpanded = true },
+                        contentDescription = stringResource(id = R.string.description_icon_sync_peer_more_actions),
+                    )
                     DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                         DropdownMenuItem(
                             text = { Text(stringResource(id = R.string.action_sync_history)) },
@@ -1121,13 +1193,15 @@ private fun PeerRow(
                 Acerola.Component.SyncActionIcon(
                     state = syncIconState,
                     defaultBackground =
-                        if (isErrorIdle) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer,
-                    modifier = Modifier.clickable(enabled = !anySyncing) { onAction(SyncAction.SyncAll(peer.peerId)) },
+                        if (isErrorIdle) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                    onDefaultBackground =
+                        if (isErrorIdle) MaterialTheme.colorScheme.onError else MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.clickable(enabled = !anySyncing) { showSyncAllConfirm = true },
                 ) {
                     Icon(
                         imageVector = if (isErrorIdle) Icons.Default.Error else Icons.Default.Sync,
                         contentDescription = stringResource(id = R.string.action_sync_all),
-                        tint = if (isErrorIdle) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onPrimaryContainer,
+                        tint = if (isErrorIdle) MaterialTheme.colorScheme.onError else MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier.size(SizeTokens.IconMedium),
                     )
                 }
@@ -1138,7 +1212,7 @@ private fun PeerRow(
                 Icon(
                     imageVector = Icons.Default.PhoneAndroid,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    tint = MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier.align(Alignment.Center).size(SizeTokens.IconMedium),
                 )
                 Box(
@@ -1162,6 +1236,46 @@ private fun PeerRow(
             }
         },
     )
+
+    if (showSyncAllConfirm) {
+        SyncAllConfirmDialog(
+            peer = peer,
+            onConfirm = {
+                showSyncAllConfirm = false
+                onAction(SyncAction.SyncAll(peer.peerId))
+            },
+            onCancel = { showSyncAllConfirm = false },
+        )
+    }
+}
+
+/** Confirma antes de disparar histórico + arquivos de uma vez — ver comentário em [PeerRow]. */
+@Composable
+private fun SyncAllConfirmDialog(
+    peer: PairedPeer,
+    onConfirm: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    val peerLabel = peer.nickname ?: peer.deviceName ?: PairingCode.shortId(peer.peerId)
+    Acerola.Component.Dialog(
+        show = true,
+        onDismiss = onCancel,
+        title = stringResource(id = R.string.title_sync_all_confirm, peerLabel),
+        confirmButtonContent = {
+            Acerola.Component.DialogButton(
+                text = stringResource(id = R.string.action_sync_all),
+                onClick = onConfirm,
+            )
+        },
+        dismissButtonContent = {
+            Acerola.Component.DialogButton(
+                text = stringResource(id = R.string.action_cancel),
+                onClick = onCancel,
+            )
+        },
+    ) {
+        Text(text = stringResource(id = R.string.description_sync_all_confirm))
+    }
 }
 
 @Composable
@@ -1323,9 +1437,11 @@ private fun ConnectTabContent(
             modifier = Modifier.weight(1f),
         )
 
-        IconButton(onClick = onScan) {
-            Icon(imageVector = Icons.Default.QrCodeScanner, contentDescription = stringResource(id = R.string.action_sync_scan_code))
-        }
+        Acerola.Component.ActionIcon(
+            icon = Icons.Default.QrCodeScanner,
+            onClick = onScan,
+            contentDescription = stringResource(id = R.string.action_sync_scan_code),
+        )
     }
 
     Spacer(modifier = Modifier.height(SpacingTokens.Small))
@@ -1399,126 +1515,26 @@ private fun SecurityNote() {
     }
 }
 
+/** Gatilho pro histórico completo — igual ao localSend: uma tela própria (ver
+ *  [br.acerola.comic.module.main.transferlog.TransferLogActivity]/
+ *  [br.acerola.comic.module.main.transferlog.TransferLogViewModel]), não um dialog/sheet/
+ *  accordion espremido dentro da tela de Rede. Aqui só mostra a última entrada conhecida como
+ *  prévia. */
 @Composable
-private fun ActivityLogCard(
-    uiState: SyncUiState,
-    onAction: (SyncAction) -> Unit,
-) {
-    var showClearDialog by remember { mutableStateOf(false) }
+private fun ActivityLogCard(uiState: SyncUiState) {
+    val context = LocalContext.current
 
-    SectionCard(
+    val summary =
+        uiState.transferLog.firstOrNull()?.let { describeEntry(it) }
+            ?: stringResource(id = R.string.label_sync_activity_log_empty)
+
+    Acerola.Component.HeroButton(
         title = stringResource(id = R.string.title_sync_activity_log),
-        actions = {
-            IconButton(onClick = { onAction(SyncAction.RefreshTransferLog) }) {
-                Icon(
-                    imageVector = Icons.Default.Refresh,
-                    contentDescription = stringResource(id = R.string.action_sync_activity_log_refresh),
-                    modifier = Modifier.size(SizeTokens.IconExtraSmall),
-                )
-            }
-            if (uiState.transferLog.isNotEmpty()) {
-                IconButton(onClick = { showClearDialog = true }) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = stringResource(id = R.string.action_sync_activity_log_clear),
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(SizeTokens.IconExtraSmall),
-                    )
-                }
-            }
-        },
-    ) {
-        if (uiState.transferLog.isEmpty()) {
-            Text(
-                text = stringResource(id = R.string.label_sync_activity_log_empty),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        } else {
-            uiState.transferLog.forEach { entry ->
-                LogRow(entry = entry)
-            }
-        }
-    }
-
-    Acerola.Component.Dialog(
-        show = showClearDialog,
-        onDismiss = { showClearDialog = false },
-        title = stringResource(id = R.string.title_sync_activity_log_clear_confirm),
-        confirmButtonContent = {
-            Acerola.Component.DialogButton(
-                text = stringResource(id = R.string.action_sync_activity_log_clear_confirm),
-                contentColor = MaterialTheme.colorScheme.error,
-                onClick = {
-                    onAction(SyncAction.ClearTransferLog)
-                    showClearDialog = false
-                },
-            )
-        },
-        dismissButtonContent = {
-            Acerola.Component.DialogButton(
-                text = stringResource(id = R.string.action_cancel),
-                onClick = { showClearDialog = false },
-            )
-        },
-    ) {
-        Text(text = stringResource(id = R.string.description_sync_activity_log_clear_confirm))
-    }
-}
-
-/** Turns a raw [TransferLogEntry] into display text — the only place doing that resolution,
- *  so [SyncViewModel] never needs an Android [android.content.Context]-flavored dependency
- *  just to pre-render a string. */
-@Composable
-private fun describeEntry(entry: TransferLogEntry): String =
-    when ("${entry.kind}:${entry.status}") {
-        "history:started" -> stringResource(id = R.string.log_sync_history_started)
-        "history:complete" -> stringResource(id = R.string.log_sync_history_complete)
-        "history:error" -> stringResource(id = R.string.log_sync_history_error, entry.message.orEmpty())
-        "files:started" -> stringResource(id = R.string.log_sync_files_started)
-        "files:progress" ->
-            stringResource(id = R.string.log_sync_files_progress, entry.comicName.orEmpty(), entry.chapter.orEmpty())
-        "files:chapterFailed" ->
-            stringResource(
-                id = R.string.log_sync_files_chapter_failed,
-                entry.comicName.orEmpty(),
-                entry.chapter.orEmpty(),
-            )
-        "files:error" -> stringResource(id = R.string.log_sync_files_error, entry.message.orEmpty())
-        "files:complete" -> stringResource(id = R.string.log_sync_files_complete)
-        else -> entry.message ?: entry.status
-    }
-
-@Composable
-private fun LogRow(entry: TransferLogEntry) {
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = SpacingTokens.ExtraSmall)) {
-        when (entry.state) {
-            LogState.IN_PROGRESS ->
-                CircularProgressIndicator(modifier = Modifier.size(SizeTokens.IconExtraSmall), strokeWidth = 2.dp)
-            LogState.SUCCESS ->
-                Icon(
-                    imageVector = Icons.Default.CheckCircle,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(SizeTokens.IconExtraSmall),
-                )
-            LogState.ERROR ->
-                Icon(
-                    imageVector = Icons.Default.Error,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.size(SizeTokens.IconExtraSmall),
-                )
-        }
-        Spacer(modifier = Modifier.width(SpacingTokens.Small))
-        Text(text = describeEntry(entry), style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
-        Spacer(modifier = Modifier.width(SpacingTokens.Small))
-        Text(
-            text = formatLogTimestamp(entry.timestamp),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
+        description = summary,
+        icon = Icons.Default.History,
+        modifier = Modifier.fillMaxWidth(),
+        onClick = { context.startActivity(Intent(context, TransferLogActivity::class.java)) },
+    )
 }
 
 @Composable
@@ -1596,9 +1612,6 @@ private fun RemovePeerDialog(
     }
 }
 
-/** Same formatting used both in the activity log and in "last synced" per peer. */
-private fun formatLogTimestamp(timestampMillis: Long): String = SimpleDateFormat("dd/MM HH:mm", Locale.getDefault()).format(Date(timestampMillis))
-
 @Composable
 private fun SectionHeader(
     title: String,
@@ -1611,24 +1624,6 @@ private fun SectionHeader(
         color = MaterialTheme.colorScheme.secondary,
         modifier = modifier,
     )
-}
-
-@Composable
-private fun SectionCard(
-    title: String,
-    actions: (@Composable () -> Unit)? = null,
-    content: @Composable ColumnScope.() -> Unit,
-) {
-    Card(shape = ShapeTokens.Medium, modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(SpacingTokens.Large)) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                SectionHeader(title = title, modifier = Modifier.weight(1f))
-                actions?.invoke()
-            }
-            Spacer(modifier = Modifier.height(SpacingTokens.Small))
-            content()
-        }
-    }
 }
 
 private fun previewUiState() =
@@ -1679,7 +1674,7 @@ private fun previewUiState() =
 private fun PreviewSyncLayout(uiState: SyncUiState) {
     AcerolaTheme {
         CompositionLocalProvider(LocalSnackbarHostState provides remember { SnackbarHostState() }) {
-            SyncLayout(uiState = uiState, onAction = {})
+            SyncLayout(uiState = uiState, onAction = {}, allowMobileDataSync = false, onToggleAllowMobileDataSync = {})
         }
     }
 }

@@ -349,8 +349,8 @@
 										events={{ onClick: () => (templateToDelete = template) }}
 										ui={{
 											variant: 'ghost',
-											class:
-												'size-8 shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive'
+											tone: 'destructive',
+											class: 'size-8 shrink-0'
 										}}
 									>
 										<Trash2Icon size={16} />

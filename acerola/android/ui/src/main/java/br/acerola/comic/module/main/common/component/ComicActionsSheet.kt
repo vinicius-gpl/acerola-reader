@@ -2,6 +2,7 @@ package br.acerola.comic.module.main.common.component
 
 import android.content.res.Configuration
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Bookmark
 import androidx.compose.material.icons.rounded.BookmarkBorder
@@ -48,6 +50,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import br.acerola.comic.common.ux.Acerola
@@ -55,6 +58,7 @@ import br.acerola.comic.common.ux.component.ActionListItem
 import br.acerola.comic.common.ux.component.AdaptiveSheet
 import br.acerola.comic.common.ux.component.Dialog
 import br.acerola.comic.common.ux.component.DialogButton
+import br.acerola.comic.common.ux.theme.AcerolaExtendedTheme
 import br.acerola.comic.common.ux.theme.AcerolaTheme
 import br.acerola.comic.common.ux.tokens.ShapeTokens
 import br.acerola.comic.common.ux.tokens.SizeTokens
@@ -64,6 +68,7 @@ import br.acerola.comic.dto.archive.ComicDirectoryDto
 import br.acerola.comic.dto.metadata.category.CategoryDto
 import br.acerola.comic.module.main.Main
 import br.acerola.comic.module.main.sync.state.PairedPeer
+import br.acerola.comic.pattern.metadata.ComicStatus
 import br.acerola.comic.service.SyncDirection
 import br.acerola.comic.ui.R
 import coil.compose.AsyncImage
@@ -94,6 +99,16 @@ fun Main.Common.Component.ComicActionsSheet(
 
     val context = LocalContext.current
     val coverUri = comic.directory.coverUri ?: comic.directory.bannerUri
+
+    val metaLine =
+        listOfNotNull(
+            comic.remoteInfo?.authors?.name?.takeIf { it.isNotBlank() },
+            comic.remoteInfo?.year?.takeIf { it > 0 }?.toString(),
+            comic.remoteInfo?.status?.takeIf { it.isNotBlank() }?.let {
+                stringResource(id = ComicStatus.fromRawValue(it).stringRes)
+            },
+        ).joinToString(separator = " • ")
+    val genres = comic.remoteInfo?.genre.orEmpty()
 
     Acerola.Component.AdaptiveSheet(
         onDismissRequest = onDismiss,
@@ -147,6 +162,40 @@ fun Main.Common.Component.ComicActionsSheet(
                         )
                     }
                 }
+                if (metaLine.isNotBlank()) {
+                    Text(
+                        text = metaLine,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                if (genres.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(SpacingTokens.ExtraSmall))
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(SpacingTokens.ExtraSmall),
+                        modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    ) {
+                        genres.forEach { genre ->
+                            Surface(
+                                shape = ShapeTokens.Full,
+                                color = MaterialTheme.colorScheme.secondaryContainer,
+                            ) {
+                                Text(
+                                    text = genre.name,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    modifier =
+                                        Modifier.padding(
+                                            horizontal = SpacingTokens.Medium,
+                                            vertical = SpacingTokens.ExtraSmall,
+                                        ),
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -160,12 +209,17 @@ fun Main.Common.Component.ComicActionsSheet(
                 shape = ShapeTokens.Large,
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
             ) {
+                val accent = AcerolaExtendedTheme.colors.accent
+                val onAccent = AcerolaExtendedTheme.colors.onAccent
+
                 Column {
                     Acerola.Component.ActionListItem(
                         icon = if (comic.category != null) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
                         title = stringResource(id = R.string.action_bookmark),
                         subtitle = currentCategoryName ?: stringResource(id = R.string.label_no_bookmark),
                         onClick = { showCategorySheet = true },
+                        tint = onAccent,
+                        iconBackground = accent,
                     )
 
                     Acerola.Component.ActionListItem(
@@ -179,6 +233,8 @@ fun Main.Common.Component.ComicActionsSheet(
                                 id = if (comic.directory.hidden) R.string.description_unhide else R.string.description_hide,
                             ),
                         onClick = { showHideDialog = true },
+                        tint = onAccent,
+                        iconBackground = accent,
                     )
 
                     Acerola.Component.ActionListItem(
@@ -190,6 +246,8 @@ fun Main.Common.Component.ComicActionsSheet(
                             pendingDirection = SyncDirection.PUSH
                             showPeerPicker = true
                         },
+                        tint = onAccent,
+                        iconBackground = accent,
                     )
 
                     Acerola.Component.ActionListItem(
@@ -201,6 +259,8 @@ fun Main.Common.Component.ComicActionsSheet(
                             pendingDirection = SyncDirection.PULL
                             showPeerPicker = true
                         },
+                        tint = onAccent,
+                        iconBackground = accent,
                     )
 
                     Acerola.Component.ActionListItem(
@@ -208,6 +268,7 @@ fun Main.Common.Component.ComicActionsSheet(
                         title = stringResource(id = R.string.action_clear_metadata),
                         subtitle = stringResource(id = R.string.description_clear_metadata),
                         onClick = { showClearMetadataDialog = true },
+                        tint = MaterialTheme.colorScheme.error,
                         isLast = true,
                     )
                 }

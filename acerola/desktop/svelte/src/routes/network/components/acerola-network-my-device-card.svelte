@@ -114,8 +114,9 @@
 				events={{ onClick: cancelEditingName }}
 				ui={{
 					variant: 'ghost',
-					class: 'size-10',
+					tone: 'muted',
 					disabled: savingName,
+					title: m['pages.network.my_device.rename.cancel'](),
 					'aria-label': m['pages.network.my_device.rename.cancel']()
 				}}
 			>
@@ -128,6 +129,7 @@
 				title: safeData.deviceName ?? '...',
 				description: safeData.localId ? shortId(safeData.localId) : '...'
 			}}
+			ui={{ iconClass: 'bg-accent-hero text-accent-hero-foreground' }}
 		>
 			{#snippet icon()}
 				<MonitorIcon size={22} />
@@ -139,7 +141,8 @@
 						events={{ onClick: startEditingName }}
 						ui={{
 							variant: 'outline',
-							class: 'size-10',
+							tone: 'accent',
+							title: m['pages.network.my_device.rename.action'](),
 							'aria-label': m['pages.network.my_device.rename.action']()
 						}}
 					>

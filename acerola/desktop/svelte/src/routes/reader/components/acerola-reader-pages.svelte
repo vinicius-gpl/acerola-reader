@@ -4,6 +4,7 @@
 	import type { ReaderMode } from '../hooks/use-reader-zoom.svelte';
 
 	export type ReaderPageTracker = Action<HTMLElement, number>;
+	export type ReaderImageTracker = Action<HTMLImageElement, number>;
 
 	export type ReaderPagesProps = {
 		data: {
@@ -17,6 +18,7 @@
 			pageAt: (index: number) => ReaderCachedPagePayload | undefined;
 			loadPage?: (index: number, setCurrent?: boolean) => Promise<unknown>;
 			trackPage: ReaderPageTracker;
+			trackPageImage?: ReaderImageTracker;
 		};
 		events?: {
 			onRetry?: () => void;
@@ -36,6 +38,8 @@
 	let { data, services, events }: ReaderPagesProps = $props();
 
 	const trackPage = $derived(services.trackPage);
+	const noopImageTracker: ReaderImageTracker = () => ({ destroy() {} });
+	const trackPageImage = $derived(services.trackPageImage ?? noopImageTracker);
 
 	/**
 	 * Todas as `pageCount` seções montam de uma vez (sem virtualização), então
@@ -113,6 +117,7 @@
 						)}
 					>
 						<img
+							use:trackPageImage={pageIndex}
 							in:fade={{ duration: 120 }}
 							src={pageItem.url}
 							alt={m['pages.reader.pages.image_alt']({ page: pageIndex + 1 })}

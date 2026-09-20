@@ -21,6 +21,11 @@
 			/** `useMetadataSync().isSyncing` do chamador — true durante mangadex/anilist/comicInfo,
 			 *  desabilita os três botões pra evitar disparo duplo enquanto um já roda. */
 			metadataSyncing?: boolean;
+			/** Cada uma reflete o loading do respectivo `on*` abaixo — sem isso o ícone de
+			 *  refresh fica parado o tempo todo, sem nenhum feedback de que a ação está rodando. */
+			rescanning?: boolean;
+			regeneratingCover?: boolean;
+			regeneratingVolumeCovers?: boolean;
 		};
 		events: {
 			onVolumeViewModeChange: (value: 'cover' | 'banner') => void;
@@ -30,7 +35,6 @@
 			onSyncAnilist?: () => void;
 			onSyncComicInfo?: () => void;
 			onRescanComic?: () => void;
-			onDeepRescanComic?: () => void;
 			onRegenerateCover?: () => void;
 			onRegenerateVolumeCovers?: () => void;
 			onClearMetadata?: () => Promise<void> | void;
@@ -70,7 +74,6 @@
 	import MangaDexIcon from '$lib/assets/icons/mangadex.svg?component';
 	import AniListIcon from '$lib/assets/icons/anilist.svg?component';
 	import FolderSync from '@lucide/svelte/icons/folder-sync';
-	import DatabaseZap from '@lucide/svelte/icons/database-zap';
 	import Image from '@lucide/svelte/icons/image';
 	import Eraser from '@lucide/svelte/icons/eraser';
 	import Share2 from '@lucide/svelte/icons/share-2';
@@ -82,7 +85,6 @@
 	let { data, events, state: preferences }: ComicPreferencesProps = $props();
 
 	let showClearMetadataDialog = $state(false);
-	let showDeepRescanDialog = $state(false);
 	let showPeerMenu = $state(false);
 
 	// 3 categorias (Leitura / Sincronização / Avançado) em vez das 6 abas de antes, expandindo
@@ -119,10 +121,10 @@
 		}}
 		state={{ expanded: expandedCategories.has('reading') }}
 		events={{ onToggle: () => toggleCategory('reading') }}
-		ui={{ class: CATEGORY_HOVER_BORDER.reading }}
+		ui={{ class: CATEGORY_HOVER_BORDER.reading, iconClass: 'bg-chart-2 text-primary-foreground' }}
 	>
 		{#snippet icon()}
-			<Settings2 class="text-chart-2" size={24} />
+			<Settings2 size={24} />
 		{/snippet}
 
 		{#snippet children()}
@@ -133,9 +135,10 @@
 						title: m['pages.comic.preferences.volume_highlight.title'](),
 						description: m['pages.comic.preferences.volume_highlight.desc']()
 					}}
+					ui={{ iconClass: 'bg-chart-2 text-primary-foreground' }}
 				>
 					{#snippet icon()}
-						<Layers class="text-chart-2" size={24} />
+						<Layers size={24} />
 					{/snippet}
 
 					{#snippet action()}
@@ -173,9 +176,10 @@
 					title: m['pages.comic.preferences.bookmark.title'](),
 					description: m['pages.comic.preferences.bookmark.desc']()
 				}}
+				ui={{ iconClass: 'bg-chart-4 text-primary-foreground' }}
 			>
 				{#snippet icon()}
-					<BookmarkIcon class="text-chart-4" size={24} />
+					<BookmarkIcon size={24} />
 				{/snippet}
 
 				{#snippet action()}
@@ -209,10 +213,10 @@
 		}}
 		state={{ expanded: true }}
 		events={{ onToggle: () => {} }}
-		ui={{ collapsible: false }}
+		ui={{ collapsible: false, iconClass: 'bg-chart-1 text-primary-foreground' }}
 	>
 		{#snippet icon()}
-			<CloudSync class="text-chart-1" size={24} />
+			<CloudSync size={24} />
 		{/snippet}
 
 		{#snippet children()}
@@ -239,6 +243,7 @@
 						events={{
 							onClick: () => events.onExternalSyncChange(!preferences.externalSyncEnabled)
 						}}
+						ui={{ iconClass: 'bg-chart-4 text-primary-foreground' }}
 					>
 						{#snippet icon()}
 							<Link size={18} />
@@ -263,8 +268,8 @@
 								{#snippet action()}
 									<AcerolaButtonIcon
 										ui={{
-											class:
-												'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground',
+											tone: 'accent',
+											class: 'rounded-full',
 											disabled: preferences.metadataSyncing
 										}}
 									>
@@ -291,8 +296,8 @@
 								{#snippet action()}
 									<AcerolaButtonIcon
 										ui={{
-											class:
-												'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground',
+											tone: 'accent',
+											class: 'rounded-full',
 											disabled: preferences.metadataSyncing
 										}}
 									>
@@ -311,18 +316,19 @@
 						events={{
 							onClick: preferences.metadataSyncing ? undefined : events.onSyncComicInfo
 						}}
+						ui={{ iconClass: 'bg-chart-5 text-primary-foreground' }}
 					>
 						{#snippet icon()}
 							<span style="all: unset; display: inline-flex;">
-								<FileText class="h-6 w-6 text-foreground" />
+								<FileText class="h-6 w-6" />
 							</span>
 						{/snippet}
 
 						{#snippet action()}
 							<AcerolaButtonIcon
 								ui={{
-									class:
-										'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground',
+									tone: 'accent',
+									class: 'rounded-full',
 									disabled: preferences.metadataSyncing
 								}}
 							>
@@ -347,43 +353,18 @@
 							title: m['pages.comic.preferences.file_sync.rescan.title'](),
 							description: m['pages.comic.preferences.file_sync.rescan.desc']()
 						}}
-						events={{ onClick: events.onRescanComic }}
+						events={{ onClick: preferences.rescanning ? undefined : events.onRescanComic }}
+						ui={{ iconClass: 'bg-chart-1 text-primary-foreground' }}
 					>
 						{#snippet icon()}
-							<FolderSync class="text-chart-1" size={24} />
+							<FolderSync size={24} />
 						{/snippet}
 
 						{#snippet action()}
 							<AcerolaButtonIcon
-								ui={{
-									class:
-										'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground'
-								}}
+								ui={{ tone: 'accent', class: 'rounded-full', disabled: preferences.rescanning }}
 							>
-								<RefreshCw />
-							</AcerolaButtonIcon>
-						{/snippet}
-					</AcerolaHeroButton>
-
-					<AcerolaHeroButton
-						data={{
-							title: m['pages.comic.preferences.file_sync.deep_rescan.title'](),
-							description: m['pages.comic.preferences.file_sync.deep_rescan.desc']()
-						}}
-						events={{ onClick: () => (showDeepRescanDialog = true) }}
-					>
-						{#snippet icon()}
-							<DatabaseZap class="text-destructive" size={24} />
-						{/snippet}
-
-						{#snippet action()}
-							<AcerolaButtonIcon
-								ui={{
-									class:
-										'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground'
-								}}
-							>
-								<RefreshCw />
+								<RefreshCw class={preferences.rescanning ? 'animate-spin' : ''} />
 							</AcerolaButtonIcon>
 						{/snippet}
 					</AcerolaHeroButton>
@@ -409,9 +390,10 @@
 								title: m['pages.comic.preferences.p2p_sync.send.title'](),
 								description: m['pages.comic.preferences.p2p_sync.send.desc']()
 							}}
+							ui={{ iconClass: 'bg-chart-1 text-primary-foreground' }}
 						>
 							{#snippet icon()}
-								<Share2 class="text-chart-1" size={24} />
+								<Share2 size={24} />
 							{/snippet}
 
 							{#snippet action()}
@@ -441,7 +423,7 @@
 													class="flex items-center gap-3 rounded-2xl border border-border/50 bg-muted/30 p-3"
 												>
 													<div
-														class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted text-foreground"
+														class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-hero text-accent-hero-foreground"
 													>
 														<MonitorSmartphone size={20} />
 													</div>
@@ -461,7 +443,7 @@
 																ui={{
 																	variant: 'ghost',
 																	class:
-																		'size-9 rounded-xl bg-chart-1/10 text-chart-1 transition-colors hover:bg-chart-1 hover:text-primary-foreground',
+																		'size-9 rounded-xl bg-chart-1 text-primary-foreground transition-colors hover:bg-chart-1/85',
 																	title: m['pages.comic.preferences.p2p_sync.send.push']()
 																}}
 																events={{
@@ -477,7 +459,7 @@
 																ui={{
 																	variant: 'ghost',
 																	class:
-																		'size-9 rounded-xl bg-chart-3/10 text-chart-3 transition-colors hover:bg-chart-3 hover:text-primary-foreground',
+																		'size-9 rounded-xl bg-chart-3 text-primary-foreground transition-colors hover:bg-chart-3/85',
 																	title: m['pages.comic.preferences.p2p_sync.send.pull']()
 																}}
 																events={{
@@ -512,10 +494,10 @@
 		}}
 		state={{ expanded: expandedCategories.has('advanced') }}
 		events={{ onToggle: () => toggleCategory('advanced') }}
-		ui={{ class: CATEGORY_HOVER_BORDER.advanced }}
+		ui={{ class: CATEGORY_HOVER_BORDER.advanced, iconClass: 'bg-chart-3 text-primary-foreground' }}
 	>
 		{#snippet icon()}
-			<Image class="text-chart-3" size={24} />
+			<Image size={24} />
 		{/snippet}
 
 		{#snippet children()}
@@ -533,20 +515,24 @@
 							title: m['pages.comic.preferences.cover.regenerate.title'](),
 							description: m['pages.comic.preferences.cover.regenerate.desc']()
 						}}
-						events={{ onClick: events.onRegenerateCover }}
+						events={{
+							onClick: preferences.regeneratingCover ? undefined : events.onRegenerateCover
+						}}
+						ui={{ iconClass: 'bg-chart-2 text-primary-foreground' }}
 					>
 						{#snippet icon()}
-							<Image class="text-chart-2" size={24} />
+							<Image size={24} />
 						{/snippet}
 
 						{#snippet action()}
 							<AcerolaButtonIcon
 								ui={{
-									class:
-										'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground'
+									tone: 'accent',
+									class: 'rounded-full',
+									disabled: preferences.regeneratingCover
 								}}
 							>
-								<RefreshCw />
+								<RefreshCw class={preferences.regeneratingCover ? 'animate-spin' : ''} />
 							</AcerolaButtonIcon>
 						{/snippet}
 					</AcerolaHeroButton>
@@ -557,20 +543,26 @@
 								title: m['pages.comic.preferences.cover.regenerate_volumes.title'](),
 								description: m['pages.comic.preferences.cover.regenerate_volumes.desc']()
 							}}
-							events={{ onClick: events.onRegenerateVolumeCovers }}
+							events={{
+								onClick: preferences.regeneratingVolumeCovers
+									? undefined
+									: events.onRegenerateVolumeCovers
+							}}
+							ui={{ iconClass: 'bg-chart-3 text-primary-foreground' }}
 						>
 							{#snippet icon()}
-								<Layers2 class="text-chart-3" size={24} />
+								<Layers2 size={24} />
 							{/snippet}
 
 							{#snippet action()}
 								<AcerolaButtonIcon
 									ui={{
-										class:
-											'rounded-full transition-all group-hover:bg-primary group-hover:text-primary-foreground'
+										tone: 'accent',
+										class: 'rounded-full',
+										disabled: preferences.regeneratingVolumeCovers
 									}}
 								>
-									<RefreshCw />
+									<RefreshCw class={preferences.regeneratingVolumeCovers ? 'animate-spin' : ''} />
 								</AcerolaButtonIcon>
 							{/snippet}
 						</AcerolaHeroButton>
@@ -593,9 +585,10 @@
 							description: m['pages.comic.preferences.danger_zone.clear_metadata.desc']()
 						}}
 						events={{ onClick: () => (showClearMetadataDialog = true) }}
+						ui={{ iconClass: 'bg-destructive text-destructive-foreground' }}
 					>
 						{#snippet icon()}
-							<Eraser class="text-destructive" size={24} />
+							<Eraser size={24} />
 						{/snippet}
 					</AcerolaHeroButton>
 				</div>
@@ -618,24 +611,6 @@
 			showClearMetadataDialog = false;
 		},
 		onCancel: () => (showClearMetadataDialog = false)
-	}}
-	ui={{ variant: 'destructive' }}
-/>
-
-<AcerolaAlertDialog
-	state={{ open: showDeepRescanDialog }}
-	data={{
-		title: m['pages.comic.preferences.file_sync.deep_rescan.confirm.title'](),
-		description: m['pages.comic.preferences.file_sync.deep_rescan.confirm.desc'](),
-		cancelText: m['pages.comic.preferences.file_sync.deep_rescan.confirm.cancel'](),
-		actionText: m['pages.comic.preferences.file_sync.deep_rescan.confirm.action']()
-	}}
-	events={{
-		onAction: () => {
-			events.onDeepRescanComic?.();
-			showDeepRescanDialog = false;
-		},
-		onCancel: () => (showDeepRescanDialog = false)
 	}}
 	ui={{ variant: 'destructive' }}
 />

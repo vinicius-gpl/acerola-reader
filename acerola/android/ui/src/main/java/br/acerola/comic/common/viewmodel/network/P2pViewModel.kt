@@ -1,12 +1,15 @@
 package br.acerola.comic.common.viewmodel.network
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import br.acerola.comic.logging.AcerolaLogger
 import br.acerola.comic.logging.LogSource
 import br.acerola.comic.service.NetworkMode
 import br.acerola.comic.service.PeerAddress
 import br.acerola.comic.usecase.network.P2pUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
@@ -32,7 +35,7 @@ class P2pViewModel
             alpn: ByteArray,
         ) {
             AcerolaLogger.i("P2pViewModel", "Connecting to peer: ${peerAddress.id}", LogSource.UI)
-            p2pUseCase.connect(peerAddress, alpn)
+            viewModelScope.launch(Dispatchers.IO) { p2pUseCase.connect(peerAddress, alpn) }
         }
 
         fun switchToLocal() {

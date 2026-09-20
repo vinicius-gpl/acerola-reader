@@ -1,4 +1,8 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::{
+    collections::{HashMap, HashSet},
+    path::PathBuf,
+    sync::Mutex,
+};
 
 use sqlx::SqlitePool;
 
@@ -79,6 +83,37 @@ pub struct MetadataService {
     mangadex_client: MangadexClient,
     anilist_client: AnilistClient,
     http_client: reqwest::Client,
+    // Sync individual (MangaDex/AniList/ComicInfo) e sync em lote fazem check-then-insert em
+    // upsert_metadata sem transação — sem esse lock, disparar os dois pro mesmo quadrinho ao
+    // mesmo tempo corre pra um UniqueViolation que vira ComicError::AlreadyExists (mensagem
+    // enganosa: parece "quadrinho duplicado", mas é uma corrida de sync).
+    syncing: Mutex<HashSet<i64>>,
+}
+
+/// RAII: libera `comic_directory_fk` do set de "sincronizando agora" ao sair de escopo, mesmo
+/// em erro ou cancelamento — sem depender de lembrar de remover em cada `return`/`?`.
+struct SyncGuard<'a> {
+    syncing: &'a Mutex<HashSet<i64>>,
+    comic_directory_fk: i64,
+}
+
+impl<'a> SyncGuard<'a> {
+    fn acquire(
+        syncing: &'a Mutex<HashSet<i64>>, comic_directory_fk: i64,
+    ) -> Result<Self, ComicError> {
+        let mut guard = syncing.lock().unwrap();
+        if !guard.insert(comic_directory_fk) {
+            return Err(ComicError::SyncInProgress);
+        }
+        drop(guard);
+        Ok(Self { syncing, comic_directory_fk })
+    }
+}
+
+impl Drop for SyncGuard<'_> {
+    fn drop(&mut self) {
+        self.syncing.lock().unwrap().remove(&self.comic_directory_fk);
+    }
 }
 
 impl MetadataService {
@@ -92,6 +127,7 @@ impl MetadataService {
                 .user_agent("AcerolaMangaApp/1.0 (Acerola Desktop)")
                 .build()
                 .unwrap(),
+            syncing: Mutex::new(HashSet::new()),
         }
     }
 
@@ -108,6 +144,7 @@ impl MetadataService {
     pub async fn sync_comic_mangadex(
         &self, title: &str, comic_directory_fk: i64, language: &str, generate_comic_info: bool,
     ) -> Result<ComicMetadata, ComicError> {
+        let _guard = SyncGuard::acquire(&self.syncing, comic_directory_fk)?;
         let manga = self.fetch_manga_from_mangadex(title).await?;
         let metadata =
             self.build_metadata_from_mangadex(&manga, comic_directory_fk, language).await?;
@@ -126,6 +163,7 @@ impl MetadataService {
     pub async fn sync_comic_anilist(
         &self, title: &str, comic_directory_fk: i64, _language: &str, generate_comic_info: bool,
     ) -> Result<ComicMetadata, ComicError> {
+        let _guard = SyncGuard::acquire(&self.syncing, comic_directory_fk)?;
         let media = self.fetch_media_from_anilist(title).await?;
         let metadata = self.build_metadata_from_anilist(&media, comic_directory_fk).await?;
         let saved = self.upsert_metadata(metadata, comic_directory_fk).await?;
@@ -144,6 +182,7 @@ impl MetadataService {
     pub async fn parse_and_sync_comic_info(
         &self, xml_content: &str, comic_directory_fk: i64,
     ) -> Result<ComicMetadata, ComicError> {
+        let _guard = SyncGuard::acquire(&self.syncing, comic_directory_fk)?;
         let comic_info = quick_xml::de::from_str::<comic_info::ComicInfo>(xml_content)?;
         let metadata = self.build_metadata_from_comic_info(&comic_info, comic_directory_fk).await?;
         let saved = self.upsert_metadata(metadata, comic_directory_fk).await?;

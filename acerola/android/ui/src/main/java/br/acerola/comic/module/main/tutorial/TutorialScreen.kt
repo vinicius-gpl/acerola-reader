@@ -48,11 +48,13 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import android.net.Uri
 import br.acerola.comic.common.ux.theme.AcerolaTheme
 import br.acerola.comic.common.ux.tokens.ShapeTokens
 import br.acerola.comic.common.ux.tokens.SpacingTokens
 import br.acerola.comic.common.viewmodel.archive.FileSystemAccessViewModel
 import br.acerola.comic.common.viewmodel.theme.ThemeViewModel
+import br.acerola.comic.config.preference.types.AppTheme
 import br.acerola.comic.module.main.Main
 import br.acerola.comic.module.main.config.component.SelectComicDirectory
 import br.acerola.comic.module.main.config.component.ThemeSettings
@@ -67,6 +69,29 @@ fun Main.Tutorial.Template.Screen(
     fileSystemAccessViewModel: FileSystemAccessViewModel = hiltViewModel(),
     onNavigateToHome: () -> Unit,
 ) {
+    val selectedTheme by themeViewModel.currentTheme.collectAsState()
+    val folderName by fileSystemAccessViewModel.folderName.collectAsState()
+
+    TutorialScreenContent(
+        selectedTheme = selectedTheme,
+        folderName = folderName,
+        onThemeChange = themeViewModel::setTheme,
+        onFolderSelected = fileSystemAccessViewModel::saveFolderUri,
+        onComplete = {
+            viewModel.markOnboardingCompleted()
+            onNavigateToHome()
+        },
+    )
+}
+
+@Composable
+private fun TutorialScreenContent(
+    selectedTheme: AppTheme,
+    folderName: String?,
+    onThemeChange: (AppTheme) -> Unit,
+    onFolderSelected: (Uri?) -> Unit,
+    onComplete: () -> Unit,
+) {
     val pages = TutorialPage.entries
     val pagerState = rememberPagerState(pageCount = { pages.size })
     val scope = rememberCoroutineScope()
@@ -74,13 +99,7 @@ fun Main.Tutorial.Template.Screen(
     val isFirstPage = pagerState.currentPage == 0
     val isLastPage = pagerState.currentPage == pages.lastIndex
 
-    val folderName by fileSystemAccessViewModel.folderName.collectAsState()
     val canProceedSettings = !folderName.isNullOrEmpty()
-
-    fun complete() {
-        viewModel.markOnboardingCompleted()
-        onNavigateToHome()
-    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
@@ -137,7 +156,7 @@ fun Main.Tutorial.Template.Screen(
             when (pageIndex) {
                 0 -> WelcomeSlide()
                 1 -> FormatsSlide()
-                2 -> SettingsSlide(themeViewModel, fileSystemAccessViewModel, folderName)
+                2 -> SettingsSlide(selectedTheme, onThemeChange, folderName, onFolderSelected)
                 3 -> CompleteSlide()
             }
         }
@@ -166,7 +185,7 @@ fun Main.Tutorial.Template.Screen(
             }
 
             if (isLastPage) {
-                Button(onClick = ::complete) {
+                Button(onClick = onComplete) {
                     Text(text = stringResource(id = R.string.tutorial_action_finish))
                 }
             } else {
@@ -484,12 +503,11 @@ private fun FormatCard(
 
 @Composable
 fun SettingsSlide(
-    themeViewModel: ThemeViewModel,
-    fileSystemAccessViewModel: FileSystemAccessViewModel,
+    selectedTheme: AppTheme,
+    onThemeChange: (AppTheme) -> Unit,
     folderName: String?,
+    onFolderSelected: (Uri?) -> Unit,
 ) {
-    val selectedTheme by themeViewModel.currentTheme.collectAsState()
-
     Column(
         modifier =
             Modifier
@@ -508,14 +526,14 @@ fun SettingsSlide(
 
         Main.Config.Component.ThemeSettings(
             currentTheme = selectedTheme,
-            onThemeChange = { themeViewModel.setTheme(it) },
+            onThemeChange = onThemeChange,
         )
 
         Spacer(modifier = Modifier.height(SpacingTokens.Large))
 
         Main.Config.Component.SelectComicDirectory(
             folderName = folderName,
-            onFolderSelected = { fileSystemAccessViewModel.saveFolderUri(it) },
+            onFolderSelected = onFolderSelected,
             modifier = Modifier.fillMaxWidth(),
         )
     }
@@ -564,9 +582,29 @@ fun CompleteSlide() {
 @Preview(name = "Light", showBackground = true)
 @Preview(name = "Dark", showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
 @Composable
-private fun ScreenPreview() {
+private fun TutorialScreenContentPreview() {
     AcerolaTheme {
-        WelcomeSlide()
+        TutorialScreenContent(
+            selectedTheme = AppTheme.CATPPUCCIN,
+            folderName = null,
+            onThemeChange = {},
+            onFolderSelected = {},
+            onComplete = {},
+        )
+    }
+}
+
+@Preview(name = "Light", showBackground = true)
+@Preview(name = "Dark", showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+private fun SettingsSlidePreview() {
+    AcerolaTheme {
+        SettingsSlide(
+            selectedTheme = AppTheme.CATPPUCCIN,
+            onThemeChange = {},
+            folderName = "Comics",
+            onFolderSelected = {},
+        )
     }
 }
 
