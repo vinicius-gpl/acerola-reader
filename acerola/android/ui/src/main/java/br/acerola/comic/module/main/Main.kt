@@ -50,6 +50,12 @@ object Main {
         object Template
     }
 
+    object TransferLog {
+        object Component
+
+        object Template
+    }
+
     object Tutorial {
         object Component
 

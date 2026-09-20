@@ -19,15 +19,14 @@ class SyncHistoryWithPeerUseCase
     constructor(
         private val p2pUseCase: P2pUseCase,
     ) {
-        /** Returns `false` if `peerId` isn't currently paired (nothing was fired). */
-        operator fun invoke(peerId: String): Boolean {
+        suspend operator fun invoke(peerId: String): SyncWithPeerResult {
             val peerAddress = p2pUseCase.getPairedPeers().find { it.id == peerId }
             if (peerAddress == null) {
                 AcerolaLogger.w("SyncHistoryWithPeerUseCase", "Peer not paired: $peerId", LogSource.NETWORK)
-                return false
+                return SyncWithPeerResult.NOT_PAIRED
             }
 
-            p2pUseCase.connect(peerAddress, HISTORY_SYNC_ALPN.toByteArray())
-            return true
+            val started = p2pUseCase.connect(peerAddress, HISTORY_SYNC_ALPN.toByteArray())
+            return if (started) SyncWithPeerResult.STARTED else SyncWithPeerResult.DECLINED_MOBILE_DATA
         }
     }

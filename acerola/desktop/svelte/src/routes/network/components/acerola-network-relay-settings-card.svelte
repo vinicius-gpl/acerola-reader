@@ -38,6 +38,7 @@
 	import AcerolaInput from '$lib/components/acerola-input/acerola-input.svelte';
 	import AcerolaButton from '$lib/components/acerola-button/acerola-button.svelte';
 	import AcerolaButtonIcon from '$lib/components/acerola-button/acerola-button-icon.svelte';
+	import AcerolaAlertDialog from '$lib/components/acerola-alert-dialog/acerola-alert-dialog.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { cn } from '$lib/utils/cn.utils';
 	import { autoAnimateList } from '$lib/utils/auto-animate.utils';
@@ -84,6 +85,16 @@
 		} finally {
 			restarting = false;
 		}
+	}
+
+	// Trocar a fonte de relay ativa (Acerola próprio / rede pública Iroh) reconstrói o node
+	// P2P com um `RelayMap` diferente — peers pareados que não convergirem pro mesmo relay
+	// ficam inalcançáveis até isso acontecer. Sem aviso, o usuário não tem como saber disso
+	// antes de clicar.
+	let pendingSwitch = $state<(() => Promise<void>) | null>(null);
+
+	function confirmSwitch(action: () => Promise<void>) {
+		pendingSwitch = action;
 	}
 
 	let safeData = $derived(
@@ -141,11 +152,11 @@
 	}
 
 	function toggleAcerolaRelay(value: boolean) {
-		runRestartingAction(() => events.onToggleAcerolaRelay(value));
+		confirmSwitch(() => events.onToggleAcerolaRelay(value));
 	}
 
 	function toggleIrohPublicNetwork(value: boolean) {
-		runRestartingAction(() => events.onToggleIrohPublicNetwork(value));
+		confirmSwitch(() => events.onToggleIrohPublicNetwork(value));
 	}
 
 	function submitCustomUrl() {
@@ -199,6 +210,7 @@
 	data={{ title: m['pages.network.relay_settings.title'](), description: summary }}
 	state={{ expanded }}
 	events={{ onToggle: () => (expanded = !expanded) }}
+	ui={{ iconClass: 'bg-accent-hero text-accent-hero-foreground' }}
 >
 	{#snippet icon()}
 		<WifiIcon size={20} />
@@ -215,7 +227,10 @@
 			}}
 			state={{ active: safeData.useAcerolaRelay }}
 			events={{ onClick: () => toggleAcerolaRelay(!safeData.useAcerolaRelay) }}
-			ui={{ disabled: safeData.useIrohPublicNetwork || restarting }}
+			ui={{
+				disabled: safeData.useIrohPublicNetwork || restarting,
+				iconClass: 'bg-chart-5 text-primary-foreground'
+			}}
 		>
 			{#snippet icon()}
 				<ServerIcon size={18} />
@@ -233,7 +248,10 @@
 			}}
 			state={{ active: safeData.customRelayUrls.length > 0, expanded: customExpanded }}
 			events={{ onClick: () => (customExpanded = !customExpanded) }}
-			ui={{ class: safeData.useIrohPublicNetwork ? 'opacity-50' : undefined }}
+			ui={{
+				class: safeData.useIrohPublicNetwork ? 'opacity-50' : undefined,
+				iconClass: 'bg-chart-2 text-primary-foreground'
+			}}
 		>
 			{#snippet icon()}
 				<NetworkIcon size={18} />
@@ -250,9 +268,10 @@
 								events={{ onClick: () => removeCustomUrl(url) }}
 								ui={{
 									variant: 'ghost',
-									class:
-										'size-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive',
+									tone: 'destructive',
+									class: 'size-8',
 									disabled: safeData.useIrohPublicNetwork || restarting,
+									title: m['pages.network.relay_settings.custom_relays.remove'](),
 									'aria-label': m['pages.network.relay_settings.custom_relays.remove']()
 								}}
 							>
@@ -314,7 +333,7 @@
 				class="flex w-full items-center gap-3 p-4 text-left enabled:cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
 			>
 				<div
-					class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted text-foreground"
+					class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-chart-4 text-primary-foreground"
 				>
 					<GlobeIcon size={18} />
 				</div>
@@ -379,9 +398,10 @@
 									events={{ onClick: removeTicket }}
 									ui={{
 										variant: 'ghost',
-										class:
-											'size-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive',
+										tone: 'destructive',
+										class: 'size-8',
 										disabled: ticketSaving,
+										title: m['pages.network.relay_settings.iroh_services_ticket.remove_button'](),
 										'aria-label':
 											m['pages.network.relay_settings.iroh_services_ticket.remove_button']()
 									}}
@@ -437,3 +457,21 @@
 		</AcerolaButton>
 	</div>
 </AcerolaAccordionCard>
+
+<AcerolaAlertDialog
+	state={{ open: pendingSwitch !== null }}
+	data={{
+		title: m['pages.network.relay_settings.switch_confirm.title'](),
+		description: m['pages.network.relay_settings.switch_confirm.desc'](),
+		cancelText: m['pages.network.relay_settings.switch_confirm.cancel'](),
+		actionText: m['pages.network.relay_settings.switch_confirm.action']()
+	}}
+	events={{
+		onAction: () => {
+			const action = pendingSwitch;
+			pendingSwitch = null;
+			if (action) runRestartingAction(action);
+		},
+		onCancel: () => (pendingSwitch = null)
+	}}
+/>

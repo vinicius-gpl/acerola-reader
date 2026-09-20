@@ -16,7 +16,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -26,19 +25,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import br.acerola.comic.common.ux.Acerola
+import br.acerola.comic.common.ux.component.ActionIcon
 import br.acerola.comic.common.ux.modifier.glass
 import br.acerola.comic.common.ux.theme.AcerolaTheme
-
-@Composable
-fun Acerola.Component.IconButton(
-    icon: @Composable () -> Unit,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    IconButton(onClick = onClick, modifier = modifier) {
-        icon()
-    }
-}
 
 @Composable
 fun Acerola.Component.Button(
@@ -95,8 +84,8 @@ fun Acerola.Component.GlassButton(
 @Composable
 private fun IconButtonPreview() {
     AcerolaTheme {
-        Acerola.Component.IconButton(
-            icon = { Icon(Icons.Default.Add, contentDescription = null) },
+        Acerola.Component.ActionIcon(
+            icon = Icons.Default.Add,
             onClick = {},
         )
     }

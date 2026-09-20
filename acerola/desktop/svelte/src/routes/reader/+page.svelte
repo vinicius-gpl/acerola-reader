@@ -34,6 +34,7 @@
 	let observer: IntersectionObserver | null = null;
 	let visibleRects = new Map<number, DOMRectReadOnly>();
 	let pageNodes = new Map<number, HTMLElement>();
+	let pageImageNodes = new Map<number, HTMLImageElement>();
 	let visiblePages = $state<number[]>([]);
 	let openFailed = $state(false);
 	let readingMode = $state<ReaderMode>('vertical');
@@ -366,6 +367,32 @@
 		};
 	}
 
+	function trackPageImage(node: HTMLImageElement, pageIndex: number) {
+		pageImageNodes.set(pageIndex, node);
+
+		if (pageIndex === reader.currentPage) {
+			zoom.setFocusedImage(node);
+		}
+
+		return {
+			destroy() {
+				if (pageImageNodes.get(pageIndex) === node) {
+					pageImageNodes.delete(pageIndex);
+				}
+			}
+		};
+	}
+
+	// Mantém a imagem "em foco" pro pan/zoom sempre em sincronia com a página atual do leitor —
+	// sem isso, trocar de página com zoom ativo continuaria limitando o pan pela imagem antiga.
+	$effect(() => {
+		const currentPage = reader.currentPage;
+
+		untrack(() => {
+			zoom.setFocusedImage(pageImageNodes.get(currentPage) ?? null);
+		});
+	});
+
 	$effect(() => {
 		const currentPage = reader.currentPage;
 		const pageCount = reader.pageCount;
@@ -442,7 +469,8 @@
 				services={{
 					pageAt: reader.pageAt,
 					loadPage: reader.loadPage,
-					trackPage
+					trackPage,
+					trackPageImage
 				}}
 				events={{ onRetry: retryOpen }}
 			/>

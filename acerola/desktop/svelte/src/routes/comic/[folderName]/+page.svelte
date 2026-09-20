@@ -22,6 +22,7 @@
 	import { useMetadataSync } from '$lib/hooks/store/use-metadata-sync.svelte';
 
 	import { resolveArtworkPath, resolveBanner, resolveCover } from '$lib/utils/artwork.utils';
+	import { bumpArtworkVersion } from '$lib/state/artwork-version.svelte';
 	import type { ReaderChapterPayload } from '$lib/contracts/reader/reader.payloads';
 	import { invoke } from '@tauri-apps/api/core';
 	import { HOME_COMMANDS } from '$lib/contracts/home/home.commands';
@@ -83,19 +84,16 @@
 	let showSortMenu = $state(false);
 	let sendToPeerPickerOpen = $state(false);
 
-	// Sobrescrever cover.* mantém o mesmo path no disco, então o back-end não muda a URL
-	// resolvida — sem isso o <img> nunca re-renderiza e o cache do protocolo asset:// serve
-	// os bytes antigos. Bumped localmente logo após um regenerate bem-sucedido nesta página.
-	let coverCacheBust = $state(0);
-	let volumeCoverCacheBust = $state(0);
 	// Bumped pelo efeito de sync P2P abaixo — lido (não escrito) pelo efeito de busca de
 	// capítulos, só pra forçar um re-fetch quando um sync relevante a este quadrinho termina.
 	let syncRefreshTrigger = $state(0);
 
-	function bustCache(url: string | null, bust: number): string | null {
-		if (!url || !bust) return url;
-		return url + (url.includes('?') ? '&' : '?') + 'v=' + bust;
-	}
+	// Loading de cada ação de arquivo/capa — sem isso o ícone de refresh não tinha NENHUM
+	// feedback visual de que a ação (que pode demorar, ex. reescanear um quadrinho grande)
+	// estava rodando.
+	let rescanning = $state(false);
+	let regeneratingCover = $state(false);
+	let regeneratingVolumeCovers = $state(false);
 
 	const onBack = () => window.history.back();
 
@@ -244,6 +242,7 @@
 				success: m['pages.comic.toast.sync.success'](),
 				error: (err) => m['pages.comic.toast.mangadex_error']({ msg: extractErrorMessage(err) })
 			});
+			bumpArtworkVersion();
 			await invalidateAll();
 		} catch {
 			// Erro já foi mostrado pelo toastAsync acima.
@@ -259,6 +258,7 @@
 				success: m['pages.comic.toast.sync.success'](),
 				error: (err) => m['pages.comic.toast.anilist_error']({ msg: extractErrorMessage(err) })
 			});
+			bumpArtworkVersion();
 			await invalidateAll();
 		} catch {
 			// Erro já foi mostrado pelo toastAsync acima.
@@ -284,6 +284,7 @@
 		const id = activeComic.item?.relations.directoryId ?? data.comic?.relations.directoryId;
 		if (!id) return;
 
+		rescanning = true;
 		try {
 			await toastAsync(() => invoke(HOME_COMMANDS.rescanComic, { id: id.toString() }), {
 				loading: m['pages.comic.toast.sync.start_rescan'](),
@@ -296,9 +297,12 @@
 			// antigos até o usuário sair e voltar pro quadrinho.
 			chapterStore.invalidate();
 			syncRefreshTrigger++;
+			bumpArtworkVersion();
 			await invalidateAll();
 		} catch {
 			// Erro já foi mostrado pelo toastAsync acima.
+		} finally {
+			rescanning = false;
 		}
 	}
 
@@ -312,6 +316,7 @@
 				error: (err) =>
 					m['pages.comic.toast.clear_metadata_error']({ msg: extractErrorMessage(err) })
 			});
+			bumpArtworkVersion();
 			await invalidateAll();
 		} catch {
 			// Erro já foi mostrado pelo toastAsync acima.
@@ -321,6 +326,7 @@
 	async function handleRegenerateCover() {
 		const id = activeComic.item?.relations.directoryId ?? data.comic?.relations.directoryId;
 		if (!id) return;
+		regeneratingCover = true;
 		try {
 			await toastAsync(() => invoke(HOME_COMMANDS.regenerateComicCover, { id: id.toString() }), {
 				loading: m['pages.comic.toast.sync.start_regenerate_cover'](),
@@ -328,16 +334,19 @@
 				error: (err) =>
 					m['pages.comic.toast.regenerate_cover_error']({ msg: extractErrorMessage(err) })
 			});
-			coverCacheBust = Date.now();
+			bumpArtworkVersion();
 			await invalidateAll();
 		} catch {
 			// Erro já foi mostrado pelo toastAsync acima.
+		} finally {
+			regeneratingCover = false;
 		}
 	}
 
 	async function handleRegenerateVolumeCovers() {
 		const id = activeComic.item?.relations.directoryId ?? data.comic?.relations.directoryId;
 		if (!id) return;
+		regeneratingVolumeCovers = true;
 		try {
 			await toastAsync(() => invoke(HOME_COMMANDS.regenerateVolumeCovers, { id: id.toString() }), {
 				loading: m['pages.comic.toast.sync.start_regenerate_volume_covers'](),
@@ -345,28 +354,12 @@
 				error: (err) =>
 					m['pages.comic.toast.regenerate_volume_covers_error']({ msg: extractErrorMessage(err) })
 			});
-			volumeCoverCacheBust = Date.now();
+			bumpArtworkVersion();
 			await invalidateAll();
 		} catch {
 			// Erro já foi mostrado pelo toastAsync acima.
-		}
-	}
-
-	async function handleDeepRescanComic() {
-		const id = activeComic.item?.relations.directoryId ?? data.comic?.relations.directoryId;
-		if (!id) return;
-		try {
-			await toastAsync(() => invoke(HOME_COMMANDS.deepRescanComic, { id: id.toString() }), {
-				loading: m['pages.comic.toast.sync.start_deep_rescan'](),
-				success: m['pages.comic.toast.sync.success'](),
-				error: (err) => m['pages.comic.toast.deep_rescan_error']({ msg: extractErrorMessage(err) })
-			});
-			// Ver comentário equivalente em `handleRescanComic`.
-			chapterStore.invalidate();
-			syncRefreshTrigger++;
-			await invalidateAll();
-		} catch {
-			// Erro já foi mostrado pelo toastAsync acima.
+		} finally {
+			regeneratingVolumeCovers = false;
 		}
 	}
 
@@ -559,7 +552,7 @@
 			if (entry.kind === 'comic' && entry.comicName && entry.comicName !== manga?.title) return;
 
 			syncRefreshTrigger++;
-			coverCacheBust = Date.now();
+			bumpArtworkVersion();
 			invalidateAll();
 		});
 	});
@@ -600,17 +593,11 @@
 		);
 
 		const volumes = (chaptersData?.archive.volumes ?? []).map((volume) => {
-			const volCover = bustCache(
-				volume.coverUri ? resolveArtworkPath(volume.coverUri) : null,
-				volumeCoverCacheBust
-			);
-			const volBanner = bustCache(
-				volume.bannerUri ? resolveArtworkPath(volume.bannerUri) : null,
-				volumeCoverCacheBust
-			);
+			const volCover = volume.coverUri ? resolveArtworkPath(volume.coverUri) : null;
+			const volBanner = volume.bannerUri ? resolveArtworkPath(volume.bannerUri) : null;
 
-			const fallbackCover = bustCache(resolveCover(item.artwork), coverCacheBust);
-			const fallbackBanner = bustCache(resolveBanner(item.artwork), coverCacheBust);
+			const fallbackCover = resolveCover(item.artwork);
+			const fallbackBanner = resolveBanner(item.artwork);
 
 			return {
 				id: volume.id.toString(),
@@ -630,8 +617,8 @@
 			// aqui, pois esse valor reflete a paginação/filtro de volume atualmente aberto.
 			chaptersCount: item.metadata.chapterCount,
 			rating: item.metadata.rating ?? null,
-			cover: bustCache(resolveCover(item.artwork), coverCacheBust),
-			banner: bustCache(resolveBanner(item.artwork), coverCacheBust),
+			cover: resolveCover(item.artwork),
+			banner: resolveBanner(item.artwork),
 			pagesData,
 			volumes,
 			pageSize: RENDER_CHUNK_SIZE,
@@ -694,7 +681,7 @@
 			<div
 				class="sticky top-0 z-50 flex h-20 items-center justify-between border-b border-surface/30 bg-base/90 px-6 py-2 backdrop-blur-md lg:hidden"
 			>
-				<AcerolaButtonIcon events={{ onClick: onBack }} ui={{ size: 'sm' }}>
+				<AcerolaButtonIcon events={{ onClick: onBack }} ui={{ size: 'sm', tone: 'accent' }}>
 					<ArrowLeft size={20} />
 				</AcerolaButtonIcon>
 
@@ -965,7 +952,10 @@
 								bookmarkId: currentBookmarkId,
 								externalSyncEnabled: manga.metadata.externalSync,
 								syncingPeerIds,
-								metadataSyncing: metadataSync.isSyncing
+								metadataSyncing: metadataSync.isSyncing,
+								rescanning,
+								regeneratingCover,
+								regeneratingVolumeCovers
 							}}
 							events={{
 								onVolumeViewModeChange: (value) => (volumeViewPreference.volumeViewMode = value),
@@ -986,7 +976,6 @@
 								onSyncAnilist: handleSyncAnilist,
 								onSyncComicInfo: handleSyncComicInfo,
 								onRescanComic: handleRescanComic,
-								onDeepRescanComic: handleDeepRescanComic,
 								onRegenerateCover: handleRegenerateCover,
 								onRegenerateVolumeCovers: handleRegenerateVolumeCovers,
 								onClearMetadata: handleClearMetadata,

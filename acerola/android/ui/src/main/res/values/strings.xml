@@ -12,6 +12,7 @@
     <string name="navigation_template_config_activity">file_pattern</string>
     <string name="navigation_sync_activity">sync</string>
     <string name="navigation_remote_library_activity">remote_library</string>
+    <string name="navigation_transfer_log_activity">transfer_log</string>
 
     <!-- Screen label -->
     <string name="label_tutorial_activity">Tutorial</string>
@@ -24,6 +25,7 @@
     <string name="label_template_config_activity">Padrões de arquivos</string>
     <string name="label_sync_activity">Rede</string>
     <string name="label_remote_library_activity">Biblioteca remota</string>
+    <string name="label_transfer_log_activity">@string/title_sync_activity_log</string>
 
     <!-- Screen content description -->
     <string name="description_home_activity">Tela de início que lista os quadrinhos.</string>
@@ -34,6 +36,7 @@
     <string name="description_template_config_activity">Gerencie como o app identifica números de capítulos nos arquivos</string>
     <string name="description_sync_activity">Conecte outro dispositivo Acerola pra levar seu histórico de leitura e seus quadrinhos com você.</string>
     <string name="description_remote_library_activity">Tela de biblioteca remota de um dispositivo pareado.</string>
+    <string name="description_transfer_log_activity">Tela de histórico de transferências P2P.</string>
 
     <!-- Sync screen -->
     <string name="label_sync_copied">Copiado!</string>
@@ -96,6 +99,9 @@
     <string name="label_relay_settings_custom_relays_empty">Nenhum relay próprio adicionado.</string>
     <string name="action_relay_settings_custom_relay_remove">Remover relay próprio</string>
     <string name="error_relay_settings_invalid_url">Digite uma URL válida (ex.: https://relay.exemplo.com).</string>
+    <string name="title_relay_settings_switch_confirm">Trocar de relay?</string>
+    <string name="label_relay_settings_switch_confirm_desc">Isso reconecta usando um relay diferente. Dispositivos pareados que não convergirem pro mesmo relay podem ficar inalcançáveis até que isso aconteça.</string>
+    <string name="action_relay_settings_switch_confirm">Trocar relay</string>
     <string name="title_relay_settings_restart">Reiniciar módulo P2P</string>
     <string name="label_relay_settings_restart_desc">Desliga e religa a conexão P2P do zero — útil se a conexão ficou travada depois de trocar de rede ou de relay.</string>
     <string name="action_relay_settings_restart">Reiniciar</string>
@@ -107,6 +113,8 @@
     <string name="action_sync_history">Sincronizar histórico</string>
     <string name="action_sync_files">Sincronizar arquivos</string>
     <string name="action_sync_all">Sincronizar tudo</string>
+    <string name="title_sync_all_confirm">Sincronizar tudo com \"%1$s\"?</string>
+    <string name="description_sync_all_confirm">Isso puxa e envia histórico de leitura e todos os capítulos que faltam com esse dispositivo. Pode envolver bastante dados, dependendo do tamanho da biblioteca.</string>
     <string name="action_sync_browse_library">Ver biblioteca remota</string>
     <string name="label_sync_last_synced">Última sync: %1$s</string>
     <string name="label_sync_never_synced">Nunca sincronizado</string>
@@ -137,6 +145,12 @@
     <string name="error_send_chapters_peer_failed">Falha ao enviar capítulo(s) para o dispositivo.</string>
     <string name="message_send_chapters_peer_success">Capítulo(s) enviado(s)!</string>
 
+    <string name="action_send_history_to_peer">Sincronizar progresso</string>
+    <string name="title_send_history_peer_picker">Escolher dispositivo</string>
+    <string name="error_send_history_peer_not_paired">Esse dispositivo não está mais pareado.</string>
+    <string name="error_send_history_peer_failed">Falha ao sincronizar progresso de leitura com o dispositivo.</string>
+    <string name="message_send_history_peer_success">Progresso de leitura sincronizado!</string>
+
     <string name="title_sync_remote_library">Biblioteca de \"%1$s\"</string>
     <string name="label_sync_remote_library_loading">Buscando quadrinhos…</string>
     <string name="label_sync_remote_library_empty">Nenhum quadrinho encontrado nesse dispositivo.</string>
@@ -166,6 +180,17 @@
     <string name="title_sync_trust_dialog">Novo dispositivo confiado</string>
     <string name="description_sync_trust_dialog">Você conectou com o dispositivo \"%1$s\" pela primeira vez. Esse acesso agora é permanente até que ele seja removido.</string>
 
+    <!-- Diálogo global de confirmação de dados móveis (ver `MobileDataSyncGate`) — aparece por
+         cima de QUALQUER tela que dispare uma sincronização P2P, não só a de Sync. -->
+    <string name="title_mobile_data_sync_confirm">Sincronizar usando dados móveis?</string>
+    <string name="description_mobile_data_sync_confirm">Este dispositivo está conectado à internet pelos dados móveis. Continuar pode consumir a franquia do seu plano.</string>
+    <string name="label_mobile_data_sync_remember">Sempre permitir com dados móveis</string>
+    <string name="action_mobile_data_sync_confirm">Sincronizar</string>
+
+    <!-- Tela de Sync ("Rede") — seção Conexão -->
+    <string name="label_relay_settings_allow_mobile_data_sync">Sincronizar usando dados móveis</string>
+    <string name="label_relay_settings_allow_mobile_data_sync_desc">Quando desativado, o app pede confirmação toda vez antes de sincronizar pela rede celular.</string>
+
     <!-- Icons -->
     <string name="description_icon_navigation_back">Ícone do botão que volta na pilha da navegação.</string>
     <string name="description_icon_select_folder_comics">Selecionar pasta para salvar e ler os quadrinhos.</string>
@@ -176,6 +201,7 @@
     <string name="description_icon_home_change_layout">Mudar Visualização</string>
     <string name="description_icon_home_filter">Filtro</string>
     <string name="description_icon_home_browse_remote_library">Buscar quadrinhos em outro dispositivo</string>
+    <string name="description_icon_home_sync_all_peer">Sincronizar tudo com um dispositivo</string>
     <string name="description_icon_comic_hidden">Quadrinho oculto</string>
     <string name="label_home_search_placeholder">Buscar quadrinhos...</string>
 
@@ -269,6 +295,7 @@
     <string name="description_icon_chapter_more_options">Mais opções</string>
     <string name="label_dialog_close">Fechar</string>
     <string name="label_chapter_detail_file">Arquivo</string>
+    <string name="label_chapter_detail_last_modified">Última modificação</string>
     <string name="label_chapter_detail_title">Título</string>
     <string name="label_chapter_detail_scanlation">Grupo de tradução</string>
     <string name="label_chapter_detail_pages">Páginas</string>

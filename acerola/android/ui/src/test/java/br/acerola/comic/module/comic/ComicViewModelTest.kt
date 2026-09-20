@@ -23,6 +23,7 @@ import br.acerola.comic.dto.archive.ComicDirectoryDto
 import br.acerola.comic.dto.archive.VolumeArchiveDto
 import br.acerola.comic.dto.archive.VolumeChapterGroupDto
 import br.acerola.comic.dto.metadata.comic.ComicMetadataDto
+import br.acerola.comic.error.UserMessage
 import br.acerola.comic.logging.AcerolaLogger
 import br.acerola.comic.logging.LogSource
 import br.acerola.comic.service.SyncDirection
@@ -40,6 +41,7 @@ import br.acerola.comic.usecase.metadata.ManageCategoriesUseCase
 import br.acerola.comic.usecase.network.P2pUseCase
 import br.acerola.comic.usecase.network.SyncComicWithPeerUseCase
 import br.acerola.comic.usecase.network.SyncHistoryEntryWithPeerUseCase
+import br.acerola.comic.usecase.network.SyncWithPeerResult
 import com.google.common.truth.Truth.assertThat
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -48,7 +50,6 @@ import io.mockk.mockk
 import io.mockk.mockkObject
 import io.mockk.mockkStatic
 import io.mockk.unmockkObject
-import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -515,17 +516,98 @@ class ComicViewModelTest {
                 cancelAndIgnoreRemainingEvents()
             }
 
+            coEvery { syncComicWithPeerUseCase(any(), any(), any(), any()) } returns SyncWithPeerResult.STARTED
+
             // Seleciona só "Cap 1" (chapterSort "1") — "Cap 2" fica de fora.
             viewModel.toggleChapterSelection("1")
             viewModel.sendSelectedChaptersToPeer("peer-1")
 
             // Escopa por RÓTULO ("Cap 1"), não por chapterSort — é a chave que o protocolo de
-            // arquivos usa (`FileChapterInfo.chapter`), diferente do push de histórico.
-            verify(exactly = 1) {
+            // arquivos usa (`FileChapterInfo.chapter`), diferente do push de histórico. Roda
+            // dentro de `viewModelScope.launch(Dispatchers.IO)` — timeout em vez de coVerify
+            // direto pra não flakiar numa corrida com a thread de IO real.
+            coVerify(timeout = 2000) {
                 syncComicWithPeerUseCase("peer-1", any(), SyncDirection.PUSH, listOf("Cap 1"))
             }
             // Não deve mais usar o push de histórico pra este fluxo — ele continua existindo,
             // só não é mais o que o botão "Enviar" dispara.
-            verify(exactly = 0) { syncHistoryEntryWithPeerUseCase(any(), any(), any()) }
+            coVerify(exactly = 0) { syncHistoryEntryWithPeerUseCase(any(), any(), any()) }
+        }
+
+    @Test
+    fun `syncWithPeer sends an error and does not mark syncing when the peer is not paired`() =
+        runTest {
+            coEvery { syncComicWithPeerUseCase(any(), any(), any(), any()) } returns SyncWithPeerResult.NOT_PAIRED
+
+            viewModel.uiEvents.test {
+                viewModel.syncWithPeer("peer-1", SyncDirection.PUSH)
+                assertThat(awaitItem()).isInstanceOf(UserMessage.Raw::class.java)
+            }
+            assertThat(viewModel.isSyncingWithPeer.value).isFalse()
+        }
+
+    @Test
+    fun `syncWithPeer does nothing and does not mark syncing when the mobile-data gate declines`() =
+        runTest {
+            coEvery { syncComicWithPeerUseCase(any(), any(), any(), any()) } returns SyncWithPeerResult.DECLINED_MOBILE_DATA
+
+            viewModel.syncWithPeer("peer-1", SyncDirection.PUSH)
+
+            // Confirma que o `when` já rodou até o fim (a chamada mockada aconteceu) antes de
+            // checar "nada mais aconteceu" — sem isso a asserção abaixo poderia passar só por
+            // ainda não ter dado tempo da coroutine em `Dispatchers.IO` rodar.
+            coVerify(timeout = 2000) { syncComicWithPeerUseCase("peer-1", any(), SyncDirection.PUSH, any()) }
+
+            // Recusar dados móveis não é "peer não pareado" — não deve mostrar esse erro nem
+            // deixar o spinner de sincronização ligado esperando um evento que nunca chega.
+            assertThat(viewModel.isSyncingWithPeer.value).isFalse()
+            viewModel.uiEvents.test {
+                expectNoEvents()
+            }
+        }
+
+    @Test
+    fun `sendSelectedChaptersToPeer sends an error when the peer is not paired`() =
+        runTest {
+            val fullChapters = listOf(ChapterFileDto(id = 1L, name = "Cap 1", path = "", chapterSort = "1"))
+            allChaptersFlow.value = ChapterPageDto(fullChapters, emptyList(), 20, 0, 1)
+            localChaptersFlow.value = ChapterPageDto(fullChapters, emptyList(), 20, 0, 1)
+            viewModel.allChapters.test {
+                var item = awaitItem()
+                while (item.isEmpty()) item = awaitItem()
+                cancelAndIgnoreRemainingEvents()
+            }
+            coEvery { syncComicWithPeerUseCase(any(), any(), any(), any()) } returns SyncWithPeerResult.NOT_PAIRED
+
+            viewModel.toggleChapterSelection("1")
+            viewModel.uiEvents.test {
+                viewModel.sendSelectedChaptersToPeer("peer-1")
+                assertThat(awaitItem()).isInstanceOf(UserMessage.Raw::class.java)
+            }
+            assertThat(viewModel.isSendingChaptersToPeer.value).isFalse()
+        }
+
+    @Test
+    fun `sendSelectedChaptersToPeer does nothing when the mobile-data gate declines`() =
+        runTest {
+            val fullChapters = listOf(ChapterFileDto(id = 1L, name = "Cap 1", path = "", chapterSort = "1"))
+            allChaptersFlow.value = ChapterPageDto(fullChapters, emptyList(), 20, 0, 1)
+            localChaptersFlow.value = ChapterPageDto(fullChapters, emptyList(), 20, 0, 1)
+            viewModel.allChapters.test {
+                var item = awaitItem()
+                while (item.isEmpty()) item = awaitItem()
+                cancelAndIgnoreRemainingEvents()
+            }
+            coEvery { syncComicWithPeerUseCase(any(), any(), any(), any()) } returns SyncWithPeerResult.DECLINED_MOBILE_DATA
+
+            viewModel.toggleChapterSelection("1")
+            viewModel.sendSelectedChaptersToPeer("peer-1")
+
+            coVerify(timeout = 2000) { syncComicWithPeerUseCase("peer-1", any(), SyncDirection.PUSH, listOf("Cap 1")) }
+
+            assertThat(viewModel.isSendingChaptersToPeer.value).isFalse()
+            viewModel.uiEvents.test {
+                expectNoEvents()
+            }
         }
 }

@@ -25,6 +25,9 @@
 		ui?: {
 			disabled?: boolean;
 			class?: string;
+			/** Sobrescreve o fundo/cor padrão (`bg-muted text-foreground`) do círculo do ícone —
+			 *  mesmo padrão do `ui.iconClass` do AcerolaHeroButton/AcerolaAccordionCard. */
+			iconClass?: string;
 		};
 	};
 
@@ -63,11 +66,14 @@
 		type="button"
 		onclick={events.onClick}
 		disabled={ui?.disabled}
-		class="flex w-full items-center gap-3 p-4 text-left enabled:cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+		class="group flex w-full items-center gap-3 p-4 text-left enabled:cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
 	>
 		{#if icon}
 			<div
-				class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted text-foreground"
+				class={cn(
+					'flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted text-foreground transition-[filter] group-hover:brightness-110',
+					ui?.iconClass
+				)}
 			>
 				{@render icon()}
 			</div>

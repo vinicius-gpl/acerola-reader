@@ -20,20 +20,19 @@ class SyncComicWithPeerUseCase
     constructor(
         private val p2pUseCase: P2pUseCase,
     ) {
-        /** Returns `false` if `peerId` isn't currently paired (nothing was fired). */
-        operator fun invoke(
+        suspend operator fun invoke(
             peerId: String,
             comicName: String,
             direction: SyncDirection,
             chapters: List<String> = emptyList(),
-        ): Boolean {
+        ): SyncWithPeerResult {
             val peerAddress = p2pUseCase.getPairedPeers().find { it.id == peerId }
             if (peerAddress == null) {
                 AcerolaLogger.w("SyncComicWithPeerUseCase", "Peer not paired: $peerId", LogSource.NETWORK)
-                return false
+                return SyncWithPeerResult.NOT_PAIRED
             }
 
-            p2pUseCase.syncComic(peerAddress, comicName, direction, chapters)
-            return true
+            val started = p2pUseCase.syncComic(peerAddress, comicName, direction, chapters)
+            return if (started) SyncWithPeerResult.STARTED else SyncWithPeerResult.DECLINED_MOBILE_DATA
         }
     }

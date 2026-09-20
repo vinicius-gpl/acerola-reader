@@ -27,6 +27,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import br.acerola.comic.common.ux.Acerola
+import br.acerola.comic.common.ux.component.ActionIcon
 import br.acerola.comic.common.ux.theme.AcerolaTheme
 import br.acerola.comic.common.ux.tokens.ShapeTokens
 import br.acerola.comic.common.ux.tokens.SizeTokens
@@ -71,20 +73,18 @@ fun Main.Pattern.Component.TemplateItem(
             trailingContent = {
                 if (!template.isDefault) {
                     Row {
-                        IconButton(onClick = onEdit) {
-                            Icon(
-                                Icons.Default.Edit,
-                                contentDescription = stringResource(id = R.string.description_icon_edit_template),
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                        }
-                        IconButton(onClick = onDelete) {
-                            Icon(
-                                Icons.Default.Delete,
-                                contentDescription = stringResource(id = R.string.description_icon_delete_template),
-                                tint = MaterialTheme.colorScheme.error,
-                            )
-                        }
+                        Acerola.Component.ActionIcon(
+                            icon = Icons.Default.Edit,
+                            onClick = onEdit,
+                            contentDescription = stringResource(id = R.string.description_icon_edit_template),
+                        )
+                        Acerola.Component.ActionIcon(
+                            icon = Icons.Default.Delete,
+                            onClick = onDelete,
+                            contentDescription = stringResource(id = R.string.description_icon_delete_template),
+                            iconTint = MaterialTheme.colorScheme.onError,
+                            iconBackground = MaterialTheme.colorScheme.error,
+                        )
                     }
                 } else {
                     Surface(

@@ -443,8 +443,8 @@
 					{#snippet action()}
 						<AcerolaButtonIcon
 							ui={{
-								class:
-									'text-overlay bg-transparent transition-colors hover:text-primary translate-x-1.5 -mr-1.5'
+								tone: 'accent',
+								class: 'translate-x-1.5 -mr-1.5'
 							}}
 							events={{
 								onClick: (event) => handleActionClick(event, comic.relations.directoryId)

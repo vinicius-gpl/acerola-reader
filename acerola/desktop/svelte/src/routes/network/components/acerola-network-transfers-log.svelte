@@ -18,10 +18,13 @@
 	import CheckIcon from '@lucide/svelte/icons/check';
 	import RefreshCwIcon from '@lucide/svelte/icons/refresh-cw';
 	import ArrowRightIcon from '@lucide/svelte/icons/arrow-right';
+	import ArrowLeftRightIcon from '@lucide/svelte/icons/arrow-left-right';
 	import Trash2Icon from '@lucide/svelte/icons/trash-2';
 	import { m } from '$lib/paraglide/messages';
-	import AcerolaButtonIcon from '$lib/components/acerola-button/acerola-button-icon.svelte';
+	import AcerolaButton from '$lib/components/acerola-button/acerola-button.svelte';
 	import AcerolaAlertDialog from '$lib/components/acerola-alert-dialog/acerola-alert-dialog.svelte';
+	import AcerolaAccordionCard from '$lib/components/acerola-accordion-card/acerola-accordion-card.svelte';
+	import AcerolaHeroButton from '$lib/components/acerola-hero-button/acerola-hero-button.svelte';
 
 	let { data, events }: NetworkTransfersLogProps = $props();
 
@@ -30,6 +33,10 @@
 	// destruído de fato — sem o fallback aqui isso vaza como unhandled error e derruba
 	// a suíte mesmo com todos os asserts passando.
 	let entries = $derived(data?.entries ?? []);
+
+	// Fechado por padrão, expande em linha — mesmo componente e mesma ideia do card de
+	// Configurações de Relay logo acima nessa tela, em vez de um dialog à parte.
+	let expanded = $state(false);
 
 	type EntryMessageByStatus = Partial<
 		Record<TransferLogEntry['status'], (entry: TransferLogEntry) => string>
@@ -83,48 +90,69 @@
 		}
 		return base;
 	}
+
+	// Resumo mostrado no cabeçalho do accordion fechado — a entrada mais recente
+	// (`entries[0]`, ver `use-network-sync.svelte.ts`) ou o texto de vazio.
+	let summary = $derived(
+		entries.length > 0 ? describeEntry(entries[0]) : m['pages.network.transfers.empty']()
+	);
+
+	// Fundo do círculo do ícone SÓLIDO tintado pelo status (o bg contorna o ícone, que fica
+	// numa cor de foreground neutra por cima) — não o `bg-muted` genérico padrão do
+	// AcerolaHeroButton.
+	function iconBackgroundClass(entry: TransferLogEntry): string {
+		if (entry.status === 'error') return 'bg-destructive text-destructive-foreground';
+		if (entry.status === 'complete') return 'bg-chart-3 text-primary-foreground';
+		return 'bg-muted text-muted-foreground';
+	}
 </script>
 
-<div class="rounded-2xl border border-border/40 bg-card/50 p-4 backdrop-blur-sm">
-	<div class="mb-3 flex items-center justify-between gap-3">
-		<p class="text-xs font-bold tracking-widest text-muted-foreground uppercase">
-			{m['pages.network.transfers.title']()}
-		</p>
-		<div class="flex items-center gap-1">
-			<AcerolaButtonIcon
-				events={{ onClick: () => events?.onRefresh?.() }}
-				ui={{
-					variant: 'ghost',
-					class: 'size-8 text-muted-foreground hover:bg-muted hover:text-foreground',
-					'aria-label': m['pages.network.transfers.refresh']()
-				}}
-			>
-				<RefreshCwIcon size={14} />
-			</AcerolaButtonIcon>
+<AcerolaAccordionCard
+	data={{ title: m['pages.network.transfers.title'](), description: summary }}
+	state={{ expanded }}
+	events={{ onToggle: () => (expanded = !expanded) }}
+	ui={{ iconClass: 'bg-accent-hero text-accent-hero-foreground' }}
+>
+	{#snippet icon()}
+		<ArrowLeftRightIcon size={20} />
+	{/snippet}
 
-			{#if entries.length > 0}
-				<AcerolaAlertDialog
-					data={{
-						title: m['pages.network.transfers.clear.title'](),
-						description: m['pages.network.transfers.clear.desc'](),
-						cancelText: m['pages.network.transfers.clear.cancel'](),
-						actionText: m['pages.network.transfers.clear.confirm']()
+	<div class="flex items-center justify-end gap-1">
+		<AcerolaButton
+			events={{ onClick: () => events?.onRefresh?.() }}
+			ui={{
+				variant: 'ghost',
+				size: 'sm',
+				class: 'h-8 gap-1.5 bg-accent-hero/15 px-2.5 text-accent-hero hover:bg-accent-hero/25'
+			}}
+		>
+			<RefreshCwIcon size={14} />
+			{m['pages.network.transfers.refresh']()}
+		</AcerolaButton>
+
+		{#if entries.length > 0}
+			<AcerolaAlertDialog
+				data={{
+					title: m['pages.network.transfers.clear.title'](),
+					description: m['pages.network.transfers.clear.desc'](),
+					cancelText: m['pages.network.transfers.clear.cancel'](),
+					actionText: m['pages.network.transfers.clear.confirm']()
+				}}
+				ui={{ variant: 'destructive' }}
+				events={{ onAction: () => events?.onClear?.() }}
+			>
+				<AcerolaButton
+					ui={{
+						variant: 'ghost',
+						size: 'sm',
+						class: 'h-8 gap-1.5 bg-destructive/15 px-2.5 text-destructive hover:bg-destructive/25'
 					}}
-					ui={{ variant: 'destructive' }}
-					events={{ onAction: () => events?.onClear?.() }}
 				>
-					<AcerolaButtonIcon
-						ui={{
-							variant: 'ghost',
-							class: 'size-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive',
-							'aria-label': m['pages.network.transfers.clear.button']()
-						}}
-					>
-						<Trash2Icon size={14} />
-					</AcerolaButtonIcon>
-				</AcerolaAlertDialog>
-			{/if}
-		</div>
+					<Trash2Icon size={14} />
+					{m['pages.network.transfers.clear.button']()}
+				</AcerolaButton>
+			</AcerolaAlertDialog>
+		{/if}
 	</div>
 
 	{#if entries.length === 0}
@@ -132,25 +160,28 @@
 			{m['pages.network.transfers.empty']()}
 		</p>
 	{:else}
-		<ul class="max-h-80 space-y-1 overflow-y-auto">
+		<div class="max-h-[28rem] space-y-2 overflow-y-auto pr-1">
 			{#each entries as entry (entry.id)}
-				<li class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm hover:bg-muted/50">
-					{#if entry.status === 'error'}
-						<AlertCircleIcon size={14} class="shrink-0 text-destructive" />
-					{:else if entry.status === 'complete'}
-						<CheckIcon size={14} class="shrink-0 text-chart-3" />
-					{:else if entry.status === 'started'}
-						<RefreshCwIcon size={14} class="shrink-0 animate-spin text-muted-foreground" />
-					{:else}
-						<ArrowRightIcon size={14} class="shrink-0 text-muted-foreground" />
-					{/if}
-
-					<span class="flex-1 truncate text-foreground">{describeEntry(entry)}</span>
-					<span class="shrink-0 text-xs text-muted-foreground">
-						{new Date(entry.timestamp).toLocaleTimeString()}
-					</span>
-				</li>
+				<AcerolaHeroButton
+					data={{
+						title: describeEntry(entry),
+						description: new Date(entry.timestamp).toLocaleTimeString()
+					}}
+					ui={{ iconClass: iconBackgroundClass(entry) }}
+				>
+					{#snippet icon()}
+						{#if entry.status === 'error'}
+							<AlertCircleIcon size={20} />
+						{:else if entry.status === 'complete'}
+							<CheckIcon size={20} />
+						{:else if entry.status === 'started'}
+							<RefreshCwIcon size={20} class="animate-spin" />
+						{:else}
+							<ArrowRightIcon size={20} />
+						{/if}
+					{/snippet}
+				</AcerolaHeroButton>
 			{/each}
-		</ul>
+		</div>
 	{/if}
-</div>
+</AcerolaAccordionCard>

@@ -52,16 +52,18 @@ describe('useReaderZoom', () => {
 		expect(zoom.zoomLayerStyle).toContain('scale(1)');
 	});
 
-	it('applies quick zoom using pointer point as origin', async () => {
+	it('applies quick zoom anchored at the viewport center', async () => {
 		const zoom = await renderHook();
 		const viewport = createViewport();
 
 		zoom.setViewport(viewport);
-		zoom.toggleQuickZoom(new MouseEvent('click', { clientX: 110, clientY: 70 }));
+		zoom.toggleQuickZoom();
 
 		expect(zoom.zoomLevel).toBe(1.65);
 		expect(zoom.isZoomed).toBe(true);
-		expect(zoom.zoomLayerStyle).toContain('transform-origin: 110px 70px');
+		// Origem sempre no centro do viewport (scrollLeft/Top + metade do retângulo), nunca no
+		// ponto do clique — evita crescimento assimétrico que prendia o pan fora da imagem.
+		expect(zoom.zoomLayerStyle).toContain('transform-origin: 210px 170px');
 	});
 
 	it('clamps zoom between minimum and maximum', async () => {

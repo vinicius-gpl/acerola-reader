@@ -18,7 +18,7 @@
 
 <div class="flex items-center gap-3">
 	{#if events?.onBack}
-		<AcerolaButtonIcon events={{ onClick: events.onBack }} ui={{ size: 'sm' }}>
+		<AcerolaButtonIcon events={{ onClick: events.onBack }} ui={{ size: 'sm', tone: 'accent' }}>
 			<ArrowLeft size={18} />
 		</AcerolaButtonIcon>
 	{/if}
