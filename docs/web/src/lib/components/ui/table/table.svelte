@@ -17,7 +17,7 @@
 	<table
 		bind:this={ref}
 		data-slot="table"
-		class={cn('w-full caption-bottom border-collapse text-sm', className)}
+		class={cn('w-full min-w-full caption-bottom border-collapse text-sm', className)}
 		{...restProps}
 	>
 		{@render children?.()}
