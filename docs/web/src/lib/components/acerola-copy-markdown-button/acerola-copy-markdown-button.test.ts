@@ -23,14 +23,14 @@ describe('AcerolaCopyMarkdownButton', () => {
 		render(AcerolaCopyMarkdownButton, {
 			props: {
 				raw: '# Getting Started\n\nSome content.',
-				url: 'https://docs.acerola-comic.com/docs/getting-started'
+				url: 'https://docs.acerola.app/docs/getting-started'
 			}
 		});
 
 		await fireEvent.click(screen.getByRole('button', { name: 'Copy page as Markdown' }));
 
 		expect(writeText).toHaveBeenCalledWith(
-			'<!-- URL: https://docs.acerola-comic.com/docs/getting-started -->\n\n# Getting Started\n\nSome content.'
+			'<!-- URL: https://docs.acerola.app/docs/getting-started -->\n\n# Getting Started\n\nSome content.'
 		);
 		expect(screen.getByRole('button', { name: 'Copied' })).toBeInTheDocument();
 
@@ -43,7 +43,7 @@ describe('AcerolaCopyMarkdownButton', () => {
 		render(AcerolaCopyMarkdownButton, {
 			props: {
 				raw: '# Doc',
-				url: 'https://docs.acerola-comic.com/docs/doc',
+				url: 'https://docs.acerola.app/docs/doc',
 				label: 'Copiar como Markdown',
 				copiedLabel: 'Copiado'
 			}
@@ -61,7 +61,7 @@ describe('AcerolaCopyMarkdownButton', () => {
 		render(AcerolaCopyMarkdownButton, {
 			props: {
 				raw: '# Doc',
-				url: 'https://docs.acerola-comic.com/docs/doc',
+				url: 'https://docs.acerola.app/docs/doc',
 				failedLabel: "Couldn't copy"
 			}
 		});
