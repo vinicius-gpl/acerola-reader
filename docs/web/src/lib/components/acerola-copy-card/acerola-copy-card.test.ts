@@ -25,10 +25,10 @@ afterEach(() => {
 
 describe('AcerolaCopyCard', () => {
 	it('renders the label and value as plain text when no href is given', () => {
-		render(AcerolaCopyCard, { props: { label: 'Contato', value: 'contato@acerola-comic.com' } });
+		render(AcerolaCopyCard, { props: { label: 'Contato', value: 'contact@acerola.app' } });
 
 		expect(screen.getByText('Contato')).toBeInTheDocument();
-		expect(screen.getByText('contato@acerola-comic.com')).toBeInTheDocument();
+		expect(screen.getByText('contact@acerola.app')).toBeInTheDocument();
 		expect(screen.queryByRole('link')).not.toBeInTheDocument();
 	});
 
@@ -36,23 +36,23 @@ describe('AcerolaCopyCard', () => {
 		render(AcerolaCopyCard, {
 			props: {
 				label: 'Contato',
-				value: 'contato@acerola-comic.com',
-				href: 'mailto:contato@acerola-comic.com'
+				value: 'contact@acerola.app',
+				href: 'mailto:contact@acerola.app'
 			}
 		});
 
-		expect(screen.getByRole('link', { name: 'contato@acerola-comic.com' })).toHaveAttribute(
+		expect(screen.getByRole('link', { name: 'contact@acerola.app' })).toHaveAttribute(
 			'href',
-			'mailto:contato@acerola-comic.com'
+			'mailto:contact@acerola.app'
 		);
 	});
 
 	it('copies the value to the clipboard and shows feedback that resets after a while', async () => {
-		render(AcerolaCopyCard, { props: { label: 'Contato', value: 'contato@acerola-comic.com' } });
+		render(AcerolaCopyCard, { props: { label: 'Contato', value: 'contact@acerola.app' } });
 
 		await fireEvent.click(screen.getByRole('button', { name: 'Copy' }));
 
-		expect(writeText).toHaveBeenCalledWith('contato@acerola-comic.com');
+		expect(writeText).toHaveBeenCalledWith('contact@acerola.app');
 		expect(screen.getByRole('button', { name: 'Copied' })).toBeInTheDocument();
 
 		await vi.advanceTimersByTimeAsync(2000);
@@ -64,7 +64,7 @@ describe('AcerolaCopyCard', () => {
 		render(AcerolaCopyCard, {
 			props: {
 				label: 'Contato',
-				value: 'contato@acerola-comic.com',
+				value: 'contact@acerola.app',
 				copyLabel: 'Copiar',
 				copiedLabel: 'Copiado'
 			}

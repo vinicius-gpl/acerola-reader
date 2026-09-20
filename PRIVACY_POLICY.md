@@ -1,7 +1,7 @@
 # Política de Privacidade — Acerola
 
 **Controlador:** Vinícius Gabriel Pereira Leitão, desenvolvedor independente do aplicativo Acerola.
-**Contato:** <contato@acerola-comic.com>
+**Contato:** <contact@acerola.app>
 
 ## 1. Natureza do aplicativo
 

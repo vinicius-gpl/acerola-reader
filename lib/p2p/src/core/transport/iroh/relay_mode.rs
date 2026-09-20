@@ -13,7 +13,7 @@ use crate::infra::error::ConnectionError;
 
 /// URL do relay oficial mantido pelo ecossistema Acerola ("relay próprio", self-hosted,
 /// aberto ao público — sem autenticação, diferente do relay da rede pública do Iroh abaixo).
-pub const ACEROLA_DEFAULT_RELAY_URL: &str = "https://relay.acerola-comic.com";
+pub const ACEROLA_DEFAULT_RELAY_URL: &str = "https://relay.acerola.app";
 
 /// Validade do token de autenticação derivado do ticket do usuário — mesmo padrão (30 dias)
 /// usado pelo preset oficial da `iroh_services` (`PresetBuilder::build`).

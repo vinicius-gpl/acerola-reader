@@ -34,7 +34,7 @@
 	name="Default"
 	args={{
 		raw: '---\ntitle: Primeiros passos\nsection: Primeiros passos\n---\n\n# Primeiros passos\n\nConteúdo de exemplo.',
-		url: 'https://docs.acerola-comic.com/docs/getting-started'
+		url: 'https://docs.acerola.app/docs/getting-started'
 	}}
 	parameters={{
 		docs: {
@@ -49,7 +49,7 @@
 	name="CustomLabels"
 	args={{
 		raw: '---\ntitle: Contribuindo\n---\n\n# Contribuindo',
-		url: 'https://docs.acerola-comic.com/docs/contributing-overview',
+		url: 'https://docs.acerola.app/docs/contributing-overview',
 		label: 'Copiar como Markdown',
 		copiedLabel: 'Copiado'
 	}}
@@ -67,7 +67,7 @@
 	name="CustomFailedLabel"
 	args={{
 		raw: '# Doc',
-		url: 'https://docs.acerola-comic.com/docs/doc',
+		url: 'https://docs.acerola.app/docs/doc',
 		failedLabel: 'Falha ao copiar'
 	}}
 	parameters={{
