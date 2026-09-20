@@ -152,12 +152,19 @@ figure[data-rehype-pretty-code-figure] code[data-line-numbers] > [data-line]::be
 	@apply my-8 border-border;
 }
 
-/* Tabelas em markdown viram `<table>`/`<th>`/`<td>` puro via remark-gfm — o
-   componente Table (src/lib/components/ui/table/) não entra nesse pipeline,
-   então precisam do próprio estilo aqui. Tokens espelham os do componente. */
+/* Tabelas em markdown viram `<table>`/`<th>`/`<td>` puro via remark-gfm.
+   Tanto tabelas markdown quanto componentes Table compartilham este estilo
+   dentro de .doc-content. O contêiner pai gerencia borda, arredondamento e rolagem
+   horizontal para preservar display: table e permitir que colunas e divisórias
+   preencham 100% da largura do contêiner. */
+.doc-content :where([data-slot='table-container']),
+.doc-content :where(.table-container) {
+	@apply relative my-6 w-full overflow-x-auto rounded-lg border border-border;
+}
+
 .doc-content :where(table) {
-	@apply my-6 block w-full overflow-x-auto rounded-lg border border-border text-sm;
-	border-collapse: collapse;
+	@apply w-full min-w-full caption-bottom border-collapse text-sm;
+	display: table;
 }
 
 .doc-content :where(thead) {
