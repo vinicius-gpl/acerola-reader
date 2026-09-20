@@ -121,7 +121,7 @@ jobs:
       # releases (mesma ideia de um pool de pacotes de distro Linux).
       - name: Upload APK to R2 (versioned archive)
         if: env.CHANNEL == 'prod'
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -138,7 +138,7 @@ jobs:
       # pra tolerar mais de um APK ali até uma limpeza periódica acontecer.
       - name: Upload APK to R2 (latest)
         if: env.CHANNEL == 'prod'
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
