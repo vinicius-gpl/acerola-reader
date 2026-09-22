@@ -7,18 +7,8 @@ Cliente desktop multiplataforma do ecossistema **acerola**. Aponte para uma past
 ## Preview
 
 <p align="center">
-  <img src="../docs/github/desktop/banner/01-home.png" alt="Acerola Desktop Home" width="70%">
+  <img src="../../docs/github/desktop/banner/acerola-desktop-solo.png" alt="Acerola Desktop" width="70%">
 </p>
-
-<p align="center">
-  <img src="../docs/github/desktop/banner/02-reader.png" alt="Acerola Desktop Reader" width="70%">
-</p>
-
-<p align="center">
-  <img src="../docs/github/desktop/banner/03-history.png" alt="Acerola Desktop History" width="70%">
-</p>
-
-> **Nota:** Os banners acima foram produzidos com auxílio de Inteligência Artificial e posteriormente refinados para representar a identidade visual e a experiência do acerola-desktop.
 
 ---
 
@@ -26,24 +16,33 @@ Cliente desktop multiplataforma do ecossistema **acerola**. Aponte para uma past
 
 <table>
   <tr>
-    <td rowspan="2" valign="top" align="center">
-      <img src="../docs/github/desktop/prints/reader-screen.png" width="260" style="display:block;"><br>
+    <td rowspan="3" valign="top" align="center">
+      <img src="../../docs/github/desktop/prints/reader-screen.png" width="260" style="display:block;"><br>
       <sub><b>Leitura</b></sub>
     </td>
     <td align="center">
-      <img src="../docs/github/desktop/prints/home-screen.png" width="140"><br>
+      <img src="../../docs/github/desktop/prints/home-screen.png" width="140"><br>
       <sub><b>Home</b></sub>
     </td>
     <td align="center">
-      <img src="../docs/github/desktop/prints/config-screen.png" width="140"><br>
+      <img src="../../docs/github/desktop/prints/chapters-screen.png" width="140"><br>
+      <sub><b>Capítulos</b></sub>
+    </td>
+    <td align="center">
+      <img src="../../docs/github/desktop/prints/config-screen.png" width="140"><br>
       <sub><b>Configurações</b></sub>
     </td>
   </tr>
   <tr>
-    <td colspan="2" align="center">
-      <img src="../docs/github/desktop/prints/history-screen.png" width="140"><br>
+    <td align="center">
+      <img src="../../docs/github/desktop/prints/history-screen.png" width="140"><br>
       <sub><b>Histórico</b></sub>
     </td>
+    <td align="center">
+      <img src="../../docs/github/desktop/prints/network-screen.png" width="140"><br>
+      <sub><b>Rede</b></sub>
+    </td>
+    <td></td>
   </tr>
 </table>
 
