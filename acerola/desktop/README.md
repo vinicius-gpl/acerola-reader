@@ -7,7 +7,7 @@ Cliente desktop multiplataforma do ecossistema **acerola**. Aponte para uma past
 ## Preview
 
 <p align="center">
-  <img src="../docs/github/desktop/banner/acerola-desktop-solo.png" alt="Acerola Desktop" width="70%">
+  <img src="../../docs/github/desktop/banner/acerola-desktop-solo.png" alt="Acerola Desktop" width="70%">
 </p>
 
 ---
@@ -17,29 +17,29 @@ Cliente desktop multiplataforma do ecossistema **acerola**. Aponte para uma past
 <table>
   <tr>
     <td rowspan="3" valign="top" align="center">
-      <img src="../docs/github/desktop/prints/reader-screen.png" width="260" style="display:block;"><br>
+      <img src="../../docs/github/desktop/prints/reader-screen.png" width="260" style="display:block;"><br>
       <sub><b>Leitura</b></sub>
     </td>
     <td align="center">
-      <img src="../docs/github/desktop/prints/home-screen.png" width="140"><br>
+      <img src="../../docs/github/desktop/prints/home-screen.png" width="140"><br>
       <sub><b>Home</b></sub>
     </td>
     <td align="center">
-      <img src="../docs/github/desktop/prints/chapters-screen.png" width="140"><br>
+      <img src="../../docs/github/desktop/prints/chapters-screen.png" width="140"><br>
       <sub><b>Capítulos</b></sub>
     </td>
     <td align="center">
-      <img src="../docs/github/desktop/prints/config-screen.png" width="140"><br>
+      <img src="../../docs/github/desktop/prints/config-screen.png" width="140"><br>
       <sub><b>Configurações</b></sub>
     </td>
   </tr>
   <tr>
     <td align="center">
-      <img src="../docs/github/desktop/prints/history-screen.png" width="140"><br>
+      <img src="../../docs/github/desktop/prints/history-screen.png" width="140"><br>
       <sub><b>Histórico</b></sub>
     </td>
     <td align="center">
-      <img src="../docs/github/desktop/prints/network-screen.png" width="140"><br>
+      <img src="../../docs/github/desktop/prints/network-screen.png" width="140"><br>
       <sub><b>Rede</b></sub>
     </td>
     <td></td>

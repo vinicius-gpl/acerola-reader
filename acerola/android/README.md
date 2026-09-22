@@ -7,7 +7,7 @@ Acerola é um leitor de mangá para Android focado em coleções locais. Basta a
 ## Preview
 
 <p align="center">
-  <img src="../docs/github/android/banner/acerola-android-solo.png" alt="Acerola Android" width="70%">
+  <img src="../../docs/github/android/banner/acerola-android-solo.png" alt="Acerola Android" width="70%">
 </p>
 
 ---
@@ -17,30 +17,30 @@ Acerola é um leitor de mangá para Android focado em coleções locais. Basta a
 <table>
   <tr>
     <td rowspan="3" valign="top" align="center">
-      <img src="../docs/github/android/prints/reader-screen.png" width="260" style="display:block;"><br>
+      <img src="../../docs/github/android/prints/reader-screen.png" width="260" style="display:block;"><br>
       <sub><b>Leitura</b></sub>
     </td>
     <td align="center">
-      <img src="../docs/github/android/prints/home-screen.png" width="140"><br>
+      <img src="../../docs/github/android/prints/home-screen.png" width="140"><br>
       <sub><b>Home</b></sub>
     </td>
     <td align="center">
-      <img src="../docs/github/android/prints/chapters-screen.png" width="140"><br>
+      <img src="../../docs/github/android/prints/chapters-screen.png" width="140"><br>
       <sub><b>Capítulos</b></sub>
     </td>
     <td align="center">
-      <img src="../docs/github/android/prints/config-screen.png" width="140"><br>
+      <img src="../../docs/github/android/prints/config-screen.png" width="140"><br>
       <sub><b>Configurações</b></sub>
     </td>
   </tr>
 
   <tr>
     <td align="center">
-      <img src="../docs/github/android/prints/history-screen.png" width="140"><br>
+      <img src="../../docs/github/android/prints/history-screen.png" width="140"><br>
       <sub><b>Histórico</b></sub>
     </td>
     <td align="center">
-      <img src="../docs/github/android/prints/network-screen.png" width="140"><br>
+      <img src="../../docs/github/android/prints/network-screen.png" width="140"><br>
       <sub><b>Rede</b></sub>
     </td>
     <td></td>
