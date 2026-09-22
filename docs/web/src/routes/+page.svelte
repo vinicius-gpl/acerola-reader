@@ -12,43 +12,14 @@
 	import AcerolaApkDownloadButton from '$lib/components/acerola-apk-download-button/acerola-apk-download-button.svelte';
 	import AcerolaCallout from '$lib/components/acerola-callout/acerola-callout.svelte';
 	import AcerolaMicrosoftStoreButton from '$lib/components/acerola-microsoft-store-button/acerola-microsoft-store-button.svelte';
-	import AcerolaFaultyTerminal from '$lib/components/acerola-faulty-terminal/acerola-faulty-terminal.svelte';
 	import AcerolaShinyText from '$lib/components/acerola-shiny-text/acerola-shiny-text.svelte';
 	import CardGrid from '$lib/mdsvex/card-grid.svelte';
 	import PlatformCard from '$lib/mdsvex/platform-card.svelte';
 	import Steps from '$lib/mdsvex/steps.svelte';
 	import GithubIcon from '$lib/icons/github.svelte';
 	import { GITHUB_URL } from '$lib/constants/site';
-	import { useTheme } from '$lib/hooks/theme/use-theme.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { localizeHref } from '$lib/paraglide/runtime';
-
-	const themeCtx = useTheme();
-
-	// Matches the default theme's dark --primary until the effect below reads the
-	// real, currently-active value (light/dark and all 4 palettes have their own).
-	let heroTint = $state('#cba6f7');
-	let prefersReducedMotion = $state(false);
-	let bgReady = $state(false);
-
-	$effect(() => {
-		prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-	});
-
-	$effect(() => {
-		// FaultyTerminal has no "ready" signal of its own — a short delay before
-		// fading it in avoids the pop-in flash while its WebGL context spins up.
-		const timeout = setTimeout(() => (bgReady = true), 300);
-		return () => clearTimeout(timeout);
-	});
-
-	$effect(() => {
-		// Re-read whenever the active palette or light/dark mode changes.
-		themeCtx.theme;
-		themeCtx.resolved;
-		heroTint =
-			getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || heroTint;
-	});
 
 	const features = [
 		{ key: 'no_cloud', icon: CloudOffIcon },
@@ -101,32 +72,9 @@
 	<title>{m['site.name']()} — {m['nav.docs']()}</title>
 </svelte:head>
 
-<div class="relative">
-	{#if !prefersReducedMotion}
-		<div
-			class="fixed inset-x-0 top-14 bottom-0 -z-10 transition-opacity duration-500 ease-out"
-			class:opacity-0={!bgReady}
-			style="mask-image: linear-gradient(to bottom, black 85%, transparent); -webkit-mask-image: linear-gradient(to bottom, black 85%, transparent);"
-		>
-			<AcerolaFaultyTerminal
-				tint={heroTint}
-				scale={1.5}
-				digitSize={1.2}
-				timeScale={1.8}
-				noiseAmp={1}
-				brightness={0.5}
-				scanlineIntensity={0}
-				curvature={0.22}
-				mouseStrength={0.6}
-				mouseReact={true}
-				pageLoadAnimation={true}
-				class="h-full w-full"
-			/>
-		</div>
-	{/if}
-
+<div>
 	<div
-		class="relative z-10 mx-auto max-w-[90rem] px-4 sm:px-6 lg:grid lg:grid-cols-[minmax(440px,38%)_1fr] lg:items-start lg:gap-24 lg:px-8"
+		class="mx-auto max-w-[90rem] px-4 sm:px-6 lg:grid lg:grid-cols-[minmax(440px,38%)_1fr] lg:items-start lg:gap-24 lg:px-8"
 	>
 		<!-- Coluna fixa: título + botões de download, gruda no topo enquanto a
 		     coluna de introdução rola ao lado. -->
