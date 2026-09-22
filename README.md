@@ -1,5 +1,9 @@
 # Acerola
 
+<p align="center">
+  <img src="docs/github/acerola-duo-sidebyside.png" alt="Acerola — Android e Desktop" width="85%">
+</p>
+
 Ecossistema de leitura de quadrinhos/mangás locais com sincronização 100% P2P entre dispositivos — sem servidor central, sem conta, sem nuvem.
 
 Este é um monorepo: cada plataforma vive isolada em `acerola/`, com sua própria stack e seu próprio README completo. Nenhuma plataforma depende diretamente de outra — todas consomem as bibliotecas compartilhadas em `lib/` via dependência `path` local (não git), então uma mudança em `lib/p2p/` já reflete direto nos consumidores sem precisar publicar/atualizar nada.

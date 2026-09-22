@@ -7,18 +7,8 @@ Acerola é um leitor de mangá para Android focado em coleções locais. Basta a
 ## Preview
 
 <p align="center">
-  <img src="../docs/github/android/banner/01-home.png" alt="Acerola Home" width="70%">
+  <img src="../../docs/github/android/banner/acerola-android-solo.png" alt="Acerola Android" width="70%">
 </p>
-
-<p align="center">
-  <img src="../docs/github/android/banner/02-reader.png" alt="Acerola Reader" width="70%">
-</p>
-
-<p align="center">
-  <img src="../docs/github/android/banner/03-customization.png" alt="Acerola Customization" width="70%">
-</p>
-
-> **Nota:** Os banners apresentados acima foram produzidos com auxílio de Inteligência Artificial e posteriormente refinados para representar a identidade visual e a experiência do Acerola.
 
 ---
 
@@ -26,33 +16,34 @@ Acerola é um leitor de mangá para Android focado em coleções locais. Basta a
 
 <table>
   <tr>
-    <td rowspan="2" valign="top" align="center">
-      <img src="../docs/github/android/prints/reader-screen.png" width="260" style="display:block;"><br>
+    <td rowspan="3" valign="top" align="center">
+      <img src="../../docs/github/android/prints/reader-screen.png" width="260" style="display:block;"><br>
       <sub><b>Leitura</b></sub>
     </td>
     <td align="center">
-      <img src="../docs/github/android/prints/home-screen.png" width="140"><br>
+      <img src="../../docs/github/android/prints/home-screen.png" width="140"><br>
       <sub><b>Home</b></sub>
     </td>
     <td align="center">
-      <img src="../docs/github/android/prints/comic-screen.png" width="140"><br>
-      <sub><b>Mangá</b></sub>
+      <img src="../../docs/github/android/prints/chapters-screen.png" width="140"><br>
+      <sub><b>Capítulos</b></sub>
     </td>
     <td align="center">
-      <img src="../docs/github/android/prints/config-screen.png" width="140"><br>
+      <img src="../../docs/github/android/prints/config-screen.png" width="140"><br>
       <sub><b>Configurações</b></sub>
     </td>
   </tr>
 
   <tr>
     <td align="center">
-      <img src="../docs/github/android/prints/history-screen.png" width="140"><br>
+      <img src="../../docs/github/android/prints/history-screen.png" width="140"><br>
       <sub><b>Histórico</b></sub>
     </td>
     <td align="center">
-      <img src="../docs/github/android/prints/onboarding-screen.png" width="140"><br>
-      <sub><b>Onboarding</b></sub>
+      <img src="../../docs/github/android/prints/network-screen.png" width="140"><br>
+      <sub><b>Rede</b></sub>
     </td>
+    <td></td>
   </tr>
 </table>
 
