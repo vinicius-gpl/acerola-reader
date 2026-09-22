@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "acerola"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "acerola-p2p",
  "aes-gcm",
@@ -49,7 +49,7 @@ dependencies = [
 
 [[package]]
 name = "acerola-p2p"
-version = "1.0.4"
+version = "1.0.5"
 dependencies = [
  "async-trait",
  "blake3",
