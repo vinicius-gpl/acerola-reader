@@ -1,0 +1,36 @@
+# Formato: [tag](escopo): descrição curta (máx. 72 chars)
+# Exemplo:  [fix](desktop): corrige leak de conexão no reader
+# |<---  72 chars  --------------------------------------------------->|
+
+
+# ── Corpo (opcional) ─────────────────────────────────────────────────
+# Explique O QUÊ e POR QUÊ, não o como.
+# Máx. 72 chars por linha.
+
+
+# ── Rodapé (opcional) ────────────────────────────────────────────────
+# Refs: #<número-da-issue>
+# BREAKING CHANGE: <descrição se houver quebra de API/comportamento>
+
+# ─────────────────────────────────────────────────────────────────────
+# TAGS:
+#   feat      → nova funcionalidade
+#   fix       → correção de bug
+#   docs      → documentação
+#   refactor  → refatoração sem alterar comportamento
+#   perf      → melhoria de desempenho
+#   test      → adição ou ajuste de testes
+#   style     → formatação, lint visual sem mudança lógica
+#   chore     → manutenção (deps, scripts, tarefas internas)
+#   ci        → pipelines de CI/CD e workflows
+#   merge     → merge de branch
+#
+# ESCOPOS:
+#   android   → acerola/android/
+#   desktop   → acerola/desktop/
+#   p2p       → lib/p2p/
+#   relay     → acerola/relay/
+#   iroh      → lib/relay/ (código vendorizado do iroh)
+#   web       → docs/web/ (portal web e documentação)
+#   monorepo  → raiz do repo (configs globais, makefile, docs raiz)
+# ─────────────────────────────────────────────────────────────────────
