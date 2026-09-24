@@ -22,11 +22,12 @@
 #     relay     acerola/relay/
 #     iroh      lib/relay/ (código vendorizado do iroh)
 #     web       docs/web/ (portal web e documentação)
+#     docs      documentação geral e portal docs (usado pelas Actions de deploy)
 #     monorepo  raiz do repo (configs globais, makefile, docs raiz)
 
 commit-msg:
   commands:
     validate-format:
       run: |
-        grep -qP '^(\[merge\]: .+|\[(feat|fix|docs|refactor|perf|test|style|chore|ci|merge)\]\((android|desktop|p2p|relay|iroh|web|monorepo)\): .+)' {1} \
+        grep -qP '^(\[merge\]: .+|\[(feat|fix|docs|refactor|perf|test|style|chore|ci|merge)\]\((android|desktop|p2p|relay|iroh|web|docs|monorepo)\): .+)' {1} \
         || (echo "" && echo "❌  Mensagem de commit inválida." && echo "" && echo "    Formato esperado: [tag](escopo): descrição" && echo "    Exemplo:          [fix](desktop): corrige leak de conexão no reader" && echo "" && exit 1)

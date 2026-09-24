@@ -32,5 +32,6 @@
 #   relay     → acerola/relay/
 #   iroh      → lib/relay/ (código vendorizado do iroh)
 #   web       → docs/web/ (portal web e documentação)
+#   docs      → documentação geral e portal docs (usado pelas Actions de deploy)
 #   monorepo  → raiz do repo (configs globais, makefile, docs raiz)
 # ─────────────────────────────────────────────────────────────────────
