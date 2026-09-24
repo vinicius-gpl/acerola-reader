@@ -1,0 +1,32 @@
+# Lefthook — gerenciador de Git hooks do monorepo acerola-reader.
+# Instalação: cargo install lefthook && lefthook install
+#
+# Convenção de commit: [tag](escopo): descrição
+#
+#   Tags válidas:
+#     feat      nova funcionalidade
+#     fix       correção de bug
+#     docs      documentação
+#     refactor  refatoração sem alterar comportamento
+#     perf      melhoria de desempenho
+#     test      adição ou ajuste de testes
+#     style     formatação, lint visual sem mudança lógica
+#     chore     manutenção (deps, scripts, tarefas internas)
+#     ci        pipelines de CI/CD e workflows
+#     merge     merge de branch
+#
+#   Escopos válidos:
+#     android   acerola/android/
+#     desktop   acerola/desktop/
+#     p2p       lib/p2p/
+#     relay     acerola/relay/
+#     iroh      lib/relay/ (código vendorizado do iroh)
+#     web       docs/web/ (portal web e documentação)
+#     monorepo  raiz do repo (configs globais, makefile, docs raiz)
+
+commit-msg:
+  commands:
+    validate-format:
+      run: |
+        grep -qP '^(\[merge\]: .+|\[(feat|fix|docs|refactor|perf|test|style|chore|ci|merge)\]\((android|desktop|p2p|relay|iroh|web|monorepo)\): .+)' {1} \
+        || (echo "" && echo "❌  Mensagem de commit inválida." && echo "" && echo "    Formato esperado: [tag](escopo): descrição" && echo "    Exemplo:          [fix](desktop): corrige leak de conexão no reader" && echo "" && exit 1)
