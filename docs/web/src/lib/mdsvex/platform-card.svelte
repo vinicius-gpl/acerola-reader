@@ -1,5 +1,6 @@
 <script lang="ts">
 	import * as Card from '$lib/components/ui/card/index';
+	import { card3D } from '$lib/actions/card-3d';
 	import type { Component, Snippet } from 'svelte';
 
 	let {
@@ -13,10 +14,19 @@
 		icon?: Component;
 		children?: Snippet;
 	} = $props();
+
+	let cardEl = $state<HTMLDivElement | null>(null);
+
+	$effect(() => {
+		if (!cardEl) return;
+		const action = card3D(cardEl, { maxRotation: 5, hoverScale: 1.02 });
+		return () => action?.destroy?.();
+	});
 </script>
 
 <Card.Root
-	class="items-center gap-4 p-6 text-center ring-1 ring-border transition-all hover:-translate-y-0.5 hover:shadow-lg hover:ring-primary/40"
+	bind:ref={cardEl}
+	class="items-center gap-4 p-6 text-center ring-1 ring-border transition-all hover:shadow-lg hover:ring-primary/40"
 >
 	{#if icon}
 		{@const Icon = icon}

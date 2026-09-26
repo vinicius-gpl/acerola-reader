@@ -89,6 +89,7 @@
 		"hero_subtitle": "Your library stays on your devices and syncs directly between them over encrypted P2P — no server stores or sees your data.",
 		"cta_get_started": "Get Started",
 		"cta_github": "View on GitHub",
+		"scroll_hint": "Scroll to explore",
 		"facts": {
 			"no_cloud": "No cloud",
 			"no_account": "No account",

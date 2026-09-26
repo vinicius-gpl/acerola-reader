@@ -21,6 +21,9 @@ export default defineConfig({
 			}
 		})
 	],
+	optimizeDeps: {
+		include: ['gsap', 'gsap/ScrollTrigger']
+	},
 	test: {
 		projects: [
 			{

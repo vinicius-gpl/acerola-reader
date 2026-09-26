@@ -1,4 +1,9 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
+	import { gsap } from 'gsap';
+	import { ScrollTrigger } from 'gsap/ScrollTrigger';
+	import { scrollReveal, scrollScale } from '$lib/actions';
+	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
 	import CloudOffIcon from '@lucide/svelte/icons/cloud-off';
 	import CodeIcon from '@lucide/svelte/icons/code';
 	import MonitorIcon from '@lucide/svelte/icons/monitor';
@@ -20,6 +25,93 @@
 	import { GITHUB_URL } from '$lib/constants/site';
 	import { m } from '$lib/paraglide/messages';
 	import { localizeHref } from '$lib/paraglide/runtime';
+
+	let heroEl = $state<HTMLElement | null>(null);
+	let heroContentEl = $state<HTMLDivElement | null>(null);
+
+	onMount(() => {
+		if (typeof window === 'undefined') return;
+		if (window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches) return;
+		if (!heroEl) return;
+
+		const logo = heroEl.querySelector('.hero-logo');
+		const kicker = heroEl.querySelector('.hero-kicker');
+		const title = heroEl.querySelector('.hero-title');
+		const subtitle = heroEl.querySelector('.hero-subtitle');
+		const downloads = heroEl.querySelector('.hero-downloads');
+		const ctas = heroEl.querySelector('.hero-ctas');
+		const facts = heroEl.querySelector('.hero-facts');
+		const scrollIndicator = heroEl.querySelector('.scroll-indicator');
+
+		const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
+
+		if (logo) {
+			tl.fromTo(
+				logo,
+				{ opacity: 0, scale: 0.7, y: -15 },
+				{ opacity: 1, scale: 1, y: 0, duration: 0.6, ease: 'back.out(1.6)' }
+			);
+		}
+		if (kicker) {
+			tl.fromTo(kicker, { opacity: 0, y: 15 }, { opacity: 1, y: 0, duration: 0.5 }, '-=0.35');
+		}
+		if (title) {
+			tl.fromTo(
+				title,
+				{ opacity: 0, y: 25, scale: 0.96 },
+				{ opacity: 1, y: 0, scale: 1, duration: 0.65 },
+				'-=0.3'
+			);
+		}
+		if (subtitle) {
+			tl.fromTo(subtitle, { opacity: 0, y: 15 }, { opacity: 1, y: 0, duration: 0.5 }, '-=0.35');
+		}
+		if (downloads) {
+			tl.fromTo(downloads, { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.55 }, '-=0.3');
+		}
+		if (ctas) {
+			tl.fromTo(ctas, { opacity: 0, y: 15 }, { opacity: 1, y: 0, duration: 0.45 }, '-=0.3');
+		}
+		if (facts) {
+			tl.fromTo(
+				facts,
+				{ opacity: 0, scale: 0.92 },
+				{ opacity: 1, scale: 1, duration: 0.5, ease: 'back.out(1.4)' },
+				'-=0.25'
+			);
+		}
+		if (scrollIndicator) {
+			tl.fromTo(
+				scrollIndicator,
+				{ opacity: 0, y: 15 },
+				{ opacity: 1, y: 0, duration: 0.55 },
+				'-=0.2'
+			);
+		}
+
+		let scrollTween: gsap.core.Tween | null = null;
+		if (heroContentEl) {
+			gsap.registerPlugin(ScrollTrigger);
+			scrollTween = gsap.to(heroContentEl, {
+				scale: 0.94,
+				opacity: 0.25,
+				y: -35,
+				ease: 'none',
+				scrollTrigger: {
+					trigger: heroEl,
+					start: 'top top',
+					end: 'bottom 20%',
+					scrub: 0.5
+				}
+			});
+		}
+
+		return () => {
+			scrollTween?.scrollTrigger?.kill();
+			scrollTween?.kill();
+			tl.kill();
+		};
+	});
 
 	const features = [
 		{ key: 'no_cloud', icon: CloudOffIcon },
@@ -72,99 +164,188 @@
 	<title>{m['site.name']()} — {m['nav.docs']()}</title>
 </svelte:head>
 
-<div>
+<div class="relative overflow-hidden">
+	<!-- Ambient glow behind hero -->
 	<div
-		class="mx-auto max-w-[90rem] px-4 sm:px-6 lg:grid lg:grid-cols-[minmax(440px,38%)_1fr] lg:items-start lg:gap-24 lg:px-8"
+		class="pointer-events-none absolute inset-x-0 -top-24 -z-10 flex justify-center overflow-hidden"
+		aria-hidden="true"
 	>
-		<!-- Coluna fixa: título + botões de download, gruda no topo enquanto a
-		     coluna de introdução rola ao lado. -->
 		<div
-			class="flex flex-col items-center py-16 text-center sm:py-20 lg:sticky lg:top-14 lg:items-start lg:py-24 lg:text-left"
+			class="h-[460px] w-[800px] rounded-full bg-gradient-to-b from-primary/15 via-primary/5 to-transparent blur-3xl"
+		></div>
+	</div>
+
+	<div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+		<!-- Hero: centralizado com indicador de scroll -->
+		<section
+			bind:this={heroEl}
+			class="relative flex min-h-[calc(100vh-4.5rem)] flex-col items-center justify-center py-12 text-center sm:py-16 lg:py-20"
 		>
-			<Badge variant="secondary" class="mb-4">{m['landing.hero_kicker']()}</Badge>
-
-			<h1
-				class="font-heading text-3xl font-semibold text-balance sm:text-4xl md:text-5xl lg:text-6xl"
+			<div
+				bind:this={heroContentEl}
+				class="flex max-w-3xl flex-col items-center will-change-transform"
 			>
-				<AcerolaShinyText text={m['landing.hero_title']()} />
-			</h1>
+				<div class="hero-logo relative mb-6">
+					<div
+						class="absolute -inset-1.5 rounded-2xl bg-gradient-to-tr from-primary/30 to-ring/20 opacity-60 blur-lg"
+					></div>
+					<img
+						src="/logo.svg"
+						alt={m['site.name']()}
+						width="72"
+						height="72"
+						class="relative h-16 w-16 rounded-2xl border border-border/80 bg-card/90 p-2.5 shadow-xl backdrop-blur transition-transform duration-300 hover:scale-105 sm:h-20 sm:w-20"
+					/>
+				</div>
 
-			<p class="mt-4 max-w-xl text-base text-muted-foreground sm:text-lg lg:text-xl">
-				{m['landing.hero_subtitle']()}
-			</p>
+				<div class="hero-kicker">
+					<Badge variant="secondary" class="mb-4">{m['landing.hero_kicker']()}</Badge>
+				</div>
 
-			<div class="mt-8 grid w-full max-w-md grid-cols-2 gap-3">
-				<AcerolaApkDownloadButton />
-				<AcerolaMicrosoftStoreButton />
+				<h1
+					class="hero-title font-heading text-3xl font-semibold text-balance sm:text-4xl md:text-5xl lg:text-6xl"
+				>
+					<AcerolaShinyText text={m['landing.hero_title']()} />
+				</h1>
+
+				<p
+					class="hero-subtitle mt-4 max-w-2xl text-base text-muted-foreground sm:text-lg lg:text-xl"
+				>
+					{m['landing.hero_subtitle']()}
+				</p>
+
+				<div class="hero-downloads mt-8 grid w-full max-w-md grid-cols-2 gap-3">
+					<AcerolaApkDownloadButton />
+					<AcerolaMicrosoftStoreButton />
+				</div>
+
+				<div class="hero-ctas mt-4 flex flex-wrap items-center justify-center gap-3">
+					<Button href={localizeHref('/docs/getting-started')} variant="link">
+						{m['landing.cta_get_started']()}
+					</Button>
+					<Button href={GITHUB_URL} target="_blank" rel="noreferrer" variant="ghost">
+						<GithubIcon size={16} />
+						{m['landing.cta_github']()}
+					</Button>
+				</div>
+
+				<div class="hero-facts mt-8 flex flex-wrap items-center justify-center gap-2">
+					<Badge variant="outline">{m['landing.facts.no_cloud']()}</Badge>
+					<Badge variant="outline">{m['landing.facts.no_account']()}</Badge>
+					<Badge variant="outline">{m['landing.facts.open_source']()}</Badge>
+				</div>
 			</div>
 
-			<div class="mt-4 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
-				<Button href={localizeHref('/docs/getting-started')} variant="link">
-					{m['landing.cta_get_started']()}
-				</Button>
-				<Button href={GITHUB_URL} target="_blank" rel="noreferrer" variant="ghost">
-					<GithubIcon size={16} />
-					{m['landing.cta_github']()}
-				</Button>
-			</div>
+			<!-- Scroll Indicator Hint -->
+			<a
+				href="#features"
+				class="scroll-indicator group mt-12 inline-flex flex-col items-center gap-2 text-muted-foreground transition-all duration-300 hover:text-foreground"
+				aria-label={m['landing.scroll_hint']()}
+			>
+				<span
+					class="font-mono text-[0.68rem] tracking-widest text-muted-foreground/80 uppercase transition-colors group-hover:text-primary"
+				>
+					{m['landing.scroll_hint']()}
+				</span>
+				<div
+					class="flex h-8 w-5 items-start justify-center rounded-full border border-border/80 p-1 shadow-sm transition-colors group-hover:border-primary group-hover:shadow-[0_0_12px_color-mix(in_srgb,var(--primary)_30%,transparent)]"
+				>
+					<div class="animate-scroll-bounce h-1.5 w-1 rounded-full bg-primary"></div>
+				</div>
+				<ChevronDownIcon
+					size={14}
+					class="-mt-1 text-primary/70 transition-all group-hover:translate-y-0.5 group-hover:text-primary"
+				/>
+			</a>
+		</section>
 
-			<div class="mt-8 flex flex-wrap items-center justify-center gap-2 lg:justify-start">
-				<Badge variant="outline">{m['landing.facts.no_cloud']()}</Badge>
-				<Badge variant="outline">{m['landing.facts.no_account']()}</Badge>
-				<Badge variant="outline">{m['landing.facts.open_source']()}</Badge>
-			</div>
-		</div>
+		<!-- Seções em coluna única -->
+		<div class="flex flex-col gap-28 pb-24 sm:pb-32">
+			<section id="features" use:scrollReveal>
+				<div class="mb-10 text-center">
+					<span class="font-mono text-xs font-semibold tracking-wider text-primary uppercase">
+						01.
+					</span>
+					<h2 class="mt-1 font-heading text-2xl font-semibold sm:text-3xl">
+						{m['landing.features.title']()}
+					</h2>
+				</div>
 
-		<!-- Coluna de introdução: rola normalmente ao lado da coluna fixa. -->
-		<div class="flex flex-col gap-24 pb-16 sm:pb-20 lg:py-24">
-			<section>
-				<h2 class="mb-8 text-center font-heading text-2xl font-semibold lg:text-left">
-					{m['landing.features.title']()}
-				</h2>
-
-				<CardGrid>
-					{#each features as feature (feature.key)}
-						<PlatformCard
-							title={FEATURE_LABELS[feature.key].title()}
-							description={FEATURE_LABELS[feature.key].desc()}
-							icon={feature.icon}
-						/>
-					{/each}
-				</CardGrid>
+				<div
+					use:scrollScale={{
+						mode: 'stagger-grid',
+						childrenSelector: '[data-slot="card"]',
+						stagger: 0.08,
+						startScale: 0.88
+					}}
+				>
+					<CardGrid>
+						{#each features as feature (feature.key)}
+							<PlatformCard
+								title={FEATURE_LABELS[feature.key].title()}
+								description={FEATURE_LABELS[feature.key].desc()}
+								icon={feature.icon}
+							/>
+						{/each}
+					</CardGrid>
+				</div>
 			</section>
 
-			<section>
-				<h2 class="mb-8 text-center font-heading text-2xl font-semibold lg:text-left">
-					{m['landing.how_it_works.title']()}
-				</h2>
+			<section id="how-it-works" use:scrollReveal class="mx-auto w-full max-w-3xl">
+				<div class="mb-10 text-center">
+					<span class="font-mono text-xs font-semibold tracking-wider text-primary uppercase">
+						02.
+					</span>
+					<h2 class="mt-1 font-heading text-2xl font-semibold sm:text-3xl">
+						{m['landing.how_it_works.title']()}
+					</h2>
+				</div>
 
-				<Steps>
-					<ol>
-						<li>{m['landing.how_it_works.install']()}</li>
-						<li>{m['landing.how_it_works.pair']()}</li>
-						<li>{m['landing.how_it_works.confirm']()}</li>
-					</ol>
-				</Steps>
+				<div use:scrollScale={{ mode: 'scale-up', startScale: 0.94 }}>
+					<Steps>
+						<ol>
+							<li>{m['landing.how_it_works.install']()}</li>
+							<li>{m['landing.how_it_works.pair']()}</li>
+							<li>{m['landing.how_it_works.confirm']()}</li>
+						</ol>
+					</Steps>
 
-				<AcerolaCallout type="tip" title={m['landing.how_it_works.note_title']()}>
-					<p>{m['landing.how_it_works.note_desc']()}</p>
-				</AcerolaCallout>
+					<div class="mt-8">
+						<AcerolaCallout type="tip" title={m['landing.how_it_works.note_title']()}>
+							<p>{m['landing.how_it_works.note_desc']()}</p>
+						</AcerolaCallout>
+					</div>
+				</div>
 			</section>
 
-			<section>
-				<h2 class="mb-8 text-center font-heading text-2xl font-semibold lg:text-left">
-					{m['landing.platforms_title']()}
-				</h2>
+			<section id="platforms" use:scrollReveal>
+				<div class="mb-10 text-center">
+					<span class="font-mono text-xs font-semibold tracking-wider text-primary uppercase">
+						03.
+					</span>
+					<h2 class="mt-1 font-heading text-2xl font-semibold sm:text-3xl">
+						{m['landing.platforms_title']()}
+					</h2>
+				</div>
 
-				<CardGrid>
-					{#each platforms as platform (platform.key)}
-						<PlatformCard
-							title={PLATFORM_LABELS[platform.key].title()}
-							description={PLATFORM_LABELS[platform.key].desc()}
-							icon={platform.icon}
-						/>
-					{/each}
-				</CardGrid>
+				<div
+					use:scrollScale={{
+						mode: 'stagger-grid',
+						childrenSelector: '[data-slot="card"]',
+						stagger: 0.08,
+						startScale: 0.88
+					}}
+				>
+					<CardGrid>
+						{#each platforms as platform (platform.key)}
+							<PlatformCard
+								title={PLATFORM_LABELS[platform.key].title()}
+								description={PLATFORM_LABELS[platform.key].desc()}
+								icon={platform.icon}
+							/>
+						{/each}
+					</CardGrid>
+				</div>
 			</section>
 		</div>
 	</div>
