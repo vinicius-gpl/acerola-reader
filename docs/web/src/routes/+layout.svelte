@@ -1,6 +1,7 @@
 <script lang="ts">
 	import '$theme/layout.css';
 	import AcerolaMobileNav from '$lib/components/acerola-mobile-nav/acerola-mobile-nav.svelte';
+	import AcerolaScrollProgress from '$lib/components/acerola-scroll-progress/acerola-scroll-progress.svelte';
 	import AcerolaSearchDialog from '$lib/components/acerola-search-dialog/acerola-search-dialog.svelte';
 	import AcerolaTopNav from '$lib/components/acerola-top-nav/acerola-top-nav.svelte';
 	import { GITHUB_URL, OG_IMAGE_URL, SITE_URL } from '$lib/constants/site';
@@ -111,6 +112,7 @@
 	{@html jsonLdScript}
 </svelte:head>
 
+<AcerolaScrollProgress />
 <AcerolaTopNav
 	onOpenSearch={() => (searchOpen = true)}
 	onOpenMobileNav={() => (mobileNavOpen = true)}

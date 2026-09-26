@@ -8,6 +8,9 @@ export default defineConfig({
 	server: {
 		host: true
 	},
+	optimizeDeps: {
+		include: ['gsap', 'gsap/ScrollTrigger']
+	},
 	plugins: [
 		tailwindcss(),
 		sveltekit(),

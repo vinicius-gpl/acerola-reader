@@ -137,19 +137,19 @@ val validateCargoMake by
 tasks.register<Exec>("buildRust") {
     dependsOn(validateCargoMake)
     workingDir = file("rust")
-    commandLine(cargoMake, "make", "build-rust")
+    commandLine(cargoMake, "make", "--makefile", "makefile.toml", "build-rust")
 }
 
 tasks.register<Exec>("generateBindings") {
     dependsOn("buildRust")
     workingDir = file("rust")
-    commandLine(cargoMake, "make", "generate-bindings")
+    commandLine(cargoMake, "make", "--makefile", "makefile.toml", "generate-bindings")
 }
 
 tasks.register<Exec>("copyRustLib") {
     dependsOn("buildRust")
     workingDir = file("rust")
-    commandLine(cargoMake, "make", "copy-libs")
+    commandLine(cargoMake, "make", "--makefile", "makefile.toml", "copy-libs")
 }
 
 // Não entra no `preBuild`/`connectedAndroidTest` por padrão — só é necessária pra rodar
@@ -158,7 +158,7 @@ tasks.register<Exec>("copyRustLib") {
 tasks.register<Exec>("buildRustEmulator") {
     dependsOn(validateCargoMake)
     workingDir = file("rust")
-    commandLine(cargoMake, "make", "build-emulator")
+    commandLine(cargoMake, "make", "--makefile", "makefile.toml", "build-emulator")
 }
 
 tasks.named("preBuild") {
