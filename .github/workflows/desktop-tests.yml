@@ -82,10 +82,10 @@ jobs:
             ${{ runner.os }}-cargo-target-rust-
 
       - name: Run Rust checks and tests
-        run: cargo make --cwd ./src-tauri ci
+        run: cargo make --makefile makefile.toml --cwd ./src-tauri ci
 
       - name: Run Rust coverage
-        run: cargo make --cwd ./src-tauri coverage
+        run: cargo make --makefile makefile.toml --cwd ./src-tauri coverage
 
       - name: Upload Rust coverage report
         uses: actions/upload-artifact@v7

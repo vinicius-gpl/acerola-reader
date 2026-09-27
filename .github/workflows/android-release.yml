@@ -38,7 +38,7 @@ jobs:
         uses: davidB/rust-cargo-make@v1
 
       - name: Update build.gradle.kts
-        run: cargo make bump-android
+        run: cargo make --makefile makefile.toml bump-android
         env:
           VERSION: ${{ env.VERSION }}
           VERSION_CODE: ${{ env.VERSION_CODE }}

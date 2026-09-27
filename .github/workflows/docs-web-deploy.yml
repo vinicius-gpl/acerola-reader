@@ -44,7 +44,7 @@ jobs:
 
       - name: Update version (package.json)
         working-directory: ${{ github.workspace }}
-        run: cargo make bump-docs
+        run: cargo make --makefile makefile.toml bump-docs
         env:
           VERSION: ${{ env.VERSION }}
 
