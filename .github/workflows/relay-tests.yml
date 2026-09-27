@@ -37,7 +37,7 @@ jobs:
           curl -LsSf https://get.nexte.st/latest/linux | tar zxf - -C ${CARGO_HOME:-~/.cargo}/bin
 
       - name: Check Formatting
-        run: cargo make format
+        run: cargo make --makefile makefile.toml format
 
       - name: Run All Tests
-        run: cargo make test-all
+        run: cargo make --makefile makefile.toml test-all

@@ -47,7 +47,7 @@ jobs:
           Add-Content -Path $env:GITHUB_PATH -Value $cargoBin
 
       - name: Run cargo-mutants on the guard/allowlist boundary
-        run: cargo make --cwd ./src-tauri mutants
+        run: cargo make --makefile makefile.toml --cwd ./src-tauri mutants
 
       - name: Upload mutants report
         if: always()
