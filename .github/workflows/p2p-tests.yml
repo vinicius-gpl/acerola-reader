@@ -52,13 +52,13 @@ jobs:
             ${{ runner.os }}-cargo-
 
       - name: Build
-        run: cargo make build
+        run: cargo make --makefile makefile.toml build
 
       - name: Run Clippy
         run: cargo clippy --all-features -- -D warnings
 
       - name: Run tests
-        run: cargo make test-ci
+        run: cargo make --makefile makefile.toml test-ci
 
   coverage:
     name: Code Coverage
