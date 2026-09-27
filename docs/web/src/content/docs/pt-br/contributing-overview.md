@@ -33,12 +33,12 @@ flowchart LR
 
 ## Ferramentas necessárias
 
-[`cargo-make`](https://github.com/sagiegurari/cargo-make) (`cargo install cargo-make`) é usado pelos crates Rust individualmente — veja o guia de cada plataforma — e pelas tarefas de manutenção do monorepo inteiro, definidas no `Makefile.toml` da raiz. Com ele instalado, `cargo make clean` remove o `target/` de todos os crates Rust do repo (`lib/p2p`, `lib/relay`, `acerola/desktop/src-tauri`, `acerola/android/native/rust`) de uma vez, sem precisar entrar em cada pasta.
+[`cargo-make`](https://github.com/sagiegurari/cargo-make) (`cargo install cargo-make`) é usado pelos crates Rust individualmente — veja o guia de cada plataforma — e pelas tarefas de manutenção do monorepo inteiro, definidas no `makefile.toml` da raiz. Com ele instalado, `cargo make clean` remove o `target/` de todos os crates Rust do repo (`lib/p2p`, `lib/relay`, `acerola/desktop/src-tauri`, `acerola/android/native/rust`) de uma vez, sem precisar entrar em cada pasta.
 
 ## Regras que valem para o monorepo inteiro
 
 - **Escopo por PR**: um PR deve tocar uma única plataforma (`acerola/android/`, `acerola/desktop/`, `acerola/relay/`, `lib/p2p/` ou `lib/relay/`), salvo mudanças de fato compartilhadas (docs raiz, `LICENSE`, `PRIVACY_POLICY.md`).
-- **Convenção de commit**: `[tag](plataforma): descrição`, por exemplo `[fix](desktop): corrige leak de conexão no reader`. O `tag` segue os prefixos `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `ci`, `merge`; a `plataforma` é `android`, `desktop`, `p2p`, `relay` (para `acerola/relay/`), `relay-lib` (para `lib/relay/`) ou `monorepo` para mudanças na raiz.
+- **Convenção de commit**: `[tag](escopo): descrição`, por exemplo `[fix](desktop): corrige leak de conexão no reader`. O `tag` pode ser `feat`, `fix`, `docs`, `refactor`, `perf`, `test`, `style`, `chore`, `ci` ou `merge`; o `escopo` é `android`, `desktop`, `p2p`, `relay` (para `acerola/relay/`), `iroh` (para `lib/relay/`), `web` (para `docs/web/`) ou `monorepo` para mudanças na raiz.
 - **Testes**: cada plataforma tem seu próprio runner e sua própria automação via `cargo-make`/Gradle/Vitest — veja o guia específico antes de rodar testes manualmente.
 - **`lib/p2p` é dependência `path` local**: `acerola/android` e `acerola/desktop` consomem `lib/p2p` por caminho relativo no `Cargo.toml`, não por `git`. Uma mudança em `lib/p2p/` já vale pros dois consumidores no mesmo PR.
 

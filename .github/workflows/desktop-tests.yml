@@ -77,7 +77,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: acerola/desktop/src-tauri/target
-          key: ${{ runner.os }}-cargo-target-rust-${{ hashFiles('acerola/desktop/src-tauri/Cargo.lock', 'acerola/desktop/src-tauri/Cargo.toml', 'acerola/desktop/src-tauri/Makefile.toml') }}
+          key: ${{ runner.os }}-cargo-target-rust-${{ hashFiles('acerola/desktop/src-tauri/Cargo.lock', 'acerola/desktop/src-tauri/Cargo.toml', 'acerola/desktop/src-tauri/makefile.toml') }}
           restore-keys: |
             ${{ runner.os }}-cargo-target-rust-
 

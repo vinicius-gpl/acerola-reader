@@ -89,6 +89,7 @@
 		"hero_subtitle": "Sua biblioteca fica nos seus dispositivos e sincroniza direto entre eles por P2P criptografado — nenhum servidor guarda ou acessa seus dados.",
 		"cta_get_started": "Começar",
 		"cta_github": "Ver no GitHub",
+		"scroll_hint": "Role para explorar",
 		"facts": {
 			"no_cloud": "Sem nuvem",
 			"no_account": "Sem conta",

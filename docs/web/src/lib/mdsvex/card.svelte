@@ -1,6 +1,7 @@
 <script lang="ts">
 	import ArrowRightIcon from '@lucide/svelte/icons/arrow-right';
 	import * as Card from '$lib/components/ui/card/index';
+	import { card3D } from '$lib/actions/card-3d';
 	import type { Component, Snippet } from 'svelte';
 
 	let {
@@ -16,6 +17,14 @@
 		class?: string;
 		children?: Snippet;
 	} = $props();
+
+	let cardEl = $state<HTMLDivElement | null>(null);
+
+	$effect(() => {
+		if (!cardEl) return;
+		const action = card3D(cardEl, { maxRotation: 5, hoverScale: 1.015 });
+		return () => action?.destroy?.();
+	});
 
 	const isExternal = $derived(href?.startsWith('http') ?? false);
 </script>
@@ -48,13 +57,14 @@
 		class="group contents"
 	>
 		<Card.Root
+			bind:ref={cardEl}
 			class={['transition-colors group-hover:bg-accent group-hover:ring-primary/50', className]}
 		>
 			{@render body()}
 		</Card.Root>
 	</a>
 {:else}
-	<Card.Root class={className}>
+	<Card.Root bind:ref={cardEl} class={className}>
 		{@render body()}
 	</Card.Root>
 {/if}

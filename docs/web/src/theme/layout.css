@@ -186,3 +186,65 @@ figure[data-rehype-pretty-code-figure] code[data-line-numbers] > [data-line]::be
 .doc-content :where(tbody tr:hover) {
 	@apply bg-accent/50;
 }
+
+/* GSAP 3D Tilt & Spotlight Cards */
+.card-3d {
+	transform-style: preserve-3d;
+	perspective: 1000px;
+	will-change: transform;
+}
+
+.spotlight-card {
+	position: relative;
+	overflow: hidden;
+}
+
+.spotlight-card::before {
+	content: '';
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	border-radius: inherit;
+	background: radial-gradient(
+		500px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+		color-mix(in srgb, var(--primary) 12%, transparent),
+		transparent 45%
+	);
+	opacity: 0;
+	transition: opacity 0.3s ease;
+	z-index: 2;
+}
+
+.spotlight-card:hover::before {
+	opacity: 1;
+}
+
+/* Mouse Scroll Hint Indicator */
+@keyframes scrollWheel {
+	0% {
+		opacity: 0;
+		transform: translateY(0);
+	}
+	20% {
+		opacity: 1;
+		transform: translateY(0);
+	}
+	70% {
+		opacity: 1;
+		transform: translateY(6px);
+	}
+	100% {
+		opacity: 0;
+		transform: translateY(9px);
+	}
+}
+
+.animate-scroll-bounce {
+	animation: scrollWheel 1.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.animate-scroll-bounce {
+		animation: none;
+	}
+}

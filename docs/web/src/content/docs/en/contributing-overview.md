@@ -33,12 +33,12 @@ flowchart LR
 
 ## Tools you need
 
-[`cargo-make`](https://github.com/sagiegurari/cargo-make) (`cargo install cargo-make`) is used by the individual Rust crates — see each platform's guide — and by the maintenance tasks for the whole monorepo, defined in the root `Makefile.toml`. With it installed, `cargo make clean` removes the `target/` directory of every Rust crate in the repo (`lib/p2p`, `lib/relay`, `acerola/desktop/src-tauri`, `acerola/android/native/rust`) in one go.
+[`cargo-make`](https://github.com/sagiegurari/cargo-make) (`cargo install cargo-make`) is used by the individual Rust crates — see each platform's guide — and by the maintenance tasks for the whole monorepo, defined in the root `makefile.toml`. With it installed, `cargo make clean` removes the `target/` directory of every Rust crate in the repo (`lib/p2p`, `lib/relay`, `acerola/desktop/src-tauri`, `acerola/android/native/rust`) in one go.
 
 ## Rules that apply to the whole monorepo
 
 - **One platform per PR**: a PR should touch a single platform (`acerola/android/`, `acerola/desktop/`, `acerola/relay/`, `lib/p2p/` or `lib/relay/`), except for changes that are genuinely shared (root docs, `LICENSE`, `PRIVACY_POLICY.md`).
-- **Commit convention**: `[tag](platform): description`, e.g. `[fix](desktop): fix connection leak in the reader`. `tag` follows the prefixes `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `ci`, `merge`; `platform` is `android`, `desktop`, `p2p`, `relay` (for `acerola/relay/`), `relay-lib` (for `lib/relay/`) or `monorepo` for root-level changes.
+- **Commit convention**: `[tag](scope): description`, e.g. `[fix](desktop): fix connection leak in the reader`. `tag` can be `feat`, `fix`, `docs`, `refactor`, `perf`, `test`, `style`, `chore`, `ci`, or `merge`; `scope` is `android`, `desktop`, `p2p`, `relay` (for `acerola/relay/`), `iroh` (for `lib/relay/`), `web` (for `docs/web/`), or `monorepo` for root-level changes.
 - **Tests**: each platform has its own runner and its own automation via `cargo-make`/Gradle/Vitest — check the platform-specific guide before running tests manually.
 - **`lib/p2p` is a local `path` dependency**: `acerola/android` and `acerola/desktop` consume `lib/p2p` by relative path in `Cargo.toml`, not `git`. A change in `lib/p2p/` already applies to both consumers in the same PR.
 
