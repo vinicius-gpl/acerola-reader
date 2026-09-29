@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="en" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>Acerola — brag</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #11111b;
+      }
+
+      #root {
+        width: 100%;
+        height: 100%;
+        position: relative;
+        background: #11111b;
+        font-family: Montserrat, sans-serif;
+      }
+
+      .clip.transparent {
+        background: transparent;
+      }
+
+      /* cada cena ocupa o quadro inteiro; o filho .scene recebe as animações,
+         nunca o próprio .clip (a visibilidade do clip é responsabilidade do runtime) */
+      .scene {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .wordmark {
+        display: block;
+        font-family: Montserrat, sans-serif;
+        font-weight: 900;
+        font-size: 156px;
+        letter-spacing: -0.04em;
+        color: #cdd6f4;
+        line-height: 1;
+      }
+
+      .subline {
+        display: block;
+        margin-top: 34px;
+        font-family: "JetBrains Mono", monospace;
+        font-weight: 700;
+        font-size: 32px;
+        letter-spacing: 0.14em;
+        color: #cba6f7;
+        text-transform: uppercase;
+      }
+
+      .kicker {
+        display: block;
+        margin-bottom: 64px;
+        font-family: "JetBrains Mono", monospace;
+        font-weight: 700;
+        font-size: 30px;
+        letter-spacing: 0.14em;
+        color: #cba6f7;
+        text-transform: uppercase;
+      }
+
+      .device-row {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
+        gap: 90px;
+      }
+
+      .card {
+        display: block;
+        border-radius: 28px;
+        overflow: hidden;
+        box-shadow: 0 40px 90px rgba(0, 0, 0, 0.55);
+        background: #181825;
+      }
+
+      .card img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .card-phone {
+        width: 300px;
+        height: 560px;
+      }
+
+      .card-desktop {
+        width: 640px;
+        height: 380px;
+      }
+
+      /* --- cena 3: fluxo instalar / parear --- */
+      .flow-stage {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .flow-beat {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .step-chip {
+        display: inline-block;
+        margin-bottom: 40px;
+        padding: 12px 28px;
+        border-radius: 999px;
+        background: rgba(203, 166, 247, 0.12);
+        border: 1px solid rgba(203, 166, 247, 0.45);
+        font-family: "JetBrains Mono", monospace;
+        font-weight: 700;
+        font-size: 24px;
+        letter-spacing: 0.12em;
+        color: #cba6f7;
+        text-transform: uppercase;
+      }
+
+      .step-line {
+        display: block;
+        margin-top: 36px;
+        font-family: Montserrat, sans-serif;
+        font-weight: 700;
+        font-size: 40px;
+        color: #cdd6f4;
+        text-align: center;
+      }
+
+      .card-install {
+        width: 360px;
+        height: 660px;
+      }
+
+      .card-pair {
+        position: relative;
+        width: 700px;
+        height: 615px;
+        background: #181825;
+      }
+
+      .card-pair img {
+        object-fit: contain;
+        background: #181825;
+      }
+
+      .scan-line {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 8px;
+        border-radius: 4px;
+        background: linear-gradient(
+          90deg,
+          rgba(203, 166, 247, 0) 0%,
+          rgba(203, 166, 247, 0.95) 50%,
+          rgba(203, 166, 247, 0) 100%
+        );
+        box-shadow: 0 0 24px 6px rgba(203, 166, 247, 0.55);
+      }
+
+      /* --- cena 4: hero --- */
+      .hero-frame {
+        position: relative;
+        width: 100%;
+        height: 100%;
+      }
+
+      .hero-frame img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      /* a cena da esquerda já está ocupada pelo telefone/desktop reais;
+         a legenda mora na faixa vazia à direita da janela do desktop */
+      .hero-scrim {
+        position: absolute;
+        right: 0;
+        top: 0;
+        width: 560px;
+        height: 100%;
+        background: linear-gradient(90deg, rgba(10, 10, 16, 0) 0%, rgba(10, 10, 16, 0.5) 45%, rgba(10, 10, 16, 0.6) 100%);
+      }
+
+      .hero-caption {
+        position: absolute;
+        right: 100px;
+        top: 0;
+        width: 420px;
+        height: 100%;
+        display: flex;
+        align-items: center;
+      }
+
+      .hero-caption span {
+        display: block;
+        text-align: left;
+        font-family: Montserrat, sans-serif;
+        font-weight: 700;
+        font-size: 36px;
+        line-height: 1.35;
+        color: #cdd6f4;
+      }
+
+      /* --- cena 5: os 3 fatos --- */
+      .facts-row {
+        display: flex;
+        flex-direction: row;
+        align-items: flex-start;
+        justify-content: center;
+        gap: 96px;
+      }
+
+      .fact {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 22px;
+        width: 320px;
+      }
+
+      .fact-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 84px;
+        height: 84px;
+        border-radius: 999px;
+        background: rgba(245, 194, 231, 0.12);
+        border: 1px solid rgba(245, 194, 231, 0.4);
+      }
+
+      .fact-icon svg {
+        width: 38px;
+        height: 38px;
+      }
+
+      .fact-label {
+        display: block;
+        text-align: center;
+        font-family: "JetBrains Mono", monospace;
+        font-weight: 700;
+        font-size: 28px;
+        letter-spacing: 0.04em;
+        color: #cdd6f4;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="acerola-brag"
+      data-start="0"
+      data-duration="23.5"
+      data-width="1920"
+      data-height="1080"
+    >
+      <!-- ================= CENA 1 — GANCHO — 0s a 3.1s (visível até 2.5s) ================= -->
+      <div id="s1" class="clip transparent" data-start="0" data-duration="3.1" data-track-index="1">
+        <div id="s1-inner" class="scene">
+          <span id="s1-word" class="wordmark">Acerola</span>
+          <span id="s1-sub" class="subline">No cloud. No account.</span>
+        </div>
+      </div>
+
+      <!-- ================= CENA 2 — DOIS DISPOSITIVOS — 2.5s a 6.1s (visível até 5.5s) ================= -->
+      <div id="s2" class="clip transparent" data-start="2.5" data-duration="3.6" data-track-index="2">
+        <div id="s2-inner" class="scene">
+          <span class="kicker">Same library. Every device.</span>
+          <div class="device-row">
+            <div id="s2-phone" class="card card-phone">
+              <img src="assets/images/acerola-android-solo.png" alt="" />
+            </div>
+            <div id="s2-desktop" class="card card-desktop">
+              <img src="assets/images/acerola-desktop-solo.png" alt="" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= CENA 3 — FLUXO: INSTALAR → PAREAR — 5.5s a 11.6s (visível até 10.9s) ================= -->
+      <div id="s3" class="clip transparent" data-start="5.5" data-duration="6.1" data-track-index="3">
+        <div class="flow-stage">
+          <!-- sub-beat 01 — instalar (relativo 0s a 2.75s) -->
+          <div id="s3-install" class="flow-beat">
+            <span class="step-chip">01 — Install</span>
+            <div class="card card-install">
+              <img src="assets/images/acerola-android-solo.png" alt="" />
+            </div>
+            <span class="step-line">Install on both devices.</span>
+          </div>
+
+          <!-- sub-beat 02 — parear via QR (relativo 2.75s a 5.5s), cobre o beat anterior -->
+          <div id="s3-pair" class="flow-beat">
+            <span class="step-chip">02 — Pair via QR</span>
+            <div id="s3-pair-card" class="card card-pair">
+              <img src="assets/images/desktop-network-screen.png" alt="" />
+              <div id="s3-scan" class="scan-line"></div>
+            </div>
+            <span class="step-line">Scan to pair.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= CENA 4 — CONFIRMADO / HERO — 10.9s a 17.1s (visível até 16.5s) ================= -->
+      <div id="s4" class="clip transparent" data-start="10.9" data-duration="6.2" data-track-index="4">
+        <div id="s4-inner" class="hero-frame">
+          <img src="assets/images/acerola-duo-overlap.png" alt="" />
+          <div class="hero-scrim"></div>
+          <div class="hero-caption">
+            <span id="s4-caption">From then on, it syncs automatically, device to device.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= CENA 5 — OS TRÊS FATOS — 16.5s a 21.6s (visível até 21.0s) ================= -->
+      <div id="s5" class="clip transparent" data-start="16.5" data-duration="5.1" data-track-index="5">
+        <div id="s5-inner" class="scene">
+          <div class="facts-row">
+            <div id="s5-fact-1" class="fact">
+              <span class="fact-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#f5c2e7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="5" y="10" width="14" height="10" rx="2"></rect>
+                  <path d="M8 10V7a4 4 0 0 1 8 0v3"></path>
+                </svg>
+              </span>
+              <span class="fact-label">No cloud, no account</span>
+            </div>
+            <div id="s5-fact-2" class="fact">
+              <span class="fact-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#f5c2e7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M7 7h8l-2.5-2.5"></path>
+                  <path d="M15 7l-2.5 2.5"></path>
+                  <path d="M17 17H9l2.5 2.5"></path>
+                  <path d="M9 17l2.5-2.5"></path>
+                </svg>
+              </span>
+              <span class="fact-label">Direct P2P sync</span>
+            </div>
+            <div id="s5-fact-3" class="fact">
+              <span class="fact-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#f5c2e7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M9 6L4 12l5 6"></path>
+                  <path d="M15 6l5 6-5 6"></path>
+                </svg>
+              </span>
+              <span class="fact-label">Open source</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= CENA 6 — DESFECHO — 21.0s a 23.5s ================= -->
+      <div id="s6" class="clip transparent" data-start="21.0" data-duration="2.5" data-track-index="6">
+        <div id="s6-inner" class="scene">
+          <span class="wordmark">Acerola</span>
+          <span class="subline">Open source. No cloud.</span>
+        </div>
+      </div>
+
+      <!-- ================= ÁUDIO ================= -->
+      <!-- trilha: happy-beats vol-12 (steady and clean), fade-in / hold / swell no hero / fade-out -->
+      <audio
+        id="bg-music"
+        src="assets/music/happy-beats-business-moves-vol-12-by-ende-dot-app.mp3"
+        data-start="0"
+        data-duration="23.5"
+        data-track-index="10"
+        data-volume="0"
+        data-automation='{"version":1,"lanes":[{"target":"volume","points":[{"t":0,"v":0},{"t":1.2,"v":0.32},{"t":10.6,"v":0.32},{"t":10.9,"v":0.42},{"t":13.5,"v":0.34},{"t":21.0,"v":0.34},{"t":23.5,"v":0}]}]}'
+      ></audio>
+
+      <audio id="sfx-hook" src="assets/sfx/interface/drop_001.ogg" data-start="0" data-track-index="20" data-volume="0.5"></audio>
+
+      <audio id="sfx-install" src="assets/sfx/interface/drop_002.ogg" data-start="5.5" data-track-index="21" data-volume="0.5"></audio>
+
+      <audio id="sfx-pair" src="assets/sfx/interface/drop_003.ogg" data-start="8.25" data-track-index="22" data-volume="0.5"></audio>
+
+      <audio id="sfx-scan" src="assets/sfx/interface/select_008.ogg" data-start="9.6" data-track-index="23" data-volume="0.45"></audio>
+
+      <!-- beat-locked: 10.9s — confirmação do hero alinhada à batida forte da música (10.93s no preset) -->
+      <audio id="sfx-hero" src="assets/sfx/interface/bong_001.ogg" data-start="10.9" data-track-index="24" data-volume="0.55"></audio>
+
+      <audio id="sfx-fact-1" src="assets/sfx/interface/drop_001.ogg" data-start="17.47" data-track-index="25" data-volume="0.45"></audio>
+      <audio id="sfx-fact-2" src="assets/sfx/interface/drop_002.ogg" data-start="18.56" data-track-index="26" data-volume="0.45"></audio>
+      <audio id="sfx-fact-3" src="assets/sfx/interface/drop_003.ogg" data-start="19.66" data-track-index="27" data-volume="0.45"></audio>
+    </div>
+
+    <script>
+      var tl = gsap.timeline({ paused: true });
+
+      // ---------- cena 1: gancho ----------
+      tl.fromTo("#s1-word", { opacity: 0, y: 16, scale: 0.985 }, { opacity: 1, y: 0, scale: 1, duration: 0.6, ease: "power2.out" }, 0);
+      tl.fromTo("#s1-sub", { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.45, ease: "power2.out" }, 0.35);
+
+      // ---------- cena 1 → cena 2: crossfade real (saída e entrada no mesmo instante T) ----------
+      tl.to("#s1-inner", { opacity: 0, duration: 0.6, ease: "sine.inOut" }, 2.5);
+      tl.fromTo("#s2-inner", { opacity: 0 }, { opacity: 1, duration: 0.6, ease: "sine.inOut" }, 2.5);
+      tl.fromTo("#s2-phone", { opacity: 0, x: -26 }, { opacity: 1, x: 0, duration: 0.55, ease: "power2.out" }, 2.62);
+      tl.fromTo("#s2-desktop", { opacity: 0, x: 26 }, { opacity: 1, x: 0, duration: 0.55, ease: "power2.out" }, 2.68);
+
+      // ---------- cena 2 → cena 3 (sub-beat 01 instalar): crossfade real ----------
+      tl.to("#s2-inner", { opacity: 0, duration: 0.6, ease: "sine.inOut" }, 5.5);
+      tl.fromTo("#s3-install", { opacity: 0 }, { opacity: 1, duration: 0.6, ease: "sine.inOut" }, 5.5);
+      tl.fromTo("#s3-install .step-chip", { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }, 5.6);
+      tl.fromTo("#s3-install .card-install", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }, 5.65);
+      tl.fromTo("#s3-install .step-line", { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }, 5.85);
+
+      // sub-beat 01 → sub-beat 02 (parear via QR): crossfade real dentro da mesma cena
+      tl.to("#s3-install", { opacity: 0, duration: 0.4, ease: "sine.inOut" }, 8.25);
+      tl.fromTo("#s3-pair", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "sine.inOut" }, 8.25);
+      tl.fromTo("#s3-pair .step-chip", { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.35, ease: "power2.out" }, 8.35);
+      tl.fromTo("#s3-pair-card", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.45, ease: "power2.out" }, 8.4);
+      tl.fromTo("#s3-pair .step-line", { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.35, ease: "power2.out" }, 8.6);
+      // varredura do QR — simula o scan real acontecendo
+      tl.fromTo("#s3-scan", { opacity: 0, y: 0 }, { opacity: 1, y: 607, duration: 0.9, ease: "power1.inOut" }, 8.7);
+      tl.to("#s3-scan", { opacity: 0, duration: 0.2, ease: "power1.in" }, 9.6);
+
+      // ---------- cena 3 → cena 4: crossfade real para o hero ----------
+      // beat-locked: 10.9s — entrada do hero alinhada à batida forte da música (10.93s no preset)
+      tl.to("#s3-pair", { opacity: 0, duration: 0.7, ease: "sine.inOut" }, 10.9);
+      tl.fromTo("#s4-inner", { opacity: 0, scale: 0.96 }, { opacity: 1, scale: 1, duration: 0.7, ease: "power2.out" }, 10.9);
+      tl.fromTo("#s4-caption", { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }, 11.4);
+
+      // ---------- cena 4 → cena 5: crossfade real ----------
+      tl.to("#s4-inner", { opacity: 0, duration: 0.6, ease: "sine.inOut" }, 16.5);
+      tl.fromTo("#s5-inner", { opacity: 0 }, { opacity: 1, duration: 0.6, ease: "sine.inOut" }, 16.5);
+      // beat-grid: fato 1 em 17.47s, fato 2 em 18.56s, fato 3 em 19.66s — batidas fortes do preset, espaçadas o bastante para leitura
+      tl.fromTo("#s5-fact-1", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.35, ease: "power2.out" }, 17.47);
+      tl.fromTo("#s5-fact-2", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.35, ease: "power2.out" }, 18.56);
+      tl.fromTo("#s5-fact-3", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.35, ease: "power2.out" }, 19.66);
+
+      // ---------- cena 5 → cena 6: crossfade real para o desfecho ----------
+      tl.to("#s5-inner", { opacity: 0, duration: 0.6, ease: "sine.inOut" }, 21.0);
+      tl.fromTo("#s6-inner .wordmark", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" }, 21.0);
+      tl.fromTo("#s6-inner .subline", { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.45, ease: "power2.out" }, 21.35);
+      // única saída permitida: a cena final se apaga suavemente no quadro-a-quadro final
+      tl.to("#s6-inner", { opacity: 0, duration: 0.4, ease: "sine.in" }, 23.1);
+
+      window.__timelines["acerola-brag"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>
