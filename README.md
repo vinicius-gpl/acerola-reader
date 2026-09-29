@@ -1,7 +1,9 @@
 # Acerola
 
 <p align="center">
-  <img src="docs/github/acerola-duo-sidebyside.png" alt="Acerola — Android e Desktop" width="85%">
+  <video src="docs/github/brag.mp4" poster="docs/github/brag.jpg" controls muted width="85%">
+    Seu navegador não suporta vídeo. <a href="docs/github/brag.mp4">Baixe o vídeo aqui</a>.
+  </video>
 </p>
 
 Ecossistema de leitura de quadrinhos/mangás locais com sincronização 100% P2P entre dispositivos — sem servidor central, sem conta, sem nuvem.

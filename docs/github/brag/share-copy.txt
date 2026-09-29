@@ -1,0 +1,1 @@
+Introducing Acerola: read your comics and manga on any device, with no account and no cloud. Install, scan a QR code, and your library syncs straight between your own devices over encrypted P2P. Open source, Android and desktop.
