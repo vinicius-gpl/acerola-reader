@@ -1,9 +1,9 @@
 # Acerola
 
 <p align="center">
-  <video src="https://raw.githubusercontent.com/vinicius-gpl/acerola-reader/main/docs/github/brag.mp4" poster="https://raw.githubusercontent.com/vinicius-gpl/acerola-reader/main/docs/github/brag.jpg" controls muted width="85%">
-    Seu navegador não suporta vídeo. <a href="https://raw.githubusercontent.com/vinicius-gpl/acerola-reader/main/docs/github/brag.mp4">Baixe o vídeo aqui</a>.
-  </video>
+  <a href="docs/github/brag.mp4">
+    <img src="docs/github/brag.jpg" alt="Assista ao vídeo de lançamento da Acerola" width="85%">
+  </a>
 </p>
 
 Ecossistema de leitura de quadrinhos/mangás locais com sincronização 100% P2P entre dispositivos — sem servidor central, sem conta, sem nuvem.
