@@ -1,8 +1,8 @@
 # Acerola
 
 <p align="center">
-  <a href="docs/github/brag.mp4">
-    <img src="docs/github/brag.jpg" alt="Assista ao vídeo de lançamento da Acerola" width="85%">
+  <a href="docs/github/ptbr/brag.mp4">
+    <img src="docs/github/ptbr/brag.jpg" alt="Assista ao vídeo de lançamento da Acerola" width="85%">
   </a>
 </p>
 
