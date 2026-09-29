@@ -1,8 +1,8 @@
 # Acerola
 
 <p align="center">
-  <video src="docs/github/brag.mp4" poster="docs/github/brag.jpg" controls muted width="85%">
-    Seu navegador não suporta vídeo. <a href="docs/github/brag.mp4">Baixe o vídeo aqui</a>.
+  <video src="https://raw.githubusercontent.com/vinicius-gpl/acerola-reader/main/docs/github/brag.mp4" poster="https://raw.githubusercontent.com/vinicius-gpl/acerola-reader/main/docs/github/brag.jpg" controls muted width="85%">
+    Seu navegador não suporta vídeo. <a href="https://raw.githubusercontent.com/vinicius-gpl/acerola-reader/main/docs/github/brag.mp4">Baixe o vídeo aqui</a>.
   </video>
 </p>
 
