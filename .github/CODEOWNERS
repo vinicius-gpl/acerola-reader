@@ -1,0 +1,24 @@
+# Dono padrão: qualquer arquivo sem regra mais específica abaixo cai aqui.
+# Projeto solo hoje (@vinicius-gpl) — a divisão por diretório já segue as
+# mesmas fronteiras usadas nos labels automáticos do repositório, pra ficar
+# pronta pra distribuir revisão entre colaboradores no futuro sem reescrever.
+*                           @vinicius-gpl
+
+# Android
+/acerola/android/          @vinicius-gpl
+
+# Desktop
+/acerola/desktop/          @vinicius-gpl
+
+# Relay (serviço + UI de monitoramento, deployável na VPS)
+/acerola/relay/             @vinicius-gpl
+
+# Bibliotecas compartilhadas
+/lib/p2p/                   @vinicius-gpl
+/lib/relay/                  @vinicius-gpl
+
+# Site de documentação (docs.acerola.app)
+/docs/web/                   @vinicius-gpl
+
+# CI/CD e configuração do repositório
+/.github/                    @vinicius-gpl
