@@ -29,6 +29,9 @@ use crate::{
 /// carrega o `FileHeader` com o hash. Trait (em vez de `Arc<BlobContext>` direto) só pra manter
 /// os testes de `send_files`/`receive_files` sem depender de um `Endpoint` iroh de verdade —
 /// `BlobChapterTransfer` é a única implementação usada em produção.
+// Mesmo caso de `NetworkServiceApi`: `#[must_use]` gerado pelo `#[async_trait]` sobre um
+// retorno que já é `must_use` (clippy >= 1.99, `double_must_use`).
+#[allow(clippy::double_must_use)]
 #[async_trait]
 pub trait ChapterTransfer: Send + Sync {
     async fn publish(&self, bytes: Vec<u8>) -> Result<String, P2pError>;
