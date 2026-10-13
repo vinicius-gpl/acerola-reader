@@ -31,6 +31,9 @@ pub type NodeBuilder = Arc<
     dyn Fn() -> Pin<Box<dyn Future<Output = Result<Arc<AcerolaP2p>, String>> + Send>> + Send + Sync,
 >;
 
+// `#[async_trait]` gera `#[must_use]` em métodos que já retornam um `Future` (`must_use` por
+// si só) — clippy >= 1.99 acusa isso como `double_must_use` no código expandido pela macro.
+#[allow(clippy::double_must_use)]
 #[async_trait]
 pub trait NetworkServiceApi: Send + Sync + 'static {
     fn local_id(&self) -> Result<String, String>;

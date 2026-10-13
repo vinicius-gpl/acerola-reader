@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use iroh::{RelayConfig, RelayMap, RelayMode as IrohRelayMode, RelayUrl, SecretKey};
 use iroh_services::{
-    caps::{create_api_token_from_secret_key, Caps, RelayCap},
+    caps::{create_api_token_from_secret_key, Caps},
     ApiSecret,
 };
 
@@ -104,11 +104,8 @@ impl RelayModeConfig {
             api_secret.secret,
             node_secret.public(),
             RELAY_AUTH_TOKEN_TTL,
-            Caps::new([RelayCap::Use]),
-        )
-        .map_err(|err| {
-            ConnectionError::StartupFailed(format!("failed to create relay auth token: {err}"))
-        })?;
+            Caps::relay_use(),
+        );
 
         let mut encoded_token = data_encoding::BASE32_NOPAD.encode(&token.encode());
         encoded_token.make_ascii_lowercase();
