@@ -6,9 +6,6 @@
 @import '@fontsource-variable/noto-serif';
 
 @import './colors/catppuccin.css';
-@import './colors/nord.css';
-@import './colors/dracula.css';
-@import './colors/tokyo-night.css';
 
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -22,6 +19,7 @@
 	--color-mantle: var(--mantle);
 	--color-base: var(--base);
 	--color-surface: var(--surface);
+	--color-subtext: var(--subtext);
 
 	--color-background: var(--background);
 	--color-foreground: var(--foreground);
@@ -44,6 +42,14 @@
 	--color-border: var(--border);
 	--color-input: var(--input);
 	--color-ring: var(--ring);
+	--color-success: var(--success);
+	--color-success-soft: var(--success-soft);
+	--color-warning: var(--warning);
+	--color-warning-soft: var(--warning-soft);
+	--color-info: var(--info);
+	--color-info-soft: var(--info-soft);
+	--color-destructive-soft: var(--destructive-soft);
+	--color-primary-soft: var(--primary-soft);
 	--color-chart-1: var(--chart-1);
 	--color-chart-2: var(--chart-2);
 	--color-chart-3: var(--chart-3);

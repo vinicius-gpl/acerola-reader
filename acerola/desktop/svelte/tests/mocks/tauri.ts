@@ -6,7 +6,7 @@ import { vi } from 'vitest';
  *
  * @example
  * vi.mock("@tauri-apps/plugin-store", () => ({
- *   LazyStore: mockLazyStore({ theme: "nord", mode: "dark" }),
+ *   LazyStore: mockLazyStore({ mode: "dark" }),
  * }));
  */
 export function mockLazyStore(savedValues: Record<string, unknown> = {}) {

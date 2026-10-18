@@ -1,23 +1,5 @@
 {
 	"$schema": "https://inlang.com/schema/inlang-message-format",
-	"theme": {
-		"catppuccin": {
-			"name": "Catppuccin",
-			"desc": "Paleta pastel suave com tons roxos e rosados"
-		},
-		"nord": {
-			"name": "Nord",
-			"desc": "Paleta ártica inspirada no norte escandinavo"
-		},
-		"dracula": {
-			"name": "Dracula",
-			"desc": "Cores vibrantes sobre fundo escuro ou claro"
-		},
-		"tokyo-night": {
-			"name": "Tokyo Night",
-			"desc": "Tema escuro e claro limpo inspirado pelas luzes neon de Tóquio"
-		}
-	},
 	"components": {
 		"hero_button": {
 			"default": {
@@ -575,9 +557,6 @@
 				"library": {
 					"desc": "Sincronização e templates de nomenclatura"
 				},
-				"appearance": {
-					"desc": "Tema e paleta de cores do app"
-				},
 				"metadata": {
 					"desc": "Idioma, MangaDex e AniList"
 				},
@@ -626,9 +605,6 @@
 					"title": "Sincronização com AniList",
 					"desc": "Sincroniza metadados com o AniList."
 				}
-			},
-			"components": {
-				"theme_piker": "Aparência"
 			},
 			"library": {
 				"title": "Biblioteca"
@@ -917,7 +893,6 @@
 		},
 		"settings": {
 			"title": "Configuração Inicial",
-			"theme": "Tema",
 			"folder": {
 				"title": "Pasta dos Quadrinhos",
 				"desc": "Selecione a pasta onde seus quadrinhos estão armazenados.",

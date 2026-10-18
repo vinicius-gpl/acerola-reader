@@ -5,12 +5,9 @@
 	import FolderIcon from '@lucide/svelte/icons/folder';
 	import PaletteIcon from '@lucide/svelte/icons/palette';
 	import { useSelectFolder } from '$lib/hooks/store/use-select-folder.svelte';
-	import { useTheme, type ThemeColor } from '$lib/hooks/theme/use-theme.svelte';
-	import ThemePicker from '../../config/components/acerola-theme-picker.svelte';
 
 	import { onMount } from 'svelte';
 
-	const themeCtx = useTheme();
 	const folder = useSelectFolder();
 
 	onMount(() => {
@@ -32,18 +29,6 @@
 		</div>
 
 		<div class="space-y-6">
-			<div class="rounded-2xl border border-border/40 bg-card/50 p-6 backdrop-blur-sm">
-				<div class="mb-4 flex items-center gap-3">
-					<PaletteIcon class="text-chart-5" size={24} />
-					<h2 class="text-xl font-semibold text-foreground">{m['onboarding.settings.theme']()}</h2>
-				</div>
-				<ThemePicker
-					data={{ theme: themeCtx.theme, mode: themeCtx.resolved }}
-					ui={{ showHeader: false }}
-					events={{ onSelect: (name: ThemeColor) => themeCtx.setTheme(name) }}
-				/>
-			</div>
-
 			<div class="rounded-2xl border border-border/40 bg-card/50 p-6 backdrop-blur-sm">
 				<div class="mb-4 flex items-center justify-between">
 					<div class="flex items-center gap-3">

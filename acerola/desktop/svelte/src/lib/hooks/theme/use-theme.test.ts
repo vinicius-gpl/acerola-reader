@@ -3,7 +3,6 @@ import { tick } from 'svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { STORE_KEYS } from '$lib/constants/store-plugin';
-import { THEMES } from '$lib/constants/themes';
 import HookHarness from '../../../../tests/harness/hooks/rune-wrapper.svelte';
 import { useTheme } from './use-theme.svelte';
 
@@ -82,27 +81,21 @@ describe('useTheme', () => {
 		document.documentElement.classList.remove('dark');
 	});
 
-	it('applies theme and light mode to the document', async () => {
+	it('applies light mode to the document', async () => {
 		const hook = await renderHook();
 
 		await hook.setMode('light');
-		await hook.setTheme('nord');
 		await flushTheme();
 
-		expect(hook.theme).toBe('nord');
 		expect(hook.mode).toBe('light');
 		expect(hook.resolved).toBe('light');
-		expect(document.documentElement.getAttribute('data-theme')).toBe(THEMES.nord.light);
+		expect(document.documentElement.getAttribute('data-theme')).toBe('light');
 		expect(document.documentElement.classList.contains('dark')).toBe(false);
 	});
 
 	it('resolves system mode from current window', async () => {
 		const hook = await renderHook();
 
-		// `theme`/`mode`/`resolved` são estado de módulo (singleton, sem reset entre
-		// testes) — fixa o tema explicitamente em vez de assumir o valor inicial padrão,
-		// que pode já ter sido trocado por outro teste antes deste.
-		await hook.setTheme('catppuccin');
 		await hook.setMode('system');
 		await flushTheme();
 
@@ -111,19 +104,18 @@ describe('useTheme', () => {
 		expect(document.documentElement.classList.contains('dark')).toBe(false);
 		// applyTheme() precisa ter rodado de fato pra fixar o data-theme, não só o mode
 		// interno — sem isso um mutante que remove a chamada de applyTheme passa despercebido.
-		expect(document.documentElement.getAttribute('data-theme')).toBe(THEMES.catppuccin.light);
+		expect(document.documentElement.getAttribute('data-theme')).toBe('light');
 	});
 
 	it('applies dark mode directly (not via system), adding the dark class', async () => {
 		const hook = await renderHook();
 
 		await hook.setMode('dark');
-		await hook.setTheme('nord');
 		await flushTheme();
 
 		expect(hook.resolved).toBe('dark');
 		expect(document.documentElement.classList.contains('dark')).toBe(true);
-		expect(document.documentElement.getAttribute('data-theme')).toBe(THEMES.nord.dark);
+		expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
 	});
 
 	it('does not query window.theme() for a non-system mode', async () => {
@@ -135,18 +127,17 @@ describe('useTheme', () => {
 		} as unknown as ReturnType<typeof getCurrentWindow>);
 
 		const hook = await renderHook();
-		// Fixa data-theme em nord.dark ANTES do setMode isolado abaixo — se o setMode não
+		// Fixa data-theme em dark ANTES do setMode isolado abaixo — se o setMode não
 		// reaplicar o tema de fato, o data-theme fica preso nesse valor antigo.
-		await hook.setTheme('nord');
 		await hook.setMode('dark');
 		await flushTheme();
-		expect(document.documentElement.getAttribute('data-theme')).toBe(THEMES.nord.dark);
+		expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
 
 		await hook.setMode('light');
 		await flushTheme();
 
 		expect(themeQuery).not.toHaveBeenCalled();
-		expect(document.documentElement.getAttribute('data-theme')).toBe(THEMES.nord.light);
+		expect(document.documentElement.getAttribute('data-theme')).toBe('light');
 	});
 
 	it('uses the resolved window theme as-is (not a truthy fallback) when it differs from the default', async () => {
@@ -166,7 +157,7 @@ describe('useTheme', () => {
 	});
 
 	describe('module init (fresh module instance per test)', () => {
-		// `theme`/`mode`/`resolved` e a IIFE de carregamento do tema salvo rodam no
+		// `mode`/`resolved` e a IIFE de carregamento do tema salvo rodam no
 		// top-level do módulo, no momento do import — por isso os testes abaixo usam
 		// `vi.resetModules()` + `import()` dinâmico pra obter uma instância nova do
 		// módulo (com sua própria IIFE, seu próprio `store` e seu `browser` mockado),
@@ -190,24 +181,21 @@ describe('useTheme', () => {
 
 			// Prova que a IIFE realmente chamou `store.get` com as chaves certas
 			// (mata o mutante que troca `Promise.all([...])` por `Promise.all([])`).
-			expect(store.get).toHaveBeenCalledWith(STORE_KEYS.theme);
 			expect(store.get).toHaveBeenCalledWith(STORE_KEYS.mode);
 
-			// `savedTheme`/`savedMode` resolveram `null` (nada persistido) — não podem
-			// sobrescrever os defaults com `null`.
-			expect(hook.theme).toBe('catppuccin');
+			// `savedMode` resolveu `null` (nada persistido) — não pode sobrescrever o
+			// default com `null`.
 			expect(hook.mode).toBe('dark');
 			expect(hook.resolved).toBe('dark');
 
-			// `applyTheme(theme, mode)` precisa ter rodado de fato ao final da IIFE.
-			expect(document.documentElement.getAttribute('data-theme')).toBe(THEMES.catppuccin.dark);
+			// `applyTheme(mode)` precisa ter rodado de fato ao final da IIFE.
+			expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
 			expect(document.documentElement.classList.contains('dark')).toBe(true);
 		});
 
-		it('overrides theme and mode with the values persisted in the store on module init', async () => {
+		it('overrides mode with the values persisted in the store on module init', async () => {
 			mockBrowserEnvironment(true);
 			const store = mockPersistedStore({
-				[STORE_KEYS.theme]: 'dracula',
 				[STORE_KEYS.mode]: 'light'
 			});
 			vi.resetModules();
@@ -217,23 +205,19 @@ describe('useTheme', () => {
 
 			await flushMicrotasks();
 
-			expect(store.get).toHaveBeenCalledWith(STORE_KEYS.theme);
 			expect(store.get).toHaveBeenCalledWith(STORE_KEYS.mode);
 
-			// savedTheme truthy → sobrescreve o default 'catppuccin'.
-			expect(hook.theme).toBe('dracula');
 			// savedMode truthy → sobrescreve o default 'dark'.
 			expect(hook.mode).toBe('light');
 			// `applyTheme` rodou com os valores carregados, não com os defaults.
 			expect(hook.resolved).toBe('light');
-			expect(document.documentElement.getAttribute('data-theme')).toBe(THEMES.dracula.light);
+			expect(document.documentElement.getAttribute('data-theme')).toBe('light');
 			expect(document.documentElement.classList.contains('dark')).toBe(false);
 		});
 
 		it('does not load the persisted theme or apply it when not running in a browser', async () => {
 			mockBrowserEnvironment(false);
 			const store = mockPersistedStore({
-				[STORE_KEYS.theme]: 'dracula',
 				[STORE_KEYS.mode]: 'light'
 			});
 			vi.resetModules();
@@ -246,14 +230,12 @@ describe('useTheme', () => {
 			// `browser && (...)()` nunca deve rodar fora de um browser — nada é lido
 			// do store, mesmo com valores salvos disponíveis.
 			expect(store.get).not.toHaveBeenCalled();
-			expect(hook.theme).toBe('catppuccin');
 			expect(hook.mode).toBe('dark');
 			expect(document.documentElement.hasAttribute('data-theme')).toBe(false);
 
 			// `applyTheme` também guarda em `browser` internamente — chamá-la
-			// (indiretamente, via setTheme/setMode) fora de um browser precisa ser
+			// (indiretamente, via setMode) fora de um browser precisa ser
 			// um no-op: nem `getCurrentWindow()` nem o DOM devem ser tocados.
-			await hook.setTheme('nord');
 			await hook.setMode('light');
 			await flushMicrotasks();
 

@@ -63,20 +63,19 @@ describe('config +page (accordion)', () => {
 		});
 	});
 
-	// Aparência e Marcadores ficam sempre abertas (flat, sem clique) — só Arquivos/Biblioteca/
-	// Metadados colapsam por padrão. Mesmo mix de UI/UX da tela de Rede (nem toda seção precisa
-	// de um clique pra ver o conteúdo).
+	// Marcadores fica sempre aberta (flat, sem clique) — só Arquivos/Biblioteca/Metadados
+	// colapsam por padrão. Mesmo mix de UI/UX da tela de Rede (nem toda seção precisa de um
+	// clique pra ver o conteúdo).
 	it('renders the flat categories already open and the collapsible ones collapsed by default', () => {
 		render(ConfigPage);
 
 		expect(screen.getByText(/^configuração dos arquivos$/i)).toBeInTheDocument();
 		expect(screen.getByText(/^biblioteca$/i)).toBeInTheDocument();
-		expect(screen.getByText(/^aparência$/i)).toBeInTheDocument();
 		expect(screen.getByText(/^configuração de metadados$/i)).toBeInTheDocument();
 		expect(screen.getByText(/^marcadores$/i)).toBeInTheDocument();
 
-		// Aparência é flat — o grid de temas já vem visível, sem precisar clicar.
-		expect(screen.getByText(/catppuccin/i)).toBeInTheDocument();
+		// Não existe mais seção de troca de tema — só o modo claro/escuro no header.
+		expect(screen.queryByText(/^aparência$/i)).not.toBeInTheDocument();
 		// Biblioteca continua colapsável — conteúdo escondido até clicar.
 		expect(screen.queryByText(/^templates de nomenclatura$/i)).not.toBeInTheDocument();
 	});
@@ -107,8 +106,8 @@ describe('config +page (accordion)', () => {
 
 		await user.click(screen.getByText(/^biblioteca$/i));
 
-		// Aparência (flat) nunca deixou de estar visível; Biblioteca (colapsável) agora também está.
-		expect(screen.getByText(/catppuccin/i)).toBeInTheDocument();
+		// Marcadores (flat) nunca deixou de estar visível; Biblioteca (colapsável) agora também está.
+		expect(screen.getByText(/^marcadores$/i)).toBeInTheDocument();
 		expect(await screen.findByText(/^templates de nomenclatura$/i)).toBeInTheDocument();
 	});
 

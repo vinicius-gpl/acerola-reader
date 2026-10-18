@@ -1,85 +1,119 @@
-/* Default: Catppuccin Mocha (dark) */
-:root,
-[data-theme='catppuccin-mocha'] {
-	--crust: #11111b;
-	--mantle: #181825;
-	--base: #1e1e2e;
-	--surface: #313244;
+/* Paleta única do app, copiada sem alteração de
+   acerola-ticket/acerola/dashboard/client/src/lib/theme/tokens.css — Latte no claro, Mocha
+   no escuro. Não existe mais troca de paleta, só de modo (claro/escuro).
 
-	--background: #1e1e2e;
-	--foreground: #cdd6f4;
-	--card: #313244;
-	--card-foreground: #cdd6f4;
-	--popover: #313244;
-	--popover-foreground: #cdd6f4;
+   Default: escuro (Mocha). */
+:root,
+[data-theme='dark'] {
+	--crust: #0e0e15;
+	--mantle: #13131c;
+	--base: #181824;
+	--surface: #222332;
+
+	--subtext: #94a3b8;
+
+	--background: #11111a;
+	--foreground: #f1f5f9;
+	--card: #181824;
+	--card-foreground: #f1f5f9;
+	--popover: #181824;
+	--popover-foreground: #f1f5f9;
 	--primary: #cba6f7;
-	--primary-foreground: #1e1e2e;
-	--secondary: #45475a;
-	--secondary-foreground: #cdd6f4;
-	--muted: #45475a;
-	--muted-foreground: #a6adc8;
-	--accent: #45475a;
-	--accent-foreground: #cdd6f4;
+	--primary-foreground: #11111a;
+	--secondary: #222332;
+	--secondary-foreground: #f1f5f9;
+	--muted: #1e1e2d;
+	--muted-foreground: #94a3b8;
+	--accent: #222332;
+	--accent-foreground: #f1f5f9;
 	--accent-hero: #f5c2e7;
 	--accent-hero-foreground: var(--primary-foreground);
 	--destructive: #f38ba8;
 	--destructive-foreground: var(--primary-foreground);
-	--border: #585b70;
-	--input: #45475a;
+	--border: #2b2c3d;
+	--input: #222332;
 	--ring: #cba6f7;
+
+	--success: #34d399;
+	--success-soft: #022c22;
+	--warning: #fbbf24;
+	--warning-soft: #451a03;
+	--info: #60a5fa;
+	--info-soft: #172554;
+	--destructive-soft: #4c0519;
+	--primary-soft: #2e1065;
+
 	--chart-1: #f38ba8;
 	--chart-2: #fab387;
 	--chart-3: #f9e2af;
 	--chart-4: #a6e3a1;
 	--chart-5: #74c7ec;
-	--sidebar: #181825;
-	--sidebar-foreground: #cdd6f4;
+
+	--sidebar: #13131c;
+	--sidebar-foreground: #f1f5f9;
 	--sidebar-primary: #cba6f7;
-	--sidebar-primary-foreground: #1e1e2e;
-	--sidebar-accent: #313244;
-	--sidebar-accent-foreground: #cdd6f4;
-	--sidebar-border: #585b70;
+	--sidebar-primary-foreground: #11111a;
+	--sidebar-accent: #222332;
+	--sidebar-accent-foreground: #f1f5f9;
+	--sidebar-border: #2b2c3d;
 	--sidebar-ring: #cba6f7;
+
+	color-scheme: dark;
 }
 
-[data-theme='catppuccin-latte'] {
-	--crust: #dce0e8;
-	--mantle: #e6e9ef;
-	--base: #eff1f5;
-	--surface: #ccd0da;
+[data-theme='light'] {
+	--crust: #e2e8f0;
+	--mantle: #f1f5f9;
+	--base: #f8fafc;
+	--surface: #e2e8f0;
 
-	--background: #eff1f5;
-	--foreground: #4c4f69;
-	--card: #ccd0da;
-	--card-foreground: #4c4f69;
-	--popover: #e6e9ef;
-	--popover-foreground: #4c4f69;
-	--primary: #8839ef;
-	--primary-foreground: #eff1f5;
-	--secondary: #bcc0cc;
-	--secondary-foreground: #4c4f69;
-	--muted: #bcc0cc;
-	--muted-foreground: #6c6f85;
-	--accent: #bcc0cc;
-	--accent-foreground: #4c4f69;
+	--subtext: #64748b;
+
+	--background: #f8fafc;
+	--foreground: #0f172a;
+	--card: #ffffff;
+	--card-foreground: #0f172a;
+	--popover: #ffffff;
+	--popover-foreground: #0f172a;
+	--primary: #7c3aed;
+	--primary-foreground: #ffffff;
+	--secondary: #f1f5f9;
+	--secondary-foreground: #0f172a;
+	--muted: #f1f5f9;
+	--muted-foreground: #64748b;
+	--accent: #f1f5f9;
+	--accent-foreground: #0f172a;
 	--accent-hero: #ea76cb;
 	--accent-hero-foreground: var(--primary-foreground);
-	--destructive: #d20f39;
+	--destructive: #e11d48;
 	--destructive-foreground: var(--primary-foreground);
-	--border: #acb0be;
-	--input: #acb0be;
-	--ring: #8839ef;
-	--chart-1: #d20f39;
-	--chart-2: #fe640b;
-	--chart-3: #df8e1d;
-	--chart-4: #40a02b;
-	--chart-5: #209fb5;
-	--sidebar: #e6e9ef;
-	--sidebar-foreground: #4c4f69;
-	--sidebar-primary: #8839ef;
-	--sidebar-primary-foreground: #eff1f5;
-	--sidebar-accent: #ccd0da;
-	--sidebar-accent-foreground: #4c4f69;
-	--sidebar-border: #acb0be;
-	--sidebar-ring: #8839ef;
+	--border: #e2e8f0;
+	--input: #e2e8f0;
+	--ring: #7c3aed;
+
+	--success: #047857;
+	--success-soft: #d1fae5;
+	--warning: #b45309;
+	--warning-soft: #fef3c7;
+	--info: #1d4ed8;
+	--info-soft: #dbeafe;
+	--destructive-soft: #ffe4e6;
+	--primary-soft: #ede9fe;
+
+	--chart-1: #e11d48;
+	--chart-2: #f97316;
+	--chart-3: #eab308;
+	--chart-4: #10b981;
+	--chart-5: #0ea5e9;
+
+	--sidebar: #f8fafc;
+	--sidebar-foreground: #0f172a;
+	--sidebar-primary: #7c3aed;
+	--sidebar-primary-foreground: #ffffff;
+	--sidebar-accent: #f1f5f9;
+	--sidebar-accent-foreground: #0f172a;
+	--sidebar-border: #e2e8f0;
+	--sidebar-ring: #7c3aed;
+
+	color-scheme: light;
 }

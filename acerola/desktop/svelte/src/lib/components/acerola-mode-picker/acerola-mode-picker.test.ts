@@ -24,13 +24,9 @@ describe('AcerolaModePicker', () => {
 
 		vi.doMock('$lib/hooks/use-theme.svelte', () => ({
 			useTheme: () => ({
-				get theme() {
-					return 'catppuccin';
-				},
 				get mode() {
 					return 'dark';
 				},
-				setTheme: vi.fn(),
 				setMode: setModeSpy
 			})
 		}));

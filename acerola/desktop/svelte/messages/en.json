@@ -1,23 +1,5 @@
 {
 	"$schema": "https://inlang.com/schema/inlang-message-format",
-	"theme": {
-		"catppuccin": {
-			"name": "Catppuccin",
-			"desc": "Soft pastel palette with purple and pink tones"
-		},
-		"nord": {
-			"name": "Nord",
-			"desc": "Arctic palette inspired by Scandinavian north"
-		},
-		"dracula": {
-			"name": "Dracula",
-			"desc": "Vibrant colors on dark or light background"
-		},
-		"tokyo-night": {
-			"name": "Tokyo Night",
-			"desc": "Clean dark and light theme inspired by Tokyo neon lights"
-		}
-	},
 	"components": {
 		"hero_button": {
 			"default": {
@@ -575,9 +557,6 @@
 				"library": {
 					"desc": "Sync and naming templates"
 				},
-				"appearance": {
-					"desc": "Theme and color palette"
-				},
 				"metadata": {
 					"desc": "Language, MangaDex and AniList"
 				},
@@ -626,9 +605,6 @@
 					"title": "AniList Sync",
 					"desc": "Sync metadata with AniList."
 				}
-			},
-			"components": {
-				"theme_piker": "Appearance"
 			},
 			"library": {
 				"title": "Library"
@@ -917,7 +893,6 @@
 		},
 		"settings": {
 			"title": "Initial Setup",
-			"theme": "Theme",
 			"folder": {
 				"title": "Comics Folder",
 				"desc": "Select the folder where your comics are stored.",

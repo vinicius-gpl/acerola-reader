@@ -28,44 +28,16 @@ describe('native config', () => {
 		await waitForText('Biblioteca');
 		await waitForText('Sincronização rápida');
 		await waitForText('Sincronização profunda');
-		await waitForText('Aparência');
-		await waitForText('Catppuccin');
-		await waitForText('Nord');
-		await waitForText('Dracula');
-		await waitForText('Tokyo Night');
 		await waitForText('Configuração de metadados');
 		await waitForText('Idioma');
 		await waitForText('Sincronização com MangaDex');
 		await waitForText('Sincronização com AniList');
 	});
 
-	it('switches visual theme and keeps the app on settings screen', async () => {
+	it('applies only the light/dark mode to the document (no custom palettes)', async () => {
 		await openConfig();
 
-		await (await waitForText('Nord')).click();
-		await browser.waitUntil(async () => (await currentTheme()).startsWith('nord'), {
-			timeout: 5_000,
-			interval: 100,
-			timeoutMsg: 'Tema Nord não foi aplicado no documento.'
-		});
-
-		await (await waitForText('Dracula')).click();
-		await browser.waitUntil(async () => ['dracula', 'alucard'].includes(await currentTheme()), {
-			timeout: 5_000,
-			interval: 100,
-			timeoutMsg: 'Tema Dracula não foi aplicado no documento.'
-		});
-
-		await (await waitForText('Tokyo Night')).click();
-		await browser.waitUntil(async () => (await currentTheme()).startsWith('tokyo-night'), {
-			timeout: 5_000,
-			interval: 100,
-			timeoutMsg: 'Tema Tokyo Night não foi aplicado no documento.'
-		});
-
-		expect(await getPathname()).toBe('/config');
-
-		await (await waitForText('Catppuccin')).click();
+		expect(['light', 'dark']).toContain(await currentTheme());
 	});
 
 	it('opens sidebar language selector without changing route', async () => {

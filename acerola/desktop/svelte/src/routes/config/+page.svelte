@@ -14,13 +14,11 @@
 	import AcerolaSwitch from '$lib/components/acerola-switch/acerola-switch.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as Command from '$lib/components/ui/command';
-	import ThemePicker from './components/acerola-theme-picker.svelte';
 	import AcerolaBookmarkManager from './components/acerola-bookmark-manager.svelte';
 	import { useComicInfoPreference } from '$lib/hooks/preferences/use-comic-info.svelte';
 	import { useMetadataLanguage } from '$lib/hooks/preferences/use-metadata-language.svelte';
 	import { useLibraryScanner } from '$lib/hooks/store/use-comic-scanner.svelte';
 	import { useSelectFolder } from '$lib/hooks/store/use-select-folder.svelte';
-	import { useTheme } from '$lib/hooks/theme/use-theme.svelte';
 	import { DIRECTORY_SCAN_COMMANDS } from '$lib/contracts/library/library.commands';
 	import { METADATA_COMMANDS } from '$lib/contracts/metadata/metadata.commands';
 	import { notificationStore } from '$lib/components/acerola-notification/acerola-notification.svelte';
@@ -41,13 +39,11 @@
 	import FolderIcon from '@lucide/svelte/icons/folder';
 	import FolderSync from '@lucide/svelte/icons/folder-sync';
 	import LanguagesIcon from '@lucide/svelte/icons/languages';
-	import PaletteIcon from '@lucide/svelte/icons/palette';
 	import PlayIcon from '@lucide/svelte/icons/play';
 	import RefreshCw from '@lucide/svelte/icons/refresh-cw';
 
 	const { notify } = notificationStore;
 
-	const ctx = useTheme();
 	const folder = useSelectFolder();
 	const comicInfoPreference = useComicInfoPreference();
 	const metadataLanguageStore = useMetadataLanguage();
@@ -351,31 +347,6 @@
 						</AcerolaButtonIcon>
 					{/snippet}
 				</AcerolaHeroButton>
-			{/snippet}
-		</AcerolaAccordionCard>
-
-		<!-- Aparência — fica sempre aberta (flat): é uma seção curta e visual (grid de temas),
-		     vale mais a pena ver de cara do que esconder atrás de um clique. Mesmo espírito da
-		     tela de Rede, onde nem toda seção precisa colapsar. -->
-		<AcerolaAccordionCard
-			data={{
-				title: m['pages.config.components.theme_piker'](),
-				description: m['pages.config.categories.appearance.desc']()
-			}}
-			state={{ expanded: true }}
-			events={{ onToggle: () => {} }}
-			ui={{ collapsible: false, iconClass: 'bg-chart-1 text-primary-foreground' }}
-		>
-			{#snippet icon()}
-				<PaletteIcon size={24} />
-			{/snippet}
-
-			{#snippet children()}
-				<ThemePicker
-					data={{ theme: ctx.theme, mode: ctx.resolved }}
-					events={{ onSelect: ctx.setTheme }}
-					ui={{ showHeader: false }}
-				/>
 			{/snippet}
 		</AcerolaAccordionCard>
 
