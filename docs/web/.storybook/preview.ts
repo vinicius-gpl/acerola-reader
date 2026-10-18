@@ -9,23 +9,15 @@ import './storybook.css';
 // do paraglide pra isso, então nenhum componente precisa saber que está rodando no Storybook.
 overwriteSetLocale(() => {});
 
-const DARK_THEMES = ['catppuccin-mocha', 'nord-dark', 'dracula', 'tokyo-night-storm'];
-
 export const globalTypes = {
 	theme: {
 		name: 'Theme',
-		defaultValue: 'catppuccin-mocha',
+		defaultValue: 'dark',
 		toolbar: {
 			icon: 'paintbrush',
 			items: [
-				{ value: 'catppuccin-mocha', title: 'Catppuccin Mocha (Dark)' },
-				{ value: 'catppuccin-latte', title: 'Catppuccin Latte (Light)' },
-				{ value: 'nord-dark', title: 'Nord Dark' },
-				{ value: 'nord-light', title: 'Nord Light' },
-				{ value: 'dracula', title: 'Dracula (Dark)' },
-				{ value: 'alucard', title: 'Alucard (Light)' },
-				{ value: 'tokyo-night-storm', title: 'Tokyo Night Storm (Dark)' },
-				{ value: 'tokyo-night-day', title: 'Tokyo Night Day (Light)' }
+				{ value: 'dark', title: 'Dark' },
+				{ value: 'light', title: 'Light' }
 			],
 			dynamicTitle: true
 		}
@@ -35,11 +27,10 @@ export const globalTypes = {
 const preview: Preview = {
 	decorators: [
 		(Story, context) => {
-			const theme = (context.globals.theme as string) ?? 'catppuccin-mocha';
-			const isDark = DARK_THEMES.includes(theme);
+			const theme = (context.globals.theme as string) ?? 'dark';
 
 			document.documentElement.setAttribute('data-theme', theme);
-			document.documentElement.classList.toggle('dark', isDark);
+			document.documentElement.classList.toggle('dark', theme === 'dark');
 
 			return Story();
 		}

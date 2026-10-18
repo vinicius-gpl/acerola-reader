@@ -98,8 +98,8 @@ figure[data-rehype-pretty-code-figure] code[data-line-numbers] > [data-line]::be
 }
 
 /* Prosa do conteúdo em markdown — não usamos @tailwindcss/typography porque seu
-   `prose` é baseado em uma paleta cinza fixa, e o site troca entre 4 paletas de
-   cor (Catppuccin/Nord/Dracula/Tokyo Night) via essas custom properties. */
+   `prose` é baseado em uma paleta cinza fixa, e o site troca entre claro e escuro
+   via essas custom properties. */
 .doc-content :where(h2) {
 	@apply mt-10 mb-4 font-heading text-2xl font-semibold first:mt-0;
 }

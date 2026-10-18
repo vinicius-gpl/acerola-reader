@@ -172,9 +172,8 @@
 	}
 
 	$effect(() => {
-		// Re-render whenever the active palette or light/dark mode changes.
+		// Re-render whenever the light/dark mode changes.
 		themeCtx.resolved;
-		themeCtx.theme;
 		renderMermaid();
 	});
 </script>

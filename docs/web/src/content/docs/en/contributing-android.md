@@ -48,7 +48,7 @@ flowchart TD
 - **`:data`** — data access: adapters/gateways (Port & Adapter pattern, using Arrow's `Either` for errors), DTOs, Room (local DAOs/entities), and remote clients (MangaDex, AniList). Depends only on `:infra`.
 - **`:native`** — Kotlin/JNI bridge (via `uniffi`) to consume `lib/p2p` (Rust) — loads the native libraries under `jniLibs/`. Base layer, no internal dependencies.
 - **`:core`** — business logic and orchestration: DI modules (Hilt), use cases, P2P sync, and background workers (WorkManager). Depends on `:infra`, `:data`, and `:native`.
-- **`:ui`** — Jetpack Compose: Screens, ViewModels, `UiState` classes, theming (Catppuccin, Dracula, Alucard, Nord), and navigation. Depends on `:core` and `:infra`.
+- **`:ui`** — Jetpack Compose: Screens, ViewModels, `UiState` classes, the theme (single light/dark palette), and navigation. Depends on `:core` and `:infra`.
 - **`:app`** — entry point: `AcerolaApplication` (Hilt, WorkManager, Coil setup), `MainActivity` (navigation host).
 
 ## Key patterns

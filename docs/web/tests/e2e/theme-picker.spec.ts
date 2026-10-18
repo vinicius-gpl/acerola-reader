@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test';
 
-// Theme persistence uses localStorage (THEME_STORAGE_KEY / MODE_STORAGE_KEY from
+// Mode persistence uses localStorage (MODE_STORAGE_KEY from
 // src/lib/constants/themes.ts), not cookies. Default state on first load is
-// theme "catppuccin" / mode "dark" (see use-theme.svelte.ts). The picker cycles
+// mode "dark" (see use-theme.svelte.ts). The picker cycles
 // mode dark -> system -> light -> dark on each click.
 test.describe('theme picker', () => {
 	test('persists the selected theme mode across reloads', async ({ page }) => {
@@ -28,7 +28,7 @@ test.describe('theme picker', () => {
 			.poll(() => page.evaluate(() => localStorage.getItem('acerola-docs:mode')))
 			.toBe('light');
 		await expect(page.locator('html')).not.toHaveClass(/dark/);
-		await expect(page.locator('html')).toHaveAttribute('data-theme', 'catppuccin-latte');
+		await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
 
 		await page.reload();
 
@@ -36,6 +36,6 @@ test.describe('theme picker', () => {
 			.poll(() => page.evaluate(() => localStorage.getItem('acerola-docs:mode')))
 			.toBe('light');
 		await expect(page.locator('html')).not.toHaveClass(/dark/);
-		await expect(page.locator('html')).toHaveAttribute('data-theme', 'catppuccin-latte');
+		await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
 	});
 });

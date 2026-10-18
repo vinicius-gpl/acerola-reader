@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button/index';
-	import AcerolaColorPicker from '$lib/components/acerola-color-picker/acerola-color-picker.svelte';
 	import AcerolaThemePicker from '$lib/components/acerola-theme-picker/acerola-theme-picker.svelte';
 	import GithubIcon from '$lib/icons/github.svelte';
 	import { GITHUB_URL } from '$lib/constants/site';
@@ -19,7 +18,6 @@
 		{getLocale().toUpperCase()}
 	</Button>
 	<AcerolaThemePicker />
-	<AcerolaColorPicker />
 	<Button
 		variant="ghost"
 		size="icon"

@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/svelte';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { MODE_STORAGE_KEY, THEME_STORAGE_KEY } from '$lib/constants/themes';
+import { MODE_STORAGE_KEY } from '$lib/constants/themes';
 import { useTheme } from '$lib/hooks/theme/use-theme.svelte';
 import AcerolaThemePicker from './acerola-theme-picker.svelte';
 
@@ -15,23 +15,14 @@ beforeEach(() => {
 	localStorage.clear();
 	document.documentElement.removeAttribute('data-theme');
 	document.documentElement.classList.remove('dark');
-	themeCtx.setTheme('catppuccin');
 	themeCtx.setMode('dark');
 });
 
 describe('useTheme', () => {
-	it('defaults to the catppuccin theme in dark mode', () => {
-		expect(themeCtx.theme).toBe('catppuccin');
+	it('defaults to dark mode', () => {
 		expect(themeCtx.mode).toBe('dark');
 		expect(themeCtx.resolved).toBe('dark');
-	});
-
-	it('setTheme updates the theme, persists it, and applies it to the document', () => {
-		themeCtx.setTheme('nord');
-
-		expect(themeCtx.theme).toBe('nord');
-		expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe('nord');
-		expect(document.documentElement.getAttribute('data-theme')).toBe('nord-dark');
+		expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
 	});
 
 	it('setMode updates mode/resolved, persists it, and toggles the dark class', () => {
@@ -40,6 +31,7 @@ describe('useTheme', () => {
 		expect(themeCtx.mode).toBe('light');
 		expect(themeCtx.resolved).toBe('light');
 		expect(localStorage.getItem(MODE_STORAGE_KEY)).toBe('light');
+		expect(document.documentElement.getAttribute('data-theme')).toBe('light');
 		expect(document.documentElement.classList.contains('dark')).toBe(false);
 	});
 });

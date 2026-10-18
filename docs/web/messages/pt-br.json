@@ -25,25 +25,6 @@
 		"dark": "Escuro",
 		"system": "Sistema"
 	},
-	"color_picker": {
-		"title": "Mudar paleta de cores",
-		"catppuccin": {
-			"name": "Catppuccin",
-			"desc": "Paleta pastel suave com tons roxos e rosados"
-		},
-		"nord": {
-			"name": "Nord",
-			"desc": "Paleta ártica inspirada no norte escandinavo"
-		},
-		"dracula": {
-			"name": "Dracula",
-			"desc": "Cores vibrantes sobre fundo escuro ou claro"
-		},
-		"tokyo-night": {
-			"name": "Tokyo Night",
-			"desc": "Tema escuro e claro limpo inspirado pelas luzes neon de Tóquio"
-		}
-	},
 	"sidebar": {
 		"toggle": "Alternar barra lateral"
 	},
