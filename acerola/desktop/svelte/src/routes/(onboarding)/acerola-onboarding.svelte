@@ -57,38 +57,73 @@
 	}
 
 	let currentStepIndex = $derived(onboarding.currentStep);
+	let progressPercent = $derived(((currentStepIndex) / (STEPS.length - 1)) * 100);
 </script>
 
-<div class="flex h-full w-full flex-col">
-	<div class="border-b border-border/30 bg-background/95 px-8 py-4">
-		<div class="flex items-center justify-center gap-2">
-			{#each STEPS as step, it}
-				<div
-					class="flex items-center gap-2 rounded-full px-4 py-2 text-xs font-medium transition-all duration-300
-						{it === onboarding.currentStep
-						? 'bg-primary text-primary-foreground'
-						: it < onboarding.currentStep
-							? 'bg-muted text-muted-foreground'
-							: 'bg-transparent text-muted-foreground/50'}"
-				>
-					<span
-						class="flex size-5 items-center justify-center rounded-full
-						{it <= onboarding.currentStep ? 'bg-background/20' : 'bg-muted/30'}"
-					>
-						{it + 1}
+<div class="relative flex h-full w-full flex-col overflow-hidden bg-background">
+	<!-- Ambient Glow Background -->
+	<div
+		class="pointer-events-none absolute inset-0 opacity-30 transition-opacity duration-700 ease-out"
+		style="background: radial-gradient(circle 800px at 50% -10%, var(--color-primary) 0%, transparent 70%);"
+	></div>
+
+	<!-- Top Stepper Navigation (VibePrompts inspired) -->
+	<div class="relative z-10 border-b border-border/40 bg-background/80 px-6 py-4 backdrop-blur-xl">
+		<div class="mx-auto flex max-w-4xl flex-col gap-3">
+			<div class="flex items-center justify-between">
+				<div class="flex items-center gap-2">
+					<span class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+						{m['onboarding.setup_title']()}
 					</span>
-					<span class="hidden sm:inline">{step.label()}</span>
 				</div>
-				{#if it < STEPS.length - 1}
-					<div class="h-px w-8 bg-border/30"></div>
-				{/if}
-			{/each}
+				<span class="text-xs font-medium text-muted-foreground">
+					{currentStepIndex + 1} / {STEPS.length} ({Math.round(progressPercent)}%)
+				</span>
+			</div>
+
+			<!-- Stepper progress pills -->
+			<div class="relative flex items-center justify-between gap-2">
+				{#each STEPS as step, it}
+					{@const isCompleted = it < currentStepIndex}
+					{@const isCurrent = it === currentStepIndex}
+					<div
+						class="flex flex-1 items-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium transition-all duration-300 {isCurrent
+							? 'border-primary/50 bg-primary/10 text-primary shadow-[0_0_16px_rgba(var(--color-primary-rgb),0.15)] ring-1 ring-primary/30'
+							: isCompleted
+								? 'border-border/60 bg-muted/40 text-foreground'
+								: 'border-transparent bg-transparent text-muted-foreground/60'}"
+					>
+						<span
+							class="flex size-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold transition-all duration-300 {isCurrent
+								? 'bg-primary text-primary-foreground shadow-xs'
+								: isCompleted
+									? 'bg-primary/20 text-primary'
+									: 'bg-muted/60 text-muted-foreground'}"
+						>
+							{it + 1}
+						</span>
+						<span class="truncate font-medium max-sm:hidden">{step.label()}</span>
+					</div>
+				{/each}
+			</div>
+
+			<!-- Progress track bar -->
+			<div class="h-1 w-full overflow-hidden rounded-full bg-muted/40">
+				<div
+					class="h-full bg-linear-to-r from-primary/80 via-primary to-chart-1 transition-all duration-500 ease-out"
+					style="width: {progressPercent}%;"
+				></div>
+			</div>
 		</div>
 	</div>
 
+	<!-- Step Content Container with dynamic fly animation -->
 	<div class="relative flex-1 overflow-hidden">
 		{#key currentStepIndex}
-			<div class="absolute inset-0 overflow-y-auto" in:fly={{ duration: 300, x: direction * 100 }}>
+			<div
+				class="absolute inset-0 overflow-y-auto"
+				in:fly={{ duration: 300, x: direction * 100 }}
+			>
 				{#if currentStepIndex === 0}
 					<StepWelcome onNext={handleNext} />
 				{:else if currentStepIndex === 1}

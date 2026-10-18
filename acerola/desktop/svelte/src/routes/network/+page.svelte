@@ -28,6 +28,7 @@
 
 	import ShieldAlertIcon from '@lucide/svelte/icons/shield-alert';
 	import XIcon from '@lucide/svelte/icons/x';
+	import NetworkIcon from '@lucide/svelte/icons/network';
 
 	const peers = usePeerConnection();
 	// Compartilhada com `+layout.svelte` (nunca desmonta) via contexto — não cria uma instância
@@ -143,20 +144,29 @@
 	}
 </script>
 
-<div class="mx-auto w-full max-w-5xl space-y-12 p-8">
+<div class="mx-auto w-full max-w-6xl space-y-8 p-6 sm:p-8">
 	<!-- Header -->
-	<div>
-		<h1 class="text-3xl font-bold tracking-tight text-foreground">
+	<div class="space-y-2">
+		<div
+			class="inline-flex items-center gap-2 rounded-full border border-border/60 bg-muted/40 px-3 py-1 text-xs font-semibold text-subtext shadow-xs backdrop-blur-xs"
+		>
+			<NetworkIcon size={13} class="text-primary" />
+			<span>{m['pages.network.title']()}</span>
+		</div>
+		<h1 class="text-3xl font-black tracking-tight text-foreground sm:text-4xl">
 			{m['pages.network.title']()}
 		</h1>
-		<p class="mt-2 text-muted-foreground">
+		<p
+			class="text-sm leading-relaxed font-normal text-subtext sm:text-base"
+			style="color: var(--subtext, #94a3b8);"
+		>
 			{m['pages.network.subtitle']()}
 		</p>
 	</div>
 
 	{#if keyringUnavailable && !keyringWarningDismissed}
 		<div
-			class="flex items-start gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 p-4"
+			class="flex items-start gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 p-4 shadow-xs"
 		>
 			<ShieldAlertIcon size={18} class="mt-0.5 shrink-0 text-destructive" />
 			<p class="flex-1 text-sm text-foreground">{m['pages.network.keyring_unavailable']()}</p>
@@ -175,75 +185,88 @@
 		</div>
 	{/if}
 
-	<AcerolaNetworkMyDeviceCard
-		data={{
-			deviceName: peers.localDeviceInfo?.name,
-			localId: peers.localId,
-			mode: peers.status?.mode
-		}}
-		events={{ onRenameDevice: (name) => peers.setDeviceName(name) }}
-	/>
+	<!-- 2 Colunas: Itens à esquerda, QR Code fixado à direita ignorando o scroll -->
+	<div class="grid grid-cols-1 items-start gap-8 lg:grid-cols-12">
+		<!-- Coluna da esquerda: Itens interativos e lista de dispositivos -->
+		<div class="flex flex-col gap-8 lg:col-span-7">
+			<AcerolaNetworkMyDeviceCard
+				data={{
+					deviceName: peers.localDeviceInfo?.name,
+					localId: peers.localId,
+					mode: peers.status?.mode
+				}}
+				events={{ onRenameDevice: (name) => peers.setDeviceName(name) }}
+			/>
 
-	<AcerolaNetworkRelaySettingsCard
-		data={relay.relayInfo}
-		events={{
-			onToggleAcerolaRelay: (value) => relay.setUseAcerolaRelay(value),
-			onToggleIrohPublicNetwork: (value) => relay.setUseIrohPublicNetwork(value),
-			onAddCustomRelayUrl: (url) => relay.addCustomRelayUrl(url),
-			onRemoveCustomRelayUrl: (url) => relay.removeCustomRelayUrl(url),
-			onSetIrohServicesTicket: (ticket) => relay.setIrohServicesTicket(ticket),
-			onClearIrohServicesTicket: () => relay.clearIrohServicesTicket(),
-			onRestart: async () => {
-				await relay.restartP2p();
-				toast.success(m['pages.network.relay_settings.restart.success']());
-			}
-		}}
-	/>
+			<AcerolaNetworkConnectCard
+				data={{ connecting: peers.connecting }}
+				events={{ onConnect: (code) => peers.connectWithCode(code) }}
+			/>
 
-	<AcerolaNetworkPairingCard data={{ code: peers.connectionCode() }} />
+			<!-- Dispositivos Conectados (em seção própria com esqueleto quando vazio) -->
+			<AcerolaNetworkPeerList
+				data={{
+					peers: uniquePeers,
+					addrFor: (peerId) => peers.getKnownAddr(peerId),
+					statusLabel: peerStatusLabel,
+					isSyncing: (peerId, kind) => sync.isSyncing(peerId, kind)
+				}}
+				events={{
+					onSyncHistory: (peerId) => withSync((id, addrs) => sync.syncHistory(id, addrs), peerId),
+					onSyncFiles: (peerId) => withSync((id, addrs) => sync.syncFiles(id, addrs), peerId),
+					onSyncAll: (peerId) => withSync((id, addrs) => sync.syncAll(id, addrs), peerId),
+					onBrowseLibrary: openRemoteLibrary,
+					onRemove: (peer) => (peerPendingRemoval = peer),
+					onRename: (peerId, nickname) => peers.setPeerNickname(peerId, nickname)
+				}}
+			/>
 
-	<AcerolaNetworkConnectCard
-		data={{ connecting: peers.connecting }}
-		events={{ onConnect: (code) => peers.connectWithCode(code) }}
-	/>
+			<!-- Configurações de Relay e Histórico -->
+			<div class="space-y-6">
+				<AcerolaNetworkRelaySettingsCard
+					data={relay.relayInfo}
+					events={{
+						onToggleAcerolaRelay: (value) => relay.setUseAcerolaRelay(value),
+						onToggleIrohPublicNetwork: (value) => relay.setUseIrohPublicNetwork(value),
+						onAddCustomRelayUrl: (url) => relay.addCustomRelayUrl(url),
+						onRemoveCustomRelayUrl: (url) => relay.removeCustomRelayUrl(url),
+						onSetIrohServicesTicket: (ticket) => relay.setIrohServicesTicket(ticket),
+						onClearIrohServicesTicket: () => relay.clearIrohServicesTicket(),
+						onRestart: async () => {
+							await relay.restartP2p();
+							toast.success(m['pages.network.relay_settings.restart.success']());
+						}
+					}}
+				/>
 
-	<AcerolaNetworkPeerList
-		data={{
-			peers: uniquePeers,
-			addrFor: (peerId) => peers.getKnownAddr(peerId),
-			statusLabel: peerStatusLabel,
-			isSyncing: (peerId, kind) => sync.isSyncing(peerId, kind)
-		}}
-		events={{
-			onSyncHistory: (peerId) => withSync((id, addrs) => sync.syncHistory(id, addrs), peerId),
-			onSyncFiles: (peerId) => withSync((id, addrs) => sync.syncFiles(id, addrs), peerId),
-			onSyncAll: (peerId) => withSync((id, addrs) => sync.syncAll(id, addrs), peerId),
-			onBrowseLibrary: openRemoteLibrary,
-			onRemove: (peer) => (peerPendingRemoval = peer),
-			onRename: (peerId, nickname) => peers.setPeerNickname(peerId, nickname)
-		}}
-	/>
+				<!-- Transferências -->
+				<AcerolaNetworkTransfersLog
+					data={{ entries: sync.log, peerLabel: peers.peerLabel }}
+					events={{
+						onRefresh: async () => {
+							try {
+								await sync.refreshLog();
+							} catch (err) {
+								toast.error(String(err));
+							}
+						},
+						onClear: async () => {
+							try {
+								await sync.clearLog();
+							} catch (err) {
+								toast.error(String(err));
+							}
+						}
+					}}
+				/>
+			</div>
+		</div>
 
-	<!-- Transferências -->
-	<AcerolaNetworkTransfersLog
-		data={{ entries: sync.log, peerLabel: peers.peerLabel }}
-		events={{
-			onRefresh: async () => {
-				try {
-					await sync.refreshLog();
-				} catch (err) {
-					toast.error(String(err));
-				}
-			},
-			onClear: async () => {
-				try {
-					await sync.clearLog();
-				} catch (err) {
-					toast.error(String(err));
-				}
-			}
-		}}
-	/>
+		<!-- Coluna da direita: Pairing QR Card fixado ignorando o scroll -->
+		<div class="lg:sticky lg:top-20 lg:col-span-5">
+			<AcerolaNetworkPairingCard data={{ code: peers.connectionCode() }} />
+		</div>
+	</div>
 </div>
 
 <!-- Buscar biblioteca remota -->

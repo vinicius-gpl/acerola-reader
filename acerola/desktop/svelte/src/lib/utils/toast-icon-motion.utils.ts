@@ -5,8 +5,10 @@ import { cn } from '$lib/utils/cn.utils';
 export type ToastIconVariant = 'loading' | 'success' | 'error' | 'warning' | 'info';
 
 const BURST_COLOR: Partial<Record<ToastIconVariant, string>> = {
-	success: 'bg-green-500/35',
-	error: 'bg-destructive/30'
+	success: 'bg-emerald-500/35 ring-4 ring-emerald-500/20',
+	error: 'bg-rose-500/30 ring-4 ring-rose-500/20',
+	warning: 'bg-amber-500/30 ring-4 ring-amber-500/20',
+	info: 'bg-primary/30 ring-4 ring-primary/20'
 };
 
 // Cria e anima um anel que expande e desaparece atrás do ícone — dá peso ao resultado
@@ -66,11 +68,19 @@ export const toastIconEnter: Action<HTMLElement, ToastIconVariant> = (node, vari
 				);
 				break;
 			case 'warning':
-			case 'info':
+				if (BURST_COLOR.warning) spawnBurst(node, BURST_COLOR.warning);
 				gsap.fromTo(
 					node,
-					{ y: -6, opacity: 0 },
-					{ y: 0, opacity: 1, duration: 0.28, ease: 'power2.out' }
+					{ scale: 0.5, opacity: 0, rotate: -15 },
+					{ scale: 1, opacity: 1, rotate: 0, duration: 0.35, ease: 'back.out(1.8)' }
+				);
+				break;
+			case 'info':
+				if (BURST_COLOR.info) spawnBurst(node, BURST_COLOR.info);
+				gsap.fromTo(
+					node,
+					{ scale: 0.5, opacity: 0 },
+					{ scale: 1, opacity: 1, duration: 0.3, ease: 'power2.out' }
 				);
 				break;
 			default:

@@ -36,6 +36,7 @@
 	import PencilIcon from '@lucide/svelte/icons/pencil';
 	import CheckIcon from '@lucide/svelte/icons/check';
 	import XIcon from '@lucide/svelte/icons/x';
+	import RadioIcon from '@lucide/svelte/icons/radio';
 	import AcerolaHeroButton from '$lib/components/acerola-hero-button/acerola-hero-button.svelte';
 	import AcerolaButton from '$lib/components/acerola-button/acerola-button.svelte';
 	import AcerolaButtonIcon from '$lib/components/acerola-button/acerola-button-icon.svelte';
@@ -86,9 +87,72 @@
 	<div class="grid gap-4" use:autoAnimateList>
 		{#if peers.length === 0}
 			<div
-				class="rounded-xl border border-dashed border-border/40 p-8 text-center text-sm text-muted-foreground"
+				class="relative flex flex-col justify-between overflow-hidden rounded-2xl border border-dashed border-border/70 bg-gradient-to-b from-card/60 via-card/30 to-background/50 p-6 backdrop-blur-xs"
 			>
-				{m['pages.network.peers.empty']()}
+				<!-- Scanner Radar Header -->
+				<div class="flex items-start gap-4">
+					<div
+						class="relative flex size-12 shrink-0 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary shadow-xs"
+					>
+						<span
+							class="pointer-events-none absolute inline-flex size-full animate-ping rounded-2xl bg-primary/20 opacity-60"
+						></span>
+						<RadioIcon size={22} class="relative" />
+					</div>
+					<div class="space-y-1 min-w-0 flex-1">
+						<div class="flex items-center gap-2">
+							<h3 class="text-sm font-bold tracking-tight text-foreground">
+								{m['pages.network.peers.empty_title']()}
+							</h3>
+							<span
+								class="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary"
+							>
+								<span class="size-1.5 rounded-full bg-primary animate-pulse"></span>
+								mDNS
+							</span>
+						</div>
+						<p class="text-xs text-muted-foreground leading-relaxed">
+							{m['pages.network.peers.empty']()}
+						</p>
+					</div>
+				</div>
+
+				<!-- Skeleton Preview Placeholder Cards -->
+				<div class="mt-5 space-y-3">
+					<div
+						class="flex items-center justify-between rounded-xl border border-border/40 bg-card/40 p-3.5 shadow-2xs backdrop-blur-xs"
+					>
+						<div class="flex items-center gap-3">
+							<div
+								class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted/60 text-muted-foreground animate-pulse"
+							>
+								<MonitorIcon size={18} class="opacity-40" />
+							</div>
+							<div class="space-y-1.5">
+								<div class="h-3.5 w-32 rounded-md bg-muted/70 animate-pulse"></div>
+								<div class="h-2.5 w-24 rounded-md bg-muted/40 animate-pulse"></div>
+							</div>
+						</div>
+						<div class="h-7 w-20 rounded-lg bg-muted/40 animate-pulse"></div>
+					</div>
+
+					<div
+						class="flex items-center justify-between rounded-xl border border-border/30 bg-card/20 p-3.5 opacity-60 shadow-2xs backdrop-blur-xs"
+					>
+						<div class="flex items-center gap-3">
+							<div
+								class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted/40 text-muted-foreground animate-pulse"
+							>
+								<MonitorIcon size={18} class="opacity-30" />
+							</div>
+							<div class="space-y-1.5">
+								<div class="h-3.5 w-24 rounded-md bg-muted/50 animate-pulse"></div>
+								<div class="h-2.5 w-36 rounded-md bg-muted/30 animate-pulse"></div>
+							</div>
+						</div>
+						<div class="h-7 w-20 rounded-lg bg-muted/30 animate-pulse"></div>
+					</div>
+				</div>
 			</div>
 		{:else}
 			{#each peers as peer (peer.peerId)}

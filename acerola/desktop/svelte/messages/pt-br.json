@@ -37,6 +37,10 @@
 		"bookmark_ribbon": {
 			"default_label": "Com bookmark",
 			"label": "Bookmark: {name}"
+		},
+		"copy_button": {
+			"copy": "Copiar",
+			"copied": "Copiado"
 		}
 	},
 	"hooks": {
@@ -785,6 +789,9 @@
 			"peers": {
 				"title": "Dispositivos pareados",
 				"empty": "Nenhum dispositivo pareado ainda. Compartilhe seu código ou cole um acima pra parear.",
+				"empty_title": "Aguardando conexões...",
+				"empty_desc": "Dispositivos na mesma rede ou pareados via código aparecerão aqui automaticamente.",
+				"searching_mdns": "Varrendo rede local via mDNS...",
 				"sync_history": "Sincronizar histórico",
 				"sync_files": "Sincronizar arquivos",
 				"sync_all": "Sincronizar tudo",
@@ -851,6 +858,13 @@
 		"start": "Começar",
 		"back": "Voltar",
 		"next": "Próximo",
+		"setup_title": "Configuração do Acerola Reader",
+		"welcome_badge_fast_title": "Leitura Veloz",
+		"welcome_badge_fast_desc": "CBZ, CBR e PDF",
+		"welcome_badge_p2p_title": "P2P Seguro",
+		"welcome_badge_p2p_desc": "Sync com mobile",
+		"welcome_badge_local_title": "100% Local",
+		"welcome_badge_local_desc": "Privacidade total",
 		"step": {
 			"welcome": "Boas-vindas",
 			"language": "Idioma",
@@ -860,7 +874,10 @@
 		},
 		"language": {
 			"title": "Selecionar Idioma",
-			"desc": "Escolha o idioma preferido para a aplicação."
+			"desc": "Escolha o idioma preferido para a aplicação.",
+			"quick_select": "Menu de Seleção Rápida",
+			"country_br": "Brasil",
+			"country_us": "Estados Unidos"
 		},
 		"formats": {
 			"title": "Formatos Suportados",
@@ -903,6 +920,10 @@
 		"complete": {
 			"title": "Tudo Pronto!",
 			"desc": "Seu Acerola está pronto para uso.",
+			"checklist_title": "Pronto para a melhor experiência de leitura",
+			"checklist_item_1": "Idioma e interface configurados",
+			"checklist_item_2": "Formatos CBZ, CBR e PDF prontos para indexação",
+			"checklist_item_3": "Diretório da biblioteca vinculado com segurança",
 			"note": "Você pode alterar essas configurações a qualquer momento na página de Configurações.",
 			"button": "Ir para Início"
 		}

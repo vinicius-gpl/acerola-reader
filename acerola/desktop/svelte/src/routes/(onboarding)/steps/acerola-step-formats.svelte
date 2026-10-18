@@ -63,28 +63,29 @@
 		</div>
 
 		<!-- Grid Formatos -->
-		<div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+		<div class="grid grid-cols-1 gap-4.5 md:grid-cols-3">
 			{#each formats as item}
 				<div
 					class={cn(
-						'group relative flex flex-col justify-between rounded-2xl border p-5 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl',
+						'group relative flex flex-col justify-between rounded-3xl border p-6 backdrop-blur-md transition-all duration-300 hover:-translate-y-1.5 hover:shadow-2xl',
+						'shadow-[0_1px_0_rgba(255,255,255,0.1)_inset,0_4px_16px_rgba(0,0,0,0.04)] dark:shadow-[0_1px_0_rgba(255,255,255,0.06)_inset,0_8px_24px_rgba(0,0,0,0.4)]',
 						item.cardClass
 					)}
 				>
 					<div>
 						<!-- Top row: Icon & Badge -->
-						<div class="mb-4 flex items-center justify-between">
+						<div class="mb-5 flex items-center justify-between">
 							<div
 								class={cn(
-									'flex size-11 items-center justify-center rounded-xl p-2.5',
+									'flex size-12 items-center justify-center rounded-2xl p-3 shadow-inner',
 									item.iconColor
 								)}
 							>
-								<item.icon size={22} />
+								<item.icon size={24} />
 							</div>
 							<span
 								class={cn(
-									'rounded-full border px-2.5 py-0.5 text-[10px] font-bold tracking-wider uppercase',
+									'rounded-full border px-3 py-1 text-[11px] font-bold tracking-wider uppercase shadow-xs',
 									item.badgeClass
 								)}
 							>
@@ -93,7 +94,7 @@
 						</div>
 
 						<!-- Title & Extension -->
-						<h3 class="mb-0.5 text-2xl font-black tracking-tight text-foreground">
+						<h3 class="mb-1 text-3xl font-black tracking-tight text-foreground">
 							{item.extension}
 						</h3>
 						<p class="mb-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
@@ -105,10 +106,10 @@
 					</div>
 
 					<!-- Features list -->
-					<div class="mt-4 space-y-1.5 border-t border-border/20 pt-3">
+					<div class="mt-5 space-y-2 border-t border-border/20 pt-4">
 						{#each item.features as feat}
-							<div class="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-								<CheckCircle2Icon size={12} class="shrink-0 text-primary" />
+							<div class="flex items-center gap-2 text-xs font-medium text-foreground/80">
+								<CheckCircle2Icon size={14} class="shrink-0 text-primary" />
 								<span>{feat}</span>
 							</div>
 						{/each}
@@ -119,12 +120,12 @@
 
 		<!-- Bottom callout -->
 		<div
-			class="flex items-center gap-3 rounded-2xl border border-border/40 bg-surface/40 p-4 text-xs text-muted-foreground backdrop-blur-md"
+			class="flex items-center gap-3.5 rounded-2xl border border-border/50 bg-card/40 p-4.5 text-xs text-muted-foreground backdrop-blur-md shadow-xs"
 		>
 			<div
-				class="flex size-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
+				class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary shadow-inner"
 			>
-				<SparklesIcon size={18} />
+				<SparklesIcon size={20} />
 			</div>
 			<p class="leading-normal">
 				<strong class="font-semibold text-foreground"

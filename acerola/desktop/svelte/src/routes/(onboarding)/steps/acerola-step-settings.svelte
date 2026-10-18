@@ -21,41 +21,75 @@
 	let { onNext, onPrev } = $props<{ onNext: () => void; onPrev: () => void }>();
 </script>
 
-<div class="flex h-full w-full items-center justify-center overflow-y-auto p-8">
-	<div class="w-full max-w-2xl space-y-8">
-		<div class="flex items-center justify-center gap-3">
-			<PaletteIcon class="text-chart-4" size={32} />
-			<h1 class="text-3xl font-bold text-foreground">{m['onboarding.settings.title']()}</h1>
-		</div>
-
-		<div class="space-y-6">
-			<div class="rounded-2xl border border-border/40 bg-card/50 p-6 backdrop-blur-sm">
-				<div class="mb-4 flex items-center justify-between">
-					<div class="flex items-center gap-3">
-						<FolderIcon class="text-chart-2" size={24} />
-						<h2 class="text-xl font-semibold text-foreground">
-							{m['onboarding.settings.folder.title']()}
-						</h2>
-					</div>
-					{#if folder.folderPath}
-						<div class="flex items-center gap-2 text-sm text-primary">
-							<CheckIcon size={16} />
-							<span>{m['onboarding.settings.folder.selected']()}</span>
-						</div>
-					{/if}
-				</div>
-				<p class="mb-4 text-sm text-muted-foreground">{m['onboarding.settings.folder.desc']()}</p>
-				<Button onclick={folder.selectFolder} variant="outline" class="w-full rounded-xl">
-					{folder.folderPath || m['onboarding.settings.folder.select']()}
-				</Button>
+<div class="flex h-full w-full items-center justify-center overflow-y-auto p-6 sm:p-8">
+	<div class="w-full max-w-xl space-y-8 text-center sm:text-left">
+		<!-- Header -->
+		<div class="flex flex-col items-center gap-3 sm:flex-row sm:items-start">
+			<div
+				class="flex size-14 items-center justify-center rounded-2xl bg-chart-4/10 text-chart-4 shadow-inner"
+			>
+				<FolderIcon size={28} />
+			</div>
+			<div>
+				<h1 class="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+					{m['onboarding.settings.title']()}
+				</h1>
+				<p class="mt-1 text-sm text-muted-foreground">
+					{m['onboarding.settings.folder.desc']()}
+				</p>
 			</div>
 		</div>
 
-		<div class="flex justify-between">
-			<Button onclick={onPrev} variant="outline" class="rounded-xl">
+		<!-- Dropzone-style Folder Selection Card -->
+		<div
+			class="relative flex flex-col items-center rounded-3xl border-2 border-dashed p-8 text-center backdrop-blur-md transition-all duration-300 {folder.folderPath
+				? 'border-primary/50 bg-primary/5 shadow-[0_0_24px_rgba(var(--color-primary-rgb),0.12)]'
+				: 'border-border/70 bg-card/40 hover:border-primary/40 hover:bg-card/60'}"
+		>
+			<div
+				class="mb-4 flex size-16 items-center justify-center rounded-2xl transition-transform duration-300 hover:scale-105 {folder.folderPath
+					? 'bg-primary/20 text-primary'
+					: 'bg-muted/60 text-muted-foreground'}"
+			>
+				<FolderIcon size={32} />
+			</div>
+
+			<h2 class="mb-1 text-xl font-bold text-foreground">
+				{m['onboarding.settings.folder.title']()}
+			</h2>
+
+			<p class="mb-5 max-w-sm text-xs text-muted-foreground">
+				{m['onboarding.settings.folder.desc']()}
+			</p>
+
+			{#if folder.folderPath}
+				<div
+					class="mb-5 flex max-w-full items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-xs font-semibold text-primary"
+				>
+					<CheckIcon size={14} strokeWidth={2.5} />
+					<span>{m['onboarding.settings.folder.selected']()}</span>
+				</div>
+			{/if}
+
+			<Button
+				onclick={folder.selectFolder}
+				variant={folder.folderPath ? 'outline' : 'default'}
+				class="w-full max-w-md truncate rounded-2xl px-6 py-5 text-sm font-semibold shadow-xs"
+			>
+				{folder.folderPath || m['onboarding.settings.folder.select']()}
+			</Button>
+		</div>
+
+		<!-- Action Controls -->
+		<div class="flex items-center justify-between pt-2">
+			<Button onclick={onPrev} variant="outline" class="rounded-xl px-6">
 				{m['onboarding.back']()}
 			</Button>
-			<Button onclick={onNext} disabled={!folder.folderPath} class="rounded-xl">
+			<Button
+				onclick={onNext}
+				disabled={!folder.folderPath}
+				class="rounded-xl px-8 font-semibold shadow-md transition-all hover:shadow-lg disabled:opacity-40"
+			>
 				{m['onboarding.next']()}
 			</Button>
 		</div>

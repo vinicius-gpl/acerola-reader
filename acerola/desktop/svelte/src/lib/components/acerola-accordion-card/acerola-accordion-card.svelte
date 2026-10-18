@@ -73,7 +73,7 @@
 
 <div
 	class={cn(
-		'overflow-hidden rounded-3xl border border-border bg-card transition-colors',
+		'overflow-hidden rounded-3xl border border-border/60 bg-card/60 backdrop-blur-sm shadow-xs transition-all duration-200',
 		ui?.class
 	)}
 >
@@ -82,13 +82,13 @@
 			type="button"
 			aria-expanded={state.expanded}
 			onclick={events.onToggle}
-			class="group flex w-full min-w-0 cursor-pointer items-center gap-4 p-6 text-left transition-colors"
+			class="group flex w-full min-w-0 cursor-pointer items-center gap-4 p-6 text-left transition-colors hover:bg-muted/20"
 		>
 			{@render header()}
 
 			<ChevronRightIcon
 				class={cn(
-					'shrink-0 text-muted-foreground transition-transform duration-200',
+					'shrink-0 text-muted-foreground transition-transform duration-200 group-hover:text-foreground',
 					state.expanded ? 'rotate-90' : ''
 				)}
 			/>

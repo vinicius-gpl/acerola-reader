@@ -41,6 +41,7 @@
 	import LanguagesIcon from '@lucide/svelte/icons/languages';
 	import PlayIcon from '@lucide/svelte/icons/play';
 	import RefreshCw from '@lucide/svelte/icons/refresh-cw';
+	import SettingsIcon from '@lucide/svelte/icons/settings';
 
 	const { notify } = notificationStore;
 
@@ -187,24 +188,35 @@
 	// Marcadores não entram aqui: ficam sempre abertas (`ui.collapsible: false`), sem clique
 	// nenhum pra destacar no hover.
 	const CATEGORY_HOVER_BORDER: Record<string, string> = {
-		files: 'hover:border-chart-5/60',
-		library: 'hover:border-chart-3/60',
-		metadata: 'hover:border-chart-4/60'
+		files: 'hover:border-chart-5/60 shadow-xs hover:shadow-md transition-all duration-200',
+		library: 'hover:border-chart-3/60 shadow-xs hover:shadow-md transition-all duration-200',
+		metadata: 'hover:border-chart-4/60 shadow-xs hover:shadow-md transition-all duration-200'
 	};
 </script>
 
-<div in:fade={{ duration: 150 }} class="mx-auto w-full max-w-5xl space-y-8 p-8">
-	<div>
-		<h1 class="text-3xl font-bold tracking-tight text-foreground">
+<div in:fade={{ duration: 150 }} class="relative mx-auto w-full max-w-5xl space-y-8 p-6 sm:p-8">
+	<!-- Ambient Background Glow -->
+	<div
+		class="pointer-events-none absolute -top-24 left-1/2 -z-10 -translate-x-1/2 size-96 rounded-full bg-primary/5 blur-3xl"
+	></div>
+
+	<!-- Page Title & Header -->
+	<div class="space-y-2">
+		<div
+			class="inline-flex items-center gap-2 rounded-full border border-border/60 bg-muted/40 px-3 py-1 text-xs font-semibold text-muted-foreground shadow-xs backdrop-blur-xs"
+		>
+			<SettingsIcon size={13} class="text-primary" />
+			<span>{m['pages.config.title']()}</span>
+		</div>
+		<h1 class="text-3xl font-black tracking-tight text-foreground sm:text-4xl">
 			{m['pages.config.title']()}
 		</h1>
-
-		<p class="mt-2 text-muted-foreground">
+		<p class="text-sm leading-relaxed text-muted-foreground sm:text-base">
 			{m['pages.config.desc']()}
 		</p>
 	</div>
 
-	<div class="grid gap-4">
+	<div class="grid gap-5">
 		<!-- Arquivos -->
 		<AcerolaAccordionCard
 			data={{
@@ -508,7 +520,11 @@
 			}}
 			state={{ expanded: true }}
 			events={{ onToggle: () => {} }}
-			ui={{ collapsible: false, iconClass: 'bg-chart-2 text-primary-foreground' }}
+			ui={{
+				collapsible: false,
+				iconClass: 'bg-chart-2 text-primary-foreground',
+				class: 'border-border/60 bg-card/60 shadow-xs backdrop-blur-sm'
+			}}
 		>
 			{#snippet icon()}
 				<BookmarkIcon size={24} />

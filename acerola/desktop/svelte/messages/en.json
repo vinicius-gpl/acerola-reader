@@ -37,6 +37,10 @@
 		"bookmark_ribbon": {
 			"default_label": "Bookmarked",
 			"label": "Bookmark: {name}"
+		},
+		"copy_button": {
+			"copy": "Copy",
+			"copied": "Copied"
 		}
 	},
 	"hooks": {
@@ -785,6 +789,9 @@
 			"peers": {
 				"title": "Paired devices",
 				"empty": "No devices paired yet. Share your code or paste one above to pair.",
+				"empty_title": "Waiting for connections...",
+				"empty_desc": "Devices on the same network or paired via code will appear here automatically.",
+				"searching_mdns": "Scanning local network via mDNS...",
 				"sync_history": "Sync history",
 				"sync_files": "Sync files",
 				"sync_all": "Sync all",
@@ -851,6 +858,13 @@
 		"start": "Get Started",
 		"back": "Back",
 		"next": "Next",
+		"setup_title": "Acerola Reader Setup",
+		"welcome_badge_fast_title": "Fast Reading",
+		"welcome_badge_fast_desc": "CBZ, CBR and PDF",
+		"welcome_badge_p2p_title": "Secure P2P",
+		"welcome_badge_p2p_desc": "Sync with mobile",
+		"welcome_badge_local_title": "100% Local",
+		"welcome_badge_local_desc": "Total privacy",
 		"step": {
 			"welcome": "Welcome",
 			"language": "Language",
@@ -860,7 +874,10 @@
 		},
 		"language": {
 			"title": "Select Language",
-			"desc": "Choose your preferred language for the application."
+			"desc": "Choose your preferred language for the application.",
+			"quick_select": "Quick Selection Menu",
+			"country_br": "Brazil",
+			"country_us": "United States"
 		},
 		"formats": {
 			"title": "Supported Formats",
@@ -903,6 +920,10 @@
 		"complete": {
 			"title": "All Set!",
 			"desc": "Your Acerola is ready to use.",
+			"checklist_title": "Ready for the best reading experience",
+			"checklist_item_1": "Language and interface configured",
+			"checklist_item_2": "CBZ, CBR and PDF formats ready for indexing",
+			"checklist_item_3": "Library directory securely linked",
 			"note": "You can always change these settings later in the Settings page.",
 			"button": "Go to Home"
 		}
