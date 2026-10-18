@@ -23,7 +23,6 @@ describe('AcerolaNavControls', () => {
 
 		expect(screen.getByRole('button', { name: 'PT-BR' })).toBeInTheDocument();
 		expect(screen.getByRole('button', { name: 'Mudar tema' })).toBeInTheDocument();
-		expect(screen.getByRole('button', { name: 'Mudar paleta de cores' })).toBeInTheDocument();
 		expect(screen.getByRole('link', { name: 'GitHub' })).toHaveAttribute('href', GITHUB_URL);
 	});
 

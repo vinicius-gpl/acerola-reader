@@ -50,14 +50,14 @@ describe('AcerolaCopyCard', () => {
 	it('copies the value to the clipboard and shows feedback that resets after a while', async () => {
 		render(AcerolaCopyCard, { props: { label: 'Contato', value: 'contact@acerola.app' } });
 
-		await fireEvent.click(screen.getByRole('button', { name: 'Copy' }));
+		await fireEvent.click(screen.getByRole('button', { name: /Copy|Copiar/i }));
 
 		expect(writeText).toHaveBeenCalledWith('contact@acerola.app');
-		expect(screen.getByRole('button', { name: 'Copied' })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: /Copied|Copiado/i })).toBeInTheDocument();
 
 		await vi.advanceTimersByTimeAsync(2000);
 
-		expect(screen.getByRole('button', { name: 'Copy' })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: /Copy|Copiar/i })).toBeInTheDocument();
 	});
 
 	it('uses custom copy/copied labels when provided', async () => {

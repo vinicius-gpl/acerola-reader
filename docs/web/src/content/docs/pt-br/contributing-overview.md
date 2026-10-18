@@ -9,16 +9,21 @@ order: 1
 	import Callout from '$lib/components/acerola-callout/acerola-callout.svelte';
 	import CardGrid from '$lib/mdsvex/card-grid.svelte';
 	import Card from '$lib/mdsvex/card.svelte';
+	import SmartphoneIcon from '@lucide/svelte/icons/smartphone';
+	import MonitorIcon from '@lucide/svelte/icons/monitor';
+	import ServerIcon from '@lucide/svelte/icons/server';
+	import NetworkIcon from '@lucide/svelte/icons/network';
+	import PackageIcon from '@lucide/svelte/icons/package';
 </script>
 
 O Acerola é um **monorepo**: cada plataforma vive isolada em `acerola/`, com sua própria stack, seu próprio README e seu próprio guia de contribuição completo. Nenhuma plataforma depende diretamente de outra — todas consomem as bibliotecas compartilhadas em `lib/` via dependência `path` local (não `git`), então uma mudança em `lib/p2p/` já reflete direto nos consumidores sem precisar publicar ou atualizar nada em outro lugar.
 
 <CardGrid>
-	<Card title="acerola/android">Kotlin + Jetpack Compose</Card>
-	<Card title="acerola/desktop">Rust + Tauri + Svelte 5</Card>
-	<Card title="acerola/relay">Serviço de acesso remoto (Rust) — ainda não iniciado</Card>
-	<Card title="lib/p2p">Biblioteca P2P compartilhada (iroh / QUIC)</Card>
-	<Card title="lib/relay">Código do relay iroh vendorizado</Card>
+	<Card title="acerola/android" icon={SmartphoneIcon} badge="Android">Kotlin + Jetpack Compose</Card>
+	<Card title="acerola/desktop" icon={MonitorIcon} badge="Desktop">Rust + Tauri + Svelte 5</Card>
+	<Card title="acerola/relay" icon={ServerIcon} badge="Relay">Serviço de acesso remoto (Rust) — ainda não iniciado</Card>
+	<Card title="lib/p2p" icon={NetworkIcon} badge="P2P">Biblioteca P2P compartilhada (iroh / QUIC)</Card>
+	<Card title="lib/relay" icon={PackageIcon} badge="Vendor">Código do relay iroh vendorizado</Card>
 </CardGrid>
 
 ```mermaid
@@ -33,7 +38,17 @@ flowchart LR
 
 ## Ferramentas necessárias
 
-[`cargo-make`](https://github.com/sagiegurari/cargo-make) (`cargo install cargo-make`) é usado pelos crates Rust individualmente — veja o guia de cada plataforma — e pelas tarefas de manutenção do monorepo inteiro, definidas no `makefile.toml` da raiz. Com ele instalado, `cargo make clean` remove o `target/` de todos os crates Rust do repo (`lib/p2p`, `lib/relay`, `acerola/desktop/src-tauri`, `acerola/android/native/rust`) de uma vez, sem precisar entrar em cada pasta.
+[`cargo-make`](https://github.com/sagiegurari/cargo-make) é usado pelos crates Rust individualmente — veja o guia de cada plataforma — e pelas tarefas de manutenção do monorepo inteiro, definidas no `makefile.toml` da raiz:
+
+```bash
+cargo install cargo-make
+```
+
+Com ele instalado, execute o comando abaixo para limpar o `target/` de todos os crates Rust do repositório (`lib/p2p`, `lib/relay`, `acerola/desktop/src-tauri`, `acerola/android/native/rust`) de uma só vez:
+
+```bash
+cargo make clean
+```
 
 ## Regras que valem para o monorepo inteiro
 

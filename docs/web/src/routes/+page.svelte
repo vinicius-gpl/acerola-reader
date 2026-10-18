@@ -21,6 +21,10 @@
 	import CardGrid from '$lib/mdsvex/card-grid.svelte';
 	import PlatformCard from '$lib/mdsvex/platform-card.svelte';
 	import Steps from '$lib/mdsvex/steps.svelte';
+	import AcerolaMarketingFeatureCode, {
+		type FeatureItem,
+		type CodeTab
+	} from '$lib/components/acerola-marketing-feature-code/acerola-marketing-feature-code.svelte';
 	import GithubIcon from '$lib/icons/github.svelte';
 	import { GITHUB_URL } from '$lib/constants/site';
 	import { m } from '$lib/paraglide/messages';
@@ -158,6 +162,68 @@
 			desc: m['landing.platform.relay_lib.desc']
 		}
 	} as const;
+
+	const architectureFeatures = $derived<FeatureItem[]>([
+		{
+			icon: RadioIcon,
+			title: m['landing.architecture.p2p.title'](),
+			description: m['landing.architecture.p2p.desc']()
+		},
+		{
+			icon: ServerIcon,
+			title: m['landing.architecture.relay.title'](),
+			description: m['landing.architecture.relay.desc']()
+		},
+		{
+			icon: CodeIcon,
+			title: m['landing.architecture.metadata.title'](),
+			description: m['landing.architecture.metadata.desc']()
+		}
+	]);
+
+	const architectureTabs = $derived<CodeTab[]>([
+		{
+			id: 'p2p-sync',
+			label: m['landing.architecture.tabs.p2p_label'](),
+			filename: 'src/p2p/sync.rs',
+			code: `${m['landing.architecture.tabs.p2p_comment_connect']()}
+let endpoint = Endpoint::builder()
+    .discovery_n0()
+    .bind()
+    .await?;
+
+let connection = endpoint.connect(peer_node_id, ALPN).await?;
+let (mut send, mut recv) = connection.open_bi().await?;
+
+${m['landing.architecture.tabs.p2p_comment_transfer']()}
+send.write_all(&comic_sync_payload).await?;`
+		},
+		{
+			id: 'caddyfile',
+			label: m['landing.architecture.tabs.caddy_label'](),
+			filename: 'Caddyfile',
+			code: `${m['landing.architecture.tabs.caddy_comment']()}
+relay.reader.acerola.app {
+    reverse_proxy localhost:3340 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+    }
+}`
+		},
+		{
+			id: 'comicinfo',
+			label: 'ComicInfo.xml',
+			filename: 'ComicInfo.xml',
+			code: `<?xml version="1.0" encoding="utf-8"?>
+<ComicInfo xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <Title>Chainsaw Man - Vol. 1</Title>
+  <Series>Chainsaw Man</Series>
+  <Number>1</Number>
+  <Writer>Tatsuki Fujimoto</Writer>
+  <Manga>YesAndRightToLeft</Manga>
+</ComicInfo>`
+		}
+	]);
 </script>
 
 <svelte:head>
@@ -318,10 +384,31 @@
 				</div>
 			</section>
 
-			<section id="platforms" use:scrollReveal>
+			<section id="architecture" use:scrollReveal class="mx-auto w-full max-w-5xl">
 				<div class="mb-10 text-center">
 					<span class="font-mono text-xs font-semibold tracking-wider text-primary uppercase">
 						03.
+					</span>
+					<h2 class="mt-1 font-heading text-2xl font-semibold sm:text-3xl">
+						{m['landing.architecture.section_title']()}
+					</h2>
+				</div>
+
+				<div use:scrollScale={{ mode: 'scale-up', startScale: 0.94 }}>
+					<AcerolaMarketingFeatureCode
+						eyebrow={m['landing.architecture.eyebrow']()}
+						title={m['landing.architecture.title']()}
+						description={m['landing.architecture.desc']()}
+						features={architectureFeatures}
+						tabs={architectureTabs}
+					/>
+				</div>
+			</section>
+
+			<section id="platforms" use:scrollReveal>
+				<div class="mb-10 text-center">
+					<span class="font-mono text-xs font-semibold tracking-wider text-primary uppercase">
+						04.
 					</span>
 					<h2 class="mt-1 font-heading text-2xl font-semibold sm:text-3xl">
 						{m['landing.platforms_title']()}

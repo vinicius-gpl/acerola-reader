@@ -121,7 +121,42 @@
 				"title": "lib/relay",
 				"desc": "Código do relay iroh vendorizado, base para o serviço de relay."
 			}
+		},
+		"architecture": {
+			"section_title": "Arquitetura P2P e Código Aberto",
+			"eyebrow": "Engenharia Local-First",
+			"title": "Construído para dar controle total aos seus dados",
+			"desc": "Veja como o Acerola combina Rust, iroh/QUIC e padrões abertos para garantir privacidade e velocidade máxima.",
+			"p2p": {
+				"title": "Protocolo P2P Direto",
+				"desc": "Conexão segura direta entre seus dispositivos usando QUIC e iroh. Sem servidores intermediários para ler ou armazenar seus quadrinhos."
+			},
+			"relay": {
+				"title": "Relay Self-Hosted Opcional",
+				"desc": "Hospede seu próprio relay em um servidor VPS com Caddy ou Docker para conectar dispositivos atrás de NAT restritivo."
+			},
+			"metadata": {
+				"title": "Metadados e Padrões Abertos",
+				"desc": "Compatibilidade integral com ComicInfo.xml e sincronização automática com MangaDex e AniList sem lock-in."
+			},
+			"tabs": {
+				"p2p_label": "Sincronização P2P",
+				"p2p_comment_connect": "// Conexão direta P2P criptografada com iroh/QUIC",
+				"p2p_comment_transfer": "// Transfere o índice de capítulos e histórico de leitura",
+				"caddy_label": "Relay Caddy",
+				"caddy_comment": "# Proxy reverso Caddy para seu relay Acerola autohospedado"
+			}
 		}
+	},
+	"marketing_code": {
+		"copy": "Copiar",
+		"copied": "Copiado",
+		"copy_aria": "Copiar código",
+		"copied_aria": "Código copiado"
+	},
+	"copy_card": {
+		"copy": "Copiar",
+		"copied": "Copiado"
 	},
 	"error": {
 		"404_title": "Página não encontrada",

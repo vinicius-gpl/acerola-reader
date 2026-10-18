@@ -6,6 +6,8 @@
 	import MinusIcon from '@lucide/svelte/icons/minus';
 	import PlusIcon from '@lucide/svelte/icons/plus';
 	import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
+	import CheckIcon from '@lucide/svelte/icons/check';
+	import CopyIcon from '@lucide/svelte/icons/copy';
 	import { page } from '$app/state';
 	import AcerolaCopyMarkdownButton from '$lib/components/acerola-copy-markdown-button/acerola-copy-markdown-button.svelte';
 	import { DOC_RAW_CONTEXT_KEY, type DocRawContext } from '$lib/content/doc-raw-context';
@@ -171,10 +173,67 @@
 		for (const node of nodes) addZoomControls(node);
 	}
 
+	function addCodeCopyButtons() {
+		if (!container) return;
+		const pres = container.querySelectorAll<HTMLPreElement>('pre');
+		for (const pre of pres) {
+			if (pre.closest('.mermaid') || pre.querySelector('[data-code-copy-button]')) continue;
+
+			const wrapper =
+				pre.parentElement?.tagName.toLowerCase() === 'figure' ? pre.parentElement : pre;
+			wrapper.style.position = 'relative';
+
+			const btn = document.createElement('button');
+			btn.type = 'button';
+			btn.dataset.codeCopyButton = '';
+			btn.setAttribute('aria-label', m['marketing_code.copy_aria']?.() ?? 'Copiar');
+			btn.title = m['marketing_code.copy']?.() ?? 'Copiar';
+			btn.className =
+				'absolute top-3 right-3 z-10 flex items-center gap-1.5 rounded-lg border border-border/80 bg-card/90 px-2.5 py-1 text-xs font-medium text-muted-foreground shadow-xs backdrop-blur-md transition-all duration-200 hover:border-primary/50 hover:bg-card hover:text-foreground active:scale-95 cursor-pointer';
+
+			const iconSpan = document.createElement('span');
+			iconSpan.className = 'flex items-center justify-center';
+			mount(CopyIcon, { target: iconSpan, props: { size: 14 } });
+
+			const labelSpan = document.createElement('span');
+			labelSpan.className = 'text-[11px] font-mono select-none hidden sm:inline';
+			labelSpan.textContent = m['marketing_code.copy']?.() ?? 'Copiar';
+
+			btn.append(iconSpan, labelSpan);
+
+			let resetTimeout: ReturnType<typeof setTimeout> | undefined;
+
+			btn.addEventListener('click', async (e) => {
+				e.stopPropagation();
+				const codeEl = pre.querySelector('code') ?? pre;
+				const textToCopy = codeEl.innerText.trim();
+				await navigator.clipboard.writeText(textToCopy);
+
+				iconSpan.innerHTML = '';
+				mount(CheckIcon, { target: iconSpan, props: { size: 14, class: 'text-emerald-400' } });
+				labelSpan.textContent = m['marketing_code.copied']?.() ?? 'Copiado!';
+				labelSpan.className = 'text-[11px] font-mono text-emerald-400 select-none hidden sm:inline';
+				btn.classList.add('border-emerald-500/50', 'bg-emerald-500/10');
+
+				clearTimeout(resetTimeout);
+				resetTimeout = setTimeout(() => {
+					iconSpan.innerHTML = '';
+					mount(CopyIcon, { target: iconSpan, props: { size: 14 } });
+					labelSpan.textContent = m['marketing_code.copy']?.() ?? 'Copiar';
+					labelSpan.className = 'text-[11px] font-mono select-none hidden sm:inline';
+					btn.classList.remove('border-emerald-500/50', 'bg-emerald-500/10');
+				}, 2000);
+			});
+
+			wrapper.appendChild(btn);
+		}
+	}
+
 	$effect(() => {
 		// Re-render whenever the light/dark mode changes.
 		themeCtx.resolved;
 		renderMermaid();
+		addCodeCopyButtons();
 	});
 </script>
 

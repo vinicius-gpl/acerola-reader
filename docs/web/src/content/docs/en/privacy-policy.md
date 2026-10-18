@@ -10,6 +10,8 @@ order: 1
 	import CardGrid from '$lib/mdsvex/card-grid.svelte';
 	import Card from '$lib/mdsvex/card.svelte';
 	import AcerolaCopyCard from '$lib/components/acerola-copy-card/acerola-copy-card.svelte';
+	import ShieldCheckIcon from '@lucide/svelte/icons/shield-check';
+	import MailIcon from '@lucide/svelte/icons/mail';
 </script>
 
 <Callout type="note" title="Source of truth">
@@ -18,9 +20,11 @@ This page mirrors [`PRIVACY_POLICY.md`](https://github.com/Vinicius-Gabriel-P-Le
 
 </Callout>
 
-<Card title="Controller">Vinícius Gabriel Pereira Leitão, independent developer of the Acerola app.</Card>
+<Card title="Controller" icon={ShieldCheckIcon} badge="Official">
+	Vinícius Gabriel Pereira Leitão, independent developer of the Acerola app.
+</Card>
 
-<AcerolaCopyCard label="Contact" value="contact@acerola.app" href="mailto:contact@acerola.app" />
+<AcerolaCopyCard label="Contact" value="contact@acerola.app" href="mailto:contact@acerola.app" icon={MailIcon} />
 
 ## 1. Nature of the app
 

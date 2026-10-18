@@ -75,4 +75,12 @@ describe('Card (mdsvex)', () => {
 
 		expect(container.querySelector('[data-slot="card"]')).toHaveClass('my-custom-card');
 	});
+
+	it('renders the badge when provided', () => {
+		render(Card, {
+			props: { title: 'acerola/android', badge: 'Android' }
+		});
+
+		expect(screen.getByText('Android')).toBeInTheDocument();
+	});
 });

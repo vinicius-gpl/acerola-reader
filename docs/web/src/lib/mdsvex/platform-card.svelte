@@ -36,7 +36,7 @@
 	{/if}
 
 	<Card.Header class="w-full items-center gap-1 p-0 text-center">
-		<Card.Title class="text-base font-bold">{title}</Card.Title>
+		<Card.Title class="font-bold text-base">{title}</Card.Title>
 		{#if description}
 			<Card.Description class="text-sm">{description}</Card.Description>
 		{/if}

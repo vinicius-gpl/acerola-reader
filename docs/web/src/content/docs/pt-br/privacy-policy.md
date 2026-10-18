@@ -10,6 +10,8 @@ order: 1
 	import CardGrid from '$lib/mdsvex/card-grid.svelte';
 	import Card from '$lib/mdsvex/card.svelte';
 	import AcerolaCopyCard from '$lib/components/acerola-copy-card/acerola-copy-card.svelte';
+	import ShieldCheckIcon from '@lucide/svelte/icons/shield-check';
+	import MailIcon from '@lucide/svelte/icons/mail';
 </script>
 
 <Callout type="note" title="Fonte de verdade">
@@ -18,12 +20,15 @@ Esta página espelha o [`PRIVACY_POLICY.md`](https://github.com/Vinicius-Gabriel
 
 </Callout>
 
-<Card title="Controlador">Vinícius Gabriel Pereira Leitão, desenvolvedor independente do aplicativo Acerola.</Card>
+<Card title="Controlador" icon={ShieldCheckIcon} badge="Oficial">
+	Vinícius Gabriel Pereira Leitão, desenvolvedor independente do aplicativo Acerola.
+</Card>
 
 <AcerolaCopyCard
 	label="Contato"
 	value="contact@acerola.app"
 	href="mailto:contact@acerola.app"
+	icon={MailIcon}
 	copyLabel="Copiar"
 	copiedLabel="Copiado"
 />

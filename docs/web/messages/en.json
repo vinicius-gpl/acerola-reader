@@ -121,7 +121,42 @@
 				"title": "lib/relay",
 				"desc": "Vendored iroh relay code, the base for the relay service."
 			}
+		},
+		"architecture": {
+			"section_title": "P2P Architecture and Open Source",
+			"eyebrow": "Local-First Engineering",
+			"title": "Built to give you total control over your data",
+			"desc": "See how Acerola combines Rust, iroh/QUIC, and open standards to ensure privacy and maximum speed.",
+			"p2p": {
+				"title": "Direct P2P Protocol",
+				"desc": "Direct secure connection between your devices using QUIC and iroh. No intermediary servers to read or store your comics."
+			},
+			"relay": {
+				"title": "Optional Self-Hosted Relay",
+				"desc": "Host your own relay on a VPS with Caddy or Docker to connect devices behind restrictive NAT."
+			},
+			"metadata": {
+				"title": "Metadata and Open Standards",
+				"desc": "Full ComicInfo.xml compatibility and automatic sync with MangaDex and AniList with zero lock-in."
+			},
+			"tabs": {
+				"p2p_label": "P2P Sync",
+				"p2p_comment_connect": "// Direct encrypted P2P connection with iroh/QUIC",
+				"p2p_comment_transfer": "// Transfers chapter index and reading history",
+				"caddy_label": "Caddy Relay",
+				"caddy_comment": "# Caddy reverse proxy for your self-hosted Acerola relay"
+			}
 		}
+	},
+	"marketing_code": {
+		"copy": "Copy",
+		"copied": "Copied",
+		"copy_aria": "Copy code",
+		"copied_aria": "Code copied"
+	},
+	"copy_card": {
+		"copy": "Copy",
+		"copied": "Copied"
 	},
 	"error": {
 		"404_title": "Page not found",
