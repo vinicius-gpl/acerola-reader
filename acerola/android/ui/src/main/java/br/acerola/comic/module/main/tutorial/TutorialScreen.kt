@@ -53,11 +53,8 @@ import br.acerola.comic.common.ux.theme.AcerolaTheme
 import br.acerola.comic.common.ux.tokens.ShapeTokens
 import br.acerola.comic.common.ux.tokens.SpacingTokens
 import br.acerola.comic.common.viewmodel.archive.FileSystemAccessViewModel
-import br.acerola.comic.common.viewmodel.theme.ThemeViewModel
-import br.acerola.comic.config.preference.types.AppTheme
 import br.acerola.comic.module.main.Main
 import br.acerola.comic.module.main.config.component.SelectComicDirectory
-import br.acerola.comic.module.main.config.component.ThemeSettings
 import br.acerola.comic.module.main.tutorial.state.TutorialPage
 import br.acerola.comic.ui.R
 import kotlinx.coroutines.launch
@@ -65,17 +62,13 @@ import kotlinx.coroutines.launch
 @Composable
 fun Main.Tutorial.Template.Screen(
     viewModel: TutorialViewModel = hiltViewModel(),
-    themeViewModel: ThemeViewModel = hiltViewModel(),
     fileSystemAccessViewModel: FileSystemAccessViewModel = hiltViewModel(),
     onNavigateToHome: () -> Unit,
 ) {
-    val selectedTheme by themeViewModel.currentTheme.collectAsState()
     val folderName by fileSystemAccessViewModel.folderName.collectAsState()
 
     TutorialScreenContent(
-        selectedTheme = selectedTheme,
         folderName = folderName,
-        onThemeChange = themeViewModel::setTheme,
         onFolderSelected = fileSystemAccessViewModel::saveFolderUri,
         onComplete = {
             viewModel.markOnboardingCompleted()
@@ -86,9 +79,7 @@ fun Main.Tutorial.Template.Screen(
 
 @Composable
 private fun TutorialScreenContent(
-    selectedTheme: AppTheme,
     folderName: String?,
-    onThemeChange: (AppTheme) -> Unit,
     onFolderSelected: (Uri?) -> Unit,
     onComplete: () -> Unit,
 ) {
@@ -156,7 +147,7 @@ private fun TutorialScreenContent(
             when (pageIndex) {
                 0 -> WelcomeSlide()
                 1 -> FormatsSlide()
-                2 -> SettingsSlide(selectedTheme, onThemeChange, folderName, onFolderSelected)
+                2 -> SettingsSlide(folderName, onFolderSelected)
                 3 -> CompleteSlide()
             }
         }
@@ -503,8 +494,6 @@ private fun FormatCard(
 
 @Composable
 fun SettingsSlide(
-    selectedTheme: AppTheme,
-    onThemeChange: (AppTheme) -> Unit,
     folderName: String?,
     onFolderSelected: (Uri?) -> Unit,
 ) {
@@ -522,13 +511,6 @@ fun SettingsSlide(
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurface,
         )
-        Spacer(modifier = Modifier.height(SpacingTokens.Large))
-
-        Main.Config.Component.ThemeSettings(
-            currentTheme = selectedTheme,
-            onThemeChange = onThemeChange,
-        )
-
         Spacer(modifier = Modifier.height(SpacingTokens.Large))
 
         Main.Config.Component.SelectComicDirectory(
@@ -585,9 +567,7 @@ fun CompleteSlide() {
 private fun TutorialScreenContentPreview() {
     AcerolaTheme {
         TutorialScreenContent(
-            selectedTheme = AppTheme.CATPPUCCIN,
             folderName = null,
-            onThemeChange = {},
             onFolderSelected = {},
             onComplete = {},
         )
@@ -600,8 +580,6 @@ private fun TutorialScreenContentPreview() {
 private fun SettingsSlidePreview() {
     AcerolaTheme {
         SettingsSlide(
-            selectedTheme = AppTheme.CATPPUCCIN,
-            onThemeChange = {},
             folderName = "Comics",
             onFolderSelected = {},
         )

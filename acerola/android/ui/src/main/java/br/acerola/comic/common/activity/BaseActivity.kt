@@ -42,7 +42,6 @@ import br.acerola.comic.common.ux.component.SnackbarWarn
 import br.acerola.comic.common.ux.component.resolveSnackbarVariant
 import br.acerola.comic.common.ux.theme.AcerolaTheme
 import br.acerola.comic.common.viewmodel.network.MobileDataSyncViewModel
-import br.acerola.comic.common.viewmodel.theme.ThemeViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
@@ -54,7 +53,6 @@ abstract class BaseActivity : ComponentActivity() {
 
     open val applyScaffoldPadding: Boolean = true
 
-    private val themeViewModel: ThemeViewModel by viewModels()
     private val mobileDataSyncViewModel: MobileDataSyncViewModel by viewModels()
 
     open fun NavGraphBuilder.setupNavGraph(
@@ -69,9 +67,7 @@ abstract class BaseActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         setContent {
-            val currentTheme by themeViewModel.currentTheme.collectAsState()
-
-            AcerolaTheme(theme = currentTheme) {
+            AcerolaTheme {
                 val navController = rememberNavController()
                 val startDestination = getString(startDestinationRes)
                 val snackbarHostState = remember { SnackbarHostState() }

@@ -54,11 +54,10 @@ fun Acerola.Component.SnackbarError(
 }
 
 // `successContainer`/`onSuccessContainer` não `secondaryContainer`/`tertiaryContainer` do tema:
-// em Catppuccin, Nord, Dracula, Alucard e TokyoNight esses papéis mapeiam pra tons neutros de
-// superfície ou pra cores de destaque sem nada de verde — "sucesso" precisa ler como sucesso em
-// qualquer tema. Os papéis extras vêm de AcerolaExtendedTheme, derivados do próprio verde de
-// cada paleta (ver Theme.kt), então a cor muda de tom junto com o tema em vez de ser um verde
-// fixo que destoa do resto da UI.
+// na paleta esses papéis mapeiam pra tons neutros de superfície ou pra cores de destaque sem
+// nada de verde — "sucesso" precisa ler como sucesso. Os papéis extras vêm de
+// AcerolaExtendedTheme, com o par `--success-soft`/`--success` da paleta (ver Theme.kt), então
+// a cor acompanha o claro/escuro em vez de ser um verde fixo que destoa do resto da UI.
 @Composable
 fun Acerola.Component.SnackbarSuccess(
     message: String,

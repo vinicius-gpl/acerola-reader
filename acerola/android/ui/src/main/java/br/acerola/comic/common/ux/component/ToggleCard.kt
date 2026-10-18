@@ -47,9 +47,7 @@ private val ToggleCardShape = ShapeTokens.Large
 
 // Card clicável com estado ativo/inativo (borda+fundo tintados, selo de check animado) e
 // conteúdo expansível opcional — port do AcerolaToggleCard do desktop
-// (acerola-toggle-card.svelte). Reaproveita a mesma fórmula visual já usada em `ThemeCard`
-// (module/main/config/component/ThemeSettings.kt), só generalizada como componente de design
-// system em vez de ficar privada a um único arquivo.
+// (acerola-toggle-card.svelte), como componente de design system.
 @Composable
 fun Acerola.Component.ToggleCard(
     title: String,

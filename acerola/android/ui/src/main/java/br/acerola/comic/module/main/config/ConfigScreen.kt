@@ -18,7 +18,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
@@ -61,8 +60,6 @@ import br.acerola.comic.common.viewmodel.archive.FileSystemAccessViewModel
 import br.acerola.comic.common.viewmodel.library.archive.ComicDirectoryViewModel
 import br.acerola.comic.common.viewmodel.library.metadata.ComicMetadataViewModel
 import br.acerola.comic.common.viewmodel.metadata.MetadataSettingsViewModel
-import br.acerola.comic.common.viewmodel.theme.ThemeViewModel
-import br.acerola.comic.config.preference.types.AppTheme
 import br.acerola.comic.dto.metadata.category.CategoryDto
 import br.acerola.comic.module.main.Main
 import br.acerola.comic.module.main.config.component.GlobalCategoryManager
@@ -73,7 +70,6 @@ import br.acerola.comic.module.main.config.component.SyncAnilistData
 import br.acerola.comic.module.main.config.component.SyncLibraryArchive
 import br.acerola.comic.module.main.config.component.SyncMangadexData
 import br.acerola.comic.module.main.config.component.TemplateManager
-import br.acerola.comic.module.main.config.component.ThemeSettings
 import br.acerola.comic.module.main.config.state.ConfigAction
 import br.acerola.comic.module.main.config.state.ConfigUiState
 import br.acerola.comic.ui.R
@@ -90,7 +86,6 @@ fun Main.Config.Template.Screen(
     fileSystemAccessViewModel: FileSystemAccessViewModel = hiltViewModel(),
     comicDirectoryViewModel: ComicDirectoryViewModel = hiltViewModel(),
     comicDexViewModel: ComicMetadataViewModel = hiltViewModel(),
-    themeViewModel: ThemeViewModel = hiltViewModel(),
     onNavigateToTemplates: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -117,14 +112,8 @@ fun Main.Config.Template.Screen(
                 snackbarHostState.showSnackbar(message.uiMessage.asString(context), SnackbarVariant.Error)
             }
         }
-        launch {
-            themeViewModel.uiEvents.collect { message ->
-                snackbarHostState.showSnackbar(message.uiMessage.asString(context), SnackbarVariant.Error)
-            }
-        }
     }
 
-    val selectedTheme by themeViewModel.currentTheme.collectAsState()
     val generateComicInfo by metadataSettingsViewModel.generateComicInfo.collectAsState()
     val metadataLanguage by metadataSettingsViewModel.metadataLanguage.collectAsState()
     val allCategories by comicDexViewModel.allCategories.collectAsState()
@@ -178,7 +167,6 @@ fun Main.Config.Template.Screen(
 
     val uiState =
         ConfigUiState(
-            selectedTheme = selectedTheme,
             folderUri = fileSystemAccessViewModel.folderUri,
             folderName = folderName,
             generateComicInfo = generateComicInfo,
@@ -187,7 +175,6 @@ fun Main.Config.Template.Screen(
 
     val onAction: (ConfigAction) -> Unit = { action ->
         when (action) {
-            is ConfigAction.UpdateTheme -> themeViewModel.setTheme(action.theme)
             is ConfigAction.SelectFolder -> fileSystemAccessViewModel.saveFolderUri(action.uri)
             is ConfigAction.UpdateGenerateComicInfo -> metadataSettingsViewModel.setGenerateComicInfo(action.enabled)
             is ConfigAction.UpdateMetadataLanguage -> metadataSettingsViewModel.setMetadataLanguage(action.language)
@@ -343,23 +330,6 @@ private fun ConfigScreenContent(
                     )
                 }
 
-                // NOTE: Aparência — fica sempre aberta (flat): mesmo mix já usado na tela de
-                // Rede do desktop, nem toda seção precisa de um clique pra ver o conteúdo.
-                Acerola.Component.AccordionCard(
-                    title = stringResource(id = R.string.title_settings_appearance),
-                    icon = Icons.Default.Palette,
-                    accentColor = MaterialTheme.colorScheme.tertiary,
-                    expanded = true,
-                    onToggleExpanded = {},
-                    collapsible = false,
-                    modifier = categoryModifier,
-                ) {
-                    Main.Config.Component.ThemeSettings(
-                        currentTheme = uiState.selectedTheme,
-                        onThemeChange = { onAction(ConfigAction.UpdateTheme(it)) },
-                    )
-                }
-
                 // NOTE: Categorias — fica sempre aberta (flat), mesmo raciocínio do card
                 // Marcadores no desktop.
                 Acerola.Component.AccordionCard(
@@ -449,7 +419,7 @@ private fun OnboardingGuideCard() {
 private fun ConfigScreenContentPreview() {
     AcerolaTheme {
         ConfigScreenContent(
-            uiState = ConfigUiState(selectedTheme = AppTheme.CATPPUCCIN),
+            uiState = ConfigUiState(),
             allCategories = emptyList(),
             tutorialShown = true,
             getSyncActionVisualState = { SyncActionVisualState.IDLE },
@@ -463,7 +433,7 @@ private fun ConfigScreenContentPreview() {
 private fun ConfigScreenContentOnboardingPreview() {
     AcerolaTheme {
         ConfigScreenContent(
-            uiState = ConfigUiState(selectedTheme = AppTheme.CATPPUCCIN),
+            uiState = ConfigUiState(),
             allCategories = emptyList(),
             tutorialShown = false,
             getSyncActionVisualState = { action ->

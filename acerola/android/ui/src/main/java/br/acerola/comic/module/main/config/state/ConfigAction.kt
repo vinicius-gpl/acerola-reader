@@ -1,12 +1,7 @@
 package br.acerola.comic.module.main.config.state
 import android.net.Uri
-import br.acerola.comic.config.preference.types.AppTheme
 
 sealed interface ConfigAction {
-    data class UpdateTheme(
-        val theme: AppTheme,
-    ) : ConfigAction
-
     data class SelectFolder(
         val uri: Uri?,
     ) : ConfigAction

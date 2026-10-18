@@ -353,33 +353,6 @@
     <string name="label_reader_pages_prefix">Páginas</string>
     <string name="label_reader_next_chapter">Próximo</string>
     <string name="label_reader_previous_chapter">Anterior</string>
-    <!-- Theme Settings -->
-    <string name="title_settings_appearance">Aparência</string>
-    <string name="description_settings_appearance">Personalize as cores do aplicativo</string>
-    <string name="title_settings_dynamic_color">Adaptável</string>
-    <string name="subtitle_settings_dynamic_color">Cores do sistema</string>
-    <string name="description_settings_dynamic_color">Usa cores do seu papel de parede (Android 12+)</string>
-    <string name="title_settings_catppuccin_theme">Catppuccin</string>
-    <string name="subtitle_settings_catppuccin_theme">Mocha</string>
-    <string name="description_settings_catppuccin_theme">Usa a paleta de cores original do app</string>
-
-    <string name="title_settings_nord_theme">Nord</string>
-    <string name="title_settings_dracula_theme">Dracula</string>
-    <string name="title_settings_alucard_theme">Alucard</string>
-    <string name="subtitle_settings_latte_theme">Latte</string>
-    <string name="subtitle_settings_mocha_theme">Mocha</string>
-    <string name="subtitle_settings_dracula_theme">Dracula</string>
-    <string name="subtitle_settings_vampire_theme">Vampire</string>
-    <string name="subtitle_settings_nord_dark_theme">Arctic Night</string>
-    <string name="subtitle_settings_nord_light_theme">Snow Storm</string>
-    <string name="title_settings_tokyo_night_theme">Tokyo Night</string>
-    <string name="subtitle_settings_tokyo_night_dark_theme">Night</string>
-    <string name="subtitle_settings_tokyo_night_light_theme">Day</string>
-
-    <string name="label_settings_see_more_themes">Ver mais</string>
-    <string name="label_settings_see_less_themes">Ver menos</string>
-    <string name="title_dialog_select_theme">Escolha um Tema</string>
-
     <!-- Search & Download Screen -->
     <string name="placeholder_search_mangadex">Nome, ID ou URL do quadrinho…</string>
     <string name="label_search_results">Resultados</string>

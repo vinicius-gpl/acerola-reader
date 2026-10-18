@@ -12,8 +12,6 @@ import br.acerola.comic.common.viewmodel.archive.FileSystemAccessViewModel
 import br.acerola.comic.common.viewmodel.library.archive.ComicDirectoryViewModel
 import br.acerola.comic.common.viewmodel.library.metadata.ComicMetadataViewModel
 import br.acerola.comic.common.viewmodel.metadata.MetadataSettingsViewModel
-import br.acerola.comic.common.viewmodel.theme.ThemeViewModel
-import br.acerola.comic.config.preference.types.AppTheme
 import br.acerola.comic.error.UserMessage
 import br.acerola.comic.module.main.Main
 import io.mockk.every
@@ -33,14 +31,10 @@ class ConfigScreenTest {
     private val comicDirVM = mockk<ComicDirectoryViewModel>(relaxed = true)
     private val comicDexVM = mockk<ComicMetadataViewModel>(relaxed = true)
     private val metadataVM = mockk<MetadataSettingsViewModel>(relaxed = true)
-    private val themeVM = mockk<ThemeViewModel>(relaxed = true)
 
     @Before
     fun setUp() {
         val emptyEvents = MutableSharedFlow<UserMessage>().asSharedFlow()
-
-        every { themeVM.currentTheme } returns MutableStateFlow(AppTheme.CATPPUCCIN)
-        every { themeVM.uiEvents } returns emptyEvents
 
         every { metadataVM.generateComicInfo } returns MutableStateFlow(true)
         every { metadataVM.metadataLanguage } returns MutableStateFlow(null)
@@ -71,7 +65,6 @@ class ConfigScreenTest {
                         fileSystemAccessViewModel = fsAccessVM,
                         comicDirectoryViewModel = comicDirVM,
                         comicDexViewModel = comicDexVM,
-                        themeViewModel = themeVM,
                         onNavigateToTemplates = {},
                     )
                 }
@@ -82,7 +75,7 @@ class ConfigScreenTest {
         // ConfigScreen.kt) em vez do antigo SectionHeader com .uppercase() — o texto exibido
         // é o valor exato do strings.xml, sem transformação de caixa.
         composeTestRule
-            .onNodeWithText("Aparência", useUnmergedTree = true)
+            .onNodeWithText("Categorias e Marcações", useUnmergedTree = true)
             .performScrollTo()
             .assertIsDisplayed()
 

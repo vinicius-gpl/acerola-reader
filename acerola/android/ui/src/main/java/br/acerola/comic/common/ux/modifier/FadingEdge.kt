@@ -9,8 +9,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 // Sinaliza visualmente que uma LazyRow continua além da borda visível — sem isso, se o
-// item couber um número exato de vezes na largura da tela (caso do carrossel de temas em
-// ThemeSettings.kt), a lista parece uma grade fechada em vez de algo pra arrastar.
+// item couber um número exato de vezes na largura da tela, a lista parece uma grade fechada em vez de algo pra arrastar.
 // `edgeColor` deve ser a cor de fundo por trás da lista, pra dissolver nela.
 fun Modifier.horizontalScrollFade(
     state: LazyListState,

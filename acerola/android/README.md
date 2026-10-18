@@ -90,10 +90,7 @@ flowchart LR
 
 * **Personalização**
 
-  * Temas Catppuccin.
-  * Dracula.
-  * Alucard.
-  * Nord.
+  * Tema claro e escuro (seguindo o sistema).
   * Outras opções de customização da interface.
 
 ---
