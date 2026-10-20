@@ -27,7 +27,8 @@ use rand::RngCore;
 
 use crate::infra::error::ComicError;
 
-const KEYRING_SERVICE: &str = "br.acerola.comic";
+const KEYRING_SERVICE: &str = "Acerola Reader";
+const LEGACY_KEYRING_SERVICES: &[&str] = &["br.acerola.reader", "br.acerola.comic"];
 const KEYRING_USERNAME: &str = "p2p-master-key";
 const MASTER_KEY_LEN: usize = 32;
 /// Nome propositalmente explícito — se alguém ver esse arquivo no disco, o nome já
@@ -79,9 +80,31 @@ fn try_keyring_master_key() -> keyring::Result<[u8; MASTER_KEY_LEN]> {
             key.copy_from_slice(&bytes);
             Ok(key)
         },
-        // Ausente (primeiro uso) ou corrompida/tamanho errado — gera e salva uma nova.
-        // `set_secret` falhando aqui É um sinal real de backend indisponível.
+        // Ausente (primeiro uso) ou corrompida/tamanho errado — tenta migrar de serviços antigos
+        // antes de gerar uma nova.
         Ok(_) | Err(keyring::Error::NoEntry) => {
+            for &legacy_service in LEGACY_KEYRING_SERVICES {
+                if let Ok(old_entry) = keyring::Entry::new(legacy_service, KEYRING_USERNAME) {
+                    if let Ok(old_bytes) = old_entry.get_secret() {
+                        if old_bytes.len() == MASTER_KEY_LEN {
+                            let mut key = [0u8; MASTER_KEY_LEN];
+                            key.copy_from_slice(&old_bytes);
+                            if let Err(save_err) = entry.set_secret(&key) {
+                                tracing::warn!(
+                                    error = %save_err,
+                                    "Failed to persist migrated master key to new keyring service"
+                                );
+                            } else {
+                                tracing::info!(
+                                    "Migrated master key from '{legacy_service}' to '{KEYRING_SERVICE}'"
+                                );
+                            }
+                            return Ok(key);
+                        }
+                    }
+                }
+            }
+
             let mut key = [0u8; MASTER_KEY_LEN];
             rand::thread_rng().fill_bytes(&mut key);
             entry.set_secret(&key)?;

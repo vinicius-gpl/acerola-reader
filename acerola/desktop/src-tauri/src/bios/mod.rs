@@ -1,4 +1,5 @@
 pub mod db;
+pub mod migration;
 pub mod network;
 pub mod scopes;
 

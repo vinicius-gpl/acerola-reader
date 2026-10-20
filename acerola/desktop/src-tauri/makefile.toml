@@ -139,7 +139,7 @@ description = "Run full continuous delivery build and organize artifacts"
 [env]
 MSIX_BG_COLOR = "#1e1e2e"
 MSIX_DESCRIPTION = "Aplicativo para ler e gerenciar bibliotecas de quadrinhos locais."
-MSIX_DISPLAY_NAME = "Acerola"
+MSIX_DISPLAY_NAME = "Acerola Reader"
 MSIX_PACKAGE_NAME = "acerola"
 MSIX_PUBLISHER = "CN=Vinícius Gabriel Pereira Leitão"
 MSIX_PUBLISHER_DISPLAY_NAME = "Vinícius Gabriel Pereira Leitão"
