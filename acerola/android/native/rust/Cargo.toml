@@ -29,15 +29,15 @@ tokio-util = { version = "0.7", features = ["codec"] }
 tracing = "0.1.44"
 tracing-log = "0.2.0"
 tracing-subscriber = { version = "0.3.23", features = ["fmt"] }
-uniffi = {version = "0.28.0", features = ["cli", "tokio"]}
+uniffi = {version = "0.32.2", features = ["cli", "tokio"]}
 
 [target.'cfg(target_os = "android")'.dependencies]
-jni = {version = "0.21", default-features = false}
+jni = {version = "0.22", default-features = false}
 ndk-context = "0.1"
 tracing-android = "0.2.0"
 
 [build-dependencies]
-uniffi = {version = "0.28.0", features = ["build"]}
+uniffi = {version = "0.32.2", features = ["build"]}
 
 [dev-dependencies]
 blake3 = "1.5"
